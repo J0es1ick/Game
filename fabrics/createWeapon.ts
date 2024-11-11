@@ -1,6 +1,6 @@
 import { getRandomArrayElement } from "../utils/randomization/getRandomArrayElement";
 import { getRandomNumber } from "../utils/randomization/getRandomNumber";
-import { IBow, IStick, ISword, IWeapon } from "../weapon";
+import { IWeapon } from "../weapon";
 
 export function createWeapon(weaponType: string): IWeapon {
   let weapon: IWeapon;

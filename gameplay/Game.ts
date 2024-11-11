@@ -53,8 +53,15 @@ export class Game {
 
   public async start() {
     Logger.log("Игра началась!");
+    let listOfPlayers = "Список участников: \n\n";
+    listOfPlayers += this.players
+      .map((player) => `(${player.playerClassName}) ${player.playerName}`)
+      .join("\n\n");
+    Logger.log(listOfPlayers);
     await this.tournament(this.players);
-    Logger.log(`Победитель: ${this.players[0].playerName}`);
+    Logger.log(
+      `Победитель: (${this.players[0].playerClassName}) ${this.players[0].playerName}`
+    );
   }
 
   private async tournament(players: Player[]): Promise<Player> {

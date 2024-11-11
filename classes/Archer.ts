@@ -1,11 +1,14 @@
 import { Player } from "../abstract/Player";
+import { createWeapon } from "../fabrics";
 import { ISkills } from "../skills/ISkills";
 import { getRandomArrayElement } from "../utils/randomization/getRandomArrayElement";
+import { IWeapon } from "../weapon";
 
 export class Archer extends Player {
   protected className: string = "Archer";
   protected skill?: ISkills;
   protected skillBuff: number = 0;
+  protected weapon: IWeapon;
 
   constructor(health: number, strength: number, name: string) {
     super(health, strength, name);
@@ -32,6 +35,7 @@ export class Archer extends Player {
         return 0;
       },
     });
+    this.weapon = createWeapon("bow");
   }
 
   public useSkill(opponent: Player): string | null {
@@ -51,7 +55,7 @@ export class Archer extends Player {
       this.skill!.name
     }) на (${opponent.playerClassName}) ${opponent.playerName}`;
     if (damageDealt > 0) {
-      message += ` и наносит урон ${damageDealt}`;
+      message += ` и наносит урон ${damageDealt + this.weapon.damage}`;
     }
     return message;
   }
@@ -66,11 +70,13 @@ export class Archer extends Player {
       if (this.skillBuff === this.skill?.turns) {
         this.strength -= this.skill.damage!;
       }
-      opponent.takeDamage(this.strength);
-      return `(${this.playerClassName}) ${this.playerName} наносит урон ${this.strength} противнику (${opponent.playerClassName}) ${opponent.playerName}`;
+      opponent.takeDamage(this.strength + this.weapon.damage);
+      return `(${this.playerClassName}) ${this.playerName} наносит урон ${
+        this.strength + this.weapon.damage
+      } противнику (${opponent.playerClassName}) ${opponent.playerName}`;
     } else if (this.isAlivePlayer && this.isCharmed) {
       this.gettingCharmed(false);
-      return opponent.takeDamage(this.strength);
+      return opponent.takeDamage(this.strength + this.weapon.damage);
     }
   }
 }

@@ -1,10 +1,13 @@
 import { Player } from "../abstract/Player";
+import { createWeapon } from "../fabrics";
 import { ISkills } from "../skills/ISkills";
+import { IWeapon } from "../weapon";
 
 export class Vizard extends Player {
   protected className: string = "Vizard";
   protected countOfSkills: number = 0;
   protected skill?: ISkills;
+  protected weapon: IWeapon;
 
   public get countOfVizardSkills() {
     return this.countOfSkills;
@@ -24,12 +27,15 @@ export class Vizard extends Player {
         return 0;
       },
     });
+    this.weapon = createWeapon("stick");
   }
 
   public attack(opponent: Player): string | undefined {
     if (this.isAlivePlayer && !this.isCharmed) {
-      opponent.takeDamage(this.strength);
-      return `(${this.playerClassName}) ${this.playerName} наносит урон ${this.strength} противнику (${opponent.playerClassName}) ${opponent.playerName}`;
+      opponent.takeDamage(this.strength + this.weapon.damage);
+      return `(${this.playerClassName}) ${this.playerName} наносит урон ${
+        this.strength + this.weapon.damage
+      } противнику (${opponent.playerClassName}) ${opponent.playerName}`;
     } else if (this.isAlivePlayer && this.isCharmed) {
       this.gettingCharmed(false);
       return opponent.takeDamage(this.strength);
