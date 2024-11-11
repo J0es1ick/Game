@@ -1,8 +1,7 @@
 import { Player } from "../abstract/Player";
-import { Knight } from "../classes/Knight";
-import { Archer } from "../classes/Archer";
-import { Vizard } from "../classes/Vizard";
+import { Knight, Vizard, Archer } from "../classes";
 import { Logger } from "../utils/output/Logger";
+import { createPlayer } from "../fabrics";
 import { getRandomNumber } from "../utils/randomization/getRandomNumber";
 import { getRandomArrayElement } from "../utils/randomization/getRandomArrayElement";
 
@@ -41,7 +40,7 @@ export class Game {
       const name = getRandomArrayElement(names);
       const health = getRandomNumber(75, 100);
       const strength = getRandomNumber(15, 20);
-      const player = this.createPlayer(name!, health, strength);
+      const player = createPlayer(name!, health, strength);
       this.players.push(player);
       this.initialHealth.push(player.healthPoints);
       this.initialStrength.push(player.strengthPoints);
@@ -50,12 +49,6 @@ export class Game {
 
   public get playersCount() {
     return this.players;
-  }
-
-  private createPlayer(name: string, health: number, strength: number): Player {
-    const types = [Knight, Archer, Vizard];
-    const PlayerClass = getRandomArrayElement(types);
-    return new PlayerClass!(health, strength, name);
   }
 
   public async start() {
