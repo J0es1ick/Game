@@ -1,0 +1,11 @@
+{
+  "name": "game",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "ts-node --script-mode src/index.ts"
+  },
+  "author": "",
+  "license": "ISC"
+}
