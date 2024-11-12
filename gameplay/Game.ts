@@ -1,17 +1,14 @@
 import { Player } from "../abstract/Player";
 import { Knight, Vizard, Archer } from "../classes";
 import { Logger } from "../utils/output/Logger";
-import { createPlayer } from "../fabrics";
-import { getRandomNumber } from "../utils/randomization/getRandomNumber";
-import { getRandomArrayElement } from "../utils/randomization/getRandomArrayElement";
+import { createPlayer, createPlayers } from "../fabrics";
 
 export class Game {
   private players: Player[] = [];
   private initialHealth: number[] = [];
   private initialStrength: number[] = [];
 
-  constructor(playerCount: number) {
-    this.players = [];
+  constructor(private playerCount: number) {
     const names = [
       "Эльдар",
       "Артур",
@@ -36,11 +33,8 @@ export class Game {
       "Мира",
     ];
 
-    for (let i = 0; i < playerCount; i++) {
-      const name = getRandomArrayElement(names);
-      const health = getRandomNumber(75, 100);
-      const strength = getRandomNumber(15, 20);
-      const player = createPlayer(name!, health, strength);
+    for (let i = 0; i < playerCount - 1; i++) {
+      const player = createPlayers(names);
       this.players.push(player);
       this.initialHealth.push(player.healthPoints);
       this.initialStrength.push(player.strengthPoints);
@@ -52,6 +46,14 @@ export class Game {
   }
 
   public async start() {
+    const player = await createPlayer();
+    if (player) {
+      this.players.push(player);
+      this.initialHealth.push(player.healthPoints);
+      this.initialStrength.push(player.strengthPoints);
+    } else {
+      console.log("Не удалось создать игрока.");
+    }
     Logger.log("Игра началась!");
     let listOfPlayers = "Список участников: \n\n";
     listOfPlayers += this.players

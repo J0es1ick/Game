@@ -16,13 +16,10 @@ export class Archer extends Player {
       name: "Огненные стрелы",
       damage: 2,
       isAvailable: true,
+      isDeflectable: ["Knight"],
       effect: (opponent) => {
-        if (opponent.playerClassName === "Knight") {
-          return 0;
-        } else {
-          this.strength += 2;
-          return 0;
-        }
+        this.strength += 2;
+        return 0;
       },
     });
     this.addSkill({
@@ -51,6 +48,9 @@ export class Archer extends Player {
     this.skill = getRandomArrayElement(availableSkills);
     this.skillUsed = true;
     const damageDealt = this.skill!.effect(opponent);
+    if (this.skill?.isDeflectable?.indexOf(opponent.playerClassName) !== -1) {
+      this.strength -= this.skill!.damage!;
+    }
     let message = `(${this.playerClassName}) ${this.playerName} использует (${
       this.skill!.name
     }) на (${opponent.playerClassName}) ${opponent.playerName}`;

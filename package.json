@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "ts-node --script-mode src/index.ts"
+    "dev": "ts-node --script-mode index.ts"
   },
   "author": "",
   "license": "ISC"

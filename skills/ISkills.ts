@@ -5,5 +5,6 @@ export interface ISkills {
   damage?: number;
   turns?: number;
   isAvailable: boolean;
+  isDeflectable?: string[];
   effect: (opponent: Player) => number;
 }
