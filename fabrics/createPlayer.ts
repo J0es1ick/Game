@@ -1,6 +1,7 @@
 import * as readline from "readline";
 import { Player } from "../abstract/Player";
 import { Knight, Archer, Vizard } from "../classes";
+import { readQuestion } from "../utils/question/question";
 
 export async function createPlayer(): Promise<Player | null> {
   let playerType: typeof Knight | typeof Archer | typeof Vizard;
@@ -10,22 +11,9 @@ export async function createPlayer(): Promise<Player | null> {
 
   const types = [Knight, Archer, Vizard];
 
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  const question = (query: string): Promise<string> => {
-    return new Promise((resolve) => {
-      rl.question(query, (answer) => {
-        resolve(answer);
-      });
-    });
-  };
-
   async function askForClass(): Promise<void> {
     while (true) {
-      const playerClass = await question(
+      const playerClass = await readQuestion(
         "Выберите класс своего героя: 1. Knight, 2. Archer, 3. Wizard: "
       );
       const number = parseInt(playerClass);
@@ -40,7 +28,7 @@ export async function createPlayer(): Promise<Player | null> {
 
   async function askForName(): Promise<void> {
     while (true) {
-      playerName = await question("Напишите имя своего героя: ");
+      playerName = await readQuestion("Напишите имя своего героя: ");
       if (playerName.trim() === "") {
         console.log("Некорректный ввод. Пожалуйста, попробуйте снова.");
       } else {
@@ -51,7 +39,7 @@ export async function createPlayer(): Promise<Player | null> {
 
   async function askForHealth(): Promise<void> {
     while (true) {
-      const healthInput = await question(
+      const healthInput = await readQuestion(
         "Напишите количество здоровья для своего героя (от 75 до 100): "
       );
       const number = parseInt(healthInput);
@@ -66,7 +54,7 @@ export async function createPlayer(): Promise<Player | null> {
 
   async function askForStrength(): Promise<void> {
     while (true) {
-      const strengthInput = await question(
+      const strengthInput = await readQuestion(
         "Напишите количество силы для своего героя (от 15 до 20): "
       );
       const number = parseInt(strengthInput);
@@ -83,8 +71,6 @@ export async function createPlayer(): Promise<Player | null> {
   await askForName();
   await askForHealth();
   await askForStrength();
-
-  rl.close();
 
   return new playerType!(playerHealth, playerStrength, playerName);
 }

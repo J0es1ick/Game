@@ -140,10 +140,15 @@ export class Game {
       turn++;
     }
 
+    this.updatePlayersArray();
     return fighters.find((player) => player.healthPoints > 0)!;
   }
 
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private updatePlayersArray() {
+    this.players = this.players.filter((player) => player.isAlivePlayer);
   }
 }

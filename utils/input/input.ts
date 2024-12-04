@@ -1,15 +1,9 @@
-import * as readline from "readline";
-
 import { Game } from "../../gameplay/Game";
+import { readQuestion } from "../question/question";
 
 export function input(): void {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
   async function askForPlayers() {
-    const inputNumber = await question(
+    const inputNumber = await readQuestion(
       "Введите число игроков (должно делиться на 4): "
     );
     const number = parseInt(inputNumber);
@@ -17,18 +11,9 @@ export function input(): void {
       console.log("Некорректный ввод. Пожалуйста, попробуйте снова.");
       await askForPlayers();
     } else {
-      rl.close();
       const game = new Game(number);
       await game.start();
     }
-  }
-
-  function question(query: string): Promise<string> {
-    return new Promise((resolve) => {
-      rl.question(query, (answer) => {
-        resolve(answer);
-      });
-    });
   }
 
   askForPlayers();
