@@ -17,7 +17,7 @@ export class Archer extends Player {
       damage: 2,
       isAvailable: true,
       isDeflectable: ["Knight"],
-      effect: (opponent) => {
+      effect: () => {
         this.strength += 2;
         return 0;
       },
@@ -63,12 +63,12 @@ export class Archer extends Player {
   // передавать в класс, получаемый урон созданный объект, копирующий параметры скилла и уже его обрабатывать
 
   public attack(opponent: Player): string | undefined {
-    if (this.isAlivePlayer && !this.isCharmed) {
+    if (this.isAlivePlayer && this.isCharmed) {
       if (this.skillUsed === true) {
         this.skillBuff += 1;
       }
-      if (this.skillBuff === this.skill?.turns) {
-        this.strength -= this.skill.damage!;
+      if (this.skillBuff === this.skill?.turns && this.skill.damage != null) {
+        this.strength -= this.skill.damage;
       }
       opponent.takeDamage(this.strength + this.weapon.damage);
       return `(${this.playerClassName}) ${this.playerName} наносит урон ${

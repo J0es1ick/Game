@@ -23,7 +23,7 @@ export class Knight extends Player {
   }
 
   public attack(opponent: Player): string | undefined {
-    if (this.isAlivePlayer && !this.isCharmed) {
+    if (this.isAlivePlayer && this.isCharmed) {
       opponent.takeDamage(this.strength + this.weapon.damage);
       return `(${this.playerClassName}) ${this.playerName} наносит урон ${
         this.strength + this.weapon.damage
