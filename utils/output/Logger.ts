@@ -1,7 +1,7 @@
 export class Logger {
-  static log(message: string): void {
-    const timestamp = new Date().toISOString();
-    const logEntry = `${timestamp}: ${message}\n`;
+  public static log(message: string): void {
+    const timestamp: string = new Date().toISOString();
+    const logEntry: string = `${timestamp}: ${message}\n`;
     console.log(logEntry);
   }
 }

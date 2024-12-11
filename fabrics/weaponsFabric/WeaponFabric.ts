@@ -10,8 +10,9 @@ export class WeaponFabric implements IWeapon {
     stick: ["Oak Staff", "Elderwood Branch", "Shepherd's Crook"],
     bow: ["Hunter's Bow", "Longbow", "Shortbow"],
   };
-  public name: string = "";
   private types: string[] = ["Огонь", "Яд", "Лёд"];
+
+  public name: string = "";
   public typeOfDamage: string = "";
   public damage: number = getRandomNumber(5, 10);
 

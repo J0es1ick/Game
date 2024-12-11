@@ -8,7 +8,7 @@ export class PlayerFabric {
   private knightFabric = new KnightFabric();
   private wizardFabric = new WizardFabric();
 
-  createPlayer(
+  public createPlayer(
     playerClass: string,
     playerHealth: number,
     playerStrength: number

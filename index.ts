@@ -1,3 +1,3 @@
-import { input } from "./utils/input/input";
+import { createGame } from "./utils/input/createGame";
 
-input();
+createGame();

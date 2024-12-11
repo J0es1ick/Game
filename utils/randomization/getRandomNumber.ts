@@ -6,8 +6,8 @@ export function getRandomNumber(min: number, max: number): number {
     return min;
   }
 
-  const range = max - min + 1;
-  const randomNumber = Math.floor(Math.random() * range) + min;
+  const range: number = max - min + 1;
+  const randomNumber: number = Math.floor(Math.random() * range) + min;
 
   return randomNumber;
 }
