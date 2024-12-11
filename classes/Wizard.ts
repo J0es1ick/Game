@@ -1,8 +1,8 @@
 import { Player } from "../abstract/Player";
 import { IWeapon } from "../weapon/IWeapon";
 
-export class Knight extends Player {
-  public _className: string = "Knight";
+export class Wizard extends Player {
+  public _className: string = "Wizard";
 
   constructor(
     playerHealth: number,
@@ -12,10 +12,9 @@ export class Knight extends Player {
   ) {
     super(playerHealth, playerStrength, playerName, playerWeapon);
     this.addSkill({
-      name: "Удар возмездия",
+      name: "Заворожение",
       effect: (opponent) => {
-        const skillDamage = this.strength * 1.3;
-        opponent.takeDamage(skillDamage + this.weapon.damage);
+        opponent.skipTurns(1);
       },
     });
   }

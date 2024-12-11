@@ -1,95 +1,86 @@
-import { ISkills } from "../skills/ISkills";
-import { getRandomArrayElement } from "../utils/randomization/getRandomArrayElement";
+import { ISkill } from "../skills/ISkill";
+import { getRandomArrayElement } from "../utils/randomization";
+import { IWeapon } from "../weapon/IWeapon";
 
 export abstract class Player {
+  public name: string;
+  public _className?: string;
+  protected initialHealth: number;
   protected health: number;
+  protected initialStrength: number;
   protected strength: number;
-  protected name: string;
-  protected className?: string;
+  protected skills: ISkill[] = [];
+  protected currentSkill?: ISkill;
+  protected skillBuff: number = 0;
+  protected isSkillUsed: boolean = false;
   protected isAlive: boolean = true;
-  protected skillUsed: boolean = false;
-  protected skills: ISkills[] = [];
-  protected isCharmed: boolean = false;
+  protected countOfSkipingTurns: number = 0;
+  protected weapon: IWeapon;
 
-  constructor(gamerHealth: number, gamerStrength: number, gamerName: string) {
-    this.health = gamerHealth;
-    this.strength = gamerStrength;
-    this.name = gamerName;
+  constructor(
+    playerHealth: number,
+    playerStrength: number,
+    playerName: string,
+    playerWeapon: IWeapon
+  ) {
+    this.initialHealth = playerHealth;
+    this.health = this.initialHealth;
+    this.initialStrength = playerStrength;
+    this.strength = this.initialStrength;
+    this.name = playerName;
+    this.weapon = playerWeapon;
   }
 
-  public get healthPoints(): number {
-    return this.health;
+  public get className(): string | undefined {
+    return this._className;
   }
 
-  public set healthPoints(newHealthPoints: number) {
-    this.health = newHealthPoints;
-  }
-
-  public get strengthPoints(): number {
-    return this.strength;
-  }
-
-  public set strengthPoints(newStrengthPoints: number) {
-    this.strength = newStrengthPoints;
-  }
-
-  public get playerName(): string {
-    return this.name;
-  }
-
-  public get playerClassName(): string {
-    return this.className!;
-  }
-
-  public get isAlivePlayer(): boolean {
-    return this.isAlive;
-  }
-
-  public get playerSkillUsed(): boolean {
-    return this.skillUsed;
-  }
-
-  public set playerSkillUsed(value: boolean) {
-    this.skillUsed = value;
-  }
-
-  public addSkill(skill: ISkills): void {
+  protected addSkill(skill: ISkill): void {
     this.skills.push(skill);
   }
 
-  public abstract attack(opponent: Player): string | undefined;
-
-  public useSkill(opponent: Player): string | null {
+  public useSkill(opponent: Player): void | null {
     if (this.skills.length === 0) {
       return null;
     }
 
-    const availableSkills = this.skills.filter((skill) => skill.isAvailable);
-    if (availableSkills.length === 0) {
-      return null;
-    }
-
-    const skill = getRandomArrayElement(availableSkills);
-    this.skillUsed = true;
-    const damageDealt = skill!.effect(opponent);
-    let message = `(${this.playerClassName}) ${this.playerName} использует (${
-      skill!.name
-    }) на (${opponent.playerClassName}) ${opponent.playerName}`;
-    if (damageDealt > 0) {
-      message += ` и наносит урон ${damageDealt}`;
-    }
-    return message;
+    this.currentSkill = getRandomArrayElement(this.skills);
+    this.currentSkill!.effect;
   }
 
-  public takeDamage(damage: number): string | undefined {
+  public attack(opponent: Player): void {
+    if (this.isSkillUsed === true && this.currentSkill!.turns! > 0) {
+      this.skillBuff++;
+    }
+
+    if (this.skillBuff === this.currentSkill!.turns!) {
+      this.strength = this.initialStrength;
+    }
+
+    if (this.countOfSkipingTurns > 0) {
+      this.countOfSkipingTurns--;
+      return;
+    }
+
+    opponent.takeDamage(this.strength + this.weapon.damage);
+  }
+
+  public takeDamage(damage: number): void {
     this.health -= damage;
     if (this.health <= 0) {
       this.isAlive = false;
-      return `(${this.playerClassName}) ${this.playerName} погибает`;
     }
   }
 
-  public gettingCharmed(value: boolean): void {
-    this.isCharmed = value;
+  public heal(amount: number) {
+    if (this.health + amount > this.initialHealth) {
+      this.health = this.initialHealth;
+    } else {
+      this.health = this.health + amount;
+    }
+  }
+
+  public skipTurns(value: number): void {
+    this.countOfSkipingTurns = value;
   }
 }

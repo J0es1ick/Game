@@ -1,6 +1,6 @@
 import * as readline from "readline";
 
-export function readQuestion(query: string): Promise<string> {
+export function readAnswer(query: string): Promise<string> {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,

@@ -1,6 +1,6 @@
 export function getRandomNumber(min: number, max: number): number {
   if (min > max) {
-    throw new Error("Minimum value cannot be greater than maximum value.");
+    return -1;
   }
   if (min === max) {
     return min;

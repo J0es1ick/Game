@@ -1,9 +1,9 @@
 import { Game } from "../../gameplay/Game";
-import { readQuestion } from "../question/question";
+import { readAnswer } from "../question/readAnswer";
 
 export function input(): void {
   async function askForPlayers() {
-    const inputNumber = await readQuestion(
+    const inputNumber = await readAnswer(
       "Введите число игроков (должно делиться на 4): "
     );
     const number = parseInt(inputNumber);
