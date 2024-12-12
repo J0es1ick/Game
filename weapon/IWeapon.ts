@@ -1,5 +1,5 @@
 export interface IWeapon {
-  name: string;
-  damage: number;
-  typeOfDamage: string;
+  get name(): string;
+  get damage(): number;
+  get typeOfDamage(): string;
 }

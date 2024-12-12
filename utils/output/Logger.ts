@@ -1,7 +1,54 @@
+import { Player } from "../../abstract/Player";
+
 export class Logger {
-  public static log(message: string): void {
-    const timestamp: string = new Date().toISOString();
-    const logEntry: string = `${timestamp}: ${message}\n`;
+  static _instance: Logger;
+  private timestamp: string = new Date().toISOString();
+
+  private constructor() {}
+
+  public get instance(): Logger {
+    if (!Logger._instance) {
+      Logger._instance = new Logger();
+    }
+    return Logger._instance;
+  }
+
+  public messageLog(message: string): void {
+    const logEntry: string = `${this.timestamp}: ${message}\n`;
+    console.log(logEntry);
+  }
+
+  public attackLog(attacker: Player, defender: Player): void {
+    const message: string = `(${attacker.className}) ${
+      attacker.name
+    } наносит урон ${attacker.strength + attacker.weapon!.damage!} на ${
+      defender.name
+    } (${defender.className})`;
+    const logEntry: string = `${this.timestamp}: ${message}\n`;
+    console.log(logEntry);
+  }
+
+  public skillLog(attacker: Player, defender: Player): void {
+    let message: string = "";
+    message += `(${attacker.className}) ${attacker.name} использует ${attacker.currentSkill?.name} на ${defender.name} (${defender.className})`;
+    if (attacker.currentSkill?.damage) {
+      message += `и наносит урон ${attacker.currentSkill.damage}`;
+    }
+    const logEntry: string = `${this.timestamp}: ${message}\n`;
+    console.log(logEntry);
+  }
+
+  public skipTurnLog(attacker: Player, defender: Player): void {
+    const message: string = `(${attacker.className}) ${
+      attacker.name
+    } пропускает ход из-за ${defender.currentSkill!.name}`;
+    const logEntry: string = `${this.timestamp}: ${message}\n`;
+    console.log(logEntry);
+  }
+
+  public deathLog(warrior: Player): void {
+    const message: string = `(${warrior.className}) ${warrior.name} умирает`;
+    const logEntry: string = `${this.timestamp}: ${message}\n`;
     console.log(logEntry);
   }
 }

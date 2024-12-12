@@ -3,19 +3,19 @@ import { getRandomArrayElement } from "../utils/randomization";
 import { IWeapon } from "../weapon/IWeapon";
 
 export abstract class Player {
-  public name: string;
-  public _className?: string;
+  protected _name: string;
+  protected _className?: string;
   protected initialHealth: number;
   protected health: number;
   protected initialStrength: number;
-  protected strength: number;
+  protected _strength: number;
   protected skills: ISkill[] = [];
-  protected currentSkill?: ISkill;
+  protected _currentSkill?: ISkill;
   protected skillBuff: number = 0;
   protected isSkillUsed: boolean = false;
   protected isAlive: boolean = true;
   protected countOfSkipingTurns: number = 0;
-  protected weapon: IWeapon;
+  protected _weapon: IWeapon;
 
   constructor(
     playerHealth: number,
@@ -26,13 +26,33 @@ export abstract class Player {
     this.initialHealth = playerHealth;
     this.health = this.initialHealth;
     this.initialStrength = playerStrength;
-    this.strength = this.initialStrength;
-    this.name = playerName;
-    this.weapon = playerWeapon;
+    this._strength = this.initialStrength;
+    this._name = playerName;
+    this._weapon = playerWeapon;
   }
 
   public get className(): string | undefined {
     return this._className;
+  }
+
+  public get name(): string {
+    return this._name;
+  }
+
+  public get strength(): number {
+    return this._strength;
+  }
+
+  public set strength(newStrength) {
+    this._strength = newStrength;
+  }
+
+  public get weapon(): IWeapon | undefined {
+    return this._weapon;
+  }
+
+  public get currentSkill(): ISkill | undefined {
+    return this._currentSkill;
   }
 
   protected addSkill(skill: ISkill): void {
@@ -44,8 +64,10 @@ export abstract class Player {
       return null;
     }
 
-    this.currentSkill = getRandomArrayElement(this.skills);
-    this.currentSkill!.effect;
+    this._currentSkill = getRandomArrayElement(this.skills);
+    if (this._currentSkill) {
+      this._currentSkill.effect(this, opponent);
+    }
   }
 
   public attack(opponent: Player): void {
@@ -54,7 +76,7 @@ export abstract class Player {
     }
 
     if (this.skillBuff === this.currentSkill!.turns!) {
-      this.strength = this.initialStrength;
+      this._strength = this.initialStrength;
     }
 
     if (this.countOfSkipingTurns > 0) {
@@ -62,7 +84,7 @@ export abstract class Player {
       return;
     }
 
-    opponent.takeDamage(this.strength + this.weapon.damage);
+    opponent.takeDamage(this.strength + this._weapon.damage);
   }
 
   public takeDamage(damage: number): void {

@@ -2,7 +2,7 @@ import { Player } from "../abstract/Player";
 
 export interface ISkill {
   name: string;
-  damage?: number;
+  damage?: (caster: Player) => number | undefined;
   turns?: number;
-  effect: (opponent: Player) => void;
+  effect: (caster: Player, opponent: Player) => void;
 }

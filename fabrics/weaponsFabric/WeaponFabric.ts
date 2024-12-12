@@ -12,9 +12,33 @@ export class WeaponFabric implements IWeapon {
   };
   private types: string[] = ["Огонь", "Яд", "Лёд"];
 
-  public name: string = "";
-  public typeOfDamage: string = "";
-  public damage: number = getRandomNumber(5, 10);
+  private _name: string = "";
+  private _typeOfDamage: string = "";
+  private _damage: number = getRandomNumber(5, 10);
+
+  public get name(): string {
+    return this._name;
+  }
+
+  public get typeOfDamage(): string {
+    return this._typeOfDamage;
+  }
+
+  public get damage(): number {
+    return this._damage;
+  }
+
+  private set name(newName: string) {
+    this._name = newName;
+  }
+
+  private set typeOfDamage(newType: string) {
+    this._typeOfDamage = newType;
+  }
+
+  private set damage(newDamage: number) {
+    this._damage = newDamage;
+  }
 
   public createWeapon(weaponType: string): IWeapon {
     let weapon: IWeapon;

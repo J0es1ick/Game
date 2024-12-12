@@ -26,8 +26,8 @@ export function createGame(): void {
         createCharacter();
         break;
       case "нет":
-        const game = new Game(number);
-        await game.start();
+        //const game = new Game(number);
+        //await game.start();
         break;
       default:
         console.log("Некорректный ввод. Пожалуйста, попробуйте снова.");

@@ -1,8 +1,11 @@
 import { Player } from "../abstract/Player";
+import { SkillFabric } from "../fabrics/skillFabric/skillFabric";
 import { IWeapon } from "../weapon/IWeapon";
 
 export class Knight extends Player {
   public _className: string = "Knight";
+
+  private skillFabric = new SkillFabric();
 
   constructor(
     playerHealth: number,
@@ -11,12 +14,6 @@ export class Knight extends Player {
     playerWeapon: IWeapon
   ) {
     super(playerHealth, playerStrength, playerName, playerWeapon);
-    this.addSkill({
-      name: "Удар возмездия",
-      effect: (opponent) => {
-        const skillDamage = this.strength * 1.3;
-        opponent.takeDamage(skillDamage + this.weapon.damage);
-      },
-    });
+    this.addSkill(this.skillFabric.createSkillFromTemplate("Удар возмездия")!);
   }
 }
