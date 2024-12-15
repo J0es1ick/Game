@@ -28,24 +28,12 @@ export class WeaponFabric implements IWeapon {
     return this._damage;
   }
 
-  private set name(newName: string) {
-    this._name = newName;
-  }
-
-  private set typeOfDamage(newType: string) {
-    this._typeOfDamage = newType;
-  }
-
-  private set damage(newDamage: number) {
-    this._damage = newDamage;
-  }
-
   public createWeapon(weaponType: string): IWeapon {
     let weapon: IWeapon;
-    this.typeOfDamage = getRandomArrayElement(this.types)!;
+    this._typeOfDamage = getRandomArrayElement(this.types)!;
     const namesArr: string[] =
       this.names[weaponType.toLowerCase() as keyof typeof this.names];
-    this.name =
+    this._name =
       this.names[weaponType.toLowerCase() as keyof typeof this.names][
         Math.floor(Math.random() * namesArr.length)
       ];

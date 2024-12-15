@@ -1,5 +1,5 @@
 import { Player } from "../abstract/Player";
-import { SkillFabric } from "../fabrics/skillFabric/skillFabric";
+import { SkillFabric } from "../fabrics/skillFabric/SkillFabric";
 import { IWeapon } from "../weapon/IWeapon";
 
 export class Knight extends Player {

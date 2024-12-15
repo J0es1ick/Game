@@ -43,10 +43,6 @@ export abstract class Player {
     return this._strength;
   }
 
-  public set strength(newStrength) {
-    this._strength = newStrength;
-  }
-
   public get weapon(): IWeapon | undefined {
     return this._weapon;
   }
@@ -67,6 +63,8 @@ export abstract class Player {
     this._currentSkill = getRandomArrayElement(this.skills);
     if (this._currentSkill) {
       this._currentSkill.effect(this, opponent);
+      this._currentSkill.usageCount--;
+      this.isSkillUsed = true;
     }
   }
 
@@ -85,6 +83,10 @@ export abstract class Player {
     }
 
     opponent.takeDamage(this.strength + this._weapon.damage);
+  }
+
+  public damageUp(buff: number) {
+    this._strength += buff;
   }
 
   public takeDamage(damage: number): void {
