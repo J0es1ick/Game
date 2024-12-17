@@ -7,7 +7,7 @@ export abstract class Player {
   protected _className?: string;
   protected initialHealth: number;
   protected health: number;
-  protected initialStrength: number;
+  protected _initialStrength: number;
   protected _strength: number;
   protected skills: ISkill[] = [];
   protected _currentSkill?: ISkill;
@@ -25,7 +25,7 @@ export abstract class Player {
   ) {
     this.initialHealth = playerHealth;
     this.health = this.initialHealth;
-    this.initialStrength = playerStrength;
+    this._initialStrength = playerStrength;
     this._strength = this.initialStrength;
     this._name = playerName;
     this._weapon = playerWeapon;
@@ -41,6 +41,10 @@ export abstract class Player {
 
   public get strength(): number {
     return this._strength;
+  }
+
+  public get initialStrength(): number {
+    return this._initialStrength;
   }
 
   public get weapon(): IWeapon | undefined {
@@ -82,14 +86,26 @@ export abstract class Player {
       return;
     }
 
-    opponent.takeDamage(this.strength + this._weapon.damage);
+    if ((this.isSkillUsed = true)) {
+      opponent.takeDamage(
+        this.strength + this._weapon.damage,
+        this,
+        this.currentSkill
+      );
+    } else {
+      opponent.takeDamage(this.strength + this._weapon.damage, this);
+    }
   }
 
   public damageUp(buff: number) {
     this._strength += buff;
   }
 
-  public takeDamage(damage: number): void {
+  public takeDamage(
+    damage: number,
+    attacker: Player,
+    skill: ISkill | undefined = undefined
+  ): void {
     this.health -= damage;
     if (this.health <= 0) {
       this.isAlive = false;

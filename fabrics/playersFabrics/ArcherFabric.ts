@@ -9,12 +9,13 @@ export class ArcherFabric {
   public createArcher(
     names: string[],
     playerHealth: number,
-    playerStrength: number
+    playerStrength: number,
+    playerWeapon: IWeapon
   ) {
     const name: string = getRandomArrayElement(names)!;
     const health: number = playerHealth;
     const strength: number = playerStrength;
-    const weapon: IWeapon = this.weaponFabric.createWeapon("bow");
+    const weapon: IWeapon = playerWeapon;
 
     return new Archer(health, strength, name, weapon);
   }

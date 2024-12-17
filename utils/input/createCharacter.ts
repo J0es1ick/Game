@@ -1,15 +1,22 @@
 import { Player } from "../../abstract/Player";
 import { PlayerFabric } from "../../fabrics/playersFabrics/index";
+import { WeaponFabric } from "../../fabrics/weaponsFabric/WeaponFabric";
+import { Game } from "../../gameplay/Game";
+import { IWeapon } from "../../weapon/IWeapon";
 import { readAnswer } from "../question/readAnswer";
 
-export async function createCharacter(): Promise<Player | undefined> {
+export async function createCharacter(numberOfPlayers: number): Promise<void> {
+  const weaponFabric = new WeaponFabric();
+
   let playerType: string;
   let playerName: string = "";
   let playerHealth: number = 0;
   let playerStrength: number = 0;
+  let playerWeapon: IWeapon;
 
   const playerFabric = new PlayerFabric();
   const types: string[] = ["Knight", "Archer", "Wizard"];
+  const weapons: string[] = ["bow", "sword", "stick"];
 
   async function askForClass(): Promise<void> {
     const playerClass: string = await readAnswer(
@@ -59,10 +66,34 @@ export async function createCharacter(): Promise<Player | undefined> {
       await askForStrength();
     } else {
       playerStrength = number;
+      askForWeapon();
+    }
+  }
+
+  async function askForWeapon(): Promise<void> {
+    const playerClass: string = await readAnswer(
+      "Выберите оружие своего героя: 1. меч, 2. лук, 3. посох: "
+    );
+    const number: number = parseInt(playerClass);
+    if (isNaN(number) || number < 1 || number > 3) {
+      console.log("Некорректный ввод. Пожалуйста, попробуйте снова.");
+      await askForClass();
+    } else {
+      playerWeapon = weaponFabric.createWeapon(weapons[number - 1]);
+      await askForName();
     }
   }
 
   await askForClass();
 
-  return playerFabric.createPlayer(playerType!, playerHealth, playerStrength);
+  const game = new Game(
+    numberOfPlayers - 1,
+    playerFabric.createPlayer(
+      playerType!,
+      playerHealth,
+      playerStrength,
+      playerWeapon!
+    )
+  );
+  await game.start();
 }

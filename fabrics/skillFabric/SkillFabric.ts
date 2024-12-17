@@ -24,7 +24,7 @@ export class SkillFabric {
       damage: (caster: Player) => caster.strength * 1.3,
       effect: (caster: Player, opponent: Player) => {
         const weaponDamage = caster.weapon ? caster.weapon.damage : 0;
-        opponent.takeDamage(caster.strength * 1.3 + weaponDamage);
+        opponent.takeDamage(caster.strength * 1.3 + weaponDamage, caster);
       },
     },
     {
