@@ -1,4 +1,5 @@
 import { Player } from "../../abstract/Player";
+import { ISkill } from "../../skills/ISkill";
 import {
   getRandomArrayElement,
   getRandomNumber,
@@ -19,7 +20,8 @@ export class PlayerFabric {
     playerClass: string,
     playerHealth: number,
     playerStrength: number,
-    playerWeapon: IWeapon
+    playerWeapon: IWeapon,
+    playerSkill: ISkill | undefined = undefined
   ): Player | undefined {
     const names: string[] = [
       "Эльдар",
@@ -50,21 +52,24 @@ export class PlayerFabric {
           names,
           playerHealth,
           playerStrength,
-          playerWeapon
+          playerWeapon,
+          playerSkill
         );
       case "Archer":
         return this.archerFabric.createArcher(
           names,
           playerHealth,
           playerStrength,
-          playerWeapon
+          playerWeapon,
+          playerSkill
         );
       case "Wizard":
         return this.wizardFabric.createWizard(
           names,
           playerHealth,
           playerStrength,
-          playerWeapon
+          playerWeapon,
+          playerSkill
         );
     }
   }

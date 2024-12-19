@@ -1,5 +1,6 @@
 import { Player } from "../abstract/Player";
 import { SkillFabric } from "../fabrics/skillFabric/SkillFabric";
+import { ISkill } from "../skills/ISkill";
 import { IWeapon } from "../weapon/IWeapon";
 
 export class Wizard extends Player {
@@ -11,9 +12,11 @@ export class Wizard extends Player {
     playerHealth: number,
     playerStrength: number,
     playerName: string,
-    playerWeapon: IWeapon
+    playerWeapon: IWeapon,
+    playerSkill: ISkill | undefined = undefined
   ) {
-    super(playerHealth, playerStrength, playerName, playerWeapon);
-    this.addSkill(this.skillFabric.createSkillFromTemplate("Заворожение")!);
+    super(playerHealth, playerStrength, playerName, playerWeapon, playerSkill);
+    this.addSkill(this.skillFabric.createSkillFromTemplate("заворожение")!);
+    this.addSkill(this.skillFabric.createSkillFromTemplate("ледяные стрелы")!);
   }
 }

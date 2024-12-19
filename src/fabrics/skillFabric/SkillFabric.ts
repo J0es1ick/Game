@@ -21,7 +21,7 @@ export class SkillFabric {
     {
       name: "удар возмездия",
       usageCount: 1,
-      damage: (caster: Player) => caster.strength * 1.3,
+      damage: (caster: Player) => caster.strength * 1.3 + caster.weapon.damage,
       effect: (caster: Player, opponent: Player) => {
         const weaponDamage = caster.weapon ? caster.weapon.damage : 0;
         opponent.takeDamage(caster.strength * 1.3 + weaponDamage, caster);
@@ -55,7 +55,7 @@ export class SkillFabric {
 
   public createSkillFromTemplate(templateName: string): ISkill | undefined {
     const skillTemplate = this.skillsTemplate.find(
-      (skill) => skill.name === templateName.toLowerCase()
+      (skill) => skill.name === templateName
     );
     if (!skillTemplate) {
       return undefined;

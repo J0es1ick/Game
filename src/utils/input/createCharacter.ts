@@ -9,7 +9,6 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
   const weaponFabric = new WeaponFabric();
 
   let playerType: string;
-  let playerName: string = "";
   let playerHealth: number = 0;
   let playerStrength: number = 0;
   let playerWeapon: IWeapon;
@@ -28,16 +27,6 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
       await askForClass();
     } else {
       playerType = types[number - 1];
-      await askForName();
-    }
-  }
-
-  async function askForName(): Promise<void> {
-    playerName = await readAnswer("Напишите имя своего героя: ");
-    if (playerName.trim() === "") {
-      console.log("Некорректный ввод. Пожалуйста, попробуйте снова.");
-      await askForName();
-    } else {
       await askForHealth();
     }
   }
@@ -66,7 +55,7 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
       await askForStrength();
     } else {
       playerStrength = number;
-      askForWeapon();
+      await askForWeapon();
     }
   }
 
@@ -77,10 +66,9 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
     const number: number = parseInt(playerClass);
     if (isNaN(number) || number < 1 || number > 3) {
       console.log("Некорректный ввод. Пожалуйста, попробуйте снова.");
-      await askForClass();
+      await askForWeapon();
     } else {
       playerWeapon = weaponFabric.createWeapon(weapons[number - 1]);
-      await askForName();
     }
   }
 

@@ -1,5 +1,6 @@
 import { Player } from "../abstract/Player";
 import { SkillFabric } from "../fabrics/skillFabric/SkillFabric";
+import { ISkill } from "../skills/ISkill";
 import { IWeapon } from "../weapon/IWeapon";
 
 export class Archer extends Player {
@@ -11,13 +12,14 @@ export class Archer extends Player {
     playerHealth: number,
     playerStrength: number,
     playerName: string,
-    playerWeapon: IWeapon
+    playerWeapon: IWeapon,
+    playerSkill: ISkill | undefined = undefined
   ) {
-    super(playerHealth, playerStrength, playerName, playerWeapon);
+    super(playerHealth, playerStrength, playerName, playerWeapon, playerSkill);
     const firstSkill =
-      this.skillFabric.createSkillFromTemplate("Ледяные стрелы")!;
+      this.skillFabric.createSkillFromTemplate("ледяные стрелы")!;
     firstSkill.usageCount = 2;
     this.addSkill(firstSkill);
-    this.addSkill(this.skillFabric.createSkillFromTemplate("Огненные стрелы")!);
+    this.addSkill(this.skillFabric.createSkillFromTemplate("огненные стрелы")!);
   }
 }

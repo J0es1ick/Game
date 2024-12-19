@@ -12,10 +12,12 @@ export class Knight extends Player {
     playerHealth: number,
     playerStrength: number,
     playerName: string,
-    playerWeapon: IWeapon
+    playerWeapon: IWeapon,
+    playerSkill: ISkill | undefined = undefined
   ) {
-    super(playerHealth, playerStrength, playerName, playerWeapon);
-    this.addSkill(this.skillFabric.createSkillFromTemplate("Удар возмездия")!);
+    super(playerHealth, playerStrength, playerName, playerWeapon, playerSkill);
+    this.addSkill(this.skillFabric.createSkillFromTemplate("удар возмездия")!);
+    this.addSkill(this.skillFabric.createSkillFromTemplate("ледяные стрелы")!);
   }
 
   public takeDamage(
@@ -26,9 +28,9 @@ export class Knight extends Player {
     if (skill !== undefined && skill.name === "ледяные стрелы") {
       damage = attacker.initialStrength;
     }
-    this.health -= damage;
-    if (this.health <= 0) {
-      this.isAlive = false;
+    this._health -= damage;
+    if (this._health <= 0) {
+      this._isAlive = false;
     }
   }
 }
