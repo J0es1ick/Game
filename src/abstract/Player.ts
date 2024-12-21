@@ -11,7 +11,6 @@ export abstract class Player {
   protected _strength: number;
   protected skills: ISkill[] = [];
   protected _currentSkill?: ISkill;
-  protected initialSkillUsage: number = 1;
   protected skillBuff: number = 0;
   protected _isSkillUsed: boolean = false;
   protected _isAlive: boolean = true;
@@ -94,8 +93,7 @@ export abstract class Player {
     }
 
     if (this._currentSkill) {
-      this._currentSkill.effect(this, opponent);
-      this.initialSkillUsage = this._currentSkill.usageCount;
+      this._currentSkill.effect!(this, opponent);
       this._currentSkill.usageCount--;
       this._isSkillUsed = true;
     }
@@ -103,15 +101,28 @@ export abstract class Player {
 
   public attack(opponent: Player): void {
     if (this.currentSkill !== undefined) {
-      if (this._isSkillUsed === true && this.currentSkill.usageCount > 0) {
+      if (this._isSkillUsed && this.currentSkill.usageCount > 0) {
         this._isSkillUsed = false;
-        this.skillBuff++;
+        const skillIndex = this.skills.findIndex(
+          (skill) => skill.name === this.currentSkill!.name
+        );
+        if (skillIndex !== -1) {
+          this.skills[skillIndex].isUsed = true;
+        }
       }
 
-      if (this.skillBuff > this.currentSkill.turns!) {
-        this._strength = this.initialStrength;
-      }
+      this.skills.forEach((skill) => {
+        if (skill.isUsed && skill.turns! <= 0 && skill.buff) {
+          this._strength -= skill.buff.strength || 0;
+        }
+      });
     }
+
+    this.skills.forEach((skill: ISkill) => {
+      if (skill.isUsed) {
+        skill.turns!--;
+      }
+    });
 
     if (this.countOfSkipingTurns > 0) {
       this._countOfSkipingTurns--;
@@ -156,9 +167,11 @@ export abstract class Player {
     this._health = this.initialHealth;
     this._strength = this.initialStrength;
     this._isSkillUsed = false;
-    if (this._currentSkill !== undefined) {
-      this._currentSkill.usageCount = this.initialSkillUsage;
-    }
+    this.skills.forEach((skill) => {
+      skill.usageCount = skill.initialSkillUsage;
+      skill.isUsed = false;
+      skill.turns = skill.initialTurns;
+    });
   }
 
   public skipTurns(value: number): void {
