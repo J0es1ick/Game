@@ -1,21 +1,30 @@
-import { Player } from "../../abstract/Player";
 import { PlayerFabric } from "../../fabrics/playersFabrics/index";
+import { SkillFabric } from "../../fabrics/skillFabric/SkillFabric";
 import { WeaponFabric } from "../../fabrics/weaponsFabric/WeaponFabric";
 import { Game } from "../../gameplay/Game";
+import { ISkill } from "../../skills/ISkill";
 import { IWeapon } from "../../weapon/IWeapon";
 import { readAnswer } from "../question/readAnswer";
 
 export async function createCharacter(numberOfPlayers: number): Promise<void> {
   const weaponFabric = new WeaponFabric();
+  const skillFabric = new SkillFabric();
 
   let playerType: string;
   let playerHealth: number = 0;
   let playerStrength: number = 0;
   let playerWeapon: IWeapon;
+  let playerSkills: ISkill[] = [];
 
   const playerFabric = new PlayerFabric();
   const types: string[] = ["Knight", "Archer", "Wizard"];
   const weapons: string[] = ["bow", "sword", "stick"];
+  const skillNames: string[] = [
+    "огненные стрелы",
+    "ледяные стрелы",
+    "удар возмездия",
+    "заворожение",
+  ];
 
   async function askForClass(): Promise<void> {
     const playerClass: string = await readAnswer(
@@ -68,20 +77,64 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
       console.log("Некорректный ввод. Пожалуйста, попробуйте снова.");
       await askForWeapon();
     } else {
-      playerWeapon = weaponFabric.createWeapon(weapons[number - 1]);
+      playerWeapon = weaponFabric.createRandomWeapon(weapons[number - 1]);
+      await askForSkills();
+    }
+  }
+
+  async function askForSkills(): Promise<void> {
+    const playerClass: string = await readAnswer(
+      "Выберите скиллы своего героя: 1. огненные стрелы, 2. ледяные стрелы, 3. удар возмездия, 4. заворожение. \nДля старта со стандартными навыками класса, напишите 5. Для выхода напишите 6 : "
+    );
+    const number: number = parseInt(playerClass);
+    if (isNaN(number) || number < 1 || number > 6) {
+      console.log("Некорректный ввод. Пожалуйста, попробуйте снова.");
+      await askForSkills();
+    } else if (number < 5 && number > 0) {
+      if (playerSkills.length > 2) {
+        console.log("У вас уже максимальное количество скиллов");
+      } else {
+        playerSkills.push(
+          skillFabric.createSkillFromTemplate(skillNames[number - 1])!
+        );
+      }
+      await askForSkills();
+    } else if (number === 6) {
+      if (playerSkills.length > 0) {
+        return;
+      } else {
+        console.log("Выберите хотя бы один скилл");
+        await askForSkills();
+      }
+    } else {
+      return;
     }
   }
 
   await askForClass();
 
-  const game = new Game(
-    numberOfPlayers - 1,
-    playerFabric.createPlayer(
-      playerType!,
-      playerHealth,
-      playerStrength,
-      playerWeapon!
-    )
-  );
-  await game.start();
+  if (playerSkills.length !== 0) {
+    const game = new Game(
+      numberOfPlayers - 1,
+      playerFabric.createPlayer(
+        playerType!,
+        playerHealth,
+        playerStrength,
+        playerWeapon!,
+        playerSkills
+      )
+    );
+    await game.start();
+  } else {
+    const game = new Game(
+      numberOfPlayers - 1,
+      playerFabric.createPlayer(
+        playerType!,
+        playerHealth,
+        playerStrength,
+        playerWeapon!
+      )
+    );
+    await game.start();
+  }
 }

@@ -21,7 +21,7 @@ export class PlayerFabric {
     playerHealth: number,
     playerStrength: number,
     playerWeapon: IWeapon,
-    playerSkill: ISkill | undefined = undefined
+    playerSkills: ISkill[] | null = null
   ): Player | undefined {
     const names: string[] = [
       "Эльдар",
@@ -53,7 +53,7 @@ export class PlayerFabric {
           playerHealth,
           playerStrength,
           playerWeapon,
-          playerSkill
+          playerSkills
         );
       case "Archer":
         return this.archerFabric.createArcher(
@@ -61,7 +61,7 @@ export class PlayerFabric {
           playerHealth,
           playerStrength,
           playerWeapon,
-          playerSkill
+          playerSkills
         );
       case "Wizard":
         return this.wizardFabric.createWizard(
@@ -69,7 +69,7 @@ export class PlayerFabric {
           playerHealth,
           playerStrength,
           playerWeapon,
-          playerSkill
+          playerSkills
         );
     }
   }
@@ -79,7 +79,7 @@ export class PlayerFabric {
     const classes: string[] = ["Knight", "Archer", "Wizard"];
     const weapons: string[] = ["bow", "sword", "stick"];
     const playerClass: string = getRandomArrayElement(classes)!;
-    const playerWeapon: IWeapon = this.weaponFabric.createWeapon(
+    const playerWeapon: IWeapon = this.weaponFabric.createRandomWeapon(
       getRandomArrayElement(weapons)!
     );
     const health: number = getRandomNumber(125, 150);

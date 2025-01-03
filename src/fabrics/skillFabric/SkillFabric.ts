@@ -76,12 +76,12 @@ export class SkillFabric {
     return skill;
   }
 
-  public createSkillFromTemplate(templateName: string): ISkill | undefined {
+  public createSkillFromTemplate(templateName: string): ISkill | null {
     const skillTemplate = this.skillsTemplate.find(
       (skill) => skill.name === templateName
     );
     if (!skillTemplate) {
-      return undefined;
+      return null;
     }
 
     return this.createSkill(
