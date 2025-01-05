@@ -1,8 +1,11 @@
 import { Game } from "../../gameplay/Game";
+import { Logger } from "../output/Logger";
 import { readAnswer } from "../question/readAnswer";
 import { createCharacter } from "./createCharacter";
 
 export function createGame(): void {
+  const logger = new Logger();
+
   let number: number;
   async function askForPlayers() {
     const inputNumber: string = await readAnswer(
@@ -26,7 +29,7 @@ export function createGame(): void {
         createCharacter(number);
         break;
       case "нет":
-        const game = new Game(number);
+        const game = new Game(number, undefined, logger);
         await game.start();
         break;
       default:

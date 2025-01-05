@@ -16,10 +16,12 @@ describe("Knight class methods tests", () => {
         skillFabric.createSkillFromTemplate("ледяные стрелы")!,
       ]
     );
-    expect(newKnight.health).toEqual(75);
+    expect(newKnight).toBeInstanceOf(Knight);
+    expect(newKnight.health).toBe(75);
     expect(newKnight.strength).toBe(25);
     expect(newKnight.name).toBe("Ibragim");
   });
+
   describe("Get methods tests", () => {
     const weaponFabric = new WeaponFabric();
     const skillFabric = new SkillFabric();
@@ -33,8 +35,9 @@ describe("Knight class methods tests", () => {
         skillFabric.createSkillFromTemplate("ледяные стрелы")!,
       ]
     );
+
     it("Health get test", () => {
-      expect(newKnight.health).toEqual(75);
+      expect(newKnight.health).toBe(75);
     });
     it("Strength get test", () => {
       expect(newKnight.strength).toBe(25);
@@ -57,7 +60,7 @@ describe("Knight class methods tests", () => {
       expect(newKnight.isSkillUsed).toBe(true);
     });
     it("InitialHealth get test", () => {
-      expect(newKnight.initialHealth).toEqual(75);
+      expect(newKnight.initialHealth).toBe(75);
     });
     it("InitialStrength get test", () => {
       expect(newKnight.initialStrength).toBe(25);
@@ -80,35 +83,7 @@ describe("Knight class methods tests", () => {
       expect(newKnight.countOfSkipingTurns).toBe(1);
     });
   });
-  describe("Knight methods tests", () => {
-    const weaponFabric = new WeaponFabric();
-    const skillFabric = new SkillFabric();
-    const newKnight = new Knight(
-      75,
-      25,
-      "Ibragim",
-      weaponFabric.createRandomWeapon("sword"),
-      [
-        skillFabric.createSkillFromTemplate("удар возмездия")!,
-        skillFabric.createSkillFromTemplate("ледяные стрелы")!,
-      ]
-    );
-    const opponent = new Knight(
-      86,
-      26,
-      "Mustafa",
-      weaponFabric.createRandomWeapon("sword"),
-      [
-        skillFabric.createSkillFromTemplate("удар возмездия")!,
-        skillFabric.createSkillFromTemplate("ледяные стрелы")!,
-      ]
-    );
-    it('Should change the propertie "skillUsed" to true', () => {
-      newKnight.choseSkill();
-      newKnight.useSkill(opponent);
-      expect(newKnight.isSkillUsed).toEqual(true);
-    });
-  });
+
   describe("Knight methods tests", () => {
     const weaponFabric = new WeaponFabric();
     const skillFabric = new SkillFabric();
@@ -132,34 +107,45 @@ describe("Knight class methods tests", () => {
         skillFabric.createSkillFromTemplate("ледяные стрелы")!,
       ]
     );
+
     it("Should return health after an attack whithout using a skill", () => {
       newKnight.attack(opponent);
-      expect(opponent.health).toEqual(
+      expect(opponent.health).toBe(
         86 - (newKnight.strength + newKnight.weapon.damage)
       );
     });
+
     it("Health should decrease by the number of damage units", () => {
       newKnight.takeDamage(45, opponent, opponent.currentSkill);
-      expect(newKnight.health).toEqual(75 - 45);
+      expect(newKnight.health).toBe(75 - 45);
     });
+
     it("Health should decrease by the number of damage units without skill buff", () => {
       newKnight.heal(100);
       opponent.useSkill(newKnight, "ледяные стрелы");
       opponent.attack(newKnight);
-      expect(newKnight.health).toEqual(
+      expect(newKnight.health).toBe(
         75 -
           (opponent.strength -
             opponent.currentSkill!.buff!.strength +
             opponent.weapon.damage)
       );
     });
+
     it("Strength should icnrease", () => {
       newKnight.damageUp(2);
-      expect(newKnight.strength).toEqual(27);
+      expect(newKnight.strength).toBe(27);
     });
+
+    it('Should change the propertie "skillUsed" to true', () => {
+      newKnight.choseSkill();
+      newKnight.useSkill(opponent);
+      expect(newKnight.isSkillUsed).toBe(true);
+    });
+
     it("Health should icnrease", () => {
       newKnight.heal(10);
-      expect(newKnight.health).toEqual(
+      expect(newKnight.health).toBe(
         75 -
           (opponent.strength -
             opponent.currentSkill!.buff!.strength +
@@ -167,28 +153,41 @@ describe("Knight class methods tests", () => {
           10
       );
     });
+
     it("Health should be equal initialHealth", () => {
       newKnight.heal(100);
-      expect(newKnight.health).toEqual(newKnight.initialHealth);
+      expect(newKnight.health).toBe(newKnight.initialHealth);
     });
+
     it("Ibragim should DIE.", () => {
       newKnight.takeDamage(newKnight.initialHealth, opponent);
-      expect(newKnight.isAlive).toEqual(false);
+      expect(newKnight.isAlive).toBe(false);
+      expect(newKnight.health).toBe(0);
     });
+
     it("Ibragim health should be equal 0.", () => {
       newKnight.takeDamage(1000, opponent, opponent.currentSkill);
-      expect(newKnight.health).toEqual(0);
+      expect(newKnight.health).toBe(0);
     });
+
     it("Ibragim should reset.", () => {
       newKnight.reset();
-      expect(newKnight.health).toEqual(newKnight.initialHealth);
-      expect(newKnight.strength).toEqual(newKnight.initialStrength);
-      expect(newKnight.isSkillUsed).toEqual(false);
+      expect(newKnight.health).toBe(newKnight.initialHealth);
+      expect(newKnight.strength).toBe(newKnight.initialStrength);
+      expect(newKnight.isSkillUsed).toBe(false);
       newKnight.skills!.forEach((skill) => {
         expect(skill.usageCount).toBe(skill.initialSkillUsage);
         expect(skill.isUsed).toBe(false);
         expect(skill.turns).toBe(skill.initialTurns);
       });
+    });
+
+    it("Ibragim strength should be equal initialStrength.", () => {
+      newKnight.useSkill(opponent, "ледяные стрелы");
+      newKnight.attack(opponent);
+      newKnight.attack(opponent);
+      newKnight.attack(opponent);
+      expect(newKnight.strength).toBe(25);
     });
   });
 });

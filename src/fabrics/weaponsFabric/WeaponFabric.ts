@@ -74,6 +74,11 @@ export class WeaponFabric implements IWeapon {
     const damageType = getRandomArrayElement(this.types)!;
     const namesArr: string[] =
       this.names[weaponType.toLowerCase() as keyof typeof this.names];
+
+    if (!namesArr) {
+      return this.createWeapon("fists", "-", "fists", 3);
+    }
+
     const name =
       this.names[weaponType.toLowerCase() as keyof typeof this.names][
         Math.floor(Math.random() * namesArr.length)

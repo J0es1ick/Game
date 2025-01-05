@@ -4,11 +4,13 @@ import { WeaponFabric } from "../../fabrics/weaponsFabric/WeaponFabric";
 import { Game } from "../../gameplay/Game";
 import { ISkill } from "../../skills/ISkill";
 import { IWeapon } from "../../weapon/IWeapon";
+import { Logger } from "../output/Logger";
 import { readAnswer } from "../question/readAnswer";
 
 export async function createCharacter(numberOfPlayers: number): Promise<void> {
   const weaponFabric = new WeaponFabric();
   const skillFabric = new SkillFabric();
+  const logger = new Logger();
 
   let playerType: string;
   let playerHealth: number = 0;
@@ -122,7 +124,8 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
         playerStrength,
         playerWeapon!,
         playerSkills
-      )
+      ),
+      logger
     );
     await game.start();
   } else {
@@ -133,7 +136,8 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
         playerHealth,
         playerStrength,
         playerWeapon!
-      )
+      ),
+      logger
     );
     await game.start();
   }

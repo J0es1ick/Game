@@ -4,30 +4,39 @@ import { Logger } from "../utils/output/Logger";
 
 export class Game {
   private playerFabric = new PlayerFabric();
-  private players: Player[] = [];
-  private logger: Logger = new Logger();
+  private _players: Player[] = [];
+  private logger: Logger;
 
-  constructor(playerCount: number, player: Player | undefined = undefined) {
-    this.players = this.playerFabric.createRandomPlayers(playerCount);
+  constructor(
+    playerCount: number,
+    player: Player | undefined = undefined,
+    logger: Logger
+  ) {
+    this._players = this.playerFabric.createRandomPlayers(playerCount);
+    this.logger = logger;
     if (player !== undefined) {
-      this.players.push(player);
+      this._players.push(player);
     }
+  }
+
+  public get players(): Player[] {
+    return this._players;
   }
 
   public async start() {
     this.logger.messageLog("Игра началась!");
     let listOfPlayers = "Список участников: \n\n";
-    listOfPlayers += this.players
+    listOfPlayers += this._players
       .map((player) => `(${player.className}) ${player.name}`)
       .join("\n\n");
     this.logger.messageLog(listOfPlayers);
-    await this.tournament(this.players);
+    await this.tournament(this._players);
     this.logger.messageLog(
-      `Победитель: (${this.players[0].className}) ${this.players[0].name}`
+      `Победитель: (${this._players[0].className}) ${this._players[0].name}`
     );
   }
 
-  private async tournament(players: Player[]): Promise<Player> {
+  public async tournament(players: Player[]): Promise<Player> {
     if (players.length === 1) {
       return players[0];
     }
@@ -45,7 +54,7 @@ export class Game {
     return this.tournament(nextRoundPlayers);
   }
 
-  private async battle(fighters: Player[]): Promise<Player> {
+  public async battle(fighters: Player[]): Promise<Player> {
     this.logger.messageLog(`(${fighters[0].name}) vs (${fighters[1].name})`);
 
     let turn = 0;
@@ -79,7 +88,7 @@ export class Game {
         }
       }
 
-      await this.delay(200);
+      await this.delay(2);
       turn++;
     }
 
@@ -91,6 +100,6 @@ export class Game {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
   private updatePlayersArray() {
-    this.players = this.players.filter((player) => player.isAlive);
+    this._players = this._players.filter((player) => player.isAlive);
   }
 }

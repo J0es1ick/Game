@@ -1,3 +1,4 @@
+import { Player } from "../../abstract/Player";
 import { Knight } from "../../classes";
 import { ISkill } from "../../skills/ISkill";
 import { getRandomArrayElement } from "../../utils/randomization";
@@ -13,7 +14,7 @@ export class KnightFabric {
     playerStrength: number,
     playerWeapon: IWeapon,
     playerSkills: ISkill[] | null = null
-  ) {
+  ): Player {
     const name: string = getRandomArrayElement(names)!;
     const health: number = playerHealth;
     const strength: number = playerStrength;
