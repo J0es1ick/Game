@@ -51,14 +51,6 @@ describe("Knight class methods tests", () => {
     it("IsAlive get test", () => {
       expect(newKnight.isAlive).toBe(true);
     });
-    it("IsSkillUsed get test", () => {
-      expect(newKnight.isSkillUsed).toBe(false);
-    });
-    it("IsSkillUsed get test after using skill", () => {
-      newKnight.choseSkill();
-      newKnight.useSkill(newKnight);
-      expect(newKnight.isSkillUsed).toBe(true);
-    });
     it("InitialHealth get test", () => {
       expect(newKnight.initialHealth).toBe(75);
     });
@@ -116,7 +108,7 @@ describe("Knight class methods tests", () => {
     });
 
     it("Health should decrease by the number of damage units", () => {
-      newKnight.takeDamage(45, opponent, opponent.currentSkill);
+      newKnight.takeDamage(45, opponent.currentSkill);
       expect(newKnight.health).toBe(75 - 45);
     });
 
@@ -125,32 +117,20 @@ describe("Knight class methods tests", () => {
       opponent.useSkill(newKnight, "ледяные стрелы");
       opponent.attack(newKnight);
       expect(newKnight.health).toBe(
-        75 -
-          (opponent.strength -
-            opponent.currentSkill!.buff!.strength +
-            opponent.weapon.damage)
+        75 - (opponent.strength + opponent.weapon.damage)
       );
-    });
-
-    it("Strength should icnrease", () => {
-      newKnight.damageUp(2);
-      expect(newKnight.strength).toBe(27);
     });
 
     it('Should change the propertie "skillUsed" to true', () => {
       newKnight.choseSkill();
       newKnight.useSkill(opponent);
-      expect(newKnight.isSkillUsed).toBe(true);
+      expect(newKnight.skills).toContain(newKnight.currentSkill);
     });
 
     it("Health should icnrease", () => {
       newKnight.heal(10);
       expect(newKnight.health).toBe(
-        75 -
-          (opponent.strength -
-            opponent.currentSkill!.buff!.strength +
-            opponent.weapon.damage) +
-          10
+        75 - (opponent.strength + opponent.weapon.damage) + 10
       );
     });
 
@@ -159,14 +139,14 @@ describe("Knight class methods tests", () => {
       expect(newKnight.health).toBe(newKnight.initialHealth);
     });
 
-    it("Ibragim should DIE.", () => {
-      newKnight.takeDamage(newKnight.initialHealth, opponent);
+    it("Ibragim should die.", () => {
+      newKnight.takeDamage(newKnight.initialHealth);
       expect(newKnight.isAlive).toBe(false);
       expect(newKnight.health).toBe(0);
     });
 
     it("Ibragim health should be equal 0.", () => {
-      newKnight.takeDamage(1000, opponent, opponent.currentSkill);
+      newKnight.takeDamage(1000, opponent.currentSkill);
       expect(newKnight.health).toBe(0);
     });
 
@@ -174,7 +154,7 @@ describe("Knight class methods tests", () => {
       newKnight.reset();
       expect(newKnight.health).toBe(newKnight.initialHealth);
       expect(newKnight.strength).toBe(newKnight.initialStrength);
-      expect(newKnight.isSkillUsed).toBe(false);
+      expect(newKnight.currentSkill).toBeUndefined();
       newKnight.skills!.forEach((skill) => {
         expect(skill.usageCount).toBe(skill.initialSkillUsage);
         expect(skill.isUsed).toBe(false);
@@ -187,7 +167,9 @@ describe("Knight class methods tests", () => {
       newKnight.attack(opponent);
       newKnight.attack(opponent);
       newKnight.attack(opponent);
-      expect(newKnight.strength).toBe(25);
+      expect(newKnight.attack(opponent)).toBe(
+        newKnight.strength + newKnight.weapon.damage
+      );
     });
   });
 });

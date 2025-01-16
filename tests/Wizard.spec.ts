@@ -51,13 +51,6 @@ describe("Wizard class methods tests", () => {
     it("IsAlive get test", () => {
       expect(newWizard.isAlive).toBe(true);
     });
-    it("IsSkillUsed get test", () => {
-      expect(newWizard.isSkillUsed).toBe(false);
-    });
-    it("IsSkillUsed get test after using skill", () => {
-      newWizard.useSkill(newWizard, "ледяные стрелы");
-      expect(newWizard.isSkillUsed).toBe(true);
-    });
     it("InitialHealth get test", () => {
       expect(newWizard.initialHealth).toBe(75);
     });
@@ -115,19 +108,14 @@ describe("Wizard class methods tests", () => {
     });
 
     it("Health should decrease by the number of damage units", () => {
-      newWizard.takeDamage(45, opponent, opponent.currentSkill);
+      newWizard.takeDamage(45, opponent.currentSkill);
       expect(newWizard.health).toBe(75 - 45);
-    });
-
-    it("Strength should icnrease", () => {
-      newWizard.damageUp(2);
-      expect(newWizard.strength).toBe(27);
     });
 
     it('Should change the propertie "skillUsed" to true', () => {
       newWizard.choseSkill();
       newWizard.useSkill(opponent);
-      expect(newWizard.isSkillUsed).toBe(true);
+      expect(newWizard.skills).toContain(newWizard.currentSkill);
     });
 
     it("Health should icnrease", () => {
@@ -140,18 +128,14 @@ describe("Wizard class methods tests", () => {
       expect(newWizard.health).toBe(newWizard.initialHealth);
     });
 
-    it("Ibragim should DIE.", () => {
-      newWizard.takeDamage(
-        newWizard.initialHealth,
-        opponent,
-        opponent.currentSkill
-      );
+    it("Ibragim should die.", () => {
+      newWizard.takeDamage(newWizard.initialHealth, opponent.currentSkill);
       expect(newWizard.isAlive).toBe(false);
       expect(newWizard.health).toBe(0);
     });
 
     it("Ibragim health should be equal 0.", () => {
-      newWizard.takeDamage(1000, opponent, opponent.currentSkill);
+      newWizard.takeDamage(1000, opponent.currentSkill);
       expect(newWizard.health).toBe(0);
     });
 
@@ -159,7 +143,7 @@ describe("Wizard class methods tests", () => {
       newWizard.reset();
       expect(newWizard.health).toBe(newWizard.initialHealth);
       expect(newWizard.strength).toBe(newWizard.initialStrength);
-      expect(newWizard.isSkillUsed).toBe(false);
+      expect(newWizard.currentSkill).toBeUndefined();
       newWizard.skills!.forEach((skill) => {
         expect(skill.usageCount).toBe(skill.initialSkillUsage);
         expect(skill.isUsed).toBe(false);
@@ -172,7 +156,9 @@ describe("Wizard class methods tests", () => {
       newWizard.attack(opponent);
       newWizard.attack(opponent);
       newWizard.attack(opponent);
-      expect(newWizard.strength).toBe(25);
+      expect(newWizard.attack(opponent)).toBe(
+        newWizard.strength + newWizard.weapon.damage
+      );
     });
   });
 });

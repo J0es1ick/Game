@@ -1,6 +1,7 @@
 import { Game } from "../../gameplay/Game";
 import { Logger } from "../output/Logger";
 import { readAnswer } from "../question/readAnswer";
+
 import { createCharacter } from "./createCharacter";
 
 export function createGame(): void {
@@ -24,12 +25,12 @@ export function createGame(): void {
     const inputString: string = await readAnswer(
       "Хотите ли вы создать своего персонажа? (да/нет) "
     );
+    const game = new Game(number, undefined, logger);
     switch (inputString.toLowerCase()) {
       case "да":
-        createCharacter(number);
+        await createCharacter(number);
         break;
       case "нет":
-        const game = new Game(number, undefined, logger);
         await game.start();
         break;
       default:

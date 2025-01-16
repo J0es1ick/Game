@@ -17,17 +17,17 @@ export class Knight extends Player {
 
   public takeDamage(
     damage: number,
-    attacker: Player,
     skill: ISkill | undefined = undefined
-  ): void {
+  ): number {
     let currentDamage: number = damage;
-    if (skill !== undefined && skill.name === "ледяные стрелы") {
-      currentDamage -= skill.buff!.strength;
+    if (skill !== undefined && skill.name === "ледяные стрелы" && skill.buff) {
+      currentDamage -= skill.buff.strength;
     }
     this._health -= currentDamage;
     if (this._health <= 0) {
       this._health = 0;
       this._isAlive = false;
     }
+    return currentDamage;
   }
 }

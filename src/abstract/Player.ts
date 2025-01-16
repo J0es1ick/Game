@@ -11,8 +11,6 @@ export abstract class Player {
   protected _strength: number;
   protected _skills: ISkill[];
   protected _currentSkill?: ISkill;
-  protected skillBuff: number = 0;
-  protected _isSkillUsed: boolean = false;
   protected _isAlive: boolean = true;
   protected _countOfSkipingTurns: number = 0;
   protected _weapon: IWeapon;
@@ -25,9 +23,9 @@ export abstract class Player {
     playerSkills: ISkill[]
   ) {
     this._initialHealth = playerHealth;
-    this._health = this.initialHealth;
+    this._health = this._initialHealth;
     this._initialStrength = playerStrength;
-    this._strength = this.initialStrength;
+    this._strength = this._initialStrength;
     this._name = playerName;
     this._weapon = playerWeapon;
     this._skills = playerSkills;
@@ -43,10 +41,6 @@ export abstract class Player {
 
   public get isAlive(): boolean {
     return this._isAlive;
-  }
-
-  public get isSkillUsed(): boolean {
-    return this._isSkillUsed;
   }
 
   public get health(): number {
@@ -85,35 +79,38 @@ export abstract class Player {
     this._currentSkill = getRandomArrayElement(this.skills);
   }
 
-  public useSkill(opponent: Player, skillName: string | null = null): void {
+  public useSkill(opponent: Player, skillName: string | null = null): boolean {
     if (this.skills.length === 0) {
-      return;
+      return false;
     }
 
     if (skillName !== null) {
-      this.skills.forEach((skill) => {
-        if (skill.name === skillName.toLowerCase()) {
-          this._currentSkill = skill;
-          return;
-        }
-      });
+      this._currentSkill = this.skills.find(
+        (skill) => skill.name === skillName.toLowerCase()
+      );
     }
-    if (this._currentSkill !== undefined) {
-      this._currentSkill.effect!(this, opponent);
+
+    if (this._currentSkill !== undefined && this._currentSkill.usageCount > 0) {
+      if (this._currentSkill.effect) {
+        this._currentSkill.effect(this, opponent);
+      }
       this._currentSkill.usageCount--;
       this.skills.forEach((skill) => {
         if (skill.name === this._currentSkill!.name) {
           skill.usageCount--;
         }
       });
-      this._isSkillUsed = true;
+
+      return true;
     }
+
+    return false;
   }
 
-  public attack(opponent: Player): void {
+  public attack(opponent: Player): number {
     if (this.countOfSkipingTurns > 0) {
       this._countOfSkipingTurns--;
-      return;
+      return 0;
     }
 
     if (this._currentSkill) {
@@ -121,47 +118,49 @@ export abstract class Player {
         (skill) => skill.name === this._currentSkill!.name
       );
 
+      let skillsBuff: number = 0;
+
       if (skillIndex !== -1) {
         this._skills[skillIndex].isUsed = true;
-        this._updateSkills();
+        this._skills.forEach((skill) => {
+          if (skill.isUsed && skill.buff) {
+            if (skill.turns! <= 0) {
+              skill.turns = skill.initialTurns;
+              skill.isUsed = false;
+            }
+            if (skill.turns! > 0) {
+              skill.turns!--;
+              this._currentSkill!.turns!--;
+            }
+            skillsBuff += skill.buff.strength;
+          }
+        });
+
+        if (this._currentSkill.turns! <= 0) {
+          this._currentSkill = undefined;
+        }
       }
 
-      opponent.takeDamage(
-        this._strength + this._weapon.damage,
-        this,
+      return opponent.takeDamage(
+        this._strength + this._weapon.damage + skillsBuff,
         this._currentSkill
       );
     } else {
-      opponent.takeDamage(this._strength + this._weapon.damage, this);
+      return opponent.takeDamage(this._strength + this._weapon.damage);
     }
-  }
-
-  protected _updateSkills(): void {
-    for (const skill of this._skills) {
-      if (skill.isUsed) {
-        if (skill.turns! <= 0 && skill.buff) {
-          this._strength -= skill.buff.strength;
-        }
-        skill.turns!--;
-        this.currentSkill!.turns!--;
-      }
-    }
-  }
-
-  public damageUp(buff: number) {
-    this._strength += buff;
   }
 
   public takeDamage(
     damage: number,
-    attacker: Player,
     skill: ISkill | undefined = undefined
-  ): void {
-    this._health -= damage;
+  ): number {
+    const currentDamage: number = damage;
+    this._health -= currentDamage;
     if (this._health <= 0) {
       this._health = 0;
       this._isAlive = false;
     }
+    return currentDamage;
   }
 
   public heal(amount: number) {
@@ -175,7 +174,7 @@ export abstract class Player {
   public reset(): void {
     this._health = this.initialHealth;
     this._strength = this.initialStrength;
-    this._isSkillUsed = false;
+    this._currentSkill = undefined;
     this._skills.forEach((skill) => {
       skill.usageCount = skill.initialSkillUsage;
       skill.isUsed = false;

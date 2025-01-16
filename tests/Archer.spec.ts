@@ -51,14 +51,6 @@ describe("Archer class methods tests", () => {
     it("IsAlive get test", () => {
       expect(newArcher.isAlive).toBe(true);
     });
-    it("IsSkillUsed get test", () => {
-      expect(newArcher.isSkillUsed).toBe(false);
-    });
-    it("IsSkillUsed get test after using skill", () => {
-      newArcher.choseSkill();
-      newArcher.useSkill(newArcher);
-      expect(newArcher.isSkillUsed).toBe(true);
-    });
     it("InitialHealth get test", () => {
       expect(newArcher.initialHealth).toBe(75);
     });
@@ -116,19 +108,14 @@ describe("Archer class methods tests", () => {
     });
 
     it("Health should decrease by the number of damage units", () => {
-      newArcher.takeDamage(45, opponent, opponent.currentSkill);
+      newArcher.takeDamage(45, opponent.currentSkill);
       expect(newArcher.health).toBe(75 - 45);
-    });
-
-    it("Strength should icnrease", () => {
-      newArcher.damageUp(2);
-      expect(newArcher.strength).toBe(27);
     });
 
     it('Should change the propertie "skillUsed" to true', () => {
       newArcher.choseSkill();
       newArcher.useSkill(opponent);
-      expect(newArcher.isSkillUsed).toBe(true);
+      expect(newArcher.skills).toContain(newArcher.currentSkill);
     });
 
     it("Health should icnrease", () => {
@@ -141,18 +128,14 @@ describe("Archer class methods tests", () => {
       expect(newArcher.health).toBe(newArcher.initialHealth);
     });
 
-    it("Ibragim should DIE.", () => {
-      newArcher.takeDamage(
-        newArcher.initialHealth,
-        opponent,
-        opponent.currentSkill
-      );
+    it("Ibragim should die.", () => {
+      newArcher.takeDamage(newArcher.initialHealth, opponent.currentSkill);
       expect(newArcher.isAlive).toBe(false);
       expect(newArcher.health).toBe(0);
     });
 
     it("Ibragim health should be equal 0.", () => {
-      newArcher.takeDamage(1000, opponent, opponent.currentSkill);
+      newArcher.takeDamage(1000, opponent.currentSkill);
       expect(newArcher.health).toBe(0);
     });
 
@@ -160,7 +143,7 @@ describe("Archer class methods tests", () => {
       newArcher.reset();
       expect(newArcher.health).toBe(newArcher.initialHealth);
       expect(newArcher.strength).toBe(newArcher.initialStrength);
-      expect(newArcher.isSkillUsed).toBe(false);
+      expect(newArcher.currentSkill).toBeUndefined();
       newArcher.skills!.forEach((skill) => {
         expect(skill.usageCount).toBe(skill.initialSkillUsage);
         expect(skill.isUsed).toBe(false);
@@ -169,12 +152,21 @@ describe("Archer class methods tests", () => {
     });
 
     it("Ibragim strength should be equal initialStrength.", () => {
+      opponent.heal(opponent.initialHealth);
       newArcher.useSkill(opponent, "ледяные стрелы");
       newArcher.attack(opponent);
+      expect(opponent.health).toBe(
+        opponent.initialHealth -
+          (newArcher.strength + newArcher.weapon.damage + 3)
+      );
       newArcher.useSkill(opponent, "огненные стрелы");
+      expect(newArcher.attack(opponent)).toBe(
+        newArcher.strength + newArcher.weapon.damage + 5
+      );
       newArcher.attack(opponent);
-      newArcher.attack(opponent);
-      expect(newArcher.strength).toBe(27);
+      expect(newArcher.attack(opponent)).toBe(
+        newArcher.strength + newArcher.weapon.damage + 2
+      );
     });
   });
 });
