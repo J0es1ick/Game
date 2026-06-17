@@ -10,7 +10,7 @@ export class Wizard extends Player {
     playerStrength: number,
     playerName: string,
     playerWeapon: IWeapon,
-    playerSkills: ISkill[]
+    playerSkills: ISkill[],
   ) {
     super(playerHealth, playerStrength, playerName, playerWeapon, playerSkills);
   }

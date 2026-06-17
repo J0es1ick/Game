@@ -164,11 +164,25 @@ describe("Knight class methods tests", () => {
 
     it("Ibragim strength should be equal initialStrength.", () => {
       newKnight.useSkill(opponent, "ледяные стрелы");
-      newKnight.attack(opponent);
-      newKnight.attack(opponent);
-      newKnight.attack(opponent);
+      expect(newKnight.attack(opponent)).toBe(
+        newKnight.strength + newKnight.weapon.damage + 3
+      );
+      expect(newKnight.attack(opponent)).toBe(
+        newKnight.strength + newKnight.weapon.damage + 3
+      );
+      expect(newKnight.attack(opponent)).toBe(
+        newKnight.strength + newKnight.weapon.damage + 3
+      );
       expect(newKnight.attack(opponent)).toBe(
         newKnight.strength + newKnight.weapon.damage
+      );
+
+      newKnight.useSkill(opponent, "огненные стрелы");
+      expect(newKnight.attack(opponent)).toBe(
+        newKnight.strength + newKnight.weapon.damage + 2
+      );
+      expect(newKnight.attack(opponent)).toBe(
+        newKnight.strength + newKnight.weapon.damage + 2
       );
     });
   });

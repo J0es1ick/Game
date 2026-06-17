@@ -7,7 +7,7 @@ export function readAnswer(query: string): Promise<string> {
   });
 
   return new Promise((resolve) => {
-    rl.question(query, (answer) => {
+    rl.question(query, (answer: string) => {
       resolve(answer);
       rl.close();
     });

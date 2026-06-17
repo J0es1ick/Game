@@ -25,11 +25,9 @@ export class Logger {
     console.log(logEntry);
   }
 
-  public skipTurnLog(attacker: Player, defender: Player): void {
+  public skipTurnLog(attacker: Player): void {
     const timestamp: string = new Date().toISOString();
-    const message: string = `(${attacker.className}) ${
-      attacker.name
-    } пропускает ход из-за ${defender.currentSkill!.name}`;
+    const message: string = `(${attacker.className}) ${attacker.name} пропускает ход`;
     const logEntry: string = `${timestamp}: ${message}\n`;
     console.log(logEntry);
   }

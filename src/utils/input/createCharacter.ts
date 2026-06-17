@@ -30,7 +30,7 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
 
   async function askForClass(): Promise<void> {
     const playerClass: string = await readAnswer(
-      "Выберите класс своего героя: 1. Knight, 2. Archer, 3. Wizard: "
+      "Выберите класс своего героя: 1. Knight, 2. Archer, 3. Wizard: ",
     );
     const number: number = parseInt(playerClass);
     if (isNaN(number) || number < 1 || number > 3) {
@@ -44,7 +44,7 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
 
   async function askForHealth(): Promise<void> {
     const healthInput: string = await readAnswer(
-      "Напишите количество здоровья для своего героя (от 125 до 150): "
+      "Напишите количество здоровья для своего героя (от 125 до 150): ",
     );
     const number: number = parseInt(healthInput);
     if (isNaN(number) || number < 125 || number > 150) {
@@ -58,7 +58,7 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
 
   async function askForStrength(): Promise<void> {
     const strengthInput: string = await readAnswer(
-      "Напишите количество силы для своего героя (от 10 до 15): "
+      "Напишите количество силы для своего героя (от 10 до 15): ",
     );
     const number: number = parseInt(strengthInput);
     if (isNaN(number) || number < 10 || number > 15) {
@@ -72,7 +72,7 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
 
   async function askForWeapon(): Promise<void> {
     const playerClass: string = await readAnswer(
-      "Выберите оружие своего героя: 1. меч, 2. лук, 3. посох: "
+      "Выберите оружие своего героя: 1. меч, 2. лук, 3. посох: ",
     );
     const number: number = parseInt(playerClass);
     if (isNaN(number) || number < 1 || number > 3) {
@@ -86,7 +86,7 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
 
   async function askForSkills(): Promise<void> {
     const playerClass: string = await readAnswer(
-      "Выберите скиллы своего героя: 1. огненные стрелы, 2. ледяные стрелы, 3. удар возмездия, 4. заворожение. \nДля старта со стандартными навыками класса, напишите 5. Для выхода напишите 6 : "
+      "Выберите скиллы своего героя: 1. огненные стрелы, 2. ледяные стрелы, 3. удар возмездия, 4. заворожение. \nДля старта со стандартными навыками класса, напишите 5. Для выхода напишите 6 : ",
     );
     const number: number = parseInt(playerClass);
     if (isNaN(number) || number < 1 || number > 6) {
@@ -97,7 +97,7 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
         console.log("У вас уже максимальное количество скиллов");
       } else {
         playerSkills.push(
-          skillFabric.createSkillFromTemplate(skillNames[number - 1])!
+          skillFabric.createSkillFromTemplate(skillNames[number - 1])!,
         );
       }
       await askForSkills();
@@ -123,9 +123,9 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
         playerHealth,
         playerStrength,
         playerWeapon!,
-        playerSkills
+        playerSkills,
       ),
-      logger
+      logger,
     );
     await game.start();
   } else {
@@ -135,9 +135,9 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
         playerType!,
         playerHealth,
         playerStrength,
-        playerWeapon!
+        playerWeapon!,
       ),
-      logger
+      logger,
     );
     await game.start();
   }

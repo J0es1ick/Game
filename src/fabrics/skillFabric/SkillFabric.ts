@@ -47,32 +47,32 @@ export class SkillFabric {
 
   public createSkill(
     skillName: string,
-    skillDamage: (caster: Player) => number | undefined,
-    isUsedSKill: boolean,
+    skillDamage: ((caster: Player) => number | undefined) | undefined,
+    isUsedSkill: boolean,
     skillUsageCount: number,
     skillInitialUsage: number,
     skillTurns: number | undefined = undefined,
     skillInitialTurns: number | undefined = undefined,
-    skillEffect: (caster: Player, opponent: Player) => void,
-    skillBuff: { strength: number } | undefined
-  ) {
+    skillEffect: ((caster: Player, opponent: Player) => void) | undefined,
+    skillBuff: { strength: number } | undefined,
+  ): ISkill {
     const skill: ISkill = {
       name: skillName,
       damage: skillDamage,
-      isUsed: isUsedSKill,
+      isUsed: isUsedSkill,
       usageCount: skillUsageCount,
       initialSkillUsage: skillInitialUsage,
       turns: skillTurns,
       initialTurns: skillInitialTurns,
       effect: skillEffect,
-      buff: skillBuff,
+      buff: skillBuff ? { ...skillBuff } : undefined,
     };
     return skill;
   }
 
   public createSkillFromTemplate(templateName: string): ISkill | null {
     const skillTemplate = this.skillsTemplate.find(
-      (skill) => skill.name === templateName
+      (skill) => skill.name === templateName,
     );
     if (!skillTemplate) {
       return null;
@@ -80,14 +80,14 @@ export class SkillFabric {
 
     return this.createSkill(
       skillTemplate.name,
-      skillTemplate.damage!,
+      skillTemplate.damage,
       skillTemplate.isUsed,
       skillTemplate.usageCount,
       skillTemplate.initialSkillUsage,
       skillTemplate.turns,
       skillTemplate.initialTurns,
-      skillTemplate.effect!,
-      skillTemplate.buff
+      skillTemplate.effect,
+      skillTemplate.buff,
     );
   }
 }

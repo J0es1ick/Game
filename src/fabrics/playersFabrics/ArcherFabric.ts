@@ -13,7 +13,7 @@ export class ArcherFabric {
     playerHealth: number,
     playerStrength: number,
     playerWeapon: IWeapon,
-    playerSkills: ISkill[] | null = null
+    playerSkills: ISkill[] | null = null,
   ): Player {
     const name: string = getRandomArrayElement(names)!;
     const health: number = playerHealth;

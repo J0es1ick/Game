@@ -154,16 +154,23 @@ describe("Archer class methods tests", () => {
     it("Ibragim strength should be equal initialStrength.", () => {
       opponent.heal(opponent.initialHealth);
       newArcher.useSkill(opponent, "ледяные стрелы");
-      newArcher.attack(opponent);
-      expect(opponent.health).toBe(
-        opponent.initialHealth -
-          (newArcher.strength + newArcher.weapon.damage + 3)
+      expect(newArcher.attack(opponent)).toBe(
+        newArcher.strength + newArcher.weapon.damage + 3
       );
+      expect(newArcher.attack(opponent)).toBe(
+        newArcher.strength + newArcher.weapon.damage + 3
+      );
+      expect(newArcher.attack(opponent)).toBe(
+        newArcher.strength + newArcher.weapon.damage + 3
+      );
+      expect(newArcher.attack(opponent)).toBe(
+        newArcher.strength + newArcher.weapon.damage
+      );
+
       newArcher.useSkill(opponent, "огненные стрелы");
       expect(newArcher.attack(opponent)).toBe(
-        newArcher.strength + newArcher.weapon.damage + 5
+        newArcher.strength + newArcher.weapon.damage + 2
       );
-      newArcher.attack(opponent);
       expect(newArcher.attack(opponent)).toBe(
         newArcher.strength + newArcher.weapon.damage + 2
       );
