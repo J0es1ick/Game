@@ -1,0 +1,7 @@
+node_modules
+dist
+tests
+*.spec.ts
+.git
+.gitignore
+README.md

@@ -14,7 +14,7 @@ describe("Knight class methods tests", () => {
       [
         skillFabric.createSkillFromTemplate("удар возмездия")!,
         skillFabric.createSkillFromTemplate("ледяные стрелы")!,
-      ]
+      ],
     );
     expect(newKnight).toBeInstanceOf(Knight);
     expect(newKnight.health).toBe(75);
@@ -33,7 +33,7 @@ describe("Knight class methods tests", () => {
       [
         skillFabric.createSkillFromTemplate("удар возмездия")!,
         skillFabric.createSkillFromTemplate("ледяные стрелы")!,
-      ]
+      ],
     );
 
     it("Health get test", () => {
@@ -69,7 +69,7 @@ describe("Knight class methods tests", () => {
         [
           skillFabric.createSkillFromTemplate("заворожение")!,
           skillFabric.createSkillFromTemplate("ледяные стрелы")!,
-        ]
+        ],
       );
       opponent.useSkill(newKnight, "заворожение");
       expect(newKnight.countOfSkipingTurns).toBe(1);
@@ -79,63 +79,59 @@ describe("Knight class methods tests", () => {
   describe("Knight methods tests", () => {
     const weaponFabric = new WeaponFabric();
     const skillFabric = new SkillFabric();
-    const newKnight = new Knight(
-      75,
-      25,
-      "Ibragim",
-      weaponFabric.createRandomWeapon("sword"),
-      [
-        skillFabric.createSkillFromTemplate("удар возмездия")!,
-        skillFabric.createSkillFromTemplate("ледяные стрелы")!,
-      ]
-    );
-    const opponent = new Archer(
-      86,
-      26,
-      "Mustafa",
-      weaponFabric.createRandomWeapon("bow"),
-      [
-        skillFabric.createSkillFromTemplate("огненные стрелы")!,
-        skillFabric.createSkillFromTemplate("ледяные стрелы")!,
-      ]
-    );
 
-    it("Should return health after an attack whithout using a skill", () => {
+    const knightWeapon = weaponFabric.createWeapon(
+      "sword",
+      "Training Sword",
+      5,
+    );
+    const archerWeapon = weaponFabric.createWeapon("bow", "Training Bow", 4);
+
+    const newKnight = new Knight(75, 25, "Ibragim", knightWeapon, [
+      skillFabric.createSkillFromTemplate("удар возмездия")!,
+      skillFabric.createSkillFromTemplate("ледяные стрелы")!,
+    ]);
+    const opponent = new Archer(86, 26, "Mustafa", archerWeapon, [
+      skillFabric.createSkillFromTemplate("ледяные стрелы")!,
+      skillFabric.createSkillFromTemplate("заворожение")!,
+    ]);
+
+    it("Should return health after an attack without using a skill", () => {
       newKnight.attack(opponent);
       expect(opponent.health).toBe(
-        86 - (newKnight.strength + newKnight.weapon.damage)
+        86 - (newKnight.strength + newKnight.weapon.damage),
       );
     });
 
     it("Health should decrease by the number of damage units", () => {
-      newKnight.takeDamage(45, opponent.currentSkill);
+      newKnight.takeDamage(45);
       expect(newKnight.health).toBe(75 - 45);
     });
 
-    it("Health should decrease by the number of damage units without skill buff", () => {
+    it("Knight takes full damage including skill buff from ледяные стрелы", () => {
       newKnight.heal(100);
       opponent.useSkill(newKnight, "ледяные стрелы");
       opponent.attack(newKnight);
       expect(newKnight.health).toBe(
-        75 - (opponent.strength + opponent.weapon.damage)
+        75 - (opponent.strength + opponent.weapon.damage + 3),
       );
     });
 
-    it('Should change the propertie "skillUsed" to true', () => {
+    it('Should change the property "isUsed" when skill is activated', () => {
       newKnight.choseSkill();
       newKnight.useSkill(opponent);
       expect(newKnight.skills).toContain(newKnight.currentSkill);
     });
 
-    it("Health should icnrease", () => {
+    it("Health should increase after heal", () => {
+      newKnight.heal(1000);
+      newKnight.takeDamage(30);
       newKnight.heal(10);
-      expect(newKnight.health).toBe(
-        75 - (opponent.strength + opponent.weapon.damage) + 10
-      );
+      expect(newKnight.health).toBe(75 - 30 + 10);
     });
 
-    it("Health should be equal initialHealth", () => {
-      newKnight.heal(100);
+    it("Health should be equal initialHealth after full heal", () => {
+      newKnight.heal(1000);
       expect(newKnight.health).toBe(newKnight.initialHealth);
     });
 
@@ -145,8 +141,8 @@ describe("Knight class methods tests", () => {
       expect(newKnight.health).toBe(0);
     });
 
-    it("Ibragim health should be equal 0.", () => {
-      newKnight.takeDamage(1000, opponent.currentSkill);
+    it("Ibragim health should be equal 0 when overkilled.", () => {
+      newKnight.takeDamage(1000);
       expect(newKnight.health).toBe(0);
     });
 
@@ -162,27 +158,20 @@ describe("Knight class methods tests", () => {
       });
     });
 
-    it("Ibragim strength should be equal initialStrength.", () => {
+    it("Ice arrows buff applies for 3 attacks then expires", () => {
+      opponent.heal(1000);
       newKnight.useSkill(opponent, "ледяные стрелы");
       expect(newKnight.attack(opponent)).toBe(
-        newKnight.strength + newKnight.weapon.damage + 3
+        newKnight.strength + newKnight.weapon.damage + 3,
       );
       expect(newKnight.attack(opponent)).toBe(
-        newKnight.strength + newKnight.weapon.damage + 3
+        newKnight.strength + newKnight.weapon.damage + 3,
       );
       expect(newKnight.attack(opponent)).toBe(
-        newKnight.strength + newKnight.weapon.damage + 3
+        newKnight.strength + newKnight.weapon.damage + 3,
       );
       expect(newKnight.attack(opponent)).toBe(
-        newKnight.strength + newKnight.weapon.damage
-      );
-
-      newKnight.useSkill(opponent, "огненные стрелы");
-      expect(newKnight.attack(opponent)).toBe(
-        newKnight.strength + newKnight.weapon.damage + 2
-      );
-      expect(newKnight.attack(opponent)).toBe(
-        newKnight.strength + newKnight.weapon.damage + 2
+        newKnight.strength + newKnight.weapon.damage,
       );
     });
   });

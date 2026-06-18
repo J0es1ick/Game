@@ -45,7 +45,13 @@ describe("Game tests", () => {
 
   it("starts a game and returns the last player when only one hero is present", async () => {
     const logger = new MockLogger();
-    const hero = new Knight(100, 20, "Hero", weaponFabric.createWeapon("sword", "Training Sword", 5), []);
+    const hero = new Knight(
+      100,
+      20,
+      "Hero",
+      weaponFabric.createWeapon("sword", "Training Sword", 5),
+      [],
+    );
     const game = new Game(0, hero, logger);
 
     const winner = await game.start();
@@ -60,9 +66,23 @@ describe("Game tests", () => {
     jest.spyOn(Math, "random").mockReturnValue(0.99);
 
     const logger = new MockLogger();
-    const game = new Game(0, undefined, logger, { arenaName: "Training Ground" });
-    const fighter1 = new Knight(80, 22, "Alpha", weaponFabric.createWeapon("sword", "Training Sword", 5), []);
-    const fighter2 = new Wizard(50, 6, "Beta", weaponFabric.createWeapon("stick", "Training Staff", 4), []);
+    const game = new Game(0, undefined, logger, {
+      arenaName: "Training Ground",
+    });
+    const fighter1 = new Knight(
+      80,
+      22,
+      "Alpha",
+      weaponFabric.createWeapon("sword", "Training Sword", 5),
+      [],
+    );
+    const fighter2 = new Wizard(
+      50,
+      6,
+      "Beta",
+      weaponFabric.createWeapon("stick", "Training Staff", 4),
+      [],
+    );
 
     const winner = await game.battle([fighter1, fighter2]);
 
@@ -73,7 +93,13 @@ describe("Game tests", () => {
   });
 
   it("awards experience after battle and can level up a player", () => {
-    const hero = new Knight(100, 20, "Hero", weaponFabric.createWeapon("sword", "Training Sword", 5), []);
+    const hero = new Knight(
+      100,
+      20,
+      "Hero",
+      weaponFabric.createWeapon("sword", "Training Sword", 5),
+      [],
+    );
 
     const levels = hero.gainExperience(120);
 
@@ -86,28 +112,47 @@ describe("Game tests", () => {
     expect(hero.strength).toBe(22);
   });
 
-  it("does not keep charm as a permanent self-debuff after the skipped turn", () => {
+  it("charm stuns defender: defender takes damage and skip counter decrements", () => {
     jest.spyOn(Math, "random").mockReturnValue(0.99);
 
     const logger = new MockLogger();
-    const game = new Game(0, undefined, logger, { arenaName: "Training Ground" });
+    const game = new Game(0, undefined, logger, {
+      arenaName: "Training Ground",
+    });
     const skillFabric = new SkillFabric();
+
     const charm = skillFabric.createSkillFromTemplate("заворожение")!;
-    const attacker = new Wizard(80, 12, "Mage", weaponFabric.createWeapon("stick", "Training Staff", 4), [charm]);
-    const defender = new Knight(80, 12, "Target", weaponFabric.createWeapon("sword", "Training Sword", 5), []);
+    const attacker = new Wizard(
+      80,
+      12,
+      "Mage",
+      weaponFabric.createWeapon("stick", "Training Staff", 4),
+      [charm],
+    );
+    const defender = new Knight(
+      80,
+      12,
+      "Target",
+      weaponFabric.createWeapon("sword", "Training Sword", 5),
+      [],
+    );
 
     attacker.useSkill(defender, "заворожение");
     expect(defender.countOfSkipingTurns).toBe(1);
 
-    attacker.attack(defender, game.currentArena);
-    expect(attacker.health).toBeLessThan(attacker.initialHealth);
+    const damage = attacker.attack(defender, game.currentArena);
+    expect(damage).toBeGreaterThan(0);
+    expect(defender.health).toBeLessThan(defender.initialHealth);
 
-    attacker.attack(defender, game.currentArena);
-    expect(attacker.health).toBeLessThan(attacker.initialHealth);
+    const skippedDamage = defender.attack(attacker, game.currentArena);
+    expect(skippedDamage).toBe(0);
+    expect(defender.countOfSkipingTurns).toBe(0);
+
+    expect(attacker.health).toBe(attacker.initialHealth);
   });
-  it("keeps permanent fire arrows after ice arrows expires", () => {
+
+  it("ice arrows last exactly 3 attacks; fire arrows persist without turns", () => {
     const skillFabric = new SkillFabric();
-    const weaponFabric = new WeaponFabric();
 
     const attacker = new Wizard(
       100,
@@ -115,12 +160,12 @@ describe("Game tests", () => {
       "Caster",
       weaponFabric.createWeapon("stick", "Staff", 5),
       [
-        skillFabric.createSkillFromTemplate("ледяные стрелы")!,
         skillFabric.createSkillFromTemplate("огненные стрелы")!,
+        skillFabric.createSkillFromTemplate("ледяные стрелы")!,
       ],
     );
     const defender = new Wizard(
-      100,
+      500,
       10,
       "Target",
       weaponFabric.createWeapon("stick", "Stick", 1),
@@ -140,11 +185,13 @@ describe("Game tests", () => {
       attacker.strength + attacker.weapon.damage + 5,
     );
     expect(attacker.attack(defender)).toBe(
+      attacker.strength + attacker.weapon.damage + 5,
+    );
+    expect(attacker.attack(defender)).toBe(
       attacker.strength + attacker.weapon.damage + 2,
     );
     expect(attacker.attack(defender)).toBe(
       attacker.strength + attacker.weapon.damage + 2,
     );
   });
-
 });
