@@ -1,14 +1,17 @@
 {
   "compilerOptions": {
-    "types": [
-      "jest",
-      "node"
-    ],
-    "target": "es2016",
-    "module": "commonjs",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "types": ["jest"],
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler", // вместо "node" (устарел)
     "strict": true,
-    "skipLibCheck": true
-  }
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@/*": ["./src/*"] // baseUrl больше не нужен, paths работает относительно tsconfig.json
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }
