@@ -1,18 +1,17 @@
 import { Player } from "../abstract/Player";
-import { PlayerFabric } from "../fabrics/playersFabrics";
-import { SkillFabric } from "../fabrics/skillFabric/SkillFabric";
-import { WeaponFabric } from "../fabrics/weaponsFabric/WeaponFabric";
-import { Game } from "../gameplay/Game";
+import { createSkill } from "../catalogs/SkillCatalog";
+import { createRandomWeapon } from "../catalogs/WeaponCatalog";
+import { PlayerClass, PlayerFactory } from "../factories/PlayerFactory";
+import { Game, TurnReport } from "../gameplay/Game";
 import { Logger } from "../utils/output/Logger";
 
 const $ = <T extends HTMLElement>(selector: string) => document.querySelector(selector) as T;
-const playerFabric = new PlayerFabric();
-const weaponFabric = new WeaponFabric();
-const skillFabric = new SkillFabric();
 
+const factory = new PlayerFactory();
 const playerList = $("#player-list");
 const playerCount = $("#player-count");
 const creationStatus = $("#creation-status");
+const nameInput = $("#name-input") as HTMLInputElement;
 const classSelect = $("#class-select") as HTMLSelectElement;
 const healthInput = $("#health-input") as HTMLInputElement;
 const strengthInput = $("#strength-input") as HTMLInputElement;
@@ -21,6 +20,8 @@ const randomCount = $("#random-count") as HTMLSelectElement;
 const startButton = $("#start-tournament-btn") as HTMLButtonElement;
 const autoButton = $("#auto-battle") as HTMLButtonElement;
 const nextTurnButton = $("#next-turn") as HTMLButtonElement;
+const addRandomButton = $("#add-random-btn") as HTMLButtonElement;
+const createButton = $("#create-btn") as HTMLButtonElement;
 const delayInput = $("#delay-input") as HTMLInputElement;
 const delayOutput = $("#delay-output") as HTMLOutputElement;
 const status = $("#tournament-status");
@@ -29,28 +30,31 @@ const turnInfo = $("#turn-info");
 const arenaTitle = $("#arena-title");
 const arenaDisplay = $("#arena-display");
 const logContainer = $("#log-container");
+const traceList = $("#trace-list");
+const factoryTrace = $("#factory-trace");
 const fighterElements = [$("#fighter1"), $("#fighter2")];
+
+const classLabels: Record<string, string> = {
+  Knight: "Рыцарь",
+  Archer: "Лучник",
+  Wizard: "Маг",
+};
 
 let players: Player[] = [];
 let game: Game | null = null;
-let roundPlayers: Player[] = [];
-let roundWinners: Player[] = [];
-let matchCursor = 0;
-let round = 1;
-let tournamentRunning = false;
 let autoTimer: number | null = null;
-const eliminated = new Set<Player>();
 
-const classLabels: Record<string, string> = { Knight: "Рыцарь", Archer: "Лучник", Wizard: "Маг" };
-
-function log(message: string, kind = "message") {
-  const empty = logContainer.querySelector(".empty-log");
-  if (empty) empty.remove();
+function log(message: string, kind = "message"): void {
+  logContainer.querySelector(".empty-log")?.remove();
   const entry = document.createElement("div");
   entry.className = `log-entry ${kind}`;
   const time = document.createElement("span");
   time.className = "log-time";
-  time.textContent = new Date().toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  time.textContent = new Date().toLocaleTimeString("ru-RU", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
   const text = document.createElement("span");
   text.textContent = message;
   entry.append(time, text);
@@ -58,239 +62,301 @@ function log(message: string, kind = "message") {
   logContainer.scrollTop = logContainer.scrollHeight;
 }
 
-class ArenaLogger extends Logger {
-  override messageLog(message: string) { log(message); }
-  override attackLog(attacker: Player, defender: Player, damage: number) {
-    log(`${attacker.name} наносит ${damage} урона герою ${defender.name}.`, "attack");
+class InterfaceLogger extends Logger {
+  public override messageLog(message: string): void { log(message); }
+  public override attackLog(attacker: Player, defender: Player, damage: number): void {
+    log(`${attacker.name}.attack(${defender.name}) → ${damage} урона.`, "attack");
   }
-  override skillLog(attacker: Player, defender: Player) {
-    log(`${attacker.name} использует «${attacker.currentSkill?.name ?? "способность"}» против ${defender.name}.`, "skill");
+  public override skillLog(attacker: Player, defender: Player): void {
+    log(`${attacker.name}.useSkill(«${attacker.currentSkill?.name}», ${defender.name}).`, "skill");
   }
-  override skipTurnLog(attacker: Player) { log(`${attacker.name} пропускает ход: на нём действует контроль.`, "skill"); }
-  override deathLog(warrior: Player) { log(`${warrior.name} выбывает из поединка.`, "death"); }
+  public override skipTurnLog(attacker: Player): void {
+    log(`${attacker.name}.attack() пропущен: участник находится под эффектом контроля.`, "skill");
+  }
+  public override deathLog(warrior: Player): void {
+    log(`${warrior.name}.isAlive → false. Участник исключён из турнирной сетки.`, "death");
+  }
 }
-const uiLogger = new ArenaLogger();
 
-function setEmptyLog() {
-  if (!logContainer.children.length) logContainer.innerHTML = '<p class="empty-log">События боя появятся здесь.</p>';
+const uiLogger = new InterfaceLogger();
+
+function setEmptyLog(): void {
+  if (logContainer.children.length > 0) return;
+  const empty = document.createElement("p");
+  empty.className = "empty-log";
+  empty.textContent = "Здесь будут записаны создание участников, атаки, навыки и завершение боёв.";
+  logContainer.append(empty);
 }
 
-function renderPlayers() {
-  playerCount.textContent = String(players.length);
+function renderPlayers(): void {
+  playerCount.textContent = String(players.length).padStart(2, "0");
   playerList.replaceChildren();
-  if (!players.length) {
-    playerList.innerHTML = '<p class="empty-log">Добавьте случайных бойцов или создайте героя.</p>';
+
+  if (players.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "empty-log";
+    empty.textContent = "Участников нет. Добавьте случайных бойцов или создайте одного вручную.";
+    playerList.append(empty);
     return;
   }
+
+  const eliminated = new Set(game?.eliminated ?? []);
   players.forEach((player) => {
     const card = document.createElement("article");
     card.className = "player-card";
     if (eliminated.has(player)) card.classList.add("eliminated");
-    if (game?.battleFighters.includes(player) && game.battleActive) card.classList.add("active");
-    const state = eliminated.has(player) ? "выбыл" : `ур. ${player.level}`;
-    card.innerHTML = `<div class="player-name">${player.name}</div><div class="player-meta"><span class="class-dot">${classLabels[player.className ?? ""] ?? player.className}</span><strong>${state}</strong></div>`;
+    if (game?.battleActive && game.battleFighters.includes(player)) card.classList.add("active");
+
+    const name = document.createElement("div");
+    name.className = "player-name";
+    name.textContent = player.name;
+
+    const meta = document.createElement("div");
+    meta.className = "player-meta";
+    const method = document.createElement("span");
+    method.className = "player-method-chip";
+    method.textContent = player.mechanic.method;
+    const state = document.createElement("strong");
+    state.textContent = eliminated.has(player) ? "ВЫБЫЛ" : `УР. ${player.level}`;
+    meta.append(method, state);
+    card.append(name, meta);
     playerList.append(card);
   });
 }
 
-function renderFighter(element: HTMLElement, player: Player | null) {
+function renderFighter(element: HTMLElement, player: Player | null): void {
   const name = element.querySelector(".name") as HTMLElement;
   const label = element.querySelector(".fighter-class") as HTMLElement;
+  const method = element.querySelector(".fighter-method") as HTMLElement;
   const hp = element.querySelector(".hp") as HTMLElement;
   const strength = element.querySelector(".str") as HTMLElement;
   const fill = element.querySelector(".fill") as HTMLElement;
+
   if (!player) {
-    name.textContent = "—"; label.textContent = "Ожидает вызова"; hp.textContent = "0"; strength.textContent = "0"; fill.style.width = "0%";
+    name.textContent = "—";
+    label.textContent = "УЧАСТНИК НЕ ВЫБРАН";
+    method.textContent = "метод ещё не вызван";
+    hp.textContent = "0";
+    strength.textContent = "0";
+    fill.style.width = "0%";
     return;
   }
+
   name.textContent = player.name;
-  label.textContent = classLabels[player.className ?? ""] ?? "Герой";
+  label.textContent = `${classLabels[player.className ?? ""] ?? player.className} / ${player.constructor.name}`;
+  method.textContent = player.mechanic.method;
   hp.textContent = `${Math.ceil(player.health)} / ${player.initialHealth}`;
   strength.textContent = String(player.strength);
   fill.style.width = `${Math.max(0, (player.health / player.initialHealth) * 100)}%`;
 }
 
-function renderBattle(attackerIndex: number | null = null, wasHit = false) {
+function renderBattle(report?: TurnReport): void {
   const fighters = game?.battleFighters ?? [];
   renderFighter(fighterElements[0], fighters[0] ?? null);
   renderFighter(fighterElements[1], fighters[1] ?? null);
-  fighterElements.forEach((element, index) => {
-    element.classList.remove("attacking", "hit");
-    if (attackerIndex === index) element.classList.add("attacking");
-    if (wasHit && attackerIndex !== null && attackerIndex !== index) element.classList.add("hit");
+
+  fighterElements.forEach((element) => element.classList.remove("attacking", "hit"));
+  if (!report || report.battleFinished) return;
+  const attackerIndex = fighters.indexOf(report.attacker);
+  const defenderIndex = fighters.indexOf(report.defender);
+  if (attackerIndex >= 0) fighterElements[attackerIndex].classList.add("attacking");
+  if (defenderIndex >= 0 && report.damage > 0) fighterElements[defenderIndex].classList.add("hit");
+}
+
+function renderHeader(): void {
+  if (!game || game.state === "idle") {
+    status.textContent = "Добавьте минимум двух участников";
+    arenaTitle.textContent = "Турнир не запущен";
+    arenaDisplay.textContent = "Добавьте минимум двух участников.";
+    roundInfo.textContent = "РАУНД --";
+    turnInfo.textContent = "ХОД 000";
+    return;
+  }
+
+  if (game.state === "finished") {
+    status.textContent = `Победитель: ${game.champion?.name ?? "—"}`;
+    arenaTitle.textContent = "Турнир завершён";
+    arenaDisplay.textContent = `${game.champion?.name ?? "Участник"} выиграл последний бой и получил опыт.`;
+    roundInfo.textContent = "ФИНАЛ";
+    turnInfo.textContent = "ЗАВЕРШЕНО";
+    return;
+  }
+
+  status.textContent = `Раунд ${game.round} · бой ${game.match}`;
+  arenaTitle.textContent = game.currentArena?.name ?? "Арена";
+  arenaDisplay.textContent = game.currentArena?.description ?? "";
+  roundInfo.textContent = `РАУНД ${String(game.round).padStart(2, "0")}`;
+  turnInfo.textContent = `ХОД ${String(game.turn).padStart(3, "0")}`;
+}
+
+function renderControls(): void {
+  const running = game?.state === "battle";
+  startButton.disabled = players.length < 2 || running;
+  nextTurnButton.disabled = !running;
+  autoButton.disabled = !running;
+  addRandomButton.disabled = running;
+  createButton.disabled = running;
+  randomCount.disabled = running;
+  classSelect.disabled = running;
+  healthInput.disabled = running;
+  strengthInput.disabled = running;
+  weaponSelect.disabled = running;
+  nameInput.disabled = running;
+}
+
+function renderTrace(report: TurnReport): void {
+  traceList.replaceChildren();
+  report.insights.forEach((insight) => {
+    const item = document.createElement("li");
+    item.className = insight.principle.toLowerCase().replace(" ", "-");
+    const principle = document.createElement("b");
+    principle.textContent = insight.principle;
+    const method = document.createElement("code");
+    method.textContent = insight.method;
+    const description = document.createElement("span");
+    description.textContent = insight.description;
+    item.append(principle, method, description);
+    traceList.append(item);
   });
 }
 
-function stopAuto() {
+function renderFactoryTrace(created: Player[]): void {
+  const title = factoryTrace.querySelector("strong") as HTMLElement;
+  const description = factoryTrace.querySelector("p") as HTMLElement;
+  title.textContent = `PlayerFactory.create() × ${created.length}`;
+  description.textContent = created
+    .map((player) => `${player.name}: new ${player.constructor.name}()`)
+    .join(" · ");
+}
+
+function renderAll(report?: TurnReport): void {
+  renderPlayers();
+  renderBattle(report);
+  renderHeader();
+  renderControls();
+}
+
+function stopAuto(): void {
   if (autoTimer !== null) window.clearTimeout(autoTimer);
   autoTimer = null;
-  autoButton.textContent = "Автовоспроизведение";
+  autoButton.textContent = "Автовыполнение";
 }
 
-function updateSpeedLabel() {
-  delayOutput.value = `${(Number(delayInput.value) / 1000).toFixed(2)} с`;
+function updateSpeedLabel(): void {
+  delayOutput.value = `${(Number(delayInput.value) / 1000).toFixed(2)} s`;
 }
 
-function updateBattleHeader() {
-  if (!game?.currentArena) return;
-  arenaTitle.textContent = game.currentArena.name;
-  arenaDisplay.textContent = game.currentArena.description;
-  roundInfo.textContent = `Раунд ${round}`;
-  turnInfo.textContent = `Ход ${game.turn}`;
+function addRandomPlayers(): void {
+  if (game?.state === "battle") return;
+  const created = factory.createMany(Number(randomCount.value));
+  players.push(...created);
+  renderFactoryTrace(created);
+  log(`PlayerFactory.createMany(${created.length}) → добавлено участников: ${created.length}.`);
+  renderAll();
 }
 
-function prepareNextMatch(): void {
-  while (tournamentRunning) {
-    if (matchCursor >= roundPlayers.length) {
-      if (roundWinners.length === 1) {
-        const champion = roundWinners[0];
-        tournamentRunning = false;
-        game = null;
-        status.textContent = "Турнир завершён";
-        arenaTitle.textContent = "Турнир завершён";
-        arenaDisplay.textContent = `${champion.name} забирает корону арены.`;
-        roundInfo.textContent = "Финал";
-        renderFighter(fighterElements[0], champion);
-        renderFighter(fighterElements[1], null);
-        log(`🏆 ${champion.name} становится победителем турнира!`, "skill");
-        renderPlayers();
-        stopAuto();
-        return;
-      }
-      roundPlayers = roundWinners;
-      roundWinners = [];
-      matchCursor = 0;
-      round += 1;
-      log(`Начинается раунд ${round}. Осталось героев: ${roundPlayers.length}.`);
-      continue;
-    }
-    const first = roundPlayers[matchCursor];
-    const second = roundPlayers[matchCursor + 1];
-    if (!second) {
-      roundWinners.push(first);
-      matchCursor += 2;
-      log(`${first.name} проходит в следующий раунд без боя.`);
-      continue;
-    }
-    game = new Game([], undefined, uiLogger);
-    game.startStepBattle([first, second]);
-    status.textContent = `Раунд ${round} · Поединок ${Math.floor(matchCursor / 2) + 1}`;
-    updateBattleHeader();
-    renderBattle();
-    renderPlayers();
-    log(`${first.name} и ${second.name} выходят на арену.`, "skill");
+function createPlayer(): void {
+  if (game?.state === "battle") return;
+  const health = Number(healthInput.value);
+  const strength = Number(strengthInput.value);
+  if (!Number.isInteger(health) || health < 125 || health > 150) {
+    creationStatus.textContent = "HP должен быть целым числом от 125 до 150.";
     return;
   }
-}
-
-function finishMatch() {
-  if (!game) return;
-  const [first, second] = game.battleFighters;
-  const winner = first.isAlive ? first : second;
-  const loser = first.isAlive ? second : first;
-  eliminated.add(loser);
-  winner.reset();
-  roundWinners.push(winner);
-  matchCursor += 2;
-  log(`${winner.name} проходит в следующий раунд.`, "skill");
-  prepareNextMatch();
-}
-
-function nextTurn() {
-  if (!game?.battleActive) {
-    if (!tournamentRunning) log("Сначала добавьте участников и начните новый турнир.");
+  if (!Number.isInteger(strength) || strength < 10 || strength > 15) {
+    creationStatus.textContent = "Сила должна быть целым числом от 10 до 15.";
     return;
   }
-  const attackerIndex = game.turn % 2;
-  const healthBefore = game.battleFighters[(attackerIndex + 1) % 2].health;
-  const finished = game.doStep();
-  const wasHit = game.battleFighters[(attackerIndex + 1) % 2].health < healthBefore;
-  updateBattleHeader();
-  renderBattle(attackerIndex, wasHit);
-  renderPlayers();
-  if (finished) finishMatch();
+
+  const selected = Array.from(
+    document.querySelectorAll<HTMLInputElement>("#skills-checkboxes input:checked"),
+  );
+  if (selected.length > 2) {
+    creationStatus.textContent = "Можно передать не более двух навыков.";
+    return;
+  }
+
+  const skills = selected
+    .map(({ value }) => createSkill(value))
+    .filter((skill): skill is NonNullable<typeof skill> => skill !== null);
+  const hero = factory.create({
+    className: classSelect.value as PlayerClass,
+    name: nameInput.value,
+    health,
+    strength,
+    weapon: createRandomWeapon(weaponSelect.value),
+    skills: skills.length > 0 ? skills : undefined,
+  });
+  players.push(hero);
+  creationStatus.textContent = `${hero.name}: создан экземпляр класса ${hero.constructor.name}.`;
+  renderFactoryTrace([hero]);
+  log(`PlayerFactory.create() → new ${hero.constructor.name}(${hero.name}).`, "skill");
+  renderAll();
 }
 
-function scheduleAuto() {
-  if (autoTimer !== null) return;
-  autoButton.textContent = "Пауза";
+function startTournament(): void {
+  if (players.length < 2) return;
+  stopAuto();
+  game = new Game(players, undefined, uiLogger);
+  game.startTournament();
+  traceList.replaceChildren();
+  const empty = document.createElement("li");
+  empty.className = "trace-empty";
+  empty.textContent = "Турнир создан. Выполните ход, чтобы увидеть последовательность вызванных методов.";
+  traceList.append(empty);
+  renderAll();
+}
+
+function nextTurn(): void {
+  if (!game?.battleActive) return;
+  const report = game.doStep();
+  if (!report) return;
+  renderTrace(report);
+  renderAll(report);
+  if (report.tournamentFinished) stopAuto();
+}
+
+function scheduleAuto(): void {
+  if (autoTimer !== null || !game?.battleActive) return;
+  autoButton.textContent = "Приостановить";
   const play = () => {
-    if (!tournamentRunning) { stopAuto(); return; }
+    if (!game?.battleActive) {
+      stopAuto();
+      renderAll();
+      return;
+    }
     nextTurn();
-    if (tournamentRunning) autoTimer = window.setTimeout(play, Number(delayInput.value));
+    if (game?.battleActive) autoTimer = window.setTimeout(play, Number(delayInput.value));
   };
   autoTimer = window.setTimeout(play, Number(delayInput.value));
 }
 
-function startTournament() {
-  if (players.length < 2) { log("Для турнира нужны хотя бы два героя."); return; }
+function resetTournament(): void {
   stopAuto();
-  players.forEach((player) => player.reset());
-  eliminated.clear();
-  roundPlayers = [...players].sort(() => Math.random() - 0.5);
-  roundWinners = [];
-  matchCursor = 0;
-  round = 1;
-  tournamentRunning = true;
-  log(`Турнир начинается: ${players.length} героев вступают в борьбу.`);
-  prepareNextMatch();
-}
-
-function addRandomPlayers() {
-  if (tournamentRunning) { log("Дождитесь завершения турнира или сбросьте его."); return; }
-  const amount = Number(randomCount.value);
-  players.push(...playerFabric.createRandomPlayers(amount));
-  renderPlayers();
-  status.textContent = "Состав готовится";
-  log(`В состав добавлено бойцов: ${amount}.`);
-}
-
-function createPlayer() {
-  if (tournamentRunning) { creationStatus.textContent = "Сбросьте турнир, чтобы изменить состав."; return; }
-  const health = Number(healthInput.value);
-  const strength = Number(strengthInput.value);
-  if (!Number.isInteger(health) || health < 125 || health > 150) { creationStatus.textContent = "Здоровье: целое число от 125 до 150."; return; }
-  if (!Number.isInteger(strength) || strength < 10 || strength > 15) { creationStatus.textContent = "Сила: целое число от 10 до 15."; return; }
-  const selected = Array.from(document.querySelectorAll<HTMLInputElement>("#skills-checkboxes input:checked"));
-  if (selected.length > 2) { creationStatus.textContent = "Можно выбрать не более двух навыков."; return; }
-  const skills = selected.map(({ value }) => skillFabric.createSkillFromTemplate(value)).filter((skill): skill is NonNullable<typeof skill> => skill !== null);
-  const hero = playerFabric.createPlayer(classSelect.value, health, strength, weaponFabric.createRandomWeapon(weaponSelect.value), skills.length ? skills : null);
-  if (!hero) { creationStatus.textContent = "Не удалось создать героя."; return; }
-  players.push(hero);
-  creationStatus.textContent = `${hero.name} готов к бою.`;
-  renderPlayers();
-  log(`${hero.name} присоединяется к турниру.`);
-}
-
-function resetTournament() {
-  stopAuto();
-  players.forEach((player) => player.reset());
-  eliminated.clear();
-  tournamentRunning = false;
+  game?.resetTournament();
   game = null;
-  roundPlayers = [];
-  roundWinners = [];
-  matchCursor = 0;
-  round = 1;
-  status.textContent = "Ожидание участников";
-  roundInfo.textContent = "Раунд —";
-  turnInfo.textContent = "Ход 0";
-  arenaTitle.textContent = "Выберите участников";
-  arenaDisplay.textContent = "Турнир начинается, когда в составе есть хотя бы два героя.";
-  renderBattle();
-  renderPlayers();
-  log("Турнир сброшен. Герои восстановили силы.");
+  creationStatus.textContent = "";
+  traceList.replaceChildren();
+  const empty = document.createElement("li");
+  empty.className = "trace-empty";
+  empty.textContent = "Состояние турнира сброшено. HP и эффекты участников восстановлены.";
+  traceList.append(empty);
+  log("Game.resetTournament(): состояние турнира очищено.");
+  renderAll();
 }
 
-$("#add-random-btn").addEventListener("click", addRandomPlayers);
-$("#create-btn").addEventListener("click", createPlayer);
+addRandomButton.addEventListener("click", addRandomPlayers);
+createButton.addEventListener("click", createPlayer);
 $("#reset-btn").addEventListener("click", resetTournament);
 startButton.addEventListener("click", startTournament);
 nextTurnButton.addEventListener("click", nextTurn);
 autoButton.addEventListener("click", () => autoTimer === null ? scheduleAuto() : stopAuto());
-$("#clear-log").addEventListener("click", () => { logContainer.replaceChildren(); setEmptyLog(); });
+$("#clear-log").addEventListener("click", () => {
+  logContainer.replaceChildren();
+  setEmptyLog();
+});
 delayInput.addEventListener("input", updateSpeedLabel);
 
 updateSpeedLabel();
 setEmptyLog();
-renderPlayers();
+renderAll();

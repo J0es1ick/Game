@@ -3,180 +3,335 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0c3b2e" />
-    <title>Турнир</title>
+    <meta name="theme-color" content="#171914" />
+    <title>ООП-турнир — пошаговое выполнение</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="page" id="top">
-      <header class="site-header">
-        <a class="wordmark" href="#top" aria-label="Турнир">
-          <span class="wordmark-sign">Т</span>
-          <span>турнир</span>
-        </a>
-        <p class="site-note">Пошаговая ролевая игра</p>
-        <div class="game-status" id="tournament-status">Ожидание участников</div>
-      </header>
+    <header class="topbar" id="top">
+      <a class="brand" href="#top" aria-label="ООП-турнир">
+        <span class="brand-mark">O</span>
+        <span>ТУРНИР</span>
+      </a>
+      <p class="build-label">ПОШАГОВАЯ МОДЕЛЬ · TYPESCRIPT</p>
+      <div class="system-state">
+        <span class="state-lamp" aria-hidden="true"></span>
+        <span id="tournament-status">Добавьте минимум двух участников</span>
+      </div>
+    </header>
 
-      <section class="introduction" aria-labelledby="page-title">
-        <p class="issue">Сезон 01 / открытая арена</p>
-        <h1 id="page-title">Соберите состав.<br />Остальное решит бой.</h1>
-        <p class="introduction-copy">
-          Турнир проходит на выбывание. Каждый ход можно запускать вручную или
-          наблюдать в выбранном темпе.
-        </p>
-      </section>
-
-      <section class="roster" aria-labelledby="roster-title">
-        <header class="section-heading roster-heading">
-          <div>
-            <span class="section-number">01</span>
-            <h2 id="roster-title">Состав турнира</h2>
-          </div>
-          <span class="player-total"><b id="player-count">0</b> участников</span>
-        </header>
-
-        <div class="roster-tools">
-          <label class="field-inline" for="random-count">
-            Количество
-            <select id="random-count" aria-label="Количество случайных бойцов">
-              <option value="2">2 бойца</option>
-              <option value="4" selected>4 бойца</option>
-              <option value="8">8 бойцов</option>
-            </select>
-          </label>
-          <button class="button button-dark" id="add-random-btn">Добавить случайных</button>
-          <button class="button button-reset" id="reset-btn" title="Сбросить турнир" aria-label="Сбросить турнир">
-            Сбросить
-          </button>
+    <main class="machine">
+      <section class="boot-screen" aria-labelledby="page-title">
+        <div class="boot-copy">
+          <p class="terminal-line">
+            [ ДЕМОНСТРАЦИЯ ООП И ПАТТЕРНОВ ПРОЕКТИРОВАНИЯ ]
+          </p>
+          <h1 id="page-title">Пошаговая модель турнирного боя</h1>
+          <p>
+            Интерфейс запускает ту же модель <code>Game</code>, что и консольная
+            версия. Для каждого хода он показывает вызванные методы, выбранную
+            реализацию класса и изменение урона правилами текущей арены.
+          </p>
         </div>
 
-        <div class="player-list" id="player-list" aria-live="polite"></div>
+        <ol
+          class="pattern-route"
+          aria-label="Последовательность применяемых механизмов"
+        >
+          <li>
+            <b>01</b><span>Simple Factory</span
+            ><small>создание Player по className</small>
+          </li>
+          <li>
+            <b>02</b><span>Template Method</span
+            ><small>порядок выполнения attack()</small>
+          </li>
+          <li>
+            <b>03</b><span>Polymorphism</span
+            ><small>переопределённый метод класса</small>
+          </li>
+          <li>
+            <b>04</b><span>Strategy</span
+            ><small>расчёт урона текущей ареной</small>
+          </li>
+        </ol>
+      </section>
 
-        <details class="creator">
-          <summary>
-            <span>Создать своего участника</span>
-            <span class="summary-mark">Открыть +</span>
-          </summary>
-          <div class="creator-body">
-            <div class="creator-grid">
-              <label>Класс
+      <section class="workbench" aria-label="Панель турнира">
+        <aside class="module roster-module" aria-labelledby="roster-title">
+          <header class="module-head">
+            <div>
+              <span class="module-index">A</span>
+              <p>ВХОДНЫЕ ДАННЫЕ</p>
+              <h2 id="roster-title">Участники турнира</h2>
+            </div>
+            <output class="counter" id="player-count">0</output>
+          </header>
+
+          <div class="random-loader">
+            <label for="random-count"
+              >Случайные участники
+              <select
+                id="random-count"
+                aria-label="Количество случайных бойцов"
+              >
+                <option value="2">2 участника</option>
+                <option value="4" selected>4 участника</option>
+                <option value="8">8 участников</option>
+              </select>
+            </label>
+            <button class="key key-green" id="add-random-btn">Добавить</button>
+            <button
+              class="square-key"
+              id="reset-btn"
+              title="Сбросить состояние турнира"
+              aria-label="Сбросить состояние турнира"
+            >
+              ↺
+            </button>
+          </div>
+
+          <div class="player-list" id="player-list" aria-live="polite"></div>
+
+          <details class="object-builder">
+            <summary>
+              <span>Добавить участника вручную</span><b>РАСКРЫТЬ +</b>
+            </summary>
+            <div class="builder-body">
+              <label
+                >Имя
+                <input
+                  id="name-input"
+                  maxlength="18"
+                  placeholder="автоматически"
+                />
+              </label>
+              <label
+                >Класс
                 <select id="class-select">
                   <option value="Knight">Рыцарь</option>
                   <option value="Archer">Лучник</option>
                   <option value="Wizard">Маг</option>
                 </select>
               </label>
-              <label>Здоровье
-                <input type="number" id="health-input" value="140" min="125" max="150" />
+              <label
+                >HP
+                <input
+                  type="number"
+                  id="health-input"
+                  value="140"
+                  min="125"
+                  max="150"
+                />
               </label>
-              <label>Сила
-                <input type="number" id="strength-input" value="12" min="10" max="15" />
+              <label
+                >Сила
+                <input
+                  type="number"
+                  id="strength-input"
+                  value="12"
+                  min="10"
+                  max="15"
+                />
               </label>
-              <label>Оружие
+              <label
+                >Оружие
                 <select id="weapon-select">
                   <option value="sword">Меч</option>
                   <option value="bow">Лук</option>
                   <option value="stick">Посох</option>
                 </select>
               </label>
-            </div>
-            <fieldset class="skill-options" id="skills-checkboxes">
-              <legend>Навыки, не более двух</legend>
-              <label><input type="checkbox" value="огненные стрелы" /> Огненные стрелы</label>
-              <label><input type="checkbox" value="ледяные стрелы" /> Ледяные стрелы</label>
-              <label><input type="checkbox" value="удар возмездия" /> Удар возмездия</label>
-              <label><input type="checkbox" value="заворожение" /> Заворожение</label>
-            </fieldset>
-            <div class="creator-submit">
-              <button class="button button-dark" id="create-btn">Добавить в состав</button>
+              <fieldset id="skills-checkboxes">
+                <legend>Навыки · максимум 2</legend>
+                <label
+                  ><input type="checkbox" value="огненные стрелы" /> Огненные
+                  стрелы</label
+                >
+                <label
+                  ><input type="checkbox" value="ледяные стрелы" /> Ледяные
+                  стрелы</label
+                >
+                <label
+                  ><input type="checkbox" value="удар возмездия" /> Удар
+                  возмездия</label
+                >
+                <label
+                  ><input type="checkbox" value="заворожение" />
+                  Заворожение</label
+                >
+              </fieldset>
+              <button class="key key-green builder-submit" id="create-btn">
+                Добавить участника
+              </button>
               <p class="form-message" id="creation-status"></p>
             </div>
-          </div>
-        </details>
-      </section>
+          </details>
+        </aside>
 
-      <section class="match" aria-labelledby="arena-title">
-        <header class="section-heading match-heading">
-          <div>
-            <span class="section-number">02</span>
-            <p class="match-kicker">Текущий поединок</p>
-            <h2 id="arena-title">Выберите участников</h2>
-            <p class="arena-description" id="arena-display">
-              Турнир начинается, когда в составе есть хотя бы два героя.
+        <section class="module runtime-module" aria-labelledby="arena-title">
+          <header class="module-head runtime-head">
+            <div>
+              <span class="module-index">B</span>
+              <p>СОСТОЯНИЕ ТУРНИРА</p>
+              <h2 id="arena-title">Турнир не запущен</h2>
+              <span class="arena-description" id="arena-display"
+                >Добавьте минимум двух участников.</span
+              >
+            </div>
+            <div class="round-display">
+              <span id="round-info">РАУНД --</span>
+              <strong id="turn-info">ХОД 000</strong>
+            </div>
+          </header>
+
+          <div class="battle-screen">
+            <article class="fighter" id="fighter1">
+              <header>
+                <span class="fighter-slot">01</span
+                ><span class="fighter-class">УЧАСТНИК НЕ ВЫБРАН</span>
+              </header>
+              <h3 class="name">—</h3>
+              <p class="fighter-method">метод ещё не вызван</p>
+              <div class="health-line"><div class="fill"></div></div>
+              <footer>
+                <span>HP <b class="hp">0</b></span
+                ><span>STR <b class="str">0</b></span>
+              </footer>
+            </article>
+
+            <div class="versus" aria-hidden="true"><span>VS</span></div>
+
+            <article class="fighter" id="fighter2">
+              <header>
+                <span class="fighter-slot">02</span
+                ><span class="fighter-class">УЧАСТНИК НЕ ВЫБРАН</span>
+              </header>
+              <h3 class="name">—</h3>
+              <p class="fighter-method">метод ещё не вызван</p>
+              <div class="health-line"><div class="fill"></div></div>
+              <footer>
+                <span>HP <b class="hp">0</b></span
+                ><span>STR <b class="str">0</b></span>
+              </footer>
+            </article>
+          </div>
+
+          <div class="control-deck">
+            <div class="control-group launch-group">
+              <span class="control-label">СОСТОЯНИЕ</span>
+              <button class="key key-red" id="start-tournament-btn">
+                Начать турнир
+              </button>
+            </div>
+            <div class="control-group action-group">
+              <span class="control-label">УПРАВЛЕНИЕ ХОДАМИ</span>
+              <button class="key key-yellow" id="next-turn">
+                Выполнить ход
+              </button>
+              <button class="key" id="auto-battle">Автовыполнение</button>
+            </div>
+            <label class="speed-control" for="delay-input">
+              <span class="control-label">ЗАДЕРЖКА МЕЖДУ ХОДАМИ</span>
+              <span class="range-track">
+                <input
+                  type="range"
+                  id="delay-input"
+                  min="150"
+                  max="2500"
+                  step="50"
+                  value="850"
+                />
+                <output id="delay-output" for="delay-input">0.85 s</output>
+              </span>
+            </label>
+          </div>
+        </section>
+
+        <aside
+          class="module inspector-module"
+          aria-labelledby="inspector-title"
+        >
+          <header class="module-head">
+            <div>
+              <span class="module-index">C</span>
+              <p>ЛОГИКА ПОСЛЕДНЕГО ХОДА</p>
+              <h2 id="inspector-title">Выполненные методы</h2>
+            </div>
+            <span class="pulse-dot" aria-hidden="true"></span>
+          </header>
+
+          <div class="factory-readout" id="factory-trace">
+            <span>РЕЗУЛЬТАТ PLAYERFACTORY.CREATE()</span>
+            <strong>участники ещё не создавались</strong>
+            <p>
+              После добавления здесь будут указаны созданные подклассы Player.
             </p>
           </div>
-          <span class="round-label" id="round-info">Раунд —</span>
+
+          <ol class="trace-list" id="trace-list" aria-live="polite">
+            <li class="trace-empty">Начните турнир и выполните первый ход.</li>
+          </ol>
+
+          <div class="dispatch-legend">
+            <div><i class="lamp red"></i><span>Template Method</span></div>
+            <div><i class="lamp green"></i><span>Polymorphism</span></div>
+            <div><i class="lamp yellow"></i><span>Strategy</span></div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="class-manual" aria-labelledby="manual-title">
+        <header>
+          <p>ПЕРЕОПРЕДЕЛЕНИЕ МЕТОДОВ КЛАССОВ PLAYER</p>
+          <h2 id="manual-title">Различия в поведении классов</h2>
         </header>
-
-        <div class="battle-field" id="battle-field">
-          <article class="fighter fighter-left" id="fighter1">
-            <div class="fighter-symbol">I</div>
-            <p class="fighter-class">Ожидает вызова</p>
-            <h3 class="name">—</h3>
-            <div class="health-line"><div class="fill"></div></div>
-            <div class="fighter-stats">
-              <span>здоровье <b class="hp">0</b></span>
-              <span>сила <b class="str">0</b></span>
-            </div>
+        <div class="manual-grid">
+          <article>
+            <span>KNIGHT</span>
+            <h3>Снижение входящего урона</h3>
+            <code>override takeDamage()</code>
+            <p>
+              Метод уменьшает рассчитанный входящий урон на 22% перед изменением
+              HP.
+            </p>
           </article>
-
-          <div class="versus" aria-hidden="true"><span>против</span></div>
-
-          <article class="fighter fighter-right" id="fighter2">
-            <div class="fighter-symbol">II</div>
-            <p class="fighter-class">Ожидает вызова</p>
-            <h3 class="name">—</h3>
-            <div class="health-line"><div class="fill"></div></div>
-            <div class="fighter-stats">
-              <span>здоровье <b class="hp">0</b></span>
-              <span>сила <b class="str">0</b></span>
-            </div>
+          <article>
+            <span>ARCHER</span>
+            <h3>Усиление каждого третьего удара</h3>
+            <code>override modifyOutgoingDamage()</code>
+            <p>Каждый третий вызов увеличивает исходящий урон в 1,5 раза.</p>
           </article>
-        </div>
-
-        <div class="match-controls">
-          <div class="start-control">
-            <span class="control-caption">Новый турнир</span>
-            <button class="button button-accent" id="start-tournament-btn">Начать</button>
-          </div>
-
-          <div class="turn-controls">
-            <span class="control-caption">Управление боем</span>
-            <div>
-              <button class="button button-dark" id="next-turn">Следующий ход</button>
-              <button class="button" id="auto-battle">Автовоспроизведение</button>
-            </div>
-          </div>
-
-          <label class="speed-control" for="delay-input">
-            <span class="control-caption">Пауза между ходами</span>
-            <span class="range-row">
-              <input type="range" id="delay-input" min="150" max="2500" step="50" value="850" />
-              <output id="delay-output" for="delay-input">0.85 с</output>
-            </span>
-          </label>
-
-          <span class="turn-count" id="turn-info">Ход 0</span>
+          <article>
+            <span>WIZARD</span>
+            <h3>Лечение после применения навыка</h3>
+            <code>override useSkill()</code>
+            <p>После успешного применения навыка маг восстанавливает 6 HP.</p>
+          </article>
         </div>
       </section>
 
-      <section class="chronicle" aria-labelledby="chronicle-title">
-        <header class="section-heading chronicle-heading">
+      <section class="module chronicle" aria-labelledby="chronicle-title">
+        <header class="module-head">
           <div>
-            <span class="section-number">03</span>
-            <h2 id="chronicle-title">Хроника боя</h2>
+            <span class="module-index">D</span>
+            <p>ПОСЛЕДОВАТЕЛЬНОСТЬ ВЫЗОВОВ</p>
+            <h2 id="chronicle-title">Журнал турнира</h2>
           </div>
-          <button class="clear-log" id="clear-log">Очистить записи</button>
+          <button class="text-key" id="clear-log">ОЧИСТИТЬ ЖУРНАЛ</button>
         </header>
         <div id="log-container" class="log-container" aria-live="polite"></div>
       </section>
-
-      <footer class="site-footer">
-        <span>Турнир / браузерная версия</span>
-        <span>Ходы, арены и опыт рассчитываются игровым ядром</span>
-      </footer>
     </main>
+
+    <footer class="page-footer">
+      <span>ТУРНИР</span>
+      <span
+        >Player.attack() → переопределённый метод класса →
+        Arena.modifyDamage()</span
+      >
+    </footer>
+
     <script type="module" src="./ui.ts"></script>
   </body>
 </html>
