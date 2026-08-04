@@ -1,11 +1,10 @@
-import { Knight } from "../src/classes";
-import { WeaponFabric } from "../src/fabrics/weaponsFabric/WeaponFabric";
+﻿import { Archer } from "../src/classes";
+import { createRandomWeapon, createWeapon } from "../src/catalogs/WeaponCatalog";
 
 describe("Player progression tests", () => {
-  const weaponFabric = new WeaponFabric();
 
   it("levels up after enough experience and keeps the new stats on reset", () => {
-    const hero = new Knight(100, 20, "Hero", weaponFabric.createWeapon("sword", "Training Sword", 5), []);
+    const hero = new Archer(100, 20, "Hero", createWeapon("Training Sword", 5), []);
 
     hero.takeDamage(35);
     expect(hero.health).toBe(65);

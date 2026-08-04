@@ -1,4 +1,4 @@
-import { getRandomNumber } from "../src/utils/randomization/getRandomNumber";
+﻿import { getRandomNumber } from "../src/utils/randomization/getRandomNumber";
 
 describe("getRandomNumber tests", () => {
   it("Should return -1 if min is greater than max", () => {

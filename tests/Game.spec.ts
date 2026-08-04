@@ -1,8 +1,8 @@
-import { Knight, Wizard } from "../src/classes";
+﻿import { Knight, Wizard } from "../src/classes";
 import { Game } from "../src/gameplay/Game";
 import { Logger } from "../src/utils/output/Logger";
-import { WeaponFabric } from "../src/fabrics/weaponsFabric/WeaponFabric";
-import { SkillFabric } from "../src/fabrics/skillFabric/SkillFabric";
+import { createRandomWeapon, createWeapon } from "../src/catalogs/WeaponCatalog";
+import { createSkill } from "../src/catalogs/SkillCatalog";
 
 class MockLogger extends Logger {
   public messages: string[] = [];
@@ -37,7 +37,6 @@ class MockLogger extends Logger {
 }
 
 describe("Game tests", () => {
-  const weaponFabric = new WeaponFabric();
 
   afterEach(() => {
     jest.restoreAllMocks();
@@ -49,7 +48,7 @@ describe("Game tests", () => {
       100,
       20,
       "Hero",
-      weaponFabric.createWeapon("sword", "Training Sword", 5),
+      createWeapon("Training Sword", 5),
       [],
     );
     const game = new Game(0, hero, logger);
@@ -67,28 +66,28 @@ describe("Game tests", () => {
 
     const logger = new MockLogger();
     const game = new Game(0, undefined, logger, {
-      arenaName: "Training Ground",
+      arenaName: "Учебный двор",
     });
     const fighter1 = new Knight(
       80,
       22,
       "Alpha",
-      weaponFabric.createWeapon("sword", "Training Sword", 5),
+      createWeapon("Training Sword", 5),
       [],
     );
     const fighter2 = new Wizard(
       50,
       6,
       "Beta",
-      weaponFabric.createWeapon("stick", "Training Staff", 4),
+      createWeapon("Training Staff", 4),
       [],
     );
 
     const winner = await game.battle([fighter1, fighter2]);
 
     expect(winner).toBe(fighter1);
-    expect(game.currentArena?.name).toBe("Training Ground");
-    expect(logger.messages[0]).toContain("Арена: Training Ground");
+    expect(game.currentArena?.name).toBe("Учебный двор");
+    expect(logger.messages[0]).toContain("Арена: Учебный двор");
     expect(logger.attackLogs.length).toBeGreaterThan(0);
   });
 
@@ -97,7 +96,7 @@ describe("Game tests", () => {
       100,
       20,
       "Hero",
-      weaponFabric.createWeapon("sword", "Training Sword", 5),
+      createWeapon("Training Sword", 5),
       [],
     );
 
@@ -117,23 +116,22 @@ describe("Game tests", () => {
 
     const logger = new MockLogger();
     const game = new Game(0, undefined, logger, {
-      arenaName: "Training Ground",
+      arenaName: "Учебный двор",
     });
-    const skillFabric = new SkillFabric();
 
-    const charm = skillFabric.createSkillFromTemplate("заворожение")!;
+    const charm = createSkill("заворожение")!;
     const attacker = new Wizard(
       80,
       12,
       "Mage",
-      weaponFabric.createWeapon("stick", "Training Staff", 4),
+      createWeapon("Training Staff", 4),
       [charm],
     );
     const defender = new Knight(
       80,
       12,
       "Target",
-      weaponFabric.createWeapon("sword", "Training Sword", 5),
+      createWeapon("Training Sword", 5),
       [],
     );
 
@@ -152,23 +150,22 @@ describe("Game tests", () => {
   });
 
   it("ice arrows last exactly 3 attacks; fire arrows persist without turns", () => {
-    const skillFabric = new SkillFabric();
 
     const attacker = new Wizard(
       100,
       20,
       "Caster",
-      weaponFabric.createWeapon("stick", "Staff", 5),
+      createWeapon("Staff", 5),
       [
-        skillFabric.createSkillFromTemplate("огненные стрелы")!,
-        skillFabric.createSkillFromTemplate("ледяные стрелы")!,
+        createSkill("огненные стрелы")!,
+        createSkill("ледяные стрелы")!,
       ],
     );
     const defender = new Wizard(
       500,
       10,
       "Target",
-      weaponFabric.createWeapon("stick", "Stick", 1),
+      createWeapon("Stick", 1),
       [],
     );
 
@@ -193,5 +190,45 @@ describe("Game tests", () => {
     expect(attacker.attack(defender)).toBe(
       attacker.strength + attacker.weapon.damage + 2,
     );
+  });
+
+  it("returns a live trace of template method, strategy and polymorphism", () => {
+    jest.spyOn(Math, "random").mockReturnValue(0.99);
+    const logger = new MockLogger();
+    const knight = new Knight(100, 12, "Shield", createWeapon("Sword", 5), []);
+    const wizard = new Wizard(100, 12, "Caster", createWeapon("Staff", 5), []);
+    const game = new Game([], undefined, logger, { arenaName: "Учебный двор" });
+    game.startStepBattle([wizard, knight]);
+
+    const report = game.doStep();
+
+    expect(report?.insights.map((item) => item.principle)).toEqual([
+      "Template Method",
+      "Strategy",
+      "Polymorphism",
+    ]);
+    expect(report?.insights[2].method).toBe("Knight.takeDamage()");
+  });
+
+  it("owns the whole tournament bracket in step mode", () => {
+    jest.spyOn(Math, "random").mockReturnValue(0.99);
+    const heroes = ["A", "B", "C", "D"].map(
+      (name) => new Knight(80, 14, name, createWeapon("Sword", 4), []),
+    );
+    const game = new Game(heroes, undefined, new MockLogger(), {
+      arenaName: "Учебный двор",
+    });
+    game.startTournament();
+
+    let guard = 0;
+    while (game.state !== "finished" && guard < 200) {
+      game.doStep();
+      guard += 1;
+    }
+
+    expect(game.state).toBe("finished");
+    expect(game.champion).toBeDefined();
+    expect(game.eliminated).toHaveLength(3);
+    expect(guard).toBeLessThan(200);
   });
 });
