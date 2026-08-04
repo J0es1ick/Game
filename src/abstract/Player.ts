@@ -3,6 +3,17 @@ import { ISkill } from "../skills/ISkill";
 import { getRandomArrayElement } from "../utils/randomization";
 import { IWeapon } from "../weapon/IWeapon";
 
+export interface ClassMechanic {
+  title: string;
+  method: string;
+  description: string;
+}
+
+export interface DispatchTrace {
+  method: string;
+  message: string;
+}
+
 export abstract class Player {
   protected _name: string;
   protected _className?: string;
@@ -18,6 +29,9 @@ export abstract class Player {
   protected _level: number = 1;
   protected _experience: number = 0;
   protected _experienceToNextLevel: number = 100;
+  protected _lastDispatch: DispatchTrace | null = null;
+
+  public abstract readonly mechanic: ClassMechanic;
 
   constructor(
     playerHealth: number,
@@ -91,6 +105,18 @@ export abstract class Player {
     return this._experienceToNextLevel;
   }
 
+  public get lastDispatch(): DispatchTrace | null {
+    return this._lastDispatch;
+  }
+
+  public clearDispatch(): void {
+    this._lastDispatch = null;
+  }
+
+  protected recordDispatch(method: string, message: string): void {
+    this._lastDispatch = { method, message };
+  }
+
   public choseSkill(): void {
     this._currentSkill = getRandomArrayElement(this.skills);
   }
@@ -135,12 +161,19 @@ export abstract class Player {
     }
 
     const skillsBuff: number = this.applyActiveSkillBuffs();
-    const rawDamage = this._strength + this._weapon.damage + skillsBuff;
+    const rawDamage = this.modifyOutgoingDamage(
+      this._strength + this._weapon.damage + skillsBuff,
+      opponent,
+    );
     const finalDamage = arena
       ? arena.modifyDamage(rawDamage, this, opponent)
       : rawDamage;
 
     return opponent.takeDamage(finalDamage);
+  }
+
+  protected modifyOutgoingDamage(damage: number, opponent: Player): number {
+    return damage;
   }
 
   private applyActiveSkillBuffs(): number {
@@ -181,7 +214,7 @@ export abstract class Player {
     return currentDamage;
   }
 
-  public heal(amount: number) {
+  public heal(amount: number): void {
     if (this._health + amount > this.initialHealth) {
       this._health = this.initialHealth;
     } else {
@@ -220,6 +253,7 @@ export abstract class Player {
     this._currentSkill = undefined;
     this._countOfSkipingTurns = 0;
     this._isAlive = true;
+    this._lastDispatch = null;
     this._skills.forEach((skill) => {
       skill.usageCount = skill.initialSkillUsage;
       skill.isUsed = false;

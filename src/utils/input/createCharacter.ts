@@ -1,6 +1,6 @@
-import { PlayerFabric } from "../../fabrics/playersFabrics/index";
-import { SkillFabric } from "../../fabrics/skillFabric/SkillFabric";
-import { WeaponFabric } from "../../fabrics/weaponsFabric/WeaponFabric";
+import { createSkill } from "../../catalogs/SkillCatalog";
+import { createRandomWeapon } from "../../catalogs/WeaponCatalog";
+import { PlayerClass, PlayerFactory } from "../../factories/PlayerFactory";
 import { Game } from "../../gameplay/Game";
 import { ISkill } from "../../skills/ISkill";
 import { IWeapon } from "../../weapon/IWeapon";
@@ -8,8 +8,6 @@ import { Logger } from "../output/Logger";
 import { readAnswer } from "../question/readAnswer";
 
 export async function createCharacter(numberOfPlayers: number): Promise<void> {
-  const weaponFabric = new WeaponFabric();
-  const skillFabric = new SkillFabric();
   const logger = new Logger();
 
   let playerType: string;
@@ -18,7 +16,7 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
   let playerWeapon: IWeapon;
 
   const playerSkills: ISkill[] = [];
-  const playerFabric = new PlayerFabric();
+  const playerFactory = new PlayerFactory();
   const types: string[] = ["Knight", "Archer", "Wizard"];
   const weapons: string[] = ["bow", "sword", "stick"];
   const skillNames: string[] = [
@@ -79,7 +77,7 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
       console.log("Некорректный ввод. Пожалуйста, попробуйте снова.");
       await askForWeapon();
     } else {
-      playerWeapon = weaponFabric.createRandomWeapon(weapons[number - 1]);
+      playerWeapon = createRandomWeapon(weapons[number - 1]);
       await askForSkills();
     }
   }
@@ -93,11 +91,11 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
       console.log("Некорректный ввод. Пожалуйста, попробуйте снова.");
       await askForSkills();
     } else if (number < 5 && number > 0) {
-      if (playerSkills.length > 2) {
+      if (playerSkills.length >= 2) {
         console.log("У вас уже максимальное количество скиллов");
       } else {
         playerSkills.push(
-          skillFabric.createSkillFromTemplate(skillNames[number - 1])!,
+          createSkill(skillNames[number - 1])!,
         );
       }
       await askForSkills();
@@ -115,30 +113,13 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
 
   await askForClass();
 
-  if (playerSkills.length !== 0) {
-    const game = new Game(
-      numberOfPlayers - 1,
-      playerFabric.createPlayer(
-        playerType!,
-        playerHealth,
-        playerStrength,
-        playerWeapon!,
-        playerSkills,
-      ),
-      logger,
-    );
-    await game.start();
-  } else {
-    const game = new Game(
-      numberOfPlayers - 1,
-      playerFabric.createPlayer(
-        playerType!,
-        playerHealth,
-        playerStrength,
-        playerWeapon!,
-      ),
-      logger,
-    );
-    await game.start();
-  }
+  const hero = playerFactory.create({
+    className: playerType! as PlayerClass,
+    health: playerHealth,
+    strength: playerStrength,
+    weapon: playerWeapon!,
+    skills: playerSkills.length > 0 ? playerSkills : undefined,
+  });
+  const game = new Game(numberOfPlayers - 1, hero, logger);
+  await game.start();
 }

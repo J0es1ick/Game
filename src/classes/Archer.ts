@@ -4,6 +4,12 @@ import { IWeapon } from "../weapon/IWeapon";
 
 export class Archer extends Player {
   protected _className: string = "Archer";
+  private shotCounter = 0;
+  public readonly mechanic = {
+    title: "Прицельный залп",
+    method: "Archer.modifyOutgoingDamage()",
+    description: "Каждая третья атака наносит на 50% больше урона.",
+  };
 
   constructor(
     playerHealth: number,
@@ -13,5 +19,23 @@ export class Archer extends Player {
     playerSkills: ISkill[],
   ) {
     super(playerHealth, playerStrength, playerName, playerWeapon, playerSkills);
+  }
+
+  protected override modifyOutgoingDamage(damage: number): number {
+    this.shotCounter += 1;
+    const isCritical = this.shotCounter % 3 === 0;
+    const result = isCritical ? Math.round(damage * 1.5) : damage;
+    this.recordDispatch(
+      "Archer.modifyOutgoingDamage()",
+      isCritical
+        ? `Третий выстрел стал критическим: ${damage} → ${result}.`
+        : `Лучник пристреливается: заряд ${this.shotCounter % 3}/3.`,
+    );
+    return result;
+  }
+
+  public override reset(): void {
+    super.reset();
+    this.shotCounter = 0;
   }
 }

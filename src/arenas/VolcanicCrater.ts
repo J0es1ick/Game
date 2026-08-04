@@ -2,8 +2,8 @@ import type { Player } from "../abstract/Player";
 import type { IArena } from "./IArena";
 
 export class VolcanicCrater implements IArena {
-  public name = "Volcanic Crater";
-  public description = "An aggressive arena where every hit burns harder.";
+  public name = "Вулканический кратер";
+  public description = "Агрессивная стратегия: входящий урон увеличивается на 15%.";
   public damageMultiplier = 1.15;
   public experienceBonus = 40;
 

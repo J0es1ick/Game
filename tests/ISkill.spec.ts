@@ -1,4 +1,4 @@
-import { Player } from "../src/abstract/Player";
+﻿import { Player } from "../src/abstract/Player";
 import { ISkill } from "../src/skills/ISkill";
 
 describe("ISkill interface tests", () => {

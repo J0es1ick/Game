@@ -2,8 +2,8 @@ import type { Player } from "../abstract/Player";
 import type { IArena } from "./IArena";
 
 export class TrainingGround implements IArena {
-  public name = "Training Ground";
-  public description = "A safe arena where blows land a little softer.";
+  public name = "Учебный двор";
+  public description = "Безопасная стратегия: каждый удар становится на 10% мягче.";
   public damageMultiplier = 0.9;
   public experienceBonus = 25;
 

@@ -4,6 +4,11 @@ import { IWeapon } from "../weapon/IWeapon";
 
 export class Knight extends Player {
   protected _className: string = "Knight";
+  public readonly mechanic = {
+    title: "Тяжёлая броня",
+    method: "Knight.takeDamage()",
+    description: "Переопределённый метод поглощает 22% входящего урона.",
+  };
 
   constructor(
     playerHealth: number,
@@ -19,12 +24,11 @@ export class Knight extends Player {
     damage: number,
     skill: ISkill | undefined = undefined,
   ): number {
-    const currentDamage: number = damage;
-    this._health -= currentDamage;
-    if (this._health <= 0) {
-      this._health = 0;
-      this._isAlive = false;
-    }
-    return currentDamage;
+    const reducedDamage = Math.max(1, Math.round(damage * 0.78));
+    this.recordDispatch(
+      "Knight.takeDamage()",
+      `Броня снизила урон с ${damage} до ${reducedDamage}.`,
+    );
+    return super.takeDamage(reducedDamage, skill);
   }
 }
