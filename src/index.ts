@@ -1,3 +1,3 @@
 import { createGame } from "./utils/input/createGame";
 
-createGame();
+void createGame();

@@ -3,17 +3,26 @@ import { Logger } from "../output/Logger";
 import { readAnswer } from "../question/readAnswer";
 
 import { createCharacter } from "./createCharacter";
+import { createWorldGame } from "./createWorldGame";
 
-export function createGame(): void {
+export async function createGame(): Promise<void> {
   const logger = new Logger();
+
+  const mode = await readAnswer(
+    "Выберите режим: 1. Базовый турнир, 2. Живой мир: ",
+  );
+  if (mode.trim() === "2") {
+    await createWorldGame();
+    return;
+  }
 
   let number: number;
   async function askForPlayers() {
     const inputNumber: string = await readAnswer(
-      "Введите число игроков (должно делиться на 4): ",
+      "Введите число участников (8, 16 или 32): ",
     );
     number = parseInt(inputNumber);
-    if (isNaN(number) || number < 1 || number % 4 !== 0) {
+    if (![8, 16, 32].includes(number)) {
       console.log("Некорректный ввод. Пожалуйста, попробуйте снова.");
       await askForPlayers();
     } else {
@@ -40,5 +49,5 @@ export function createGame(): void {
     }
   }
 
-  askForPlayers();
+  await askForPlayers();
 }
