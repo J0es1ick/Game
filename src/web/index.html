@@ -3,335 +3,319 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#171914" />
-    <title>ООП-турнир — пошаговое выполнение</title>
+    <meta name="theme-color" content="#201d18" />
+    <title>Пыль и Корона — живой мир арены</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <header class="topbar" id="top">
-      <a class="brand" href="#top" aria-label="ООП-турнир">
-        <span class="brand-mark">O</span>
-        <span>ТУРНИР</span>
-      </a>
-      <p class="build-label">ПОШАГОВАЯ МОДЕЛЬ · TYPESCRIPT</p>
-      <div class="system-state">
-        <span class="state-lamp" aria-hidden="true"></span>
-        <span id="tournament-status">Добавьте минимум двух участников</span>
+    <div class="mode-screen" id="mode-screen" aria-modal="true" role="dialog" aria-labelledby="mode-title">
+      <div class="mode-paper">
+        <p class="eyebrow">ДВА СПОСОБА ИГРАТЬ</p>
+        <h1 id="mode-title">Выберите режим</h1>
+        <p>Оба режима используют одни классы бойцов и боевые правила, но отличаются масштабом и длительностью партии.</p>
+        <div class="mode-choice">
+          <button class="mode-card" id="basic-mode-btn">
+            <span>Короткая партия</span>
+            <strong>Базовый турнир</strong>
+            <p>Соберите 8–32 случайных бойца и пошагово разыграйте одну турнирную сетку. Без сохранения и мета-прогрессии.</p>
+            <b>Запустить турнир →</b>
+          </button>
+          <button class="mode-card featured" id="world-mode-btn">
+            <span>Постоянная кампания</span>
+            <strong>Живой мир</strong>
+            <p>Создайте главного героя, собирайте экипировку, записывайтесь на события и следите за развитием сотен соперников.</p>
+            <b>Создать героя →</b>
+          </button>
+        </div>
       </div>
+    </div>
+
+    <div class="creation-screen hidden" id="creation-screen" aria-modal="true" role="dialog" aria-labelledby="creation-title">
+      <div class="creation-paper">
+        <p class="eyebrow">НОВАЯ ЛЕТОПИСЬ</p>
+        <h1 id="creation-title">Кем вас запомнит арена?</h1>
+        <p class="creation-intro">У каждого игрока один главный герой. Класс определит стартовое снаряжение, поведение в автоматическом бою и навыки, которые откроются с уровнями.</p>
+        <label class="name-field">Имя героя<input id="hero-name-input" maxlength="20" autocomplete="off" placeholder="Введите имя" /></label>
+        <div class="appearance-choice">
+          <label>Причёска<select id="hero-hair"><option value="0">Короткая</option><option value="1">Зачёс назад</option><option value="2">Длинная</option></select></label>
+        </div>
+        <div class="class-choice" id="class-choice" role="radiogroup" aria-label="Класс героя"></div>
+        <div class="creation-footer">
+          <p id="creation-message" role="status"></p>
+          <button class="button primary" id="create-hero-btn">Начать путь</button>
+        </div>
+      </div>
+    </div>
+
+    <header class="game-header">
+      <a class="wordmark" href="#" data-page-link="map"><span>Пыль</span><i>&amp;</i><span>Корона</span></a>
+      <div class="hero-summary">
+        <div class="portrait" id="header-portrait">?</div>
+        <div><strong id="header-hero-name">—</strong><small id="header-hero-meta">герой не создан</small></div>
+      </div>
+      <dl class="resources">
+        <div><dt>Уровень</dt><dd id="header-level">—</dd></div>
+        <div><dt>Монеты</dt><dd id="header-gold">—</dd></div>
+        <div><dt>Печати</dt><dd id="header-marks">—</dd></div>
+        <div><dt>Место</dt><dd id="header-rank">—</dd></div>
+        <div><dt>День мира</dt><dd id="header-day">—</dd></div>
+      </dl>
+      <button class="plain-button" id="new-game-btn" title="Удалить локальное сохранение и создать нового героя">Новая игра</button>
+      <button class="plain-button" id="switch-mode-btn">Сменить режим</button>
     </header>
 
-    <main class="machine">
-      <section class="boot-screen" aria-labelledby="page-title">
-        <div class="boot-copy">
-          <p class="terminal-line">
-            [ ДЕМОНСТРАЦИЯ ООП И ПАТТЕРНОВ ПРОЕКТИРОВАНИЯ ]
-          </p>
-          <h1 id="page-title">Пошаговая модель турнирного боя</h1>
-          <p>
-            Интерфейс запускает ту же модель <code>Game</code>, что и консольная
-            версия. Для каждого хода он показывает вызванные методы, выбранную
-            реализацию класса и изменение урона правилами текущей арены.
-          </p>
-        </div>
+    <nav class="main-nav" aria-label="Разделы игры">
+      <button class="active" data-page="map">Карта</button>
+      <button data-page="hero">Герой</button>
+      <button data-page="arsenal">Инвентарь <span id="inventory-count">0</span></button>
+      <button data-page="forge">Кузница</button>
+      <button data-page="skills">Навыки</button>
+      <button data-page="collections">Коллекции <span id="collection-count">0</span></button>
+      <button data-page="shop">Лавка</button>
+      <button data-page="leaders">Сотня лучших</button>
+      <button data-page="chronicle">Мир</button>
+    </nav>
 
-        <ol
-          class="pattern-route"
-          aria-label="Последовательность применяемых механизмов"
-        >
-          <li>
-            <b>01</b><span>Simple Factory</span
-            ><small>создание Player по className</small>
-          </li>
-          <li>
-            <b>02</b><span>Template Method</span
-            ><small>порядок выполнения attack()</small>
-          </li>
-          <li>
-            <b>03</b><span>Polymorphism</span
-            ><small>переопределённый метод класса</small>
-          </li>
-          <li>
-            <b>04</b><span>Strategy</span
-            ><small>расчёт урона текущей ареной</small>
-          </li>
-        </ol>
+    <main class="basic-shell" id="basic-shell" hidden>
+      <header class="basic-header">
+        <div>
+          <p class="eyebrow">ПОШАГОВАЯ МОДЕЛЬ · TYPESCRIPT</p>
+          <h1>Базовый турнир</h1>
+          <p>Полный интерфейс исходной версии: ручное и случайное создание участников, турнирная сетка, пошаговый журнал и разбор фактически вызванных методов.</p>
+        </div>
+        <div class="basic-head-actions"><span id="basic-global-status">Добавьте минимум двух участников</span><button class="plain-button" id="basic-switch-mode">Сменить режим</button></div>
+      </header>
+
+      <section class="basic-patterns paper-panel" aria-label="Последовательность механизмов">
+        <article><b>01</b><strong>Simple Factory</strong><small>PlayerFactory создаёт конкретный подкласс</small></article>
+        <article><b>02</b><strong>Template Method</strong><small>Player.attack() задаёт общий порядок хода</small></article>
+        <article><b>03</b><strong>Polymorphism</strong><small>Класс переопределяет часть поведения</small></article>
+        <article><b>04</b><strong>Strategy</strong><small>IArena изменяет итоговый урон</small></article>
       </section>
 
-      <section class="workbench" aria-label="Панель турнира">
-        <aside class="module roster-module" aria-labelledby="roster-title">
-          <header class="module-head">
-            <div>
-              <span class="module-index">A</span>
-              <p>ВХОДНЫЕ ДАННЫЕ</p>
-              <h2 id="roster-title">Участники турнира</h2>
-            </div>
-            <output class="counter" id="player-count">0</output>
-          </header>
-
-          <div class="random-loader">
-            <label for="random-count"
-              >Случайные участники
-              <select
-                id="random-count"
-                aria-label="Количество случайных бойцов"
-              >
-                <option value="2">2 участника</option>
-                <option value="4" selected>4 участника</option>
-                <option value="8">8 участников</option>
-              </select>
-            </label>
-            <button class="key key-green" id="add-random-btn">Добавить</button>
-            <button
-              class="square-key"
-              id="reset-btn"
-              title="Сбросить состояние турнира"
-              aria-label="Сбросить состояние турнира"
-            >
-              ↺
-            </button>
+      <div class="basic-workbench">
+        <aside class="paper-panel basic-roster">
+          <header><div><p class="eyebrow">A · ВХОДНЫЕ ДАННЫЕ</p><h2>Участники</h2></div><span id="basic-roster-count">0</span></header>
+          <div class="basic-random-loader">
+            <label>Случайные бойцы<select id="basic-player-count"><option value="2">2 бойца</option><option value="4" selected>4 бойца</option><option value="8">8 бойцов</option><option value="16">16 бойцов</option><option value="32">32 бойца</option></select></label>
+            <button class="button" id="basic-add-random">Добавить</button>
+            <button class="button icon-button" id="basic-reset" title="Сбросить турнир">↺</button>
           </div>
-
-          <div class="player-list" id="player-list" aria-live="polite"></div>
-
-          <details class="object-builder">
-            <summary>
-              <span>Добавить участника вручную</span><b>РАСКРЫТЬ +</b>
-            </summary>
-            <div class="builder-body">
-              <label
-                >Имя
-                <input
-                  id="name-input"
-                  maxlength="18"
-                  placeholder="автоматически"
-                />
-              </label>
-              <label
-                >Класс
-                <select id="class-select">
-                  <option value="Knight">Рыцарь</option>
-                  <option value="Archer">Лучник</option>
-                  <option value="Wizard">Маг</option>
-                </select>
-              </label>
-              <label
-                >HP
-                <input
-                  type="number"
-                  id="health-input"
-                  value="140"
-                  min="125"
-                  max="150"
-                />
-              </label>
-              <label
-                >Сила
-                <input
-                  type="number"
-                  id="strength-input"
-                  value="12"
-                  min="10"
-                  max="15"
-                />
-              </label>
-              <label
-                >Оружие
-                <select id="weapon-select">
-                  <option value="sword">Меч</option>
-                  <option value="bow">Лук</option>
-                  <option value="stick">Посох</option>
-                </select>
-              </label>
-              <fieldset id="skills-checkboxes">
-                <legend>Навыки · максимум 2</legend>
-                <label
-                  ><input type="checkbox" value="огненные стрелы" /> Огненные
-                  стрелы</label
-                >
-                <label
-                  ><input type="checkbox" value="ледяные стрелы" /> Ледяные
-                  стрелы</label
-                >
-                <label
-                  ><input type="checkbox" value="удар возмездия" /> Удар
-                  возмездия</label
-                >
-                <label
-                  ><input type="checkbox" value="заворожение" />
-                  Заворожение</label
-                >
-              </fieldset>
-              <button class="key key-green builder-submit" id="create-btn">
-                Добавить участника
-              </button>
-              <p class="form-message" id="creation-status"></p>
+          <div id="basic-roster"></div>
+          <details class="basic-builder">
+            <summary>Добавить участника вручную <b>+</b></summary>
+            <div>
+              <label>Имя<input id="basic-name" maxlength="18" placeholder="автоматически" /></label>
+              <label>Класс<select id="basic-class"><option value="Knight">Рыцарь</option><option value="Archer">Лучник</option><option value="Wizard">Маг</option><option value="Monk">Монах</option><option value="Gunsmith">Оружейник</option><option value="Swordsman">Мечник</option></select></label>
+              <label>HP<input type="number" id="basic-health" value="140" min="125" max="150" /></label>
+              <label>Сила<input type="number" id="basic-strength" value="12" min="10" max="15" /></label>
+              <label>Оружие<select id="basic-weapon"><option value="sword">Меч</option><option value="bow">Лук</option><option value="stick">Посох</option><option value="fists">Боевые бинты</option><option value="pistols">Два пистолета</option><option value="dual-swords">Два меча</option></select></label>
+              <fieldset id="basic-skills"><legend>Навыки · максимум 2</legend><label><input type="checkbox" value="огненные стрелы" /> Огненные стрелы</label><label><input type="checkbox" value="ледяные стрелы" /> Ледяные стрелы</label><label><input type="checkbox" value="удар возмездия" /> Удар возмездия</label><label><input type="checkbox" value="заворожение" /> Заворожение</label></fieldset>
+              <button class="button" id="basic-add-manual">Добавить участника</button>
+              <p id="basic-form-message" role="status"></p>
             </div>
           </details>
         </aside>
 
-        <section class="module runtime-module" aria-labelledby="arena-title">
-          <header class="module-head runtime-head">
-            <div>
-              <span class="module-index">B</span>
-              <p>СОСТОЯНИЕ ТУРНИРА</p>
-              <h2 id="arena-title">Турнир не запущен</h2>
-              <span class="arena-description" id="arena-display"
-                >Добавьте минимум двух участников.</span
-              >
-            </div>
-            <div class="round-display">
-              <span id="round-info">РАУНД --</span>
-              <strong id="turn-info">ХОД 000</strong>
-            </div>
-          </header>
-
-          <div class="battle-screen">
-            <article class="fighter" id="fighter1">
-              <header>
-                <span class="fighter-slot">01</span
-                ><span class="fighter-class">УЧАСТНИК НЕ ВЫБРАН</span>
-              </header>
-              <h3 class="name">—</h3>
-              <p class="fighter-method">метод ещё не вызван</p>
-              <div class="health-line"><div class="fill"></div></div>
-              <footer>
-                <span>HP <b class="hp">0</b></span
-                ><span>STR <b class="str">0</b></span>
-              </footer>
-            </article>
-
-            <div class="versus" aria-hidden="true"><span>VS</span></div>
-
-            <article class="fighter" id="fighter2">
-              <header>
-                <span class="fighter-slot">02</span
-                ><span class="fighter-class">УЧАСТНИК НЕ ВЫБРАН</span>
-              </header>
-              <h3 class="name">—</h3>
-              <p class="fighter-method">метод ещё не вызван</p>
-              <div class="health-line"><div class="fill"></div></div>
-              <footer>
-                <span>HP <b class="hp">0</b></span
-                ><span>STR <b class="str">0</b></span>
-              </footer>
-            </article>
+        <section class="paper-panel basic-arena-board">
+          <header><div><p class="eyebrow" id="basic-round">B · СОСТОЯНИЕ ТУРНИРА</p><h2 id="basic-status">Турнир не запущен</h2><small id="basic-arena-description">Добавьте участников и запустите сетку.</small></div><span id="basic-match">ХОД 000</span></header>
+          <div class="basic-versus">
+            <article><small>БОЕЦ I</small><h3 id="basic-first">—</h3><p id="basic-first-meta">—</p><div class="basic-health"><i id="basic-first-health"></i></div><footer id="basic-first-stats">HP 0 · STR 0</footer></article>
+            <b>VS</b>
+            <article><small>БОЕЦ II</small><h3 id="basic-second">—</h3><p id="basic-second-meta">—</p><div class="basic-health"><i id="basic-second-health"></i></div><footer id="basic-second-stats">HP 0 · STR 0</footer></article>
           </div>
-
-          <div class="control-deck">
-            <div class="control-group launch-group">
-              <span class="control-label">СОСТОЯНИЕ</span>
-              <button class="key key-red" id="start-tournament-btn">
-                Начать турнир
-              </button>
-            </div>
-            <div class="control-group action-group">
-              <span class="control-label">УПРАВЛЕНИЕ ХОДАМИ</span>
-              <button class="key key-yellow" id="next-turn">
-                Выполнить ход
-              </button>
-              <button class="key" id="auto-battle">Автовыполнение</button>
-            </div>
-            <label class="speed-control" for="delay-input">
-              <span class="control-label">ЗАДЕРЖКА МЕЖДУ ХОДАМИ</span>
-              <span class="range-track">
-                <input
-                  type="range"
-                  id="delay-input"
-                  min="150"
-                  max="2500"
-                  step="50"
-                  value="850"
-                />
-                <output id="delay-output" for="delay-input">0.85 s</output>
-              </span>
-            </label>
+          <div class="basic-control-deck">
+            <label>Арена<select id="basic-arena"><option>Учебный двор</option><option>Вулканический кратер</option><option>Древние руины</option></select></label>
+            <button class="button primary" id="basic-create">Начать турнир</button>
+            <button class="button" id="basic-step" disabled>Выполнить ход</button>
+            <button class="button" id="basic-auto" disabled>Автовыполнение</button>
+            <label class="basic-speed">Задержка между ходами<input type="range" id="basic-delay" min="150" max="2500" step="50" value="850" /><output id="basic-delay-output">0.85 с</output></label>
           </div>
         </section>
 
-        <aside
-          class="module inspector-module"
-          aria-labelledby="inspector-title"
-        >
-          <header class="module-head">
-            <div>
-              <span class="module-index">C</span>
-              <p>ЛОГИКА ПОСЛЕДНЕГО ХОДА</p>
-              <h2 id="inspector-title">Выполненные методы</h2>
-            </div>
-            <span class="pulse-dot" aria-hidden="true"></span>
-          </header>
-
-          <div class="factory-readout" id="factory-trace">
-            <span>РЕЗУЛЬТАТ PLAYERFACTORY.CREATE()</span>
-            <strong>участники ещё не создавались</strong>
-            <p>
-              После добавления здесь будут указаны созданные подклассы Player.
-            </p>
-          </div>
-
-          <ol class="trace-list" id="trace-list" aria-live="polite">
-            <li class="trace-empty">Начните турнир и выполните первый ход.</li>
-          </ol>
-
-          <div class="dispatch-legend">
-            <div><i class="lamp red"></i><span>Template Method</span></div>
-            <div><i class="lamp green"></i><span>Polymorphism</span></div>
-            <div><i class="lamp yellow"></i><span>Strategy</span></div>
-          </div>
+        <aside class="paper-panel basic-inspector">
+          <header><div><p class="eyebrow">C · ЛОГИКА ХОДА</p><h2>Выполненные методы</h2></div></header>
+          <div class="basic-factory-trace"><small>РЕЗУЛЬТАТ PLAYERFACTORY.CREATE()</small><strong id="basic-factory-title">участники ещё не создавались</strong><p id="basic-factory-description">Здесь появятся фактически созданные подклассы Player.</p></div>
+          <ol id="basic-trace"><li>Начните турнир и выполните первый ход.</li></ol>
+          <div class="basic-trace-legend"><span><i class="red"></i>Template Method</span><span><i class="green"></i>Polymorphism</span><span><i class="yellow"></i>Strategy</span></div>
         </aside>
+      </div>
+
+      <section class="paper-panel basic-class-manual">
+        <header><p class="eyebrow">ПОЛИМОРФИЗМ PLAYER</p><h2>Различия в поведении классов</h2></header>
+        <div id="basic-class-manual"></div>
       </section>
 
-      <section class="class-manual" aria-labelledby="manual-title">
-        <header>
-          <p>ПЕРЕОПРЕДЕЛЕНИЕ МЕТОДОВ КЛАССОВ PLAYER</p>
-          <h2 id="manual-title">Различия в поведении классов</h2>
-        </header>
-        <div class="manual-grid">
-          <article>
-            <span>KNIGHT</span>
-            <h3>Снижение входящего урона</h3>
-            <code>override takeDamage()</code>
-            <p>
-              Метод уменьшает рассчитанный входящий урон на 22% перед изменением
-              HP.
-            </p>
-          </article>
-          <article>
-            <span>ARCHER</span>
-            <h3>Усиление каждого третьего удара</h3>
-            <code>override modifyOutgoingDamage()</code>
-            <p>Каждый третий вызов увеличивает исходящий урон в 1,5 раза.</p>
-          </article>
-          <article>
-            <span>WIZARD</span>
-            <h3>Лечение после применения навыка</h3>
-            <code>override useSkill()</code>
-            <p>После успешного применения навыка маг восстанавливает 6 HP.</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="module chronicle" aria-labelledby="chronicle-title">
-        <header class="module-head">
-          <div>
-            <span class="module-index">D</span>
-            <p>ПОСЛЕДОВАТЕЛЬНОСТЬ ВЫЗОВОВ</p>
-            <h2 id="chronicle-title">Журнал турнира</h2>
-          </div>
-          <button class="text-key" id="clear-log">ОЧИСТИТЬ ЖУРНАЛ</button>
-        </header>
-        <div id="log-container" class="log-container" aria-live="polite"></div>
+      <section class="paper-panel basic-chronicle">
+        <header><div><p class="eyebrow">D · ПОСЛЕДОВАТЕЛЬНОСТЬ ВЫЗОВОВ</p><h2>Журнал турнира</h2></div><button class="plain-button" id="basic-clear-log">Очистить журнал</button></header>
+        <div class="basic-log" id="basic-log"></div>
       </section>
     </main>
 
-    <footer class="page-footer">
-      <span>ТУРНИР</span>
-      <span
-        >Player.attack() → переопределённый метод класса →
-        Arena.modifyDamage()</span
-      >
-    </footer>
+    <main class="game-shell">
+      <div class="world-notice" id="world-notice" hidden></div>
 
+      <section class="page active" id="page-map" aria-labelledby="map-title">
+        <header class="page-heading map-heading">
+          <div><p class="eyebrow">ВЫБОР СЛЕДУЮЩЕГО ПУТИ</p><h1 id="map-title">Карта окрестностей</h1></div>
+          <p>Вы выбираете место и снаряжение. Герой принимает решения в бою самостоятельно.</p>
+        </header>
+        <nav class="map-shortcuts" aria-label="Быстрый доступ к активностям">
+          <span>Быстрый переход</span>
+          <button type="button" data-scroll-target="daily-actions-section"><b>Тренировка</b><small>Безопасный опыт</small></button>
+          <button type="button" data-scroll-target="duels-section"><b>Дуэли</b><small id="quick-duel-status">Ступени карьеры</small></button>
+          <button type="button" data-scroll-target="bosses-section"><b>Боссы</b><small id="quick-boss-status">Особые награды</small></button>
+          <button type="button" data-scroll-target="tournaments-section"><b>Турниры</b><small id="quick-tournament-status">Календарь событий</small></button>
+          <button type="button" data-scroll-target="dungeons-section"><b>Данжи</b><small id="quick-dungeon-status">Доступные вылазки</small></button>
+        </nav>
+
+        <div class="map-layout">
+          <aside class="hero-card" id="hero-card"></aside>
+          <div class="route-board">
+            <div class="daily-actions" id="daily-actions-section">
+              <article><span>КАЖДЫЙ ДЕНЬ</span><h2>Тренировочная площадка</h2><p>Безопасно получить опыт и продвинуть календарь на один день.</p><button class="button" id="training-btn">Тренироваться</button></article>
+            </div>
+            <div class="route-section duel-section" id="duels-section">
+              <header><span>00</span><div><h2>Дуэльный круг</h2><p id="duel-summary">Постоянные ступени и одноразовые боссы с уникальными наградами.</p></div></header>
+              <div class="activity-route duel-route" id="duel-route"></div>
+              <h3 class="boss-heading" id="bosses-section">Особые противники</h3>
+              <div class="activity-route boss-route" id="boss-route"></div>
+            </div>
+            <div class="route-section" id="tournaments-section">
+              <header><span>01</span><div><h2>Календарь турниров</h2><p>Запишитесь заранее и займите место в сетке минимум из восьми бойцов.</p></div></header>
+              <div class="activity-route arena-route" id="arena-route"></div>
+            </div>
+            <div class="route-section dungeons-section" id="dungeons-section">
+              <header><span>02</span><div><h2>Данжи</h2><p>Открываются уровнем, днями мира и продвижением по аренам.</p></div></header>
+              <div class="activity-route dungeon-route" id="dungeon-route"></div>
+            </div>
+          </div>
+          <aside class="next-goal" id="next-goal"></aside>
+        </div>
+      </section>
+
+      <section class="page" id="page-hero" aria-labelledby="hero-visual-title">
+        <header class="page-heading"><div><p class="eyebrow">ЭКИПИРОВКА ГЕРОЯ</p><h1 id="hero-visual-title">Ваш герой</h1></div><p>Соберите образ из отдельных предметов: каждый нагрудник, шлем, пара перчаток и оружие отображаются на герое и снимаются независимо.</p></header>
+        <div class="hero-visual-layout">
+          <section class="character-showcase">
+            <div class="character-backdrop"><span id="visual-class-name">—</span><strong id="visual-hero-name">—</strong></div>
+            <div class="paper-doll" id="paper-doll"></div>
+          </section>
+          <section class="worn-designs" id="worn-designs"></section>
+          <aside class="paper-panel visual-stats" id="visual-stats"></aside>
+        </div>
+        <section class="hero-history-grid">
+          <article class="paper-panel" id="hero-career-stats"></article>
+          <article class="paper-panel" id="hero-rivalries"></article>
+          <article class="paper-panel" id="hero-necrology"></article>
+        </section>
+      </section>
+
+      <section class="page" id="page-arsenal" aria-labelledby="arsenal-title">
+        <header class="page-heading"><div><p class="eyebrow">СНАРЯЖЕНИЕ ГЕРОЯ</p><h1 id="arsenal-title">Инвентарь</h1></div><p>Сравнивайте характеристики и выбирайте вещи перед следующей активностью.</p></header>
+        <div class="arsenal-layout">
+          <section class="paper-panel equipment-panel"><h2>Надето</h2><div class="equipment-grid" id="equipment-grid"></div><div id="set-bonuses"></div></section>
+          <section class="paper-panel inventory-panel"><header><div><h2>Рюкзак</h2><small id="inventory-result-count"></small></div><div class="inventory-filter-stack"><div class="filter-row" id="inventory-filters"></div><label>Комплект<select id="inventory-set-filter"></select></label><label>Редкость<select id="inventory-rarity-filter"></select></label><label>Новизна<select id="inventory-sort"><option value="newest">Сначала новые</option><option value="oldest">Сначала старые</option></select></label></div></header><div class="item-grid" id="inventory-grid"></div><button class="plain-button inventory-more" id="inventory-more" hidden>Показать ещё</button></section>
+          <aside class="paper-panel stats-panel" id="hero-stats"></aside>
+        </div>
+      </section>
+
+      <section class="page" id="page-forge" aria-labelledby="forge-title">
+        <header class="page-heading"><div><p class="eyebrow">ПОСТОЯННОЕ УСИЛЕНИЕ ПРЕДМЕТОВ</p><h1 id="forge-title">Кузница</h1></div><p>Печати закалки добываются в поздних турнирах, у особых противников и изредка в сложных данжах. Золотом их купить нельзя.</p></header>
+        <div class="forge-summary paper-panel"><div><small>ДОСТУПНЫЙ РЕСУРС</small><strong id="forge-marks">0 печатей</strong></div><p>Каждый следующий уровень закалки дороже. Максимум — +5; характеристики предмета растут при каждом улучшении.</p></div>
+        <div class="forge-grid" id="forge-grid"></div>
+      </section>
+
+      <section class="page" id="page-skills" aria-labelledby="skills-title">
+        <header class="page-heading"><div><p class="eyebrow">АВТОМАТИЧЕСКАЯ ТАКТИКА</p><h1 id="skills-title">Книга навыков</h1></div><p>Герой сам выбирает доступный навык по ситуации. Новые приёмы открываются с уровнем и легендарными предметами.</p></header>
+        <div class="skill-road" id="skill-road"></div>
+      </section>
+
+      <section class="page" id="page-collections" aria-labelledby="collections-title">
+        <header class="page-heading"><div><p class="eyebrow">ПОСТОЯННАЯ ИСТОРИЯ НАХОДОК</p><h1 id="collections-title">Коллекции и комплекты</h1></div><p>Находка остаётся отмеченной навсегда, даже если предмет продан. Комплекты объясняют, что собирать и под какой стиль игры.</p></header>
+        <div class="collection-overview" id="collection-overview"></div>
+        <div class="sets-list" id="sets-list"></div>
+      </section>
+
+      <section class="page" id="page-shop" aria-labelledby="shop-title">
+        <header class="page-heading"><div><p class="eyebrow">АССОРТИМЕНТ МЕНЯЕТСЯ РАЗ В ДВА ДНЯ</p><h1 id="shop-title">Лавка Ионы</h1></div><p id="shop-description">Торговец подбирает вещи под класс и текущий уровень героя.</p></header>
+        <div class="shopkeeper"><div class="shopkeeper-mark">И</div><blockquote>«Редкость не делает вещь полезной. Сначала реши, какой бой ты хочешь вести».</blockquote></div>
+        <div class="item-grid shop-grid" id="shop-grid"></div>
+      </section>
+
+      <section class="page" id="page-leaders" aria-labelledby="leaders-title">
+        <header class="page-heading"><div><p class="eyebrow">ТОЛЬКО ТУРНИРНЫЕ РЕЗУЛЬТАТЫ</p><h1 id="leaders-title">Сотня лучших бойцов</h1></div><p>Дуэли и подземелья не дают мировой рейтинг. Новая арена начинает влиять на место только после первой победы в турнире на ней.</p></header>
+        <div class="leader-summary" id="leader-summary"></div>
+        <div class="leader-table-wrap"><table class="leader-table"><thead><tr><th>#</th><th>Боец</th><th>Класс</th><th>Арена</th><th>Ур.</th><th>Турниры</th><th>Победы</th><th>Поражения</th><th>Убийства</th><th>Рейтинг</th></tr></thead><tbody id="leader-table"></tbody></table></div>
+      </section>
+
+      <section class="page" id="page-chronicle" aria-labelledby="chronicle-title">
+        <header class="page-heading"><div><p class="eyebrow">СОБЫТИЯ БЕЗ УЧАСТИЯ ИГРОКА</p><h1 id="chronicle-title">Летопись мира</h1></div><p>Здесь видно, кто поднялся выше, кто нашёл снаряжение и чья история закончилась на арене.</p></header>
+        <div class="chronicle-layout"><div class="event-list" id="event-list"></div><aside class="world-rules"><h2>Как живёт мир</h2><ol><li>Бойцы сражаются только с противниками своей арены.</li><li>Победители получают опыт и снаряжение.</li><li>Для перехода выше нужны уровень и серия побед.</li><li>Погибший боец больше не создаётся повторно.</li><li>На каждой арене появляются новые бойцы её диапазона силы.</li></ol></aside></div>
+      </section>
+    </main>
+
+    <aside class="tournament-reminder" id="tournament-reminder" hidden aria-live="assertive" aria-labelledby="tournament-reminder-title">
+      <header>
+        <div><p class="eyebrow">СОБЫТИЕ СЕГОДНЯ</p><h2 id="tournament-reminder-title">Пора на турнир</h2></div>
+        <button class="dialog-close" id="dismiss-tournament-reminder" type="button" aria-label="Напомнить позже">×</button>
+      </header>
+      <p>Ваше место в сетке подтверждено. Турнир можно запустить прямо из этого напоминания.</p>
+      <div class="tournament-reminder-list" id="tournament-reminder-list"></div>
+      <button class="plain-button tournament-reminder-map" id="open-tournament-calendar" type="button">Открыть календарь турниров</button>
+    </aside>
+
+    <section class="equipment-dialog-layer" id="equipment-picker" hidden role="dialog" aria-modal="true" aria-labelledby="equipment-picker-title">
+      <div class="equipment-dialog equipment-picker-dialog">
+        <header class="equipment-dialog-heading">
+          <div><p class="eyebrow">ВЫБОР СНАРЯЖЕНИЯ</p><h2 id="equipment-picker-title">Выберите предмет</h2></div>
+          <button class="dialog-close" id="close-equipment-picker" type="button" aria-label="Закрыть окно">×</button>
+        </header>
+        <p class="equipment-dialog-copy" id="equipment-picker-copy"></p>
+        <div class="picker-current" id="equipment-picker-current"></div>
+        <div class="equipment-picker-grid" id="equipment-picker-grid"></div>
+      </div>
+    </section>
+
+    <section class="equipment-dialog-layer comparison-layer" id="equipment-comparison" hidden role="dialog" aria-modal="true" aria-labelledby="equipment-comparison-title">
+      <div class="equipment-dialog comparison-dialog">
+        <header class="equipment-dialog-heading">
+          <div><p class="eyebrow">СРАВНЕНИЕ СНАРЯЖЕНИЯ</p><h2 id="equipment-comparison-title">Что изменится</h2></div>
+          <button class="dialog-close" id="close-equipment-comparison" type="button" aria-label="Закрыть окно">×</button>
+        </header>
+        <div class="comparison-columns">
+          <article class="comparison-item" id="comparison-equipped"></article>
+          <div class="comparison-arrow" aria-hidden="true">→</div>
+          <article class="comparison-item candidate" id="comparison-candidate"></article>
+        </div>
+        <section class="comparison-difference">
+          <div><p class="eyebrow">ИЗМЕНЕНИЕ ХАРАКТЕРИСТИК</p><h3>Разница после замены</h3></div>
+          <div class="comparison-stat-list" id="comparison-stat-list"></div>
+          <p class="comparison-note">Бонусы комплектов рассчитываются отдельно и могут дополнительно изменить итоговые характеристики.</p>
+        </section>
+        <footer class="comparison-actions">
+          <button class="plain-button" id="comparison-back" type="button">Вернуться к выбору</button>
+          <button class="button primary" id="comparison-equip" type="button">Надеть выбранное</button>
+        </footer>
+      </div>
+    </section>
+
+    <section class="battle-overlay" id="battle-overlay" hidden aria-live="polite">
+      <div class="battle-window">
+        <header class="battle-title"><div><p id="battle-place">АРЕНА</p><h2 id="battle-name">Бой</h2></div><div class="battle-controls"><label>Темп<select id="battle-speed"><option value="900">медленно</option><option value="450" selected>обычно</option><option value="160">быстро</option></select></label><button class="plain-button" id="skip-battle">Показать итог</button></div></header>
+        <div class="tournament-panel" id="tournament-panel" hidden><header><span id="tournament-round-label">СЕТКА</span><strong id="tournament-progress">0 / 0</strong></header><div class="bracket-strip" id="bracket-strip"></div></div>
+        <div class="battle-stage">
+          <article class="combatant hero-combatant" id="battle-hero"><span class="combatant-role">ВАШ ГЕРОЙ</span><h3>—</h3><p>—</p><div class="battle-health"><i></i></div><strong>0 / 0 HP</strong></article>
+          <div class="battle-action"><span id="battle-turn">ХОД 0</span><b id="battle-action">Подготовка...</b><p id="battle-detail"></p></div>
+          <article class="combatant enemy-combatant" id="battle-enemy"><span class="combatant-role">ПРОТИВНИК</span><h3>—</h3><p>—</p><div class="battle-health"><i></i></div><strong>0 / 0 HP</strong></article>
+        </div>
+        <div class="battle-skills" id="battle-skills"><div data-fighter="hero"><strong>Навыки героя</strong><div></div></div><div data-fighter="enemy"><strong>Навыки противника</strong><div></div></div></div>
+        <div class="battle-log" id="battle-log"></div>
+        <footer class="battle-result" id="battle-result" hidden><div></div><button class="button primary" id="close-battle">Вернуться на карту</button></footer>
+      </div>
+    </section>
+
+    <div class="toast-region" id="toast-region" aria-live="polite"></div>
     <script type="module" src="./ui.ts"></script>
   </body>
 </html>

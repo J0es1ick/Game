@@ -1,0 +1,357 @@
+.skill-road {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.skill-road::before {
+  position: absolute;
+  z-index: 0;
+  top: 26px;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: #a49a86;
+  content: "";
+}
+.skill-node {
+  position: relative;
+  z-index: 1;
+  min-height: 180px;
+  padding: 17px;
+  border: 1px solid #a69b86;
+  border-top: 5px solid #7b7467;
+  background: var(--paper-light);
+}
+.skill-node.attack {
+  border-top-color: var(--red);
+}
+.skill-node.heal {
+  border-top-color: var(--green);
+}
+.skill-node.buff {
+  border-top-color: var(--yellow);
+}
+.skill-node.control {
+  border-top-color: var(--blue);
+}
+.skill-node.locked {
+  opacity: 0.53;
+  background: #d5cdbc;
+}
+.skill-node.gear-skill {
+  border: 2px solid #b17e28;
+  background: #f0e4bf;
+}
+.skill-level {
+  color: var(--muted);
+  font:
+    9px "Courier New",
+    monospace;
+}
+.skill-node h3 {
+  margin: 18px 0 8px;
+  font-size: 20px;
+}
+.skill-node p {
+  color: #635d50;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.skill-meta {
+  margin-top: 17px;
+  color: var(--muted);
+  font:
+    8px "Courier New",
+    monospace;
+}
+
+.collection-overview {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 22px;
+  padding: 18px;
+  border: 1px solid #a79c87;
+  background: var(--paper-light);
+}
+.collection-overview > strong {
+  font:
+    700 27px "Inter Tight",
+    sans-serif;
+}
+.collection-overview > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.collection-meter {
+  height: 10px;
+  border: 1px solid #9f9581;
+  background: #d9d1c1;
+}
+.collection-meter i {
+  display: block;
+  height: 100%;
+  background: var(--green);
+}
+.sets-list {
+  display: grid;
+  gap: 17px;
+}
+.set-card {
+  padding: 22px;
+  border: 1px solid #9e9380;
+  background: #ded6c6;
+}
+.set-card.recommended {
+  border-left: 6px solid var(--red);
+  background: var(--paper-light);
+}
+.set-card > header {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+}
+.set-card header small {
+  color: var(--red);
+  font:
+    9px "Courier New",
+    monospace;
+}
+.set-card h2 {
+  margin: 5px 0 3px;
+  font-size: 27px;
+}
+.set-card header p {
+  color: var(--muted);
+  font-size: 11px;
+}
+.set-count {
+  align-self: start;
+  font:
+    700 26px "Inter Tight",
+    sans-serif;
+}
+.set-purpose {
+  max-width: 760px;
+  padding: 10px 13px;
+  border-left: 3px solid var(--yellow);
+  background: #e6dece;
+  color: #554f43;
+  font-size: 11px;
+}
+.collection-pieces {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 7px;
+  margin: 17px 0;
+}
+.collection-pieces > div {
+  display: flex;
+  min-height: 66px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid #ada38f;
+  background: #d8d0c0;
+}
+.collection-pieces > div.found {
+  background: #e6eadc;
+}
+.collection-pieces .collection-missing {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  color: #fff;
+  background: #938b7c;
+  font-size: 11px;
+  place-items: center;
+}
+.collection-pieces .collection-art {
+  width: 32px;
+  height: 48px;
+  flex: 0 0 auto;
+}
+.collection-pieces strong,
+.collection-pieces small {
+  display: block;
+}
+.collection-pieces strong {
+  font:
+    700 10px/1.25 "Inter Tight",
+    sans-serif;
+}
+.collection-pieces small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 8px;
+}
+.set-bonus-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.set-bonus-list li {
+  padding: 8px 10px;
+  border: 1px solid #aaa08e;
+  color: #777064;
+  background: #d7cfc0;
+  font-size: 9px;
+}
+.set-bonus-list li.active {
+  border-color: #728269;
+  color: #324535;
+  background: #dfe6d8;
+}
+.set-bonus-list b {
+  margin-right: 6px;
+}
+
+.shopkeeper {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  max-width: 740px;
+  margin-bottom: 24px;
+  padding: 14px;
+  border: 1px solid #9f9582;
+  background: #d8cfbd;
+}
+.shopkeeper-mark {
+  display: grid;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  color: #f5eddb;
+  background: var(--red);
+  font:
+    700 25px Georgia,
+    serif;
+  place-items: center;
+}
+.shopkeeper blockquote {
+  margin: 0;
+  color: #5c5548;
+  font:
+    italic 14px/1.45 Georgia,
+    serif;
+}
+.shop-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.leader-summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.leader-summary .stat-row {
+  padding: 14px;
+  border: 1px solid #a49a87;
+  background: var(--paper-light);
+}
+.leader-table-wrap {
+  overflow: auto;
+  border: 1px solid #978d7a;
+  background: var(--paper-light);
+  box-shadow: 5px 5px 0 rgba(69, 61, 48, 0.13);
+}
+.leader-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+.leader-table th {
+  position: sticky;
+  z-index: 1;
+  top: 0;
+  padding: 12px;
+  color: #eae3d4;
+  background: #3a352c;
+  font:
+    9px "Courier New",
+    monospace;
+  text-align: left;
+  text-transform: uppercase;
+}
+.leader-table td {
+  padding: 11px 12px;
+  border-bottom: 1px solid #d2cabb;
+}
+.leader-table tr:nth-child(even) {
+  background: #e9e3d7;
+}
+.leader-table tr.is-hero {
+  color: #fff;
+  background: var(--red);
+  font-weight: bold;
+}
+
+.chronicle-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  align-items: start;
+  gap: 22px;
+}
+.event-list {
+  border-top: 1px solid #a79d8a;
+}
+.world-event {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  gap: 15px;
+  padding: 15px 10px;
+  border-bottom: 1px solid #b6ad9d;
+}
+.world-event p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.event-day {
+  color: var(--muted);
+  font:
+    9px "Courier New",
+    monospace;
+}
+.world-event.death {
+  border-left: 4px solid var(--red);
+}
+.world-event.promotion {
+  border-left: 4px solid var(--green);
+}
+.world-event.loot {
+  border-left: 4px solid var(--yellow);
+}
+.world-rules {
+  padding: 22px;
+  border: 1px solid #a49a87;
+  color: #e8dfcd;
+  background: #3a352d;
+}
+.world-rules h2 {
+  font-size: 23px;
+}
+.world-rules ol {
+  margin: 0;
+  padding-left: 20px;
+  color: #c9c0ae;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.world-rules li + li {
+  margin-top: 9px;
+}
+
+.battle-open {
+  overflow: hidden;
+}

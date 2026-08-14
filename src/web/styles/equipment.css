@@ -1,0 +1,657 @@
+.arsenal-layout {
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr) 230px;
+  align-items: start;
+  gap: 18px;
+}
+.paper-panel {
+  padding: 19px;
+}
+.paper-panel h2 {
+  margin-bottom: 18px;
+  font-size: 22px;
+}
+.equipment-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.equipment-slot {
+  min-height: 112px;
+  padding: 12px;
+  border: 1px solid #aaa08c;
+  background: #e7dfcf;
+}
+.equipment-slot > .equipment-art {
+  float: left;
+  width: 44px;
+  height: 66px;
+  margin: 0 10px 6px 0;
+}
+.equipment-slot.common {
+  border-left: 4px solid #8b877c;
+}
+.equipment-slot.rare {
+  border-left: 4px solid #437aaa;
+}
+.equipment-slot.epic {
+  border-left: 4px solid #7851a4;
+}
+.equipment-slot.legendary {
+  border-left: 4px solid #c4882e;
+}
+.equipment-slot.mythic {
+  border-left: 4px solid #a23a40;
+}
+.equipment-slot small,
+.equipment-slot strong,
+.equipment-slot span {
+  display: block;
+}
+.equipment-slot small {
+  color: var(--muted);
+  font:
+    10px "Courier New",
+    monospace;
+  text-transform: uppercase;
+}
+.equipment-slot strong {
+  margin: 6px 0;
+  font:
+    700 13px/1.25 "Inter Tight",
+    sans-serif;
+}
+.equipment-slot span {
+  color: #5d584c;
+  font:
+    9px/1.45 "Courier New",
+    monospace;
+}
+.equipment-slot.empty {
+  opacity: 0.6;
+}
+#set-bonuses {
+  margin-top: 21px;
+  padding-top: 16px;
+  border-top: 1px solid #b6ad9d;
+}
+#set-bonuses h3 {
+  font-size: 14px;
+}
+.set-progress {
+  padding: 8px;
+  background: #e4dbc9;
+  color: #5b5548;
+  font-size: 10px;
+  line-height: 1.45;
+}
+.inventory-panel > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 17px;
+  border-bottom: 1px solid #b6ad9d;
+}
+.inventory-panel > header h2 {
+  margin-bottom: 3px;
+}
+.inventory-panel > header small {
+  color: var(--muted);
+  font:
+    10px "Courier New",
+    monospace;
+}
+.inventory-filter-stack {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 1fr));
+  gap: 7px;
+}
+.inventory-filter-stack .filter-row {
+  grid-column: 1 / -1;
+}
+.inventory-filter-stack label {
+  display: grid;
+  gap: 3px;
+  color: var(--muted);
+  font:
+    9px "Courier New",
+    monospace;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.inventory-filter-stack select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 28px 0 9px;
+  border: 1px solid #9f9582;
+  background: #eee7d9;
+  font:
+    12px Inter,
+    sans-serif;
+}
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: end;
+  gap: 3px;
+}
+.filter-row button {
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 1px solid #aaa08c;
+  color: #3f3a32;
+  background: #e8e0d2;
+  font-size: 10px;
+}
+.filter-row button.active {
+  color: #fff;
+  background: var(--red);
+}
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.item-card {
+  display: flex;
+  min-height: 225px;
+  flex-direction: column;
+  padding: 14px;
+  border: 1px solid #a69b87;
+  border-top: 4px solid #888378;
+  background: #f0ebdf;
+  box-shadow: 0 3px 0 rgba(60, 53, 42, 0.13);
+}
+.item-card.rare {
+  border-top-color: #437aaa;
+}
+.item-card.epic {
+  border-top-color: #7851a4;
+}
+.item-card.legendary {
+  border-top-color: #c4882e;
+  background: #f2e7c8;
+}
+.item-card.mythic {
+  border-top-color: #a23a40;
+  background: #eed7d0;
+}
+.item-card.sold {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+.equipment-art {
+  display: block;
+  width: 74px;
+  height: 92px;
+  overflow: hidden;
+  filter: drop-shadow(2px 3px 1px rgba(48, 40, 30, 0.2));
+}
+.equipment-art svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.item-card > .equipment-art {
+  margin: 8px auto 2px;
+}
+.item-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 7px;
+  color: var(--muted);
+  font:
+    10px "Courier New",
+    monospace;
+  text-transform: uppercase;
+}
+.rarity-label {
+  color: #554d40;
+  font-weight: bold;
+}
+.rare .rarity-label {
+  color: #356c9b;
+}
+.epic .rarity-label {
+  color: #714797;
+}
+.legendary .rarity-label {
+  color: #81550f;
+}
+.mythic .rarity-label {
+  color: #913039;
+}
+.item-card h3 {
+  margin: 13px 0 3px;
+  font-size: 18px;
+  line-height: 1.14;
+}
+.item-card > small {
+  color: #5d594f;
+  font-size: 11px;
+  font-weight: 500;
+}
+.item-stats {
+  margin: 13px 0;
+  padding: 8px;
+  background: #e1d9ca;
+  font:
+    10px/1.5 "Courier New",
+    monospace;
+}
+.item-affix,
+.item-skill {
+  margin: -5px 0 10px;
+  color: #7a5314;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.item-skill {
+  color: var(--red);
+}
+.item-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: auto;
+}
+.inventory-more {
+  display: block;
+  margin: 20px auto 0;
+}
+.small-button {
+  flex: 1;
+  min-height: 34px;
+  padding: 0 9px;
+  border: 1px solid #877d6b;
+  color: #2f2c25;
+  background: #e2dacb;
+  font-size: 10px;
+  font-weight: bold;
+}
+.small-button:hover:not(:disabled) {
+  border-color: #5f574a;
+  color: #fff9eb;
+  background: #5a5246;
+}
+.small-button:disabled {
+  color: #5b554a;
+  background: #cec6b8;
+  opacity: 0.78;
+}
+
+.tournament-reminder {
+  position: fixed;
+  z-index: 70;
+  top: 92px;
+  right: 24px;
+  width: min(470px, calc(100vw - 32px));
+  padding: 19px;
+  border: 1px solid #6f6655;
+  border-top: 6px solid var(--yellow);
+  background: #efe7d6;
+  box-shadow: 9px 10px 0 rgba(27, 23, 18, 0.34);
+  animation: reminder-in 220ms ease-out;
+}
+.tournament-reminder > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.tournament-reminder h2 {
+  margin: 2px 0 8px;
+  font-size: 25px;
+}
+.tournament-reminder > p {
+  margin-bottom: 14px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+.tournament-reminder-list {
+  display: grid;
+  gap: 7px;
+}
+.tournament-reminder-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px;
+  border: 1px solid #aaa08c;
+  border-left: 4px solid var(--red);
+  background: #e1d8c7;
+}
+.tournament-reminder-item strong,
+.tournament-reminder-item small {
+  display: block;
+}
+.tournament-reminder-item strong {
+  font: 700 14px "Inter Tight", sans-serif;
+}
+.tournament-reminder-item small {
+  margin-top: 4px;
+  color: var(--muted);
+  font: 9px/1.4 "Courier New", monospace;
+}
+.tournament-reminder-item .button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.tournament-reminder-map {
+  width: 100%;
+  margin-top: 10px;
+}
+@keyframes reminder-in {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+body.equipment-dialog-open {
+  overflow: hidden;
+}
+.equipment-dialog-layer {
+  position: fixed;
+  z-index: 95;
+  inset: 0;
+  display: grid;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 28px;
+  background: rgba(26, 23, 18, 0.82);
+  place-items: center;
+}
+.equipment-dialog-layer.comparison-layer {
+  z-index: 100;
+  background: rgba(26, 23, 18, 0.9);
+}
+.equipment-dialog {
+  width: min(960px, 100%);
+  max-height: calc(100dvh - 56px);
+  overflow-y: auto;
+  padding: 25px;
+  border: 1px solid #756b59;
+  background: #e9e2d3;
+  box-shadow: 10px 12px 0 rgba(18, 16, 13, 0.35);
+}
+.equipment-dialog-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 17px;
+  border-bottom: 1px solid #a69c89;
+}
+.equipment-dialog-heading h2 {
+  margin: 3px 0 0;
+  font-size: 30px;
+}
+.dialog-close {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 auto;
+  border: 1px solid #887e6c;
+  color: var(--ink);
+  background: #ddd4c4;
+  font:
+    26px/1 Georgia,
+    serif;
+  cursor: pointer;
+  place-items: center;
+}
+.dialog-close:hover,
+.dialog-close:focus-visible {
+  color: #fff;
+  background: var(--red);
+  outline: none;
+}
+.equipment-dialog-copy {
+  margin: 14px 0 18px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.picker-current {
+  margin-bottom: 18px;
+  padding: 13px 15px;
+  border-left: 4px solid var(--green);
+  background: #ddd6c7;
+}
+.picker-current > .eyebrow {
+  margin-bottom: 8px;
+}
+.picker-current-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.picker-current-line strong,
+.picker-current-line small {
+  display: block;
+}
+.picker-current-line strong {
+  font:
+    700 15px "Inter Tight",
+    sans-serif;
+}
+.picker-current-line small {
+  margin-top: 3px;
+  color: var(--muted);
+  font:
+    10px "Courier New",
+    monospace;
+}
+.picker-current-line .small-button {
+  max-width: 86px;
+  flex: 0 0 86px;
+}
+.equipment-picker-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+.picker-item {
+  display: grid;
+  min-height: 126px;
+  grid-template-columns: 72px minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  gap: 8px 13px;
+  padding: 12px;
+  border: 1px solid #a39986;
+  border-left: 4px solid #898478;
+  background: #f1ebdf;
+}
+.picker-item.rare {
+  border-left-color: #477ca8;
+}
+.picker-item.epic {
+  border-left-color: #76519d;
+}
+.picker-item.legendary {
+  border-left-color: #c58b2d;
+}
+.picker-item.mythic {
+  border-left-color: #a13c43;
+}
+.picker-art {
+  width: 68px;
+  height: 92px;
+  grid-row: 1 / 3;
+}
+.picker-item-copy small,
+.picker-item-copy strong {
+  display: block;
+}
+.picker-item-copy small {
+  color: var(--muted);
+  font:
+    10px "Courier New",
+    monospace;
+  text-transform: uppercase;
+}
+.picker-item-copy strong {
+  margin: 5px 0;
+  font:
+    700 16px/1.2 "Inter Tight",
+    sans-serif;
+}
+.picker-item-copy p {
+  margin: 0;
+  color: #5e584c;
+  font:
+    10px/1.45 "Courier New",
+    monospace;
+}
+.picker-item-controls {
+  display: flex;
+  gap: 6px;
+}
+.comparison-dialog {
+  width: min(870px, 100%);
+}
+.comparison-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px minmax(0, 1fr);
+  align-items: stretch;
+  gap: 10px;
+  margin: 20px 0;
+}
+.comparison-arrow {
+  display: grid;
+  color: var(--red);
+  font:
+    28px Georgia,
+    serif;
+  place-items: center;
+}
+.comparison-item {
+  display: grid;
+  min-height: 220px;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-content: start;
+  gap: 15px;
+  padding: 17px;
+  border: 1px solid #a69c88;
+  background: #ddd5c6;
+}
+.comparison-item.candidate {
+  border-top: 5px solid var(--red);
+  background: #f0eadf;
+}
+.comparison-item > .eyebrow {
+  grid-column: 1 / -1;
+}
+.comparison-item h3 {
+  margin: 4px 0 10px;
+  font-size: 19px;
+  line-height: 1.12;
+}
+.comparison-item small {
+  color: var(--muted);
+  font:
+    10px "Courier New",
+    monospace;
+  text-transform: uppercase;
+}
+.comparison-item .item-stats {
+  margin: 10px 0;
+}
+.comparison-item .item-affix,
+.comparison-item .item-skill {
+  margin: 7px 0 0;
+}
+.comparison-art {
+  width: 94px;
+  height: 120px;
+}
+.comparison-empty {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 11px;
+}
+.comparison-difference {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.8fr) 1.4fr;
+  gap: 10px 22px;
+  padding: 17px;
+  border: 1px solid #a69c88;
+  background: #d8d0c0;
+}
+.comparison-difference h3 {
+  margin: 4px 0 0;
+  font-size: 18px;
+}
+.comparison-stat-list {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+.comparison-stat {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid #aaa08d;
+  background: #e7dfd0;
+  font:
+    10px "Courier New",
+    monospace;
+}
+.comparison-stat strong {
+  font:
+    700 14px "Inter Tight",
+    sans-serif;
+}
+.comparison-stat.positive {
+  color: #385b42;
+  background: #dbe4d6;
+}
+.comparison-stat.negative {
+  color: #8a392f;
+  background: #e8d5ce;
+}
+.comparison-stat.neutral {
+  color: #777064;
+}
+.comparison-note {
+  grid-column: 1 / -1;
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+.comparison-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 18px;
+}
+.comparison-actions button {
+  min-width: 170px;
+}
+.small-button.muted {
+  color: #3f3a32;
+  background: #d7cfc0;
+}
+.stats-panel .stat-row {
+  padding: 9px 0;
+}
+.stats-hint {
+  margin-top: 18px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.empty-copy {
+  grid-column: 1 / -1;
+  padding: 30px;
+  color: var(--muted);
+  text-align: center;
+}
