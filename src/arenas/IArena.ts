@@ -1,6 +1,7 @@
 import type { Player } from "../abstract/Player";
 
 export interface IArena {
+  id?: string;
   name: string;
   description: string;
   damageMultiplier: number;

@@ -14,6 +14,20 @@ export interface DispatchTrace {
   message: string;
 }
 
+export interface CombatContext {
+  attackCounter: number;
+  combo: number;
+  healthRatio: number;
+  setCounts: Readonly<Record<string, number>>;
+}
+
+export interface CombatModifier {
+  damage: number;
+  detail?: string;
+  combo?: number;
+  secondaryDamageRatio?: number;
+}
+
 export abstract class Player {
   protected _name: string;
   protected _className?: string;
@@ -174,6 +188,27 @@ export abstract class Player {
 
   protected modifyOutgoingDamage(damage: number, opponent: Player): number {
     return damage;
+  }
+
+  /**
+   * Общая точка расширения для числового симулятора живого мира.
+   * Старый пошаговый Game использует attack/takeDamage, а расширенный режим
+   * вызывает те же полиморфные правила без дублирования switch по классам.
+   */
+  public modifyCombatAttack(damage: number, context: CombatContext): CombatModifier {
+    return { damage };
+  }
+
+  public modifyCombatDefense(damage: number, _context: CombatContext): CombatModifier {
+    return { damage };
+  }
+
+  public recoveryAfterSkill(_maxHealth: number, _currentHealth: number): number {
+    return 0;
+  }
+
+  public criticalChanceBonus(_context: CombatContext): number {
+    return 0;
   }
 
   private applyActiveSkillBuffs(): number {

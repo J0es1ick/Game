@@ -17,8 +17,8 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
 
   const playerSkills: ISkill[] = [];
   const playerFactory = new PlayerFactory();
-  const types: string[] = ["Knight", "Archer", "Wizard"];
-  const weapons: string[] = ["bow", "sword", "stick"];
+  const types: string[] = ["Knight", "Archer", "Wizard", "Monk", "Gunsmith", "Swordsman"];
+  const weapons: string[] = ["sword", "bow", "stick", "fists", "pistols", "dual-swords"];
   const skillNames: string[] = [
     "огненные стрелы",
     "ледяные стрелы",
@@ -28,10 +28,10 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
 
   async function askForClass(): Promise<void> {
     const playerClass: string = await readAnswer(
-      "Выберите класс своего героя: 1. Knight, 2. Archer, 3. Wizard: ",
+      "Выберите класс: 1. Knight, 2. Archer, 3. Wizard, 4. Monk, 5. Gunsmith, 6. Swordsman: ",
     );
     const number: number = parseInt(playerClass);
-    if (isNaN(number) || number < 1 || number > 3) {
+    if (isNaN(number) || number < 1 || number > 6) {
       console.log("Некорректный ввод. Пожалуйста, попробуйте снова.");
       await askForClass();
     } else {
@@ -70,10 +70,10 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
 
   async function askForWeapon(): Promise<void> {
     const playerClass: string = await readAnswer(
-      "Выберите оружие своего героя: 1. меч, 2. лук, 3. посох: ",
+      "Выберите оружие: 1. меч, 2. лук, 3. посох, 4. бинты, 5. две пистоли, 6. два меча: ",
     );
     const number: number = parseInt(playerClass);
-    if (isNaN(number) || number < 1 || number > 3) {
+    if (isNaN(number) || number < 1 || number > 6) {
       console.log("Некорректный ввод. Пожалуйста, попробуйте снова.");
       await askForWeapon();
     } else {

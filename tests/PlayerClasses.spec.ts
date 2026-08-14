@@ -1,4 +1,4 @@
-import { Archer, Knight, Wizard } from "../src/classes";
+import { Archer, Gunsmith, Knight, Monk, Swordsman, Wizard } from "../src/classes";
 import { createSkill } from "../src/catalogs/SkillCatalog";
 import { createWeapon } from "../src/catalogs/WeaponCatalog";
 
@@ -45,5 +45,16 @@ describe("Полиморфное поведение классов", () => {
     ];
 
     expect(heroes.map((hero) => hero.takeDamage(50))).toEqual([39, 50]);
+  });
+
+  it("новые классы участвуют в том же полиморфном боевом контракте", () => {
+    const context = { attackCounter: 1, combo: 0, healthRatio: 0.4, setCounts: {} };
+    const monk = new Monk(140, 15, "Монах", weapon, []);
+    const gunsmith = new Gunsmith(140, 15, "Оружейник", weapon, []);
+    const swordsman = new Swordsman(140, 15, "Мечник", weapon, []);
+
+    expect(monk.modifyCombatAttack(100, context).combo).toBe(1);
+    expect(gunsmith.modifyCombatAttack(100, context).secondaryDamageRatio).toBe(0.55);
+    expect(swordsman.criticalChanceBonus(context)).toBe(12);
   });
 });

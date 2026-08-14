@@ -1,12 +1,12 @@
 import { Player } from "../abstract/Player";
-import { Archer, Knight, Wizard } from "../classes";
+import { Archer, Gunsmith, Knight, Monk, Swordsman, Wizard } from "../classes";
 import { createSkills } from "../catalogs/SkillCatalog";
 import { createRandomWeapon, WeaponType } from "../catalogs/WeaponCatalog";
 import { ISkill } from "../skills/ISkill";
 import { getRandomArrayElement, getRandomNumber } from "../utils/randomization";
 import { IWeapon } from "../weapon/IWeapon";
 
-export type PlayerClass = "Knight" | "Archer" | "Wizard";
+export type PlayerClass = "Knight" | "Archer" | "Wizard" | "Monk" | "Gunsmith" | "Swordsman";
 
 export interface PlayerBlueprint {
   className: PlayerClass;
@@ -27,6 +27,9 @@ const classDefaults: Record<PlayerClass, { weapon: WeaponType; skills: string[] 
   Knight: { weapon: "sword", skills: ["удар возмездия", "ледяные стрелы"] },
   Archer: { weapon: "bow", skills: ["ледяные стрелы", "огненные стрелы"] },
   Wizard: { weapon: "stick", skills: ["заворожение", "ледяные стрелы"] },
+  Monk: { weapon: "fists", skills: ["удар возмездия", "огненные стрелы"] },
+  Gunsmith: { weapon: "pistols", skills: ["ледяные стрелы", "огненные стрелы"] },
+  Swordsman: { weapon: "dual-swords", skills: ["удар возмездия", "заворожение"] },
 };
 
 function shuffled<T>(items: readonly T[]): T[] {
@@ -61,11 +64,17 @@ export class PlayerFactory {
       }
       case "Wizard":
         return new Wizard(blueprint.health, blueprint.strength, name, weapon, skills);
+      case "Monk":
+        return new Monk(blueprint.health, blueprint.strength, name, weapon, skills);
+      case "Gunsmith":
+        return new Gunsmith(blueprint.health, blueprint.strength, name, weapon, skills);
+      case "Swordsman":
+        return new Swordsman(blueprint.health, blueprint.strength, name, weapon, skills);
     }
   }
 
   public createRandom(): Player {
-    const className = getRandomArrayElement<PlayerClass>(["Knight", "Archer", "Wizard"])!;
+    const className = getRandomArrayElement<PlayerClass>(["Knight", "Archer", "Wizard", "Monk", "Gunsmith", "Swordsman"])!;
     return this.create({
       className,
       health: getRandomNumber(125, 150),

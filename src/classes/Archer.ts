@@ -1,4 +1,4 @@
-import { Player } from "../abstract/Player";
+import { CombatContext, CombatModifier, Player } from "../abstract/Player";
 import { ISkill } from "../skills/ISkill";
 import { IWeapon } from "../weapon/IWeapon";
 
@@ -32,6 +32,12 @@ export class Archer extends Player {
         : `Лучник пристреливается: заряд ${this.shotCounter % 3}/3.`,
     );
     return result;
+  }
+
+  public override modifyCombatAttack(damage: number, context: CombatContext): CombatModifier {
+    const cadence = (context.setCounts.wind ?? 0) >= 6 ? 2 : 3;
+    if (context.attackCounter % cadence !== 0) return { damage };
+    return { damage: damage * 1.45, detail: "усиленный выстрел" };
   }
 
   public override reset(): void {

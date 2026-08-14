@@ -1,4 +1,4 @@
-import { Archer, Knight, Wizard } from "../src/classes";
+import { Archer, Gunsmith, Knight, Monk, Swordsman, Wizard } from "../src/classes";
 import { PlayerFactory } from "../src/factories/PlayerFactory";
 
 describe("PlayerFactory", () => {
@@ -8,6 +8,9 @@ describe("PlayerFactory", () => {
     ["Knight", Knight],
     ["Archer", Archer],
     ["Wizard", Wizard],
+    ["Monk", Monk],
+    ["Gunsmith", Gunsmith],
+    ["Swordsman", Swordsman],
   ] as const)("создаёт конкретный подкласс %s", (className, Constructor) => {
     const hero = factory.create({ className, health: 140, strength: 12, name: className });
 

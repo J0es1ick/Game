@@ -33,4 +33,8 @@ export class Wizard extends Player {
     }
     return used;
   }
+
+  public override recoveryAfterSkill(maxHealth: number, currentHealth: number): number {
+    return Math.min(maxHealth - currentHealth, Math.round(maxHealth * 0.05));
+  }
 }

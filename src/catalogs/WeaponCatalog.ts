@@ -1,12 +1,15 @@
 import { getRandomNumber } from "../utils/randomization";
 import { IWeapon } from "../weapon/IWeapon";
 
-export type WeaponType = "sword" | "stick" | "bow";
+export type WeaponType = "sword" | "stick" | "bow" | "fists" | "pistols" | "dual-swords";
 
 const weaponNames: Record<WeaponType, string[]> = {
   sword: ["Драконобой", "Буревестник", "Этельред"],
   stick: ["Дубовый посох", "Ветвь бузины", "Посох пастыря"],
   bow: ["Охотничий лук", "Длинный лук", "Короткий лук"],
+  fists: ["Льняные бинты", "Кожаные обмотки", "Чётки бойца"],
+  pistols: ["Парные кремнёвые пистолеты", "Дуэльная пара", "Два дорожных пистолета"],
+  "dual-swords": ["Парные короткие мечи", "Два клинка наёмника", "Стальные близнецы"],
 };
 
 export function createWeapon(name: string, damage: number): IWeapon {
