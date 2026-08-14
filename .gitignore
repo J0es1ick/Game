@@ -1,3 +1,7 @@
 node_modules/
 dist/
 dist-console/
+tmp/imagegen/
+
+# The postponed 3D prototype is kept locally, outside the active project and deployment.
+assets/archive/3d/

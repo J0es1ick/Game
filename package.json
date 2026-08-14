@@ -1,7 +1,7 @@
 {
   "name": "game",
   "version": "1.0.0",
-  "description": "Пошаговый RPG-турнир и интерактивная лаборатория ООП на TypeScript",
+  "description": "Однопользовательская RPG-симуляция живого мира с автоматическими боями на TypeScript",
   "main": "dist-console/index.js",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
