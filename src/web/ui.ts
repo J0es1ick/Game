@@ -46,6 +46,7 @@ let inventoryFilter: EquipmentSlot | "all" = "all";
 let inventorySetFilter = "all";
 let inventoryRarityFilter: Rarity | "all" = "all";
 let inventorySort: "newest" | "oldest" = "newest";
+let rivalrySort: "recent" | "wins" | "losses" = "recent";
 let inventoryVisibleLimit = 60;
 let equipmentPickerSlot: EquipmentSlot | null = null;
 let comparisonItemId: string | null = null;
@@ -263,7 +264,11 @@ function renderHeroVisual(): void {
 function renderHeroHistory(): void {
   if (!game) return;
   const hero = game.save.hero;
-  const records = Object.values(hero.rivalries).sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses) || b.lastMetDay - a.lastMetDay);
+  const records = Object.values(hero.rivalries).sort((a, b) => {
+    if (rivalrySort === "wins") return b.wins - a.wins || b.lastMetDay - a.lastMetDay;
+    if (rivalrySort === "losses") return b.losses - a.losses || b.lastMetDay - a.lastMetDay;
+    return b.lastMetDay - a.lastMetDay || (b.wins + b.losses) - (a.wins + a.losses);
+  });
   const topHundred = new Map(game.leaderboard().map((entry, index) => [entry.id, { entry, rank: index + 1 }]));
   const livingWorldFighters = new Map(game.save.enemies.map((enemy) => [enemy.id, enemy]));
   const career = $("#hero-career-stats");
@@ -296,6 +301,19 @@ function renderHeroHistory(): void {
 
   const rivalries = $("#hero-rivalries");
   rivalries.replaceChildren(element("p", "eyebrow", "ЛИЧНЫЕ ВСТРЕЧИ"), element("h2", "", "Соперники"));
+  const rivalryToolbar = element("label", "rivalry-toolbar");
+  const rivalrySortSelect = document.createElement("select");
+  [
+    ["recent", "Сначала новые"],
+    ["wins", "Больше побед"],
+    ["losses", "Больше проигрышей"],
+  ].forEach(([value, label]) => rivalrySortSelect.append(new Option(label, value, false, value === rivalrySort)));
+  rivalrySortSelect.addEventListener("change", () => {
+    rivalrySort = rivalrySortSelect.value as typeof rivalrySort;
+    renderHeroHistory();
+  });
+  rivalryToolbar.append(element("span", "", "Сортировка"), rivalrySortSelect);
+  rivalries.append(rivalryToolbar);
   const rivalryHeader = element("div", "rivalry-list-head");
   rivalryHeader.append(
     element("span", "", "Соперник"),
