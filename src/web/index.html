@@ -167,6 +167,7 @@
           <button type="button" data-scroll-target="bosses-section"><b>Боссы</b><small id="quick-boss-status">Особые награды</small></button>
           <button type="button" data-scroll-target="tournaments-section"><b>Турниры</b><small id="quick-tournament-status">Календарь событий</small></button>
           <button type="button" data-scroll-target="dungeons-section"><b>Данжи</b><small id="quick-dungeon-status">Доступные вылазки</small></button>
+          <button type="button" data-scroll-target="endgame-section"><b>Эндгейм</b><small id="quick-endgame-status">Путь к короне</small></button>
         </nav>
 
         <div class="map-layout">
@@ -189,6 +190,10 @@
               <header><span>02</span><div><h2>Данжи</h2><p>Открываются уровнем, днями мира и продвижением по аренам.</p></div></header>
               <div class="activity-route dungeon-route" id="dungeon-route"></div>
             </div>
+            <div class="route-section endgame-section" id="endgame-section">
+              <header><span>03</span><div><h2>После последней арены</h2><p>Лига короны и охота на легенд продолжают карьеру после финального чемпионства.</p></div></header>
+              <div class="activity-route endgame-route" id="endgame-route"></div>
+            </div>
           </div>
           <aside class="next-goal" id="next-goal"></aside>
         </div>
@@ -197,6 +202,7 @@
       <section class="page" id="page-hero" aria-labelledby="hero-visual-title">
         <header class="page-heading"><div><p class="eyebrow">ЭКИПИРОВКА ГЕРОЯ</p><h1 id="hero-visual-title">Ваш герой</h1></div><p>Соберите образ из отдельных предметов: каждый нагрудник, шлем, пара перчаток и оружие отображаются на герое и снимаются независимо.</p></header>
         <div class="gear-actions paper-panel" id="hero-gear-actions"></div>
+        <section class="class-change-panel paper-panel" id="class-change-panel"></section>
         <div class="hero-visual-layout">
           <section class="character-showcase">
             <div class="character-backdrop"><span id="visual-class-name">—</span><strong id="visual-hero-name">—</strong></div>

@@ -5,6 +5,7 @@ import {
   DUEL_BOSSES,
   DUEL_TIERS,
   DUNGEONS,
+  ENDGAME_ACTIVITIES,
   EQUIPMENT_SKILLS,
   EQUIPMENT_SETS,
   ITEM_TEMPLATES,
@@ -12,7 +13,7 @@ import {
   SLOT_LABELS,
   SKILLS,
 } from "../catalogs/WorldCatalog";
-import { WorldGame, skillById } from "../gameplay/WorldGame";
+import { CLASS_CHANGE_GOLD_COST, CLASS_CHANGE_MARK_COST, WorldGame, skillById } from "../gameplay/WorldGame";
 import { createEquipmentIcon, renderCharacterDoll } from "./CharacterDoll";
 import { basicTournamentUi } from "./BasicTournamentUi";
 import {
@@ -59,6 +60,8 @@ let currentTournament: TournamentReport | null = null;
 let tournamentBattleIndex = 0;
 let battleTurnIndex = 0;
 let battleHealth = { hero: 0, enemy: 0 };
+let battleReturnScrollY = 0;
+let battleReturnPage = "map";
 
 function renderGearActions(): void {
   if (!game) return;
@@ -70,7 +73,7 @@ function renderGearActions(): void {
     const checkbox = element("input") as HTMLInputElement;
     checkbox.type = "checkbox";
     checkbox.checked = game!.save.hero.autoEquipBest;
-    auto.append(checkbox, document.createTextNode(" Автоматически надевать улучшения"));
+    auto.append(checkbox, document.createTextNode(" Автоматически надевать лучшее"));
     best.addEventListener("click", () => {
       const equipped = game!.equipBest(); persist(); renderAll();
       toast(equipped.length ? "Выбрано лучшее доступное снаряжение." : "Подходящего снаряжения пока нет.");
@@ -179,10 +182,10 @@ function createHero(): void {
   toast(`${name}: путь начался.`);
 }
 
-function showPage(page: string): void {
+function showPage(page: string, scrollToTop = true): void {
   $$(".main-nav button").forEach((button) => button.classList.toggle("active", button.dataset.page === page));
   $$(".page").forEach((section) => section.classList.toggle("active", section.id === `page-${page}`));
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (scrollToTop) window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function renderHeader(): void {
@@ -288,7 +291,41 @@ function renderHeroVisual(): void {
   [["0", "Короткая"], ["1", "Зачёс назад"], ["2", "Длинная"]].forEach(([value, label]) => hair.append(new Option(label, value, false, Number(value) === hero.appearance.hairStyle)));
   hair.addEventListener("change", () => { hero.appearance.hairStyle = Number(hair.value) as 0 | 1 | 2; persist(); renderHeroVisual(); });
   editor.append(appearanceTitle, hair); stats.append(editor);
+  renderClassChangePanel();
   renderHeroHistory();
+}
+
+function renderClassChangePanel(): void {
+  if (!game) return;
+  const panel = $("#class-change-panel");
+  const hero = game.save.hero;
+  const availability = game.classChangeAvailability();
+  panel.replaceChildren();
+  const copy = element("div");
+  copy.append(
+    element("p", "eyebrow", "ПОЗДНЯЯ СПЕЦИАЛИЗАЦИЯ"),
+    element("h2", "", "Смена класса"),
+    element("p", "", "Уровень, рейтинг, история и инвентарь сохраняются. Несовместимые предметы снимаются, а навыки нового класса подбираются заново."),
+    element("small", "", availability.reason),
+  );
+  const controls = element("div", "class-change-controls");
+  const select = document.createElement("select");
+  Object.values(CLASS_DEFINITIONS).filter((definition) => definition.id !== hero.classId).forEach((definition) => {
+    select.append(new Option(`${definition.name} — ${definition.epithet}`, definition.id));
+  });
+  const button = element("button", "button primary", "Сменить класс");
+  button.disabled = !availability.unlocked;
+  button.addEventListener("click", () => {
+    const nextClass = select.value as HeroClass;
+    const nextName = CLASS_DEFINITIONS[nextClass].name;
+    if (!window.confirm(`Сменить класс на «${nextName}» за ${CLASS_CHANGE_GOLD_COST.toLocaleString("ru-RU")} ¤ и ${CLASS_CHANGE_MARK_COST} печатей?`)) return;
+    try {
+      game!.changeHeroClass(nextClass); persist(); renderAll();
+      toast(`Новый класс: ${nextName}. Подходящее снаряжение надето автоматически.`);
+    } catch (error) { toast((error as Error).message, "error"); }
+  });
+  controls.append(select, button, element("small", "", `Смен класса: ${hero.classChanges}`));
+  panel.append(copy, controls);
 }
 
 function renderHeroHistory(): void {
@@ -489,7 +526,11 @@ function renderMap(): void {
   $("#quick-boss-status").textContent = openBosses > 0 ? `${openBosses} готовы к бою` : "Нет доступных";
   $("#quick-tournament-status").textContent = tournamentsToday > 0 ? `${tournamentsToday} сегодня` : `${openTournaments} открыто`;
   $("#quick-dungeon-status").textContent = `${openDungeons} доступно`;
+  const crownAvailable = game.crownLeagueAvailability().unlocked;
+  const huntAvailable = game.legendHuntAvailability().unlocked;
+  $("#quick-endgame-status").textContent = huntAvailable ? "Легенда найдена" : crownAvailable ? game.crownLeagueTier().name : "Закрыто";
   renderDuels();
+  renderEndgame();
   const hero = game.save.hero;
   const next = nextSkills(hero.classId, hero.level)[0];
   const currentArena = ARENAS[hero.highestArena];
@@ -938,6 +979,34 @@ function renderSkills(): void {
   }));
 }
 
+function renderEndgame(): void {
+  if (!game) return;
+  const route = $("#endgame-route");
+  route.replaceChildren(...ENDGAME_ACTIVITIES.map((activity) => {
+    const availability = game!.availability(activity);
+    const card = element("article", `activity-card endgame${availability.unlocked ? "" : " locked"}`);
+    card.style.setProperty("--activity-accent", activity.accent);
+    const label = activity.id === "crown-league" ? game!.crownLeagueTier().name.toUpperCase() : "РЕДКАЯ ЦЕЛЬ";
+    const reward = activity.id === "crown-league"
+      ? `${game!.save.hero.crownLeaguePoints} очк. · ${game!.save.hero.crownLeagueWins} побед`
+      : `${game!.save.hero.legendHuntWins} легенд побеждено · мифическая добыча`;
+    card.append(
+      element("div", "activity-head", label),
+      element("h3", "", activity.name),
+      element("p", "", activity.description),
+      element("div", "activity-levels", reward),
+      element("div", "activity-state", availability.reason),
+    );
+    const button = element("button", "button activity-button", availability.unlocked
+      ? activity.id === "crown-league" ? "Выйти на бой лиги" : "Начать охоту"
+      : "Закрыто");
+    button.disabled = !availability.unlocked;
+    button.addEventListener("click", () => startEndgame(activity.id));
+    card.append(button);
+    return card;
+  }));
+}
+
 function renderCollections(): void {
   if (!game) return;
   const found = new Set(game.save.discoveredItems);
@@ -1105,6 +1174,16 @@ function trainHero(): void {
   } catch (error) { toast((error as Error).message, "error"); }
 }
 
+function startEndgame(activityId: "crown-league" | "legend-hunt"): void {
+  if (!game) return;
+  try {
+    currentTournament = null;
+    currentReport = activityId === "crown-league" ? game.playCrownLeague() : game.huntLegend();
+    persist();
+  } catch (error) { toast((error as Error).message, "error"); return; }
+  openBattleReport(currentReport);
+}
+
 function confirmManualBattleTurn(): void {
   if (!currentReport || game?.save.hero.combatMode !== "manual") return;
   const next = currentReport.turns[battleTurnIndex];
@@ -1157,6 +1236,10 @@ function renderTournamentBracket(): void {
 }
 
 function openBattleReport(report: BattleReport): void {
+  if ($("#battle-overlay").hidden) {
+    battleReturnScrollY = window.scrollY;
+    battleReturnPage = document.querySelector<HTMLElement>(".page.active")?.id.replace("page-", "") ?? "map";
+  }
   currentReport = report;
   battleTurnIndex = 0;
   battleHealth = { hero: currentReport.heroBefore.maxHealth, enemy: currentReport.enemyBefore.maxHealth };
@@ -1279,7 +1362,9 @@ function closeBattle(): void {
     openBattleReport(currentTournament.heroBattles[tournamentBattleIndex]);
     return;
   }
-  currentReport = null; currentTournament = null; $("#battle-overlay").hidden = true; $("#tournament-panel").hidden = true; document.body.classList.remove("battle-open"); renderAll(); showPage("map");
+  currentReport = null; currentTournament = null; $("#battle-overlay").hidden = true; $("#tournament-panel").hidden = true; document.body.classList.remove("battle-open");
+  renderAll(); showPage(battleReturnPage, false);
+  window.requestAnimationFrame(() => window.scrollTo({ top: battleReturnScrollY, behavior: "auto" }));
 }
 
 function setWorldInterface(visible: boolean): void {
