@@ -1138,6 +1138,37 @@ function renderLeaders(): void {
   });
 }
 
+function renderEliteLeaders(): void {
+  if (!game) return;
+  const elite = game.eliteLeaderboard();
+  const heroRank = game.heroEliteRank();
+  const leader = elite[0];
+  $("#elite-leader-summary").replaceChildren(
+    statRow("Ваше место", heroRank ? `#${heroRank}` : "Не в элите"),
+    statRow("Участников", elite.length),
+    statRow("Легенд", Math.min(5, elite.length)),
+    statRow("Первая корона", leader?.name ?? "—"),
+  );
+  const body = $("#elite-leader-table"); body.replaceChildren();
+  elite.forEach((entry, index) => {
+    const rank = index + 1;
+    const row = element("tr", `${entry.isHero ? "is-hero " : ""}${rank <= 5 ? "legend" : ""}`.trim());
+    [
+      `#${rank}`,
+      game!.legendTitle(rank) ?? "Элита",
+      entry.name,
+      CLASS_DEFINITIONS[entry.classId].name,
+      String(entry.level),
+      String(entry.rating),
+      String(game!.save.eliteCrownWins[entry.id] ?? (entry.isHero ? game!.save.hero.crownLeagueWins : 0)),
+      String(entry.wins),
+      String(entry.losses),
+      String(entry.kills),
+    ].forEach((value, cellIndex) => row.append(element("td", cellIndex === 1 && rank <= 5 ? "elite-title" : "", value)));
+    body.append(row);
+  });
+}
+
 function renderChronicle(): void {
   if (!game) return;
   const list = $("#event-list"); list.replaceChildren();
@@ -1150,7 +1181,7 @@ function renderChronicle(): void {
 
 function renderAll(): void {
   if (!game) return;
-  renderHeader(); renderMap(); renderHeroVisual(); renderGearActions(); renderArsenal(); renderForge(); renderSkills(); renderCollections(); renderShop(); renderLeaders(); renderChronicle(); renderTournamentReminder();
+  renderHeader(); renderMap(); renderHeroVisual(); renderGearActions(); renderArsenal(); renderForge(); renderSkills(); renderCollections(); renderShop(); renderLeaders(); renderEliteLeaders(); renderChronicle(); renderTournamentReminder();
 }
 
 function setCombatant(container: HTMLElement, fighter: CombatantSnapshot, health: number): void {

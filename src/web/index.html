@@ -73,6 +73,7 @@
       <button data-page="collections">Коллекции <span id="collection-count">0</span></button>
       <button data-page="shop">Лавка</button>
       <button data-page="leaders">Сотня лучших</button>
+      <button data-page="elite">Элита <span>30</span></button>
       <button data-page="chronicle">Мир</button>
     </nav>
 
@@ -259,6 +260,12 @@
         <header class="page-heading"><div><p class="eyebrow">ТОЛЬКО ТУРНИРНЫЕ РЕЗУЛЬТАТЫ</p><h1 id="leaders-title">Сотня лучших бойцов</h1></div><p>Дуэли и подземелья не дают мировой рейтинг. Новая арена начинает влиять на место только после первой победы в турнире на ней.</p></header>
         <div class="leader-summary" id="leader-summary"></div>
         <div class="leader-table-wrap"><table class="leader-table"><thead><tr><th>#</th><th>Боец</th><th>Класс</th><th>Арена</th><th>Ур.</th><th>Турниры</th><th>Победы</th><th>Поражения</th><th>Убийства</th><th>Рейтинг</th></tr></thead><tbody id="leader-table"></tbody></table></div>
+      </section>
+
+      <section class="page" id="page-elite" aria-labelledby="elite-title">
+        <header class="page-heading"><div><p class="eyebrow">ЗАКРЫТАЯ ЛИГА ПОСЛЕДНЕЙ АРЕНЫ</p><h1 id="elite-title">Тридцать бойцов элиты</h1></div><p>В элиту входят только чемпионы последней арены. Первые пять носят титулы легенд, а место в таблице можно изменить в Лиге короны и личных вызовах.</p></header>
+        <div class="leader-summary" id="elite-leader-summary"></div>
+        <div class="leader-table-wrap"><table class="leader-table elite-table"><thead><tr><th>#</th><th>Титул</th><th>Боец</th><th>Класс</th><th>Ур.</th><th>Очки элиты</th><th>Короны</th><th>Победы</th><th>Поражения</th><th>Убийства</th></tr></thead><tbody id="elite-leader-table"></tbody></table></div>
       </section>
 
       <section class="page" id="page-chronicle" aria-labelledby="chronicle-title">

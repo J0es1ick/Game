@@ -386,6 +386,11 @@
   background: var(--red);
   font-weight: bold;
 }
+.elite-table tr.legend { background: #e8d7a9; }
+.elite-table tr.legend:nth-child(even) { background: #dfcc9d; }
+.elite-table tr.legend.is-hero { color: #fff; background: var(--red); }
+.elite-table .elite-title { color: #805f25; font-weight: 750; }
+.elite-table tr.is-hero .elite-title { color: inherit; }
 
 .chronicle-layout {
   display: grid;
