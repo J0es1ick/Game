@@ -101,6 +101,19 @@ const classSkills: Record<HeroClass, Array<[string, string, number, "attack" | "
   ],
 };
 
+export const EQUIPMENT_SKILLS: SkillDefinition[] = [
+  { id: "relic-blood-pact", name: "Клятва крови", description: "Мощный удар, усиливающийся редкой реликвией.", classes: "all", unlockLevel: 0, kind: "attack", power: 1.72, cooldown: 6, priority: 10, equipmentOnly: true },
+  { id: "relic-guardian-echo", name: "Эхо хранителя", description: "Восстанавливает здоровье владельцу древнего предмета.", classes: "all", unlockLevel: 0, kind: "heal", power: 38, cooldown: 7, priority: 11, equipmentOnly: true },
+  { id: "relic-chrono-step", name: "Украденная секунда", description: "Усиливает следующую атаку и меняет темп боя.", classes: "all", unlockLevel: 0, kind: "buff", power: 0.56, cooldown: 7, priority: 9, equipmentOnly: true },
+  { id: "relic-shatter", name: "Излом печати", description: "Наносит урон и ослабляет ответный удар противника.", classes: "all", unlockLevel: 0, kind: "control", power: 1.05, cooldown: 7, priority: 10, equipmentOnly: true },
+  { id: "relic-aegis", name: "Ответ бастиона", description: "Тяжёлый ответный удар древнего щита.", classes: ["Knight"], unlockLevel: 0, kind: "attack", power: 1.95, cooldown: 7, priority: 11, equipmentOnly: true },
+  { id: "relic-ghost-volley", name: "Призрачный залп", description: "Серия стрел, выпущенных почти одновременно.", classes: ["Archer"], unlockLevel: 0, kind: "attack", power: 2.0, cooldown: 7, priority: 11, equipmentOnly: true },
+  { id: "relic-starfall", name: "Падение звезды", description: "Редкое разрушительное заклинание экипировки.", classes: ["Wizard"], unlockLevel: 0, kind: "attack", power: 2.12, cooldown: 8, priority: 12, equipmentOnly: true },
+  { id: "relic-empty-mind", name: "Пустой разум", description: "Глубокое восстановление между сериями ударов.", classes: ["Monk"], unlockLevel: 0, kind: "heal", power: 52, cooldown: 8, priority: 12, equipmentOnly: true },
+  { id: "relic-ricochet", name: "Королевский рикошет", description: "Пуля меняет направление и наносит усиленный урон.", classes: ["Gunsmith"], unlockLevel: 0, kind: "attack", power: 2.08, cooldown: 8, priority: 12, equipmentOnly: true },
+  { id: "relic-final-dance", name: "Последний танец", description: "Рискованная серия двух клинков.", classes: ["Swordsman"], unlockLevel: 0, kind: "attack", power: 2.16, cooldown: 8, priority: 12, equipmentOnly: true },
+];
+
 export const SKILLS: SkillDefinition[] = [
   ...sharedSkills,
   ...Object.entries(classSkills).flatMap(([classId, skills]) => skills.map(([id, name, unlockLevel, kind, power, cooldown], index) => ({
@@ -112,6 +125,7 @@ export const SKILLS: SkillDefinition[] = [
           : "Ослабляет следующую атаку противника.",
     classes: [classId as HeroClass], unlockLevel, kind, power, cooldown, priority: 7 + index,
   }))),
+  ...EQUIPMENT_SKILLS,
 ];
 
 const ARENA_DEFINITIONS: ArenaDefinition[] = [
@@ -140,11 +154,16 @@ export const DUEL_TIERS: DuelDefinition[] = [
   { id: "black-seal", kind: "duel", name: "Чёрная печать", place: "Зал без зрителей", description: "Предельные постоянные дуэли против бойцов королевского уровня.", minLevel: 20, requiredDuelWins: 55, requiredArena: 4, enemyLevelOffset: [3, 7], rewardGold: 820, rewardExperience: 680, accent: "#9c5044" },
 ];
 
+const heroClasses = Object.keys(CLASS_DEFINITIONS) as HeroClass[];
+const bossLootIds = (bossId: string): Record<HeroClass, string> => Object.fromEntries(
+  heroClasses.map((classId) => [classId, `boss-${bossId}-${classId.toLowerCase()}-weapon`]),
+) as Record<HeroClass, string>;
+
 export const DUEL_BOSSES: BossDefinition[] = [
-  { id: "iron-widow", kind: "boss", name: "Железная вдова", place: "Заброшенная часовня", description: "Рыцарь, который не снимает траурные латы. Побеждается один раз.", classId: "Knight", level: 9, requiredLevel: 7, requiredDuelWins: 10, requiredArena: 1, requiredDungeon: "catacombs", rewardGold: 900, rewardExperience: 720, lootTemplateId: "boss-widow-mantle", accent: "#58636b" },
-  { id: "red-abbot", kind: "boss", name: "Красный настоятель", place: "Колокольня без языка", description: "Мастер рукопашного боя, открывающий поединок серией тяжёлых ударов.", classId: "Monk", level: 15, requiredLevel: 12, requiredDuelWins: 25, requiredArena: 2, requiredBoss: "iron-widow", rewardGold: 2100, rewardExperience: 1500, lootTemplateId: "boss-abbot-gauntlets", accent: "#934c43" },
-  { id: "clockmaker", kind: "boss", name: "Слепой часовщик", place: "Мастерская тринадцатого часа", description: "Оружейник, чьи выстрелы следуют друг за другом без видимой задержки.", classId: "Gunsmith", level: 22, requiredLevel: 18, requiredDuelWins: 45, requiredArena: 3, requiredDungeon: "archive", requiredBoss: "red-abbot", rewardGold: 4800, rewardExperience: 2800, lootTemplateId: "boss-clockmaker-eye", accent: "#846b3e" },
-  { id: "nameless-duke", kind: "boss", name: "Безымянный герцог", place: "Чёрный балкон дворца", description: "Последний частный поединок мира. Его клинок не встречается ни в одном другом источнике.", classId: "Swordsman", level: 34, requiredLevel: 27, requiredDuelWins: 80, requiredArena: 5, requiredDungeon: "vault", requiredBoss: "clockmaker", rewardGold: 12000, rewardExperience: 6200, lootTemplateId: "boss-duke-blade", accent: "#4f485d" },
+  { id: "iron-widow", kind: "boss", name: "Железная вдова", place: "Заброшенная часовня", description: "Рыцарь, который не снимает траурные латы. Побеждается один раз.", classId: "Knight", level: 9, requiredLevel: 7, requiredDuelWins: 10, requiredArena: 1, requiredDungeon: "catacombs", rewardGold: 900, rewardExperience: 720, lootTemplateIds: bossLootIds("iron-widow"), accent: "#58636b" },
+  { id: "red-abbot", kind: "boss", name: "Красный настоятель", place: "Колокольня без языка", description: "Мастер рукопашного боя, открывающий поединок серией тяжёлых ударов.", classId: "Monk", level: 15, requiredLevel: 12, requiredDuelWins: 25, requiredArena: 2, requiredBoss: "iron-widow", rewardGold: 2100, rewardExperience: 1500, lootTemplateIds: bossLootIds("red-abbot"), accent: "#934c43" },
+  { id: "clockmaker", kind: "boss", name: "Слепой часовщик", place: "Мастерская тринадцатого часа", description: "Оружейник, чьи выстрелы следуют друг за другом без видимой задержки.", classId: "Gunsmith", level: 22, requiredLevel: 18, requiredDuelWins: 45, requiredArena: 3, requiredDungeon: "archive", requiredBoss: "red-abbot", rewardGold: 4800, rewardExperience: 2800, lootTemplateIds: bossLootIds("clockmaker"), accent: "#846b3e" },
+  { id: "nameless-duke", kind: "boss", name: "Безымянный герцог", place: "Чёрный балкон дворца", description: "Последний частный поединок мира. Его клинок не встречается ни в одном другом источнике.", classId: "Swordsman", level: 34, requiredLevel: 27, requiredDuelWins: 80, requiredArena: 5, requiredDungeon: "vault", requiredBoss: "clockmaker", rewardGold: 12000, rewardExperience: 6200, lootTemplateIds: bossLootIds("nameless-duke"), accent: "#4f485d" },
 ];
 
 export const RARITY_ORDER: Rarity[] = ["common", "rare", "epic", "legendary", "mythic"];
@@ -339,7 +358,20 @@ const additionalItemTemplates: ItemTemplate[] = additionalSetSpecs.flatMap((set)
   })),
 );
 
+const classWeaponNames: Record<HeroClass, string> = {
+  Knight: "клинок", Archer: "лук", Wizard: "посох", Monk: "боевые печати", Gunsmith: "пистолет", Swordsman: "парный клинок",
+};
+const bossClassLootTemplates: ItemTemplate[] = DUEL_BOSSES.flatMap((boss) => heroClasses.map((classId) => ({
+  id: boss.lootTemplateIds[classId],
+  name: `${classWeaponNames[classId]} · ${boss.name}`,
+  slot: "weapon" as const,
+  allowedClasses: [classId],
+  primaryStat: "attack" as const,
+  exclusiveToBoss: boss.id,
+})));
+
 export const ITEM_TEMPLATES: ItemTemplate[] = [
+  ...bossClassLootTemplates,
   { id: "boss-widow-mantle", name: "Траурная бронемантия", slot: "chest", allowedClasses: "all", primaryStat: "health", exclusiveToBoss: "iron-widow" },
   { id: "boss-abbot-gauntlets", name: "Ладони немого колокола", slot: "hands", allowedClasses: "all", primaryStat: "attack", exclusiveToBoss: "red-abbot" },
   { id: "boss-clockmaker-eye", name: "Око тринадцатого часа", slot: "head", allowedClasses: "all", primaryStat: "crit", exclusiveToBoss: "clockmaker" },

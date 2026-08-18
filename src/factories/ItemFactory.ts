@@ -75,7 +75,7 @@ export function createItem(level: number, options: {
   if (rarity === "legendary" || rarity === "mythic") {
     const source = pick(affixes);
     affix = { ...source, value: Math.round(source.base * (rarity === "mythic" ? 1.8 : 1) + scaledLevel * 0.4) };
-    const skills = SKILLS.filter((skill) => skill.classes === "all" || !options.classId || skill.classes.includes(options.classId));
+    const skills = SKILLS.filter((skill) => skill.equipmentOnly && (skill.classes === "all" || !options.classId || skill.classes.includes(options.classId)));
     grantedSkillId = pick(skills).id;
   }
 
@@ -110,4 +110,12 @@ export function createStarterItems(classId: HeroClass): EquipmentItem[] {
 export function equipmentScore(items: EquipmentItem[]): number {
   return Math.round(items.reduce((sum, item) => sum + Object.entries(item.stats).reduce((total, [stat, value]) =>
     total + (stat === "health" ? Number(value) / 4 : Number(value)), 0) * rarityMultipliers[item.rarity], 0));
+}
+
+export function itemPower(item: EquipmentItem): number {
+  const stats = { ...item.stats };
+  if (item.affix) stats[item.affix.stat] = (stats[item.affix.stat] ?? 0) + item.affix.value;
+  const raw = Object.entries(stats).reduce((sum, [stat, value]) => sum + (stat === "health" ? Number(value) / 4 : Number(value)), 0);
+  const skillBonus = item.grantedSkillId ? 12 : 0;
+  return Math.round((raw + skillBonus) * 100) / 100;
 }

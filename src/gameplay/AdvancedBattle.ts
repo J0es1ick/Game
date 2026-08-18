@@ -37,12 +37,15 @@ function equippedItems(inventory: EquipmentItem[], equipped: EquipmentSet): Equi
   return inventory.filter((item) => ids.has(item.id));
 }
 
-function itemStats(items: EquipmentItem[]): Partial<Stats> {
+export const MAX_ACTIVE_SKILLS = 4;
+
+function itemStats(items: EquipmentItem[], levelCap?: number): Partial<Stats> {
   return items.reduce<Partial<Stats>>((sum, item) => {
+    const scale = levelCap && item.level > levelCap ? Math.max(0.35, levelCap / item.level) : 1;
     for (const [key, value] of Object.entries(item.stats) as Array<[keyof Stats, number]>) {
-      sum[key] = (sum[key] ?? 0) + value;
+      sum[key] = (sum[key] ?? 0) + Math.max(1, Math.round(value * scale));
     }
-    if (item.affix) sum[item.affix.stat] = (sum[item.affix.stat] ?? 0) + item.affix.value;
+    if (item.affix) sum[item.affix.stat] = (sum[item.affix.stat] ?? 0) + Math.max(1, Math.round(item.affix.value * scale));
     return sum;
   }, {});
 }
@@ -80,23 +83,32 @@ function applySetStats(stats: Stats, counts: Record<string, number>): Stats {
 function skillsFor(classId: HeroClass, level: number, items: EquipmentItem[]): SkillDefinition[] {
   const ids = new Set(items.map((item) => item.grantedSkillId).filter(Boolean));
   return SKILLS.filter((skill) =>
-    ((skill.classes === "all" || skill.classes.includes(classId)) && skill.unlockLevel <= level)
+    (!skill.equipmentOnly && (skill.classes === "all" || skill.classes.includes(classId)) && skill.unlockLevel <= level)
     || ids.has(skill.id));
 }
 
-function toRuntime(profile: HeroProfile | EnemyProfile): RuntimeFighter {
+function activeSkills(profile: HeroProfile | EnemyProfile, available: SkillDefinition[]): SkillDefinition[] {
+  const recommended = [...available].sort((a, b) => b.priority - a.priority).slice(0, MAX_ACTIVE_SKILLS);
+  if (!("selectedSkillIds" in profile) || profile.autoSelectSkills !== false) return recommended;
+  const byId = new Map(available.map((skill) => [skill.id, skill]));
+  const selected = profile.selectedSkillIds.map((id) => byId.get(id)).filter((skill): skill is SkillDefinition => Boolean(skill));
+  return (selected.length > 0 ? selected : recommended).slice(0, MAX_ACTIVE_SKILLS);
+}
+
+function toRuntime(profile: HeroProfile | EnemyProfile, levelCap?: number): RuntimeFighter {
   const items = equippedItems("inventory" in profile ? profile.inventory : profile.equipment, profile.equipped);
   const definition = CLASS_DEFINITIONS[profile.classId];
+  const effectiveLevel = levelCap ? Math.min(profile.level, levelCap) : profile.level;
   const levelBonus: Partial<Stats> = {
-    health: (profile.level - 1) * 11,
-    attack: (profile.level - 1) * 2.1,
-    defense: (profile.level - 1) * 1.35,
-    speed: Math.floor((profile.level - 1) / 4),
-    crit: Math.floor((profile.level - 1) / 6),
+    health: (effectiveLevel - 1) * 11,
+    attack: (effectiveLevel - 1) * 2.1,
+    defense: (effectiveLevel - 1) * 1.35,
+    speed: Math.floor((effectiveLevel - 1) / 4),
+    crit: Math.floor((effectiveLevel - 1) / 6),
   };
   const counts = setCounts(items);
-  const stats = applySetStats(addStats(addStats(definition.startingStats, levelBonus), itemStats(items)), counts);
-  const skills = skillsFor(profile.classId, profile.level, items);
+  const stats = applySetStats(addStats(addStats(definition.startingStats, levelBonus), itemStats(items, levelCap)), counts);
+  const skills = activeSkills(profile, skillsFor(profile.classId, effectiveLevel, items));
   const model = new PlayerFactory().create({
     className: profile.classId,
     health: Math.round(stats.health),
@@ -106,7 +118,8 @@ function toRuntime(profile: HeroProfile | EnemyProfile): RuntimeFighter {
     skills: [],
   });
   return {
-    id: profile.id, name: profile.name, classId: profile.classId, level: profile.level,
+    id: profile.id, name: profile.name, classId: profile.classId, level: effectiveLevel,
+    originalLevel: effectiveLevel === profile.level ? undefined : profile.level,
     maxHealth: Math.round(stats.health), health: Math.round(stats.health), attack: Math.round(stats.attack),
     defense: Math.round(stats.defense), speed: Math.round(stats.speed), crit: Math.round(stats.crit),
     equipmentScore: equipmentScore(items), skills: skills.map((skill) => skill.id),
@@ -114,10 +127,10 @@ function toRuntime(profile: HeroProfile | EnemyProfile): RuntimeFighter {
   };
 }
 
-export function combatantSnapshot(profile: HeroProfile | EnemyProfile): CombatantSnapshot {
-  const runtime = toRuntime(profile);
+export function combatantSnapshot(profile: HeroProfile | EnemyProfile, levelCap?: number): CombatantSnapshot {
+  const runtime = toRuntime(profile, levelCap);
   return {
-    id: runtime.id, name: runtime.name, classId: runtime.classId, level: runtime.level,
+    id: runtime.id, name: runtime.name, classId: runtime.classId, level: runtime.level, originalLevel: runtime.originalLevel,
     maxHealth: runtime.maxHealth, health: runtime.health, attack: runtime.attack,
     defense: runtime.defense, speed: runtime.speed, crit: runtime.crit,
     equipmentScore: runtime.equipmentScore, skills: [...runtime.skills],
@@ -128,7 +141,7 @@ function pickSkill(actor: RuntimeFighter, target: RuntimeFighter): SkillDefiniti
   const ready = SKILLS.filter((skill) => actor.skills.includes(skill.id) && (actor.cooldowns[skill.id] ?? 0) <= 0);
   const useful = ready.filter((skill) => skill.kind !== "heal" || actor.health / actor.maxHealth < 0.56)
     .filter((skill) => skill.id !== "execution" || target.health / target.maxHealth < 0.42);
-  return useful.sort((a, b) => b.priority - a.priority)[0];
+  return useful.sort((a, b) => actor.skills.indexOf(a.id) - actor.skills.indexOf(b.id))[0];
 }
 
 function cooldownTick(fighter: RuntimeFighter): void {
@@ -224,8 +237,8 @@ function performTurn(turn: number, actor: RuntimeFighter, target: RuntimeFighter
   };
 }
 
-export function resolveCombat(heroProfile: HeroProfile, enemyProfile: EnemyProfile): CombatResolution {
-  const hero = toRuntime(heroProfile);
+export function resolveCombat(heroProfile: HeroProfile, enemyProfile: EnemyProfile, options: { heroLevelCap?: number } = {}): CombatResolution {
+  const hero = toRuntime(heroProfile, options.heroLevelCap);
   const enemy = toRuntime(enemyProfile);
   const heroBefore: CombatantSnapshot = { ...hero };
   const enemyBefore: CombatantSnapshot = { ...enemy };
@@ -251,7 +264,7 @@ export function unlockedSkills(classId: HeroClass, level: number, inventory: Equ
 }
 
 export function nextSkills(classId: HeroClass, level: number): SkillDefinition[] {
-  return SKILLS.filter((skill) => (skill.classes === "all" || skill.classes.includes(classId)) && skill.unlockLevel > level)
+  return SKILLS.filter((skill) => !skill.equipmentOnly && (skill.classes === "all" || skill.classes.includes(classId)) && skill.unlockLevel > level)
     .sort((a, b) => a.unlockLevel - b.unlockLevel);
 }
 

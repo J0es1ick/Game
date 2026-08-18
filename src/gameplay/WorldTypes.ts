@@ -49,6 +49,8 @@ export interface SkillDefinition {
   power: number;
   cooldown: number;
   priority: number;
+  /** Навык существует только как свойство легендарной или мифической экипировки. */
+  equipmentOnly?: boolean;
 }
 
 export interface ItemAffix {
@@ -141,6 +143,10 @@ export interface HeroProfile {
   highestArena: number;
   inventory: EquipmentItem[];
   equipped: EquipmentSet;
+  autoEquipBest: boolean;
+  autoSelectSkills: boolean;
+  selectedSkillIds: string[];
+  combatMode: "auto" | "manual";
   appearance: HeroAppearance;
   createdAt: number;
 }
@@ -231,7 +237,7 @@ export interface BossDefinition {
   requiredBoss?: string;
   rewardGold: number;
   rewardExperience: number;
-  lootTemplateId: string;
+  lootTemplateIds: Record<HeroClass, string>;
   accent: string;
 }
 
@@ -281,6 +287,7 @@ export interface CombatantSnapshot {
   name: string;
   classId: HeroClass;
   level: number;
+  originalLevel?: number;
   maxHealth: number;
   health: number;
   attack: number;

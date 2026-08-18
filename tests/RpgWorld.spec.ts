@@ -1,6 +1,6 @@
-import { combatantSnapshot, unlockedSkills } from "../src/gameplay/AdvancedBattle";
+import { MAX_ACTIVE_SKILLS, combatantSnapshot, unlockedSkills } from "../src/gameplay/AdvancedBattle";
 import { ARENAS, CLASS_DEFINITIONS, DUEL_BOSSES, DUNGEONS, EQUIPMENT_SETS, ITEM_TEMPLATES, SKILLS } from "../src/catalogs/WorldCatalog";
-import { calculateItemPrice } from "../src/factories/ItemFactory";
+import { calculateItemPrice, createItem } from "../src/factories/ItemFactory";
 import { WorldGame } from "../src/gameplay/WorldGame";
 import { TournamentArena } from "../src/arenas/TournamentArena";
 
@@ -95,9 +95,54 @@ describe("постоянный RPG-мир", () => {
   test("уникальные боссы имеют собственные условия и эксклюзивную добычу", () => {
     expect(DUEL_BOSSES).toHaveLength(4);
     DUEL_BOSSES.forEach((boss) => {
-      const loot = ITEM_TEMPLATES.find((item) => item.id === boss.lootTemplateId);
-      expect(loot?.exclusiveToBoss).toBe(boss.id);
+      Object.entries(boss.lootTemplateIds).forEach(([classId, templateId]) => {
+        const loot = ITEM_TEMPLATES.find((item) => item.id === templateId);
+        expect(loot?.exclusiveToBoss).toBe(boss.id);
+        expect(loot?.allowedClasses).toContain(classId);
+      });
     });
+  });
+
+  test("не создаёт лут выше диапазона ранней активности", () => {
+    const game = WorldGame.create("Ветеран", "Knight", 1_000);
+    game.save.hero.level = 27;
+    game.save.worldDay = 50;
+    const report = game.play(DUNGEONS[0].id);
+    expect(report.heroWon).toBe(true);
+    expect(report.rewards.item?.level).toBeLessThanOrEqual(DUNGEONS[0].enemyLevel[1] + 1);
+    expect(report.rewards.item?.level).toBeLessThan(game.save.hero.level);
+  });
+
+  test("ограничивает тренировки прогрессом текущей арены", () => {
+    const game = WorldGame.create("Ученик", "Monk", 1_000);
+    expect(game.trainingLevelCap()).toBe(ARENAS[0].enemyLevel[1] + 1);
+    game.save.hero.level = game.trainingLevelCap();
+    expect(() => game.train()).toThrow("текущий предел");
+    game.save.hero.highestArena = 1;
+    expect(game.trainingLevelCap()).toBe(ARENAS[1].enemyLevel[1] + 1);
+  });
+
+  test("масштабирует высокого героя под раннюю арену", () => {
+    const game = WorldGame.create("Чемпион", "Swordsman", 1_000);
+    game.save.hero.level = 24;
+    const scaled = combatantSnapshot(game.save.hero, 5);
+    expect(scaled.level).toBe(5);
+    expect(scaled.originalLevel).toBe(24);
+  });
+
+  test("поддерживает автоснаряжение и сборку максимум из четырёх навыков", () => {
+    const game = WorldGame.create("Сборщик", "Knight", 1_000);
+    const upgrade = createItem(20, { classId: "Knight", slot: "weapon", rarity: "legendary" });
+    game.save.shopOffers = [{ item: upgrade, sold: false }];
+    game.save.hero.gold = upgrade.price;
+    game.save.hero.level = 30;
+    game.setAutoEquipBest(true);
+    game.buy(0);
+    expect(game.save.hero.equipped.weapon).toBe(upgrade.id);
+
+    const skills = unlockedSkills("Knight", 30, [upgrade]);
+    game.setSelectedSkills(skills.map((skill) => skill.id));
+    expect(game.save.hero.selectedSkillIds).toHaveLength(MAX_ACTIVE_SKILLS);
   });
 
   test("требует запись и проводит полноценную турнирную сетку минимум на восемь бойцов", () => {

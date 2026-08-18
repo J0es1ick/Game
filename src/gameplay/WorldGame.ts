@@ -1,14 +1,16 @@
-import { combatantSnapshot, resolveCombat, unlockedSkills } from "./AdvancedBattle";
+import { MAX_ACTIVE_SKILLS, combatantSnapshot, resolveCombat, unlockedSkills } from "./AdvancedBattle";
 import {
   ARENAS,
   CLASS_DEFINITIONS,
   DUEL_BOSSES,
   DUEL_TIERS,
   DUNGEONS,
+  EQUIPMENT_SETS,
+  RARITY_LABELS,
   RARITY_ORDER,
   SKILLS,
 } from "../catalogs/WorldCatalog";
-import { calculateItemPrice, createItem, createStarterItems, equipmentScore } from "../factories/ItemFactory";
+import { calculateItemPrice, createItem, createStarterItems, equipmentScore, itemPower } from "../factories/ItemFactory";
 import {
   ActivityAvailability,
   ActivityDefinition,
@@ -70,7 +72,8 @@ export class WorldGame {
       tournamentMatchWins: 0, tournamentMatchLosses: 0, duelWins: 0, duelLosses: 0,
       dungeonWins: 0, dungeonLosses: 0, bossWins: 0, kills: 0, rivalries: {},
       arenaWins: ARENAS.map(() => 0), highestArena: 0, inventory: starter.inventory,
-      equipped: starter.equipped, appearance: { hairStyle: 0, faceStyle: 0 }, createdAt: now,
+      equipped: starter.equipped, autoEquipBest: false, autoSelectSkills: true, selectedSkillIds: [], combatMode: "auto",
+      appearance: { hairStyle: 0, faceStyle: 0 }, createdAt: now,
     };
     const save: GameSave = {
       version: 2, migrations: [], hero, enemies: [], worldDay: 1, lastSimulatedAt: now,
@@ -106,6 +109,12 @@ export class WorldGame {
     hero.duelWins ??= 0; hero.duelLosses ??= 0;
     hero.dungeonWins ??= 0; hero.dungeonLosses ??= 0; hero.bossWins ??= game.save.defeatedBosses.length;
     hero.temperingMarks ??= 0; hero.kills ??= 0; hero.rivalries ??= {};
+    hero.autoEquipBest ??= false;
+    hero.autoSelectSkills ??= true;
+    hero.selectedSkillIds = (hero.selectedSkillIds ?? [])
+      .filter((id, index, values) => values.indexOf(id) === index && SKILLS.some((skill) => skill.id === id))
+      .slice(0, MAX_ACTIVE_SKILLS);
+    if (hero.combatMode !== "manual") hero.combatMode = "auto";
     hero.inventory.forEach((item) => { item.enhancement ??= 0; });
     game.save.enemies.forEach((enemy) => {
       enemy.tournamentWins ??= Math.min(enemy.wins, Math.max(0, enemy.arenaIndex * 2));
@@ -179,7 +188,7 @@ export class WorldGame {
     if (lastClear && this.save.worldDay - lastClear < activity.cooldownDays) {
       return { unlocked: false, reason: `Восстановится через ${activity.cooldownDays - (this.save.worldDay - lastClear)} дн.` };
     }
-    return { unlocked: true, reason: `Гарантирована добыча: ${activity.minimumRarity}.` };
+    return { unlocked: true, reason: `Гарантирована добыча: ${RARITY_LABELS[activity.minimumRarity].toLowerCase()}.` };
   }
 
   public play(activityId: string): BattleReport {
@@ -207,7 +216,8 @@ export class WorldGame {
     let item: EquipmentItem | undefined;
     let temperingMarks = 0;
     if (heroWon) {
-      item = createItem(Math.max(this.save.hero.level, enemy.level), {
+      const rewardLevel = Math.min(this.save.hero.level + 2, activity.enemyLevel[1] + 1);
+      item = createItem(rewardLevel, {
         classId: this.save.hero.classId,
         minimumRarity: activity.minimumRarity,
       });
@@ -239,11 +249,20 @@ export class WorldGame {
   }
 
   public train(): DailyActivityReport {
+    const levelCap = this.trainingLevelCap();
+    if (this.save.hero.level >= levelCap) {
+      throw new Error(`Тренировки больше не дают уровень. Сначала продвиньтесь на следующую арену; текущий предел — ${levelCap}.`);
+    }
     const experience = 34 + this.save.hero.level * 5;
-    const levelsGained = this.gainHeroExperience(experience);
+    const levelsGained = this.gainHeroExperience(experience, levelCap);
     this.event("system", `${this.save.hero.name} провёл день на тренировочной площадке и получил ${experience} опыта.`);
     this.completeDay();
     return { kind: "training", title: "Тренировка завершена", description: "Безопасная практика без добычи и рейтингового риска.", experience, gold: 0, levelsGained };
+  }
+
+  public trainingLevelCap(): number {
+    const arena = ARENAS[Math.min(this.save.hero.highestArena, ARENAS.length - 1)];
+    return arena.enemyLevel[1] + 1;
   }
 
   public duel(tierId = DUEL_TIERS[0].id): DailyActivityReport {
@@ -289,7 +308,8 @@ export class WorldGame {
     if (heroWon) {
       this.save.hero.wins += 1; this.save.hero.bossWins += 1; this.save.defeatedBosses.push(boss.id);
       this.save.hero.temperingMarks += 1;
-      item = createItem(Math.max(this.save.hero.level, boss.level + 3), { classId: this.save.hero.classId, templateId: boss.lootTemplateId, rarity: boss.id === "nameless-duke" ? "mythic" : "legendary" });
+      const rewardLevel = Math.min(this.save.hero.level + 2, boss.level + 2);
+      item = createItem(rewardLevel, { classId: this.save.hero.classId, templateId: boss.lootTemplateIds[this.save.hero.classId], rarity: boss.id === "nameless-duke" ? "mythic" : "legendary" });
       this.addItem(item);
       this.event("loot", `${this.save.hero.name} победил ${boss.name} и получил уникальный предмет «${item.name}».`);
     } else this.save.hero.losses += 1;
@@ -333,7 +353,7 @@ export class WorldGame {
         let battle: BattleReport | undefined;
         if (heroInvolved) {
           const enemy = (first.id === "hero" ? second : first) as EnemyProfile;
-          const combat = resolveCombat(this.save.hero, enemy);
+          const combat = resolveCombat(this.save.hero, enemy, { heroLevelCap: arena.enemyLevel[1] + 1 });
           const heroWon = combat.winnerId === "hero";
           winner = heroWon ? this.save.hero : enemy;
           const enemyDied = heroWon && Math.random() < arena.lethalChance;
@@ -379,7 +399,8 @@ export class WorldGame {
       this.save.hero.arenaWins[arenaIndex] += 1;
       if (this.save.hero.arenaWins[arenaIndex] >= arena.winsToAdvance && arenaIndex < ARENAS.length - 1) this.save.hero.highestArena = Math.max(this.save.hero.highestArena, arenaIndex + 1);
       const minimum: Rarity = arenaIndex >= 4 ? "legendary" : arenaIndex >= 2 ? "epic" : "rare";
-      item = createItem(Math.max(this.save.hero.level, arena.enemyLevel[1]), { classId: this.save.hero.classId, minimumRarity: minimum });
+      const rewardLevel = Math.min(this.save.hero.level + 2, arena.enemyLevel[1] + 1);
+      item = createItem(rewardLevel, { classId: this.save.hero.classId, minimumRarity: minimum });
       this.addItem(item);
       this.event("loot", `Чемпионский приз ${this.save.hero.name}: ${item.name}.`);
       if (arenaIndex >= 2) {
@@ -404,6 +425,64 @@ export class WorldGame {
     if (!item) throw new Error("Предмет не найден.");
     if (item.allowedClasses !== "all" && !item.allowedClasses.includes(this.save.hero.classId)) throw new Error("Этот класс не может использовать предмет.");
     this.save.hero.equipped[item.slot] = item.id;
+  }
+
+  public equipBest(mode: "power" | "set" = "power"): EquipmentItem[] {
+    const hero = this.save.hero;
+    const compatible = hero.inventory.filter((item) =>
+      item.allowedClasses === "all" || item.allowedClasses.includes(hero.classId));
+    let preferredSetId: string | undefined;
+
+    if (mode === "set") {
+      const candidates = EQUIPMENT_SETS
+        .map((set) => {
+          const items = compatible.filter((item) => item.setId === set.id);
+          const slots = new Set(items.map((item) => item.slot)).size;
+          const power = items.reduce((sum, item) => sum + itemPower(item), 0);
+          return { id: set.id, slots, power };
+        })
+        .filter((set) => set.slots > 0)
+        .sort((a, b) => b.slots - a.slots || b.power - a.power);
+      preferredSetId = candidates[0]?.id;
+    }
+
+    const equipped: EquipmentItem[] = [];
+    const slots: EquipmentSlot[] = ["weapon", "offhand", "head", "chest", "hands", "feet"];
+    slots.forEach((slot) => {
+      const inSlot = compatible.filter((item) => item.slot === slot);
+      const preferred = preferredSetId ? inSlot.filter((item) => item.setId === preferredSetId) : [];
+      const pool = preferred.length > 0 ? preferred : inSlot;
+      const best = [...pool].sort((a, b) => itemPower(b) - itemPower(a) || b.level - a.level)[0];
+      if (!best) return;
+      hero.equipped[slot] = best.id;
+      equipped.push(best);
+    });
+    return equipped;
+  }
+
+  public setAutoEquipBest(enabled: boolean): void {
+    this.save.hero.autoEquipBest = enabled;
+    if (enabled) this.equipBest();
+  }
+
+  public setAutoSelectSkills(enabled: boolean): void {
+    this.save.hero.autoSelectSkills = enabled;
+  }
+
+  public setSelectedSkills(skillIds: string[]): SkillDefinition[] {
+    const hero = this.save.hero;
+    const equippedIds = new Set(Object.values(hero.equipped));
+    const available = unlockedSkills(hero.classId, hero.level, hero.inventory.filter((item) => equippedIds.has(item.id)));
+    const availableById = new Map(available.map((skill) => [skill.id, skill]));
+    const selected = skillIds
+      .filter((id, index, values) => values.indexOf(id) === index && availableById.has(id))
+      .slice(0, MAX_ACTIVE_SKILLS);
+    hero.selectedSkillIds = selected;
+    return selected.map((id) => availableById.get(id)!);
+  }
+
+  public setCombatMode(mode: "auto" | "manual"): void {
+    this.save.hero.combatMode = mode;
   }
 
   public unequip(slot: EquipmentSlot): void {
@@ -490,6 +569,11 @@ export class WorldGame {
   private addItem(item: EquipmentItem): void {
     this.save.hero.inventory.push(item);
     if (!this.save.discoveredItems.includes(item.templateId)) this.save.discoveredItems.push(item.templateId);
+    const compatible = item.allowedClasses === "all" || item.allowedClasses.includes(this.save.hero.classId);
+    if (!this.save.hero.autoEquipBest || !compatible) return;
+    const currentId = this.save.hero.equipped[item.slot];
+    const current = this.save.hero.inventory.find((candidate) => candidate.id === currentId);
+    if (!current || itemPower(item) > itemPower(current)) this.save.hero.equipped[item.slot] = item.id;
   }
 
   private recordHeroEncounter(enemy: EnemyProfile, heroWon: boolean, killed = false): void {
@@ -539,15 +623,20 @@ export class WorldGame {
     }
   }
 
-  private gainHeroExperience(amount: number): number {
+  private gainHeroExperience(amount: number, levelCap = Number.POSITIVE_INFINITY): number {
     const hero = this.save.hero;
+    if (hero.level >= levelCap) {
+      hero.experience = Math.min(hero.experience + amount, Math.max(0, hero.experienceToNextLevel - 1));
+      return 0;
+    }
     hero.experience += amount;
     let levels = 0;
-    while (hero.experience >= hero.experienceToNextLevel) {
+    while (hero.experience >= hero.experienceToNextLevel && hero.level < levelCap) {
       hero.experience -= hero.experienceToNextLevel;
       hero.level += 1; levels += 1;
       hero.experienceToNextLevel = Math.round(hero.experienceToNextLevel * 1.28);
     }
+    if (hero.level >= levelCap) hero.experience = Math.min(hero.experience, Math.max(0, hero.experienceToNextLevel - 1));
     return levels;
   }
 
