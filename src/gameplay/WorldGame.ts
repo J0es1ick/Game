@@ -5,6 +5,7 @@ import {
   DUEL_BOSSES,
   DUEL_TIERS,
   DUNGEONS,
+  ENDGAME_ACTIVITIES,
   EQUIPMENT_SETS,
   RARITY_LABELS,
   RARITY_ORDER,
@@ -45,6 +46,8 @@ const enemyOrigins = ["Нижний город", "Пепельная слобо�
 const classes = Object.keys(CLASS_DEFINITIONS) as HeroClass[];
 
 const VISUAL_TEST_CATALOG_CLEANUP_MIGRATION = "remove-visual-test-catalog-v1";
+export const CLASS_CHANGE_GOLD_COST = 25_000;
+export const CLASS_CHANGE_MARK_COST = 5;
 
 function pick<T>(items: readonly T[]): T { return items[Math.floor(Math.random() * items.length)]; }
 function randomInt(min: number, max: number): number { return Math.floor(Math.random() * (max - min + 1)) + min; }
@@ -73,12 +76,14 @@ export class WorldGame {
       dungeonWins: 0, dungeonLosses: 0, bossWins: 0, kills: 0, rivalries: {},
       arenaWins: ARENAS.map(() => 0), highestArena: 0, inventory: starter.inventory,
       equipped: starter.equipped, autoEquipBest: false, autoSelectSkills: true, selectedSkillIds: [], combatMode: "auto",
+      crownLeaguePoints: 0, crownLeagueWins: 0, legendHuntWins: 0, classChanges: 0,
       appearance: { hairStyle: 0, faceStyle: 0 }, createdAt: now,
     };
     const save: GameSave = {
       version: 2, migrations: [], hero, enemies: [], worldDay: 1, lastSimulatedAt: now,
       dungeonClears: {}, shopDay: 1, shopOffers: [],
-      discoveredItems: starter.inventory.map((item) => item.templateId), tournamentRegistrations: {}, defeatedBosses: [], events: [],
+      discoveredItems: starter.inventory.map((item) => item.templateId), tournamentRegistrations: {}, defeatedBosses: [],
+      huntedLegendIds: [], events: [],
     };
     const game = new WorldGame(save);
     ARENAS.forEach((_, arenaIndex) => {
@@ -96,6 +101,7 @@ export class WorldGame {
     game.save.tournamentRegistrations ??= {};
     game.save.events ??= [];
     game.save.defeatedBosses ??= [];
+    game.save.huntedLegendIds ??= [];
     const hero = game.save.hero;
     hero.inventory.forEach((item) => {
       item.name = item.name.replace(/^\[3D-прототип\]\s*/, "");
@@ -110,6 +116,10 @@ export class WorldGame {
     hero.dungeonWins ??= 0; hero.dungeonLosses ??= 0; hero.bossWins ??= game.save.defeatedBosses.length;
     hero.temperingMarks ??= 0; hero.kills ??= 0; hero.rivalries ??= {};
     hero.autoEquipBest ??= false;
+    hero.crownLeaguePoints ??= 0;
+    hero.crownLeagueWins ??= 0;
+    hero.legendHuntWins ??= 0;
+    hero.classChanges ??= 0;
     hero.autoSelectSkills ??= true;
     hero.selectedSkillIds = (hero.selectedSkillIds ?? [])
       .filter((id, index, values) => values.indexOf(id) === index && SKILLS.some((skill) => skill.id === id))
@@ -170,6 +180,9 @@ export class WorldGame {
 
   public availability(activity: ActivityDefinition): ActivityAvailability {
     const hero = this.save.hero;
+    if (activity.kind === "endgame") {
+      return activity.id === "crown-league" ? this.crownLeagueAvailability() : this.legendHuntAvailability();
+    }
     if (activity.kind === "arena") {
       const index = ARENAS.findIndex((arena) => arena.id === activity.id);
       if (index > hero.highestArena) return { unlocked: false, reason: `Победите на арене «${ARENAS[index - 1].name}».` };
@@ -427,6 +440,122 @@ export class WorldGame {
     this.save.hero.equipped[item.slot] = item.id;
   }
 
+  public crownLeagueAvailability(): ActivityAvailability {
+    const hero = this.save.hero;
+    const finalArenaIndex = ARENAS.length - 1;
+    if (hero.highestArena < finalArenaIndex || (hero.arenaWins[finalArenaIndex] ?? 0) < 1) {
+      return { unlocked: false, reason: `Сначала станьте чемпионом турнира «${ARENAS[finalArenaIndex].name}».` };
+    }
+    if (!this.crownLeagueOpponent()) return { unlocked: false, reason: "В мире пока нет подходящего соперника." };
+    return { unlocked: true, reason: `${this.crownLeagueTier().name} · ${hero.crownLeaguePoints} очк. лиги.` };
+  }
+
+  public legendHuntAvailability(): ActivityAvailability {
+    const hero = this.save.hero;
+    if (hero.crownLeagueWins < 3) {
+      return { unlocked: false, reason: `Нужно побед в Лиге короны: ${hero.crownLeagueWins}/3.` };
+    }
+    const lastHunt = this.save.lastLegendHuntDay;
+    if (lastHunt !== undefined && this.save.worldDay - lastHunt < 4) {
+      return { unlocked: false, reason: `Новая легенда появится через ${4 - (this.save.worldDay - lastHunt)} дн.` };
+    }
+    const target = this.currentLegendTarget();
+    if (!target) return { unlocked: false, reason: "Все известные легенды уже побеждены." };
+    return { unlocked: true, reason: `Цель: ${target.name} · рейтинг ${target.rating} · уровень ${target.level}.` };
+  }
+
+  public crownLeagueTier(): { name: string; index: number; nextAt?: number } {
+    const points = this.save.hero.crownLeaguePoints;
+    const tiers = [
+      { name: "Претендент", min: 0 }, { name: "Наследник", min: 12 },
+      { name: "Регент", min: 30 }, { name: "Владыка короны", min: 60 },
+    ];
+    let index = 0;
+    tiers.forEach((tier, tierIndex) => { if (points >= tier.min) index = tierIndex; });
+    return { name: tiers[index].name, index, nextAt: tiers[index + 1]?.min };
+  }
+
+  public currentLegendTarget(): EnemyProfile | undefined {
+    const hunted = new Set(this.save.huntedLegendIds);
+    return this.save.enemies
+      .filter((enemy) => enemy.alive && !hunted.has(enemy.id))
+      .sort((a, b) => b.rating - a.rating || b.tournamentWins - a.tournamentWins)[0];
+  }
+
+  public playCrownLeague(): BattleReport {
+    const activity = ENDGAME_ACTIVITIES.find((candidate) => candidate.id === "crown-league")!;
+    const availability = this.crownLeagueAvailability();
+    if (!availability.unlocked) throw new Error(availability.reason);
+    const enemy = this.crownLeagueOpponent()!;
+    const combat = resolveCombat(this.save.hero, enemy);
+    const heroWon = combat.winnerId === "hero";
+    const tier = this.crownLeagueTier();
+    const experience = heroWon ? activity.rewardExperience + tier.index * 900 : Math.round(activity.rewardExperience * 0.22);
+    const gold = heroWon ? activity.rewardGold + tier.index * 1800 : 0;
+    const levelsGained = this.gainHeroExperience(experience);
+    this.save.hero.gold += gold;
+    let item: EquipmentItem | undefined;
+    let temperingMarks = 0;
+    if (heroWon) {
+      this.save.hero.wins += 1;
+      this.save.hero.tournamentMatchWins += 1;
+      this.save.hero.crownLeagueWins += 1;
+      this.save.hero.crownLeaguePoints += 3 + tier.index;
+      temperingMarks = 2 + Math.floor(tier.index / 2);
+      this.save.hero.temperingMarks += temperingMarks;
+      item = createItem(this.save.hero.level + 1, { classId: this.save.hero.classId, minimumRarity: tier.index >= 2 ? "mythic" : "legendary" });
+      this.addItem(item);
+    } else {
+      this.save.hero.losses += 1;
+      this.save.hero.tournamentMatchLosses += 1;
+      this.save.hero.crownLeaguePoints = Math.max(0, this.save.hero.crownLeaguePoints - 1);
+    }
+    this.recordHeroEncounter(enemy, heroWon);
+    this.updateEnemyAfterPlayerBattle(enemy, heroWon, false);
+    this.event("tournament", `${this.save.hero.name} ${heroWon ? "победил" : "проиграл"} ${enemy.name} в Лиге короны.`);
+    this.completeDay();
+    this.recalculateHeroRating();
+    return {
+      activity, heroBefore: combat.hero, enemyBefore: combat.enemy, winnerId: combat.winnerId,
+      loserId: heroWon ? enemy.id : "hero", heroWon, enemyDied: false, turns: combat.turns,
+      rewards: { experience, gold, item, levelsGained, unlockedSkills: [], temperingMarks }, worldEvents: [],
+    };
+  }
+
+  public huntLegend(): BattleReport {
+    const activity = ENDGAME_ACTIVITIES.find((candidate) => candidate.id === "legend-hunt")!;
+    const availability = this.legendHuntAvailability();
+    if (!availability.unlocked) throw new Error(availability.reason);
+    const enemy = this.currentLegendTarget()!;
+    const combat = resolveCombat(this.save.hero, enemy);
+    const heroWon = combat.winnerId === "hero";
+    const experience = heroWon ? activity.rewardExperience + enemy.level * 35 : Math.round(activity.rewardExperience * 0.18);
+    const gold = heroWon ? activity.rewardGold + enemy.tournamentWins * 120 : 0;
+    const levelsGained = this.gainHeroExperience(experience);
+    this.save.hero.gold += gold;
+    this.save.lastLegendHuntDay = this.save.worldDay;
+    let item: EquipmentItem | undefined;
+    let temperingMarks = 0;
+    if (heroWon) {
+      this.save.hero.wins += 1;
+      this.save.hero.legendHuntWins += 1;
+      this.save.huntedLegendIds.push(enemy.id);
+      temperingMarks = 4;
+      this.save.hero.temperingMarks += temperingMarks;
+      item = createItem(this.save.hero.level + 2, { classId: this.save.hero.classId, minimumRarity: "mythic" });
+      this.addItem(item);
+    } else this.save.hero.losses += 1;
+    this.recordHeroEncounter(enemy, heroWon);
+    this.updateEnemyAfterPlayerBattle(enemy, heroWon, false);
+    this.event("battle", `${this.save.hero.name} ${heroWon ? "завершил" : "не завершил"} охоту на легенду ${enemy.name}.`);
+    this.completeDay();
+    return {
+      activity, heroBefore: combat.hero, enemyBefore: combat.enemy, winnerId: combat.winnerId,
+      loserId: heroWon ? enemy.id : "hero", heroWon, enemyDied: false, turns: combat.turns,
+      rewards: { experience, gold, item, levelsGained, unlockedSkills: [], temperingMarks }, worldEvents: [],
+    };
+  }
+
   public equipBest(mode: "power" | "set" = "power"): EquipmentItem[] {
     const hero = this.save.hero;
     const compatible = hero.inventory.filter((item) =>
@@ -483,6 +612,41 @@ export class WorldGame {
 
   public setCombatMode(mode: "auto" | "manual"): void {
     this.save.hero.combatMode = mode;
+  }
+
+  public classChangeAvailability(): ActivityAvailability {
+    const hero = this.save.hero;
+    const finalArenaIndex = ARENAS.length - 1;
+    if (hero.highestArena < finalArenaIndex || (hero.arenaWins[finalArenaIndex] ?? 0) < 1) {
+      return { unlocked: false, reason: `Смена класса откроется после чемпионства на арене «${ARENAS[finalArenaIndex].name}».` };
+    }
+    if (hero.gold < CLASS_CHANGE_GOLD_COST) return { unlocked: false, reason: `Нужно ${CLASS_CHANGE_GOLD_COST.toLocaleString("ru-RU")} монет.` };
+    if (hero.temperingMarks < CLASS_CHANGE_MARK_COST) return { unlocked: false, reason: `Нужно печатей закалки: ${CLASS_CHANGE_MARK_COST}.` };
+    return { unlocked: true, reason: `Стоимость: ${CLASS_CHANGE_GOLD_COST.toLocaleString("ru-RU")} ¤ и ${CLASS_CHANGE_MARK_COST} печатей.` };
+  }
+
+  public changeHeroClass(classId: HeroClass): EquipmentItem[] {
+    const hero = this.save.hero;
+    if (classId === hero.classId) throw new Error("Этот класс уже выбран.");
+    const availability = this.classChangeAvailability();
+    if (!availability.unlocked) throw new Error(availability.reason);
+    hero.gold -= CLASS_CHANGE_GOLD_COST;
+    hero.temperingMarks -= CLASS_CHANGE_MARK_COST;
+    hero.classId = classId;
+    hero.classChanges += 1;
+    hero.selectedSkillIds = [];
+    (Object.keys(hero.equipped) as EquipmentSlot[]).forEach((slot) => {
+      const item = hero.inventory.find((candidate) => candidate.id === hero.equipped[slot]);
+      if (item && item.allowedClasses !== "all" && !item.allowedClasses.includes(classId)) delete hero.equipped[slot];
+    });
+    createStarterItems(classId).forEach((starter) => {
+      const hasCompatibleSlot = hero.inventory.some((item) => item.slot === starter.slot
+        && (item.allowedClasses === "all" || item.allowedClasses.includes(classId)));
+      if (!hasCompatibleSlot) this.addItem(starter);
+    });
+    const equipped = this.equipBest();
+    this.event("system", `${hero.name} сменил класс и теперь следует пути «${CLASS_DEFINITIONS[classId].name}».`);
+    return equipped;
   }
 
   public unequip(slot: EquipmentSlot): void {
@@ -560,6 +724,7 @@ export class WorldGame {
     const provenArena = Math.max(0, hero.highestArena - (hasProvedCurrentArena ? 0 : 1));
     hero.rating = 1000 + provenArena * 650 + Math.min(560, hero.tournamentMatchWins * 12)
       + Math.min(360, championships) + Math.min(120, hero.level * 4) - Math.min(180, hero.tournamentMatchLosses * 8);
+    hero.rating += Math.min(900, hero.crownLeaguePoints * 15);
   }
 
   private enemyWorldRating(enemy: EnemyProfile): number {
@@ -694,6 +859,14 @@ export class WorldGame {
       createItem(boss.level + 4, { classId: boss.classId, slot, rarity: boss.id === "nameless-duke" ? "mythic" : "legendary" }));
     enemy.equipped = {}; enemy.equipment.forEach((item) => { enemy.equipped[item.slot] = item.id; });
     return enemy;
+  }
+
+  private crownLeagueOpponent(): EnemyProfile | undefined {
+    const tier = this.crownLeagueTier().index;
+    const ranked = this.save.enemies.filter((enemy) => enemy.alive)
+      .sort((a, b) => b.rating - a.rating || b.tournamentWins - a.tournamentWins);
+    const offset = Math.max(0, 12 - tier * 4);
+    return ranked[Math.min(offset, Math.max(0, ranked.length - 1))];
   }
 
   private duelAvailability(duel: DuelDefinition): ActivityAvailability {

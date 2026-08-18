@@ -147,6 +147,10 @@ export interface HeroProfile {
   autoSelectSkills: boolean;
   selectedSkillIds: string[];
   combatMode: "auto" | "manual";
+  crownLeaguePoints: number;
+  crownLeagueWins: number;
+  legendHuntWins: number;
+  classChanges: number;
   appearance: HeroAppearance;
   createdAt: number;
 }
@@ -241,11 +245,23 @@ export interface BossDefinition {
   accent: string;
 }
 
+export interface EndgameActivityDefinition {
+  id: "crown-league" | "legend-hunt";
+  kind: "endgame";
+  name: string;
+  place: string;
+  description: string;
+  rewardGold: number;
+  rewardExperience: number;
+  accent: string;
+}
+
 export type ActivityDefinition =
   | ArenaDefinition
   | DungeonDefinition
   | DuelDefinition
-  | BossDefinition;
+  | BossDefinition
+  | EndgameActivityDefinition;
 
 export interface WorldEvent {
   id: string;
@@ -279,6 +295,8 @@ export interface GameSave {
   discoveredItems: string[];
   tournamentRegistrations: Record<string, number>;
   defeatedBosses: string[];
+  huntedLegendIds: string[];
+  lastLegendHuntDay?: number;
   events: WorldEvent[];
 }
 

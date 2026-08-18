@@ -1,5 +1,5 @@
 import { MAX_ACTIVE_SKILLS, combatantSnapshot, unlockedSkills } from "../src/gameplay/AdvancedBattle";
-import { ARENAS, CLASS_DEFINITIONS, DUEL_BOSSES, DUNGEONS, EQUIPMENT_SETS, ITEM_TEMPLATES, SKILLS } from "../src/catalogs/WorldCatalog";
+import { ARENAS, CLASS_DEFINITIONS, DUEL_BOSSES, DUNGEONS, ENDGAME_ACTIVITIES, EQUIPMENT_SETS, ITEM_TEMPLATES, SKILLS } from "../src/catalogs/WorldCatalog";
 import { calculateItemPrice, createItem } from "../src/factories/ItemFactory";
 import { WorldGame } from "../src/gameplay/WorldGame";
 import { TournamentArena } from "../src/arenas/TournamentArena";
@@ -143,6 +143,46 @@ describe("постоянный RPG-мир", () => {
     const skills = unlockedSkills("Knight", 30, [upgrade]);
     game.setSelectedSkills(skills.map((skill) => skill.id));
     expect(game.save.hero.selectedSkillIds).toHaveLength(MAX_ACTIVE_SKILLS);
+  });
+
+  test("открывает лигу короны и охоту на реальных бойцов мирового рейтинга", () => {
+    const game = WorldGame.create("Регент", "Knight", 1_000);
+    expect(ENDGAME_ACTIVITIES).toHaveLength(2);
+    expect(game.crownLeagueAvailability().unlocked).toBe(false);
+    game.save.hero.level = 60;
+    game.save.hero.highestArena = ARENAS.length - 1;
+    game.save.hero.arenaWins[ARENAS.length - 1] = 1;
+    expect(game.crownLeagueAvailability().unlocked).toBe(true);
+    const beforeDay = game.save.worldDay;
+    const report = game.playCrownLeague();
+    expect(report.turns.length).toBeGreaterThan(0);
+    expect(game.save.enemies.some((enemy) => enemy.id === report.enemyBefore.id)).toBe(true);
+    expect(game.save.worldDay).toBe(beforeDay + 1);
+    game.save.hero.crownLeagueWins = 3;
+    expect(game.legendHuntAvailability().reason).toContain("Цель:");
+  });
+
+  test("позволяет позднему герою сменить класс без потери уровня и инвентаря", () => {
+    const game = WorldGame.create("Перерождённый", "Knight", 1_000);
+    const hero = game.save.hero;
+    hero.level = 42;
+    hero.highestArena = ARENAS.length - 1;
+    hero.arenaWins[ARENAS.length - 1] = 1;
+    hero.gold = 30_000;
+    hero.temperingMarks = 8;
+    const level = hero.level;
+    const inventoryBefore = hero.inventory.length;
+    game.changeHeroClass("Wizard");
+    expect(hero.classId).toBe("Wizard");
+    expect(hero.level).toBe(level);
+    expect(hero.inventory.length).toBeGreaterThanOrEqual(inventoryBefore);
+    expect(hero.gold).toBe(5_000);
+    expect(hero.temperingMarks).toBe(3);
+    expect(hero.classChanges).toBe(1);
+    expect(Object.values(hero.equipped).every((id) => {
+      const item = hero.inventory.find((candidate) => candidate.id === id)!;
+      return item.allowedClasses === "all" || item.allowedClasses.includes("Wizard");
+    })).toBe(true);
   });
 
   test("требует запись и проводит полноценную турнирную сетку минимум на восемь бойцов", () => {

@@ -4,6 +4,7 @@ import {
   ClassDefinition,
   DuelDefinition,
   DungeonDefinition,
+  EndgameActivityDefinition,
   EquipmentSlot,
   EquipmentSetDefinition,
   HeroClass,
@@ -164,6 +165,19 @@ export const DUEL_BOSSES: BossDefinition[] = [
   { id: "red-abbot", kind: "boss", name: "Красный настоятель", place: "Колокольня без языка", description: "Мастер рукопашного боя, открывающий поединок серией тяжёлых ударов.", classId: "Monk", level: 15, requiredLevel: 12, requiredDuelWins: 25, requiredArena: 2, requiredBoss: "iron-widow", rewardGold: 2100, rewardExperience: 1500, lootTemplateIds: bossLootIds("red-abbot"), accent: "#934c43" },
   { id: "clockmaker", kind: "boss", name: "Слепой часовщик", place: "Мастерская тринадцатого часа", description: "Оружейник, чьи выстрелы следуют друг за другом без видимой задержки.", classId: "Gunsmith", level: 22, requiredLevel: 18, requiredDuelWins: 45, requiredArena: 3, requiredDungeon: "archive", requiredBoss: "red-abbot", rewardGold: 4800, rewardExperience: 2800, lootTemplateIds: bossLootIds("clockmaker"), accent: "#846b3e" },
   { id: "nameless-duke", kind: "boss", name: "Безымянный герцог", place: "Чёрный балкон дворца", description: "Последний частный поединок мира. Его клинок не встречается ни в одном другом источнике.", classId: "Swordsman", level: 34, requiredLevel: 27, requiredDuelWins: 80, requiredArena: 5, requiredDungeon: "vault", requiredBoss: "clockmaker", rewardGold: 12000, rewardExperience: 6200, lootTemplateIds: bossLootIds("nameless-duke"), accent: "#4f485d" },
+];
+
+export const ENDGAME_ACTIVITIES: EndgameActivityDefinition[] = [
+  {
+    id: "crown-league", kind: "endgame", name: "Лига короны", place: "Зал семи знамён",
+    description: "Рейтинговые поединки с сильнейшими живыми бойцами. Победы приносят очки лиги и постепенно укрепляют место в мировом топе.",
+    rewardGold: 8200, rewardExperience: 4200, accent: "#8c6d2f",
+  },
+  {
+    id: "legend-hunt", kind: "endgame", name: "Охота на легенд", place: "Дорога без гербов",
+    description: "Редкий вызов одному из лучших бойцов мира. Каждая легенда засчитывается только один раз и оставляет высокоуровневую добычу.",
+    rewardGold: 14000, rewardExperience: 6800, accent: "#713f4a",
+  },
 ];
 
 export const RARITY_ORDER: Rarity[] = ["common", "rare", "epic", "legendary", "mythic"];
