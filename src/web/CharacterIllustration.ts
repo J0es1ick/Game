@@ -256,6 +256,7 @@ const itemPalettes = [
   { primary: "#506257", secondary: "#99927d", dark: "#26312c", accent: "#b98961" },
   { primary: "#4f5f68", secondary: "#8d806d", dark: "#252c31", accent: "#c9754f" },
   { primary: "#554566", secondary: "#7f8d86", dark: "#282331", accent: "#c89d5b" },
+  { primary: "#35243f", secondary: "#d8c7a1", dark: "#15121a", accent: "#d6a93f" },
 ];
 
 const profiles: Record<string, VisualProfile> = {
@@ -553,6 +554,10 @@ const profiles: Record<string, VisualProfile> = {
   "ashen-circuit": {
     palette: 36, chest: "coat", head: "mask", shoulders: "asymmetric", motif: "gear", variant: 46,
     outerwear: "longcoat", collar: "high",
+  },
+  "crown-sovereign": {
+    palette: 37, chest: "plate", head: "helmet", shoulders: "pauldron", motif: "sun", variant: 47,
+    outerwear: "longcoat", collar: "ceremonial",
   },
 };
 

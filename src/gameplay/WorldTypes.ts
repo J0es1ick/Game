@@ -95,6 +95,7 @@ export interface ItemTemplate {
   primaryStat: keyof Stats;
   setId?: string;
   exclusiveToBoss?: string;
+  exclusiveToElite?: boolean;
 }
 
 export interface EquipmentSetDefinition {
@@ -150,6 +151,7 @@ export interface HeroProfile {
   crownLeaguePoints: number;
   crownLeagueWins: number;
   legendHuntWins: number;
+  legendDefenses: number;
   classChanges: number;
   appearance: HeroAppearance;
   createdAt: number;
@@ -297,6 +299,11 @@ export interface GameSave {
   defeatedBosses: string[];
   huntedLegendIds: string[];
   lastLegendHuntDay?: number;
+  lastCrownLeagueDay?: number;
+  eliteLeagueMemberIds: string[];
+  eliteRatings: Record<string, number>;
+  eliteCrownWins: Record<string, number>;
+  pendingEliteChallengeId?: string;
   events: WorldEvent[];
 }
 
@@ -365,7 +372,7 @@ export interface TournamentMatch {
 }
 
 export interface TournamentReport {
-  activity: ArenaDefinition;
+  activity: ArenaDefinition | EndgameActivityDefinition;
   day: number;
   participantCount: number;
   matches: TournamentMatch[];

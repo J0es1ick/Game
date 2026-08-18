@@ -51,6 +51,7 @@ export function createItem(level: number, options: {
   const candidates = ITEM_TEMPLATES.filter((template) =>
     isAllowed(template.allowedClasses, options.classId)
     && (!template.exclusiveToBoss || options.templateId === template.id)
+    && (!template.exclusiveToElite || options.templateId === template.id)
     && (!options.slot || template.slot === options.slot)
     && (!options.templateId || template.id === options.templateId));
   const template = pick(candidates.length > 0 ? candidates : ITEM_TEMPLATES);
@@ -90,7 +91,7 @@ export function createItem(level: number, options: {
 
 export function createStarterItems(classId: HeroClass): EquipmentItem[] {
   const definition = CLASS_DEFINITIONS[classId];
-  const compatible = ITEM_TEMPLATES.filter((item) => !item.exclusiveToBoss && isAllowed(item.allowedClasses, classId));
+  const compatible = ITEM_TEMPLATES.filter((item) => !item.exclusiveToBoss && !item.exclusiveToElite && isAllowed(item.allowedClasses, classId));
   const weaponTemplate = compatible.find((item) => item.slot === "weapon")!;
   const items: EquipmentItem[] = [createItem(1, { classId, templateId: weaponTemplate.id, rarity: "common" })];
   items[0].name = definition.startingWeapon;

@@ -46,6 +46,10 @@ const enemyOrigins = ["Нижний город", "Пепельная слобо�
 const classes = Object.keys(CLASS_DEFINITIONS) as HeroClass[];
 
 const VISUAL_TEST_CATALOG_CLEANUP_MIGRATION = "remove-visual-test-catalog-v1";
+const ELITE_SIZE = 30;
+const LEGEND_COUNT = 5;
+const CROWN_LEAGUE_INTERVAL = 7;
+const CROWN_SET_ID = "crown-sovereign";
 export const CLASS_CHANGE_GOLD_COST = 25_000;
 export const CLASS_CHANGE_MARK_COST = 5;
 
@@ -76,19 +80,21 @@ export class WorldGame {
       dungeonWins: 0, dungeonLosses: 0, bossWins: 0, kills: 0, rivalries: {},
       arenaWins: ARENAS.map(() => 0), highestArena: 0, inventory: starter.inventory,
       equipped: starter.equipped, autoEquipBest: false, autoSelectSkills: true, selectedSkillIds: [], combatMode: "auto",
-      crownLeaguePoints: 0, crownLeagueWins: 0, legendHuntWins: 0, classChanges: 0,
+      crownLeaguePoints: 0, crownLeagueWins: 0, legendHuntWins: 0, legendDefenses: 0, classChanges: 0,
       appearance: { hairStyle: 0, faceStyle: 0 }, createdAt: now,
     };
     const save: GameSave = {
       version: 2, migrations: [], hero, enemies: [], worldDay: 1, lastSimulatedAt: now,
       dungeonClears: {}, shopDay: 1, shopOffers: [],
       discoveredItems: starter.inventory.map((item) => item.templateId), tournamentRegistrations: {}, defeatedBosses: [],
-      huntedLegendIds: [], events: [],
+      huntedLegendIds: [], eliteLeagueMemberIds: [], eliteRatings: {}, eliteCrownWins: {}, events: [],
     };
     const game = new WorldGame(save);
     ARENAS.forEach((_, arenaIndex) => {
       for (let index = 0; index < 19; index += 1) game.save.enemies.push(game.createEnemy(arenaIndex));
     });
+    game.ensureEliteLeague();
+    game.ensurePopulations();
     game.rotateShop();
     game.event("system", `${hero.name} начал путь в Нижнем городе.`);
     return game;
@@ -102,6 +108,9 @@ export class WorldGame {
     game.save.events ??= [];
     game.save.defeatedBosses ??= [];
     game.save.huntedLegendIds ??= [];
+    game.save.eliteLeagueMemberIds ??= [];
+    game.save.eliteRatings ??= {};
+    game.save.eliteCrownWins ??= {};
     const hero = game.save.hero;
     hero.inventory.forEach((item) => {
       item.name = item.name.replace(/^\[3D-прототип\]\s*/, "");
@@ -119,6 +128,7 @@ export class WorldGame {
     hero.crownLeaguePoints ??= 0;
     hero.crownLeagueWins ??= 0;
     hero.legendHuntWins ??= 0;
+    hero.legendDefenses ??= 0;
     hero.classChanges ??= 0;
     hero.autoSelectSkills ??= true;
     hero.selectedSkillIds = (hero.selectedSkillIds ?? [])
@@ -132,6 +142,8 @@ export class WorldGame {
       enemy.equipment.forEach((item) => { item.enhancement ??= 0; });
     });
     game.save.enemies.forEach((enemy) => { enemy.rating = game.enemyWorldRating(enemy); });
+    game.ensureEliteLeague();
+    game.ensurePopulations();
     game.save.shopOffers.forEach((offer) => { offer.item.price = calculateItemPrice(offer.item.level, offer.item.rarity); });
     game.cleanupVisualTestCatalog();
     game.recalculateHeroRating();
@@ -446,79 +458,152 @@ export class WorldGame {
     if (hero.highestArena < finalArenaIndex || (hero.arenaWins[finalArenaIndex] ?? 0) < 1) {
       return { unlocked: false, reason: `Сначала станьте чемпионом турнира «${ARENAS[finalArenaIndex].name}».` };
     }
-    if (!this.crownLeagueOpponent()) return { unlocked: false, reason: "В мире пока нет подходящего соперника." };
-    return { unlocked: true, reason: `${this.crownLeagueTier().name} · ${hero.crownLeaguePoints} очк. лиги.` };
+    const eliteRank = this.heroEliteRank();
+    if (eliteRank) return { unlocked: true, reason: `Место в элите: #${eliteRank}. Вы входите в сетку из ${ELITE_SIZE} бойцов.` };
+    const ordinaryRank = this.heroRank();
+    if (ordinaryRank < 1 || ordinaryRank > 2) {
+      return { unlocked: false, reason: `Для квалификации нужно место #1–2 обычного рейтинга. Сейчас: #${ordinaryRank || "—"}.` };
+    }
+    return { unlocked: true, reason: `Квалификация с места #${ordinaryRank}: только чемпион турнира войдёт в элиту.` };
   }
 
   public legendHuntAvailability(): ActivityAvailability {
-    const hero = this.save.hero;
-    if (hero.crownLeagueWins < 3) {
-      return { unlocked: false, reason: `Нужно побед в Лиге короны: ${hero.crownLeagueWins}/3.` };
-    }
+    const eliteRank = this.heroEliteRank();
+    if (!eliteRank) return { unlocked: false, reason: "Сначала войдите в элитную тридцатку через Лигу короны." };
+    if (eliteRank > LEGEND_COUNT + 1) return { unlocked: false, reason: `Поднимитесь до #${LEGEND_COUNT + 1} в элите. Сейчас: #${eliteRank}.` };
+    if (eliteRank === 1) return { unlocked: false, reason: "Вы — первая легенда. Осталось защищать корону от претендентов." };
     const lastHunt = this.save.lastLegendHuntDay;
     if (lastHunt !== undefined && this.save.worldDay - lastHunt < 4) {
       return { unlocked: false, reason: `Новая легенда появится через ${4 - (this.save.worldDay - lastHunt)} дн.` };
     }
     const target = this.currentLegendTarget();
-    if (!target) return { unlocked: false, reason: "Все известные легенды уже побеждены." };
-    return { unlocked: true, reason: `Цель: ${target.name} · рейтинг ${target.rating} · уровень ${target.level}.` };
+    if (!target) return { unlocked: false, reason: "Следующий соперник в элите пока не определён." };
+    return { unlocked: true, reason: `Следующая ступень: #${eliteRank - 1} ${target.name}. Перепрыгнуть через неё нельзя.` };
   }
 
   public crownLeagueTier(): { name: string; index: number; nextAt?: number } {
-    const points = this.save.hero.crownLeaguePoints;
-    const tiers = [
-      { name: "Претендент", min: 0 }, { name: "Наследник", min: 12 },
-      { name: "Регент", min: 30 }, { name: "Владыка короны", min: 60 },
-    ];
-    let index = 0;
-    tiers.forEach((tier, tierIndex) => { if (points >= tier.min) index = tierIndex; });
-    return { name: tiers[index].name, index, nextAt: tiers[index + 1]?.min };
+    const rank = this.heroEliteRank();
+    if (!rank) return { name: "Претендент", index: 0 };
+    if (rank === 1) return { name: "Первая легенда", index: 3 };
+    if (rank <= LEGEND_COUNT) return { name: `Легенда #${rank}`, index: 2 };
+    return { name: `Элита #${rank}`, index: 1, nextAt: LEGEND_COUNT };
+  }
+
+  public eliteLeaderboard(): LeaderboardEntry[] {
+    this.ensureEliteLeague();
+    return this.save.eliteLeagueMemberIds
+      .map((id) => this.leaderboardEntry(id, true))
+      .filter((entry): entry is LeaderboardEntry => Boolean(entry));
+  }
+
+  public heroEliteRank(): number | undefined {
+    const index = this.save.eliteLeagueMemberIds.indexOf("hero");
+    return index >= 0 ? index + 1 : undefined;
+  }
+
+  public legendTitle(rank: number): string | undefined {
+    return ["Первая корона", "Правая рука короны", "Железное имя", "Четвёртое знамя", "Последняя легенда"][rank - 1];
   }
 
   public currentLegendTarget(): EnemyProfile | undefined {
-    const hunted = new Set(this.save.huntedLegendIds);
-    return this.save.enemies
-      .filter((enemy) => enemy.alive && !hunted.has(enemy.id))
-      .sort((a, b) => b.rating - a.rating || b.tournamentWins - a.tournamentWins)[0];
+    const rank = this.heroEliteRank();
+    if (!rank || rank <= 1 || rank > LEGEND_COUNT + 1) return undefined;
+    return this.enemyById(this.save.eliteLeagueMemberIds[rank - 2]);
   }
 
-  public playCrownLeague(): BattleReport {
+  public pendingLegendChallenge(): EnemyProfile | undefined {
+    return this.save.pendingEliteChallengeId ? this.enemyById(this.save.pendingEliteChallengeId) : undefined;
+  }
+
+  public playCrownLeague(): TournamentReport {
     const activity = ENDGAME_ACTIVITIES.find((candidate) => candidate.id === "crown-league")!;
     const availability = this.crownLeagueAvailability();
     if (!availability.unlocked) throw new Error(availability.reason);
-    const enemy = this.crownLeagueOpponent()!;
-    const combat = resolveCombat(this.save.hero, enemy);
-    const heroWon = combat.winnerId === "hero";
-    const tier = this.crownLeagueTier();
-    const experience = heroWon ? activity.rewardExperience + tier.index * 900 : Math.round(activity.rewardExperience * 0.22);
-    const gold = heroWon ? activity.rewardGold + tier.index * 1800 : 0;
+    this.ensureEliteLeague();
+    const eventsBefore = this.save.events.length;
+    const wasElite = Boolean(this.heroEliteRank());
+    const rosterIds = wasElite
+      ? [...this.save.eliteLeagueMemberIds]
+      : ["hero", ...this.save.eliteLeagueMemberIds.slice(0, ELITE_SIZE - 1)];
+    let participants = this.shuffle(rosterIds.map((id) => this.fighterById(id)).filter((fighter): fighter is HeroProfile | EnemyProfile => Boolean(fighter)));
+    if (participants.length !== ELITE_SIZE) throw new Error("Элитная сетка ещё не собрана.");
+    const matches: TournamentMatch[] = [];
+    const heroBattles: BattleReport[] = [];
+    let round = 1;
+    let heroPlacement = ELITE_SIZE;
+
+    while (participants.length > 1) {
+      const winners: Array<HeroProfile | EnemyProfile> = [];
+      for (let cursor = 0; cursor < participants.length; cursor += 2) {
+        const first = participants[cursor]; const second = participants[cursor + 1];
+        if (!second) { winners.push(first); continue; }
+        const heroInvolved = first.id === "hero" || second.id === "hero";
+        let winner: HeroProfile | EnemyProfile; let battle: BattleReport | undefined;
+        if (heroInvolved) {
+          const enemy = (first.id === "hero" ? second : first) as EnemyProfile;
+          const combat = resolveCombat(this.save.hero, enemy);
+          const heroWon = combat.winnerId === "hero";
+          winner = heroWon ? this.save.hero : enemy;
+          battle = { activity, heroBefore: combat.hero, enemyBefore: combat.enemy, winnerId: combat.winnerId,
+            loserId: heroWon ? enemy.id : "hero", heroWon, enemyDied: false, turns: combat.turns,
+            rewards: { experience: 0, gold: 0, levelsGained: 0, unlockedSkills: [] }, worldEvents: [] };
+          heroBattles.push(battle);
+          if (heroWon) { this.save.hero.wins += 1; this.save.hero.tournamentMatchWins += 1; }
+          else { this.save.hero.losses += 1; this.save.hero.tournamentMatchLosses += 1; }
+          this.recordHeroEncounter(enemy, heroWon); this.updateEnemyAfterPlayerBattle(enemy, heroWon, false);
+          this.adjustEliteRating("hero", heroWon ? 12 : -5); this.adjustEliteRating(enemy.id, heroWon ? -5 : 12);
+          if (!heroWon) heroPlacement = Math.max(2, Math.floor(ELITE_SIZE / (2 ** (round - 1))));
+        } else {
+          const firstEnemy = first as EnemyProfile; const secondEnemy = second as EnemyProfile;
+          const chance = this.enemyPower(firstEnemy) / (this.enemyPower(firstEnemy) + this.enemyPower(secondEnemy));
+          winner = Math.random() < chance ? firstEnemy : secondEnemy;
+          const loser = winner.id === firstEnemy.id ? secondEnemy : firstEnemy;
+          winner.wins += 1; winner.experience += 150; loser.losses += 1;
+          this.adjustEliteRating(winner.id, 12); this.adjustEliteRating(loser.id, -5); this.progressEnemy(winner, false);
+        }
+        winners.push(winner);
+        matches.push({ round, match: cursor / 2 + 1, firstName: first.name, secondName: second.name, winnerName: winner.name, heroInvolved, battle });
+      }
+      participants = winners; round += 1;
+    }
+
+    const champion = participants[0];
+    const heroWon = champion.id === "hero";
+    if (heroWon) heroPlacement = 1;
+    if (champion.id !== "hero") {
+      const npc = champion as EnemyProfile; npc.tournamentWins += 1;
+      this.save.eliteCrownWins[npc.id] = (this.save.eliteCrownWins[npc.id] ?? 0) + 1;
+    }
+    const roundsWon = heroBattles.filter((battle) => battle.heroWon).length;
+    const experience = heroWon ? activity.rewardExperience : Math.round(activity.rewardExperience * (0.12 + roundsWon * 0.12));
+    const gold = heroWon ? activity.rewardGold : Math.round(activity.rewardGold * roundsWon * 0.05);
     const levelsGained = this.gainHeroExperience(experience);
     this.save.hero.gold += gold;
     let item: EquipmentItem | undefined;
-    let temperingMarks = 0;
+    let temperingMarks = roundsWon > 0 ? 1 : 0;
     if (heroWon) {
-      this.save.hero.wins += 1;
-      this.save.hero.tournamentMatchWins += 1;
       this.save.hero.crownLeagueWins += 1;
-      this.save.hero.crownLeaguePoints += 3 + tier.index;
-      temperingMarks = 2 + Math.floor(tier.index / 2);
-      this.save.hero.temperingMarks += temperingMarks;
-      item = createItem(this.save.hero.level + 1, { classId: this.save.hero.classId, minimumRarity: tier.index >= 2 ? "mythic" : "legendary" });
+      this.save.hero.crownLeaguePoints += 20;
+      temperingMarks = 4;
+      item = createItem(this.save.hero.level + 2, { classId: this.save.hero.classId, minimumRarity: "mythic" });
       this.addItem(item);
-    } else {
-      this.save.hero.losses += 1;
-      this.save.hero.tournamentMatchLosses += 1;
-      this.save.hero.crownLeaguePoints = Math.max(0, this.save.hero.crownLeaguePoints - 1);
+      if (!wasElite) this.promoteIntoElite("hero");
+      else this.adjustEliteRating("hero", 28);
+    } else if (wasElite) {
+      this.save.hero.crownLeaguePoints += roundsWon * 3;
     }
-    this.recordHeroEncounter(enemy, heroWon);
-    this.updateEnemyAfterPlayerBattle(enemy, heroWon, false);
-    this.event("tournament", `${this.save.hero.name} ${heroWon ? "победил" : "проиграл"} ${enemy.name} в Лиге короны.`);
+    this.save.hero.temperingMarks += temperingMarks;
+    this.save.lastCrownLeagueDay = this.save.worldDay;
+    if (wasElite || !heroWon) this.sortEliteByRating();
+    this.syncCrownSet();
+    this.event("tournament", `Лига короны завершена. Чемпион: ${champion.name}. Сетка: ${ELITE_SIZE} бойцов.`);
     this.completeDay();
     this.recalculateHeroRating();
     return {
-      activity, heroBefore: combat.hero, enemyBefore: combat.enemy, winnerId: combat.winnerId,
-      loserId: heroWon ? enemy.id : "hero", heroWon, enemyDied: false, turns: combat.turns,
-      rewards: { experience, gold, item, levelsGained, unlockedSkills: [], temperingMarks }, worldEvents: [],
+      activity, day: this.save.worldDay - 1, participantCount: ELITE_SIZE, matches, heroBattles,
+      championName: champion.name, heroWon, heroPlacement,
+      rewards: { experience, gold, item, levelsGained, unlockedSkills: [], temperingMarks },
+      worldEvents: this.save.events.slice(eventsBefore),
     };
   }
 
@@ -539,7 +624,7 @@ export class WorldGame {
     if (heroWon) {
       this.save.hero.wins += 1;
       this.save.hero.legendHuntWins += 1;
-      this.save.huntedLegendIds.push(enemy.id);
+      this.swapEliteMembers("hero", enemy.id);
       temperingMarks = 4;
       this.save.hero.temperingMarks += temperingMarks;
       item = createItem(this.save.hero.level + 2, { classId: this.save.hero.classId, minimumRarity: "mythic" });
@@ -547,13 +632,34 @@ export class WorldGame {
     } else this.save.hero.losses += 1;
     this.recordHeroEncounter(enemy, heroWon);
     this.updateEnemyAfterPlayerBattle(enemy, heroWon, false);
-    this.event("battle", `${this.save.hero.name} ${heroWon ? "завершил" : "не завершил"} охоту на легенду ${enemy.name}.`);
+    this.syncCrownSet();
+    this.event("battle", `${this.save.hero.name} ${heroWon ? `занял место ${this.heroEliteRank()} в элите` : "не смог подняться"} после боя с ${enemy.name}.`);
     this.completeDay();
     return {
       activity, heroBefore: combat.hero, enemyBefore: combat.enemy, winnerId: combat.winnerId,
       loserId: heroWon ? enemy.id : "hero", heroWon, enemyDied: false, turns: combat.turns,
       rewards: { experience, gold, item, levelsGained, unlockedSkills: [], temperingMarks }, worldEvents: [],
     };
+  }
+
+  public defendLegendTitle(): BattleReport {
+    const activity = ENDGAME_ACTIVITIES.find((candidate) => candidate.id === "legend-hunt")!;
+    const enemy = this.pendingLegendChallenge();
+    const rank = this.heroEliteRank();
+    if (!enemy || !rank || rank > LEGEND_COUNT) throw new Error("Активного вызова легенде нет.");
+    const combat = resolveCombat(this.save.hero, enemy);
+    const heroWon = combat.winnerId === "hero";
+    if (heroWon) { this.save.hero.wins += 1; this.save.hero.legendDefenses += 1; this.adjustEliteRating("hero", 10); }
+    else { this.save.hero.losses += 1; this.swapEliteMembers("hero", enemy.id); }
+    this.recordHeroEncounter(enemy, heroWon); this.updateEnemyAfterPlayerBattle(enemy, heroWon, false);
+    this.save.pendingEliteChallengeId = undefined;
+    this.save.lastLegendHuntDay = this.save.worldDay;
+    this.syncCrownSet();
+    this.event("battle", heroWon ? `${this.save.hero.name} защитил титул легенды.` : `${enemy.name} отобрал у ${this.save.hero.name} место легенды.`);
+    this.completeDay();
+    return { activity, heroBefore: combat.hero, enemyBefore: combat.enemy, winnerId: combat.winnerId,
+      loserId: heroWon ? enemy.id : "hero", heroWon, enemyDied: false, turns: combat.turns,
+      rewards: { experience: 0, gold: 0, levelsGained: 0, unlockedSkills: [] }, worldEvents: [] };
   }
 
   public equipBest(mode: "power" | "set" = "power"): EquipmentItem[] {
@@ -707,14 +813,130 @@ export class WorldGame {
   private leaderboardAll(): LeaderboardEntry[] {
     const hero = this.save.hero;
     const championships = hero.arenaWins.reduce((total, wins) => total + wins, 0);
+    const eliteIds = new Set(this.save.eliteLeagueMemberIds);
     return [
-      { id: hero.id, name: hero.name, classId: hero.classId, level: hero.level, arenaIndex: hero.highestArena, rating: hero.rating, tournamentWins: championships, wins: hero.wins, losses: hero.losses, kills: hero.kills, isHero: true },
-      ...this.save.enemies.filter((enemy) => enemy.alive).map((enemy) => ({
+      ...(!eliteIds.has("hero") ? [{ id: hero.id, name: hero.name, classId: hero.classId, level: hero.level, arenaIndex: hero.highestArena, rating: hero.rating, tournamentWins: championships, wins: hero.wins, losses: hero.losses, kills: hero.kills, isHero: true }] : []),
+      ...this.save.enemies.filter((enemy) => enemy.alive && !eliteIds.has(enemy.id)).map((enemy) => ({
         id: enemy.id, name: enemy.name, classId: enemy.classId, level: enemy.level,
         arenaIndex: enemy.arenaIndex, rating: enemy.rating, tournamentWins: enemy.tournamentWins,
         wins: enemy.wins, losses: enemy.losses, kills: enemy.kills, isHero: false,
       })),
     ].sort((a, b) => b.rating - a.rating || b.tournamentWins - a.tournamentWins || b.level - a.level);
+  }
+
+  private fighterById(id: string): HeroProfile | EnemyProfile | undefined {
+    return id === "hero" ? this.save.hero : this.enemyById(id);
+  }
+
+  private enemyById(id: string): EnemyProfile | undefined {
+    return this.save.enemies.find((enemy) => enemy.id === id && enemy.alive);
+  }
+
+  private leaderboardEntry(id: string, elite = false): LeaderboardEntry | undefined {
+    if (id === "hero") {
+      const hero = this.save.hero;
+      return { id, name: hero.name, classId: hero.classId, level: hero.level, arenaIndex: hero.highestArena,
+        rating: elite ? (this.save.eliteRatings[id] ?? hero.rating) : hero.rating,
+        tournamentWins: hero.arenaWins.reduce((sum, wins) => sum + wins, 0) + hero.crownLeagueWins,
+        wins: hero.wins, losses: hero.losses, kills: hero.kills, isHero: true };
+    }
+    const enemy = this.enemyById(id);
+    if (!enemy) return undefined;
+    return { id, name: enemy.name, classId: enemy.classId, level: enemy.level, arenaIndex: enemy.arenaIndex,
+      rating: elite ? (this.save.eliteRatings[id] ?? enemy.rating) : enemy.rating,
+      tournamentWins: enemy.tournamentWins + (this.save.eliteCrownWins[id] ?? 0), wins: enemy.wins,
+      losses: enemy.losses, kills: enemy.kills, isHero: false };
+  }
+
+  private ensureEliteLeague(): void {
+    const finalArenaIndex = ARENAS.length - 1;
+    const valid = new Set(this.save.enemies.filter((enemy) => enemy.alive).map((enemy) => enemy.id));
+    if (this.save.eliteLeagueMemberIds.includes("hero")) valid.add("hero");
+    this.save.eliteLeagueMemberIds = this.save.eliteLeagueMemberIds
+      .filter((id, index, values) => valid.has(id) && values.indexOf(id) === index)
+      .slice(0, ELITE_SIZE);
+
+    const current = new Set(this.save.eliteLeagueMemberIds);
+    let eligible = this.save.enemies.filter((enemy) => enemy.alive && enemy.arenaIndex === finalArenaIndex && enemy.tournamentWins > 0 && !current.has(enemy.id));
+    while (this.save.eliteLeagueMemberIds.length + eligible.length < ELITE_SIZE) {
+      const recruit = this.createEnemy(finalArenaIndex);
+      recruit.tournamentWins = Math.max(1, recruit.tournamentWins);
+      recruit.rating = this.enemyWorldRating(recruit);
+      this.save.enemies.push(recruit); eligible.push(recruit);
+    }
+    eligible.sort((a, b) => (this.enemyPower(b) + b.rating) - (this.enemyPower(a) + a.rating));
+    this.save.eliteLeagueMemberIds.push(...eligible.slice(0, ELITE_SIZE - this.save.eliteLeagueMemberIds.length).map((enemy) => enemy.id));
+    this.save.eliteLeagueMemberIds.forEach((id, index) => {
+      const fighter = this.fighterById(id);
+      this.save.eliteRatings[id] ??= 6200 - index * 45 + (fighter ? Math.round((fighter.level + (id === "hero" ? this.heroPower() : this.enemyPower(fighter as EnemyProfile))) / 8) : 0);
+      this.save.eliteCrownWins[id] ??= 0;
+    });
+    this.syncCrownSet();
+  }
+
+  private adjustEliteRating(id: string, amount: number): void {
+    if (!this.save.eliteLeagueMemberIds.includes(id) && id !== "hero") return;
+    const fallback = id === "hero" ? this.save.hero.rating : this.enemyById(id)?.rating ?? 1000;
+    this.save.eliteRatings[id] = Math.max(1000, (this.save.eliteRatings[id] ?? fallback) + amount);
+  }
+
+  private sortEliteByRating(): void {
+    this.save.eliteLeagueMemberIds.sort((first, second) =>
+      (this.save.eliteRatings[second] ?? 0) - (this.save.eliteRatings[first] ?? 0));
+  }
+
+  private swapEliteMembers(winnerId: string, loserId: string): void {
+    const winnerIndex = this.save.eliteLeagueMemberIds.indexOf(winnerId);
+    const loserIndex = this.save.eliteLeagueMemberIds.indexOf(loserId);
+    if (winnerIndex < 0 || loserIndex < 0) return;
+    [this.save.eliteLeagueMemberIds[winnerIndex], this.save.eliteLeagueMemberIds[loserIndex]] =
+      [this.save.eliteLeagueMemberIds[loserIndex], this.save.eliteLeagueMemberIds[winnerIndex]];
+    const high = Math.max(this.save.eliteRatings[winnerId] ?? 0, this.save.eliteRatings[loserId] ?? 0) + 1;
+    this.save.eliteRatings[winnerId] = high;
+    this.save.eliteRatings[loserId] = Math.max(1000, high - 12);
+  }
+
+  private promoteIntoElite(id: string): void {
+    if (this.save.eliteLeagueMemberIds.includes(id)) return;
+    const demoted = this.save.eliteLeagueMemberIds.pop();
+    if (demoted) {
+      delete this.save.eliteRatings[demoted]; delete this.save.eliteCrownWins[demoted];
+      this.event("promotion", `${this.fighterById(demoted)?.name ?? "Последний участник"} покинул элиту и вернулся в обычный рейтинг.`);
+    }
+    const tailRating = this.save.eliteLeagueMemberIds.length
+      ? this.save.eliteRatings[this.save.eliteLeagueMemberIds[this.save.eliteLeagueMemberIds.length - 1]] ?? 4200
+      : 4200;
+    this.save.eliteLeagueMemberIds.push(id);
+    this.save.eliteRatings[id] = Math.max(1000, tailRating - 1);
+    this.save.eliteCrownWins[id] ??= 0;
+    this.event("promotion", `${this.fighterById(id)?.name ?? "Претендент"} выиграл квалификацию и вошёл в элитную тридцатку.`);
+  }
+
+  private syncCrownSet(): void {
+    const leaderId = this.save.eliteLeagueMemberIds[0];
+    if (!leaderId) return;
+    const templateIds = new Set(EQUIPMENT_SETS.find((set) => set.id === CROWN_SET_ID)?.pieces ?? []);
+    const strip = (fighter: HeroProfile | EnemyProfile) => {
+      const removed = new Set<string>();
+      const equipment = fighter.id === "hero" ? (fighter as HeroProfile).inventory : (fighter as EnemyProfile).equipment;
+      equipment.filter((item) => templateIds.has(item.templateId)).forEach((item) => removed.add(item.id));
+      if (fighter.id === leaderId) return;
+      if (fighter.id === "hero") (fighter as HeroProfile).inventory = equipment.filter((item) => !removed.has(item.id));
+      else (fighter as EnemyProfile).equipment = equipment.filter((item) => !removed.has(item.id));
+      (Object.keys(fighter.equipped) as EquipmentSlot[]).forEach((slot) => {
+        if (removed.has(fighter.equipped[slot]!)) delete fighter.equipped[slot];
+      });
+    };
+    strip(this.save.hero); this.save.enemies.forEach(strip);
+    const leader = this.fighterById(leaderId);
+    if (!leader) return;
+    const owned = leader.id === "hero" ? (leader as HeroProfile).inventory : (leader as EnemyProfile).equipment;
+    templateIds.forEach((templateId) => {
+      if (owned.some((item) => item.templateId === templateId)) return;
+      const item = createItem(leader.level + 4, { classId: leader.classId, templateId, rarity: "mythic" });
+      owned.push(item); leader.equipped[item.slot] = item.id;
+      if (leader.id === "hero" && !this.save.discoveredItems.includes(templateId)) this.save.discoveredItems.push(templateId);
+    });
   }
 
   private recalculateHeroRating(): void {
@@ -861,14 +1083,6 @@ export class WorldGame {
     return enemy;
   }
 
-  private crownLeagueOpponent(): EnemyProfile | undefined {
-    const tier = this.crownLeagueTier().index;
-    const ranked = this.save.enemies.filter((enemy) => enemy.alive)
-      .sort((a, b) => b.rating - a.rating || b.tournamentWins - a.tournamentWins);
-    const offset = Math.max(0, 12 - tier * 4);
-    return ranked[Math.min(offset, Math.max(0, ranked.length - 1))];
-  }
-
   private duelAvailability(duel: DuelDefinition): ActivityAvailability {
     const hero = this.save.hero;
     if (hero.level < duel.minLevel) return { unlocked: false, reason: `Требуется ${duel.minLevel} уровень.` };
@@ -924,9 +1138,10 @@ export class WorldGame {
   }
 
   private simulateWorldFights(count: number, recordEvents: boolean, fixedArenaIndex?: number): void {
+    const eliteIds = new Set(this.save.eliteLeagueMemberIds);
     for (let index = 0; index < count; index += 1) {
       const arenaIndex = fixedArenaIndex ?? randomInt(0, ARENAS.length - 1);
-      const pool = this.save.enemies.filter((enemy) => enemy.alive && enemy.arenaIndex === arenaIndex);
+      const pool = this.save.enemies.filter((enemy) => enemy.alive && enemy.arenaIndex === arenaIndex && !eliteIds.has(enemy.id));
       if (pool.length < 2) continue;
       const first = pick(pool); let second = pick(pool);
       while (second.id === first.id) second = pick(pool);
@@ -953,13 +1168,15 @@ export class WorldGame {
   }
 
   private simulateDailyWorld(skipTournamentArenaId?: string): void {
+    this.ensureEliteLeague();
     ARENAS.forEach((arena, arenaIndex) => {
       this.simulateWorldFights(10 + arenaIndex * 3, true, arenaIndex);
       if (arena.id !== skipTournamentArenaId && this.save.worldDay % arena.tournamentInterval === 0) this.simulateBackgroundTournament(arenaIndex);
     });
     DUNGEONS.forEach((dungeon) => {
       const arenaIndex = Math.min(ARENAS.length - 1, dungeon.requiredArena);
-      const pool = this.save.enemies.filter((enemy) => enemy.alive && enemy.arenaIndex === arenaIndex);
+      const eliteIds = new Set(this.save.eliteLeagueMemberIds);
+      const pool = this.save.enemies.filter((enemy) => enemy.alive && enemy.arenaIndex === arenaIndex && !eliteIds.has(enemy.id));
       if (pool.length === 0) return;
       const explorer = pick(pool);
       const succeeded = Math.random() < 0.68;
@@ -973,12 +1190,14 @@ export class WorldGame {
         this.event("dungeon", `${explorer.name} не смог пройти данж «${dungeon.name}».`);
       }
     });
+    this.simulateEliteDay();
     this.ensurePopulations();
   }
 
   private simulateBackgroundTournament(arenaIndex: number): void {
     const arena = ARENAS[arenaIndex];
-    const pool = this.shuffle(this.save.enemies.filter((enemy) => enemy.alive && enemy.arenaIndex === arenaIndex)).slice(0, arena.participants);
+    const eliteIds = new Set(this.save.eliteLeagueMemberIds);
+    const pool = this.shuffle(this.save.enemies.filter((enemy) => enemy.alive && enemy.arenaIndex === arenaIndex && !eliteIds.has(enemy.id))).slice(0, arena.participants);
     if (pool.length < 8) return;
     let contestants = pool;
     while (contestants.length > 1) {
@@ -1002,6 +1221,68 @@ export class WorldGame {
     champion.history.push(`Стал чемпионом турнира «${arena.name}» в день ${this.save.worldDay}.`);
     this.progressEnemy(champion, true);
     this.event("tournament", `Фоновый турнир «${arena.name}» завершён: ${champion.name} победил сетку из ${pool.length} бойцов.`);
+  }
+
+  private simulateEliteDay(): void {
+    this.ensureEliteLeague();
+    const heroRank = this.heroEliteRank();
+    if (heroRank && heroRank <= LEGEND_COUNT && !this.save.pendingEliteChallengeId
+      && this.save.lastLegendHuntDay !== this.save.worldDay && Math.random() < 0.08) {
+      const challengerId = this.save.eliteLeagueMemberIds[Math.min(ELITE_SIZE - 1, heroRank)];
+      if (challengerId && challengerId !== "hero") {
+        this.save.pendingEliteChallengeId = challengerId;
+        this.event("battle", `${this.enemyById(challengerId)?.name ?? "Претендент"} вызвал ${this.save.hero.name} на защиту титула легенды.`);
+      }
+    } else if (Math.random() < 0.16) {
+      const defenderIndex = randomInt(0, LEGEND_COUNT - 1);
+      const challengerIndex = defenderIndex + 1;
+      const defenderId = this.save.eliteLeagueMemberIds[defenderIndex];
+      const challengerId = this.save.eliteLeagueMemberIds[challengerIndex];
+      if (defenderId && challengerId && defenderId !== "hero" && challengerId !== "hero") {
+        const defender = this.enemyById(defenderId); const challenger = this.enemyById(challengerId);
+        if (defender && challenger) {
+          const chance = this.enemyPower(challenger) / (this.enemyPower(challenger) + this.enemyPower(defender));
+          if (Math.random() < chance) {
+            this.swapEliteMembers(challenger.id, defender.id);
+            this.event("battle", `${challenger.name} победил легенду ${defender.name} и занял место #${defenderIndex + 1}.`);
+          }
+        }
+      }
+    }
+
+    const lastLeague = this.save.lastCrownLeagueDay ?? 0;
+    if (this.save.worldDay % CROWN_LEAGUE_INTERVAL !== 0 || this.save.worldDay === lastLeague) {
+      this.syncCrownSet(); return;
+    }
+    const elite = new Set(this.save.eliteLeagueMemberIds);
+    const candidate = this.save.enemies
+      .filter((enemy) => enemy.alive && !elite.has(enemy.id) && enemy.arenaIndex === ARENAS.length - 1 && enemy.tournamentWins > 0)
+      .sort((a, b) => b.rating - a.rating || this.enemyPower(b) - this.enemyPower(a))[0];
+    if (!candidate) return;
+    let contestants = this.shuffle([candidate, ...this.save.eliteLeagueMemberIds.filter((id) => id !== "hero").slice(0, ELITE_SIZE - 1)
+      .map((id) => this.enemyById(id)).filter((enemy): enemy is EnemyProfile => Boolean(enemy))]);
+    if (contestants.length !== ELITE_SIZE) return;
+    while (contestants.length > 1) {
+      const winners: EnemyProfile[] = [];
+      for (let cursor = 0; cursor < contestants.length; cursor += 2) {
+        const first = contestants[cursor]; const second = contestants[cursor + 1];
+        if (!second) { winners.push(first); continue; }
+        const chance = this.enemyPower(first) / (this.enemyPower(first) + this.enemyPower(second));
+        const winner = Math.random() < chance ? first : second;
+        const loser = winner.id === first.id ? second : first;
+        winner.wins += 1; loser.losses += 1; winners.push(winner);
+        this.adjustEliteRating(winner.id, 8); this.adjustEliteRating(loser.id, -3);
+      }
+      contestants = winners;
+    }
+    const champion = contestants[0];
+    champion.tournamentWins += 1;
+    this.save.eliteCrownWins[champion.id] = (this.save.eliteCrownWins[champion.id] ?? 0) + 1;
+    if (champion.id === candidate.id) this.promoteIntoElite(candidate.id);
+    else this.sortEliteByRating();
+    this.save.lastCrownLeagueDay = this.save.worldDay;
+    this.event("tournament", `Фоновую Лигу короны выиграл ${champion.name}. ${candidate.name} ${champion.id === candidate.id ? "вошёл в элиту" : "остался в обычном рейтинге"}.`);
+    this.syncCrownSet();
   }
 
   private completeDay(skipTournamentArenaId?: string): void {
@@ -1031,12 +1312,14 @@ export class WorldGame {
   }
 
   private ensurePopulations(): void {
+    const eliteIds = new Set(this.save.eliteLeagueMemberIds);
     ARENAS.forEach((_, arenaIndex) => {
-      const alive = this.save.enemies.filter((enemy) => enemy.alive && enemy.arenaIndex === arenaIndex).length;
+      const alive = this.save.enemies.filter((enemy) => enemy.alive && enemy.arenaIndex === arenaIndex && !eliteIds.has(enemy.id)).length;
       for (let index = alive; index < 16; index += 1) this.save.enemies.push(this.createEnemy(arenaIndex));
     });
     if (this.save.enemies.length > 260) {
       const encounteredIds = new Set(Object.keys(this.save.hero.rivalries));
+      this.save.eliteLeagueMemberIds.forEach((id) => encounteredIds.add(id));
       const encountered = this.save.enemies.filter((enemy) => encounteredIds.has(enemy.id));
       const retainedIds = new Set(encountered.map((enemy) => enemy.id));
       const population = this.save.enemies

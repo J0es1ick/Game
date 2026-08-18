@@ -119,4 +119,13 @@ describe("Каталоги конфигурации", () => {
       expect(set.bonuses.every((bonus) => bonus.stats && Object.values(bonus.stats).some((value) => Number(value) > 0))).toBe(true);
     });
   });
+
+  it("резервирует комплект живой короны только за первым местом элиты", () => {
+    const set = EQUIPMENT_SETS.find((candidate) => candidate.id === "crown-sovereign")!;
+    const templates = ITEM_TEMPLATES.filter((item) => item.setId === set.id);
+    expect(set.classes).toBe("all");
+    expect(templates).toHaveLength(6);
+    expect(templates.every((item) => item.exclusiveToElite)).toBe(true);
+    expect(set.bonuses[2].stats).toEqual({ speed: 12, crit: 12 });
+  });
 });

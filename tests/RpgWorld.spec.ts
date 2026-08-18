@@ -145,21 +145,35 @@ describe("постоянный RPG-мир", () => {
     expect(game.save.hero.selectedSkillIds).toHaveLength(MAX_ACTIVE_SKILLS);
   });
 
-  test("открывает лигу короны и охоту на реальных бойцов мирового рейтинга", () => {
+  test("собирает отдельную элиту, запускает Лигу короны на 30 бойцов и ведёт к легендам последовательно", () => {
     const game = WorldGame.create("Регент", "Knight", 1_000);
     expect(ENDGAME_ACTIVITIES).toHaveLength(2);
+    expect(game.eliteLeaderboard()).toHaveLength(30);
+    expect(game.eliteLeaderboard().slice(0, 5).every((_, index) => Boolean(game.legendTitle(index + 1)))).toBe(true);
     expect(game.crownLeagueAvailability().unlocked).toBe(false);
     game.save.hero.level = 60;
     game.save.hero.highestArena = ARENAS.length - 1;
     game.save.hero.arenaWins[ARENAS.length - 1] = 1;
+    game.save.hero.rating = 100_000;
+    const eliteIds = new Set(game.save.eliteLeagueMemberIds);
+    game.save.enemies.filter((enemy) => eliteIds.has(enemy.id)).forEach((enemy) => {
+      enemy.level = 1; enemy.equipment = []; enemy.equipped = {};
+    });
     expect(game.crownLeagueAvailability().unlocked).toBe(true);
     const beforeDay = game.save.worldDay;
     const report = game.playCrownLeague();
-    expect(report.turns.length).toBeGreaterThan(0);
-    expect(game.save.enemies.some((enemy) => enemy.id === report.enemyBefore.id)).toBe(true);
+    expect(report.participantCount).toBe(30);
+    expect(report.matches).toHaveLength(29);
+    expect(report.heroBattles.length).toBeGreaterThan(0);
     expect(game.save.worldDay).toBe(beforeDay + 1);
-    game.save.hero.crownLeagueWins = 3;
-    expect(game.legendHuntAvailability().reason).toContain("Цель:");
+    expect(game.heroEliteRank()).toBeDefined();
+    game.save.eliteLeagueMemberIds = [
+      ...game.save.eliteLeagueMemberIds.filter((id) => id !== "hero").slice(0, 5),
+      "hero",
+      ...game.save.eliteLeagueMemberIds.filter((id) => id !== "hero").slice(5),
+    ].slice(0, 30);
+    game.save.lastLegendHuntDay = undefined;
+    expect(game.legendHuntAvailability().reason).toContain("Следующая ступень: #5");
   });
 
   test("позволяет позднему герою сменить класс без потери уровня и инвентаря", () => {

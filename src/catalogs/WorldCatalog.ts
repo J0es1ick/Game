@@ -170,12 +170,12 @@ export const DUEL_BOSSES: BossDefinition[] = [
 export const ENDGAME_ACTIVITIES: EndgameActivityDefinition[] = [
   {
     id: "crown-league", kind: "endgame", name: "Лига короны", place: "Зал семи знамён",
-    description: "Рейтинговые поединки с сильнейшими живыми бойцами. Победы приносят очки лиги и постепенно укрепляют место в мировом топе.",
+    description: "Турнир на 30 мест: победитель из обычного рейтинга входит в элиту, а последний участник возвращается в мировую сотню.",
     rewardGold: 8200, rewardExperience: 4200, accent: "#8c6d2f",
   },
   {
     id: "legend-hunt", kind: "endgame", name: "Охота на легенд", place: "Дорога без гербов",
-    description: "Редкий вызов одному из лучших бойцов мира. Каждая легенда засчитывается только один раз и оставляет высокоуровневую добычу.",
+    description: "Последовательные вызовы пятёрке легенд. К первой короне нельзя пройти, не победив всех бойцов перед ней.",
     rewardGold: 14000, rewardExperience: 6800, accent: "#713f4a",
   },
 ];
@@ -363,12 +363,23 @@ const additionalSetSpecs: Array<{
       { pieces: 6, description: "+8 к защите", stats: { defense: 8 } },
     ],
   },
+  {
+    id: "crown-sovereign", name: "Живая корона", description: "Единственный парадно-боевой комплект первого бойца элиты.",
+    purpose: "Символ и реальная сила первого места: комплект переходит к новому владельцу короны после смены лидера.", classes: "all", stats: ["attack", "health", "defense"],
+    pieceNames: { weapon: "Регалия первого клинка", offhand: "Знак бесспорной власти", head: "Венец живой короны", chest: "Мантия первого имени", hands: "Рукавицы высшего суда", feet: "Шаги над тридцатью" },
+    bonuses: [
+      { pieces: 2, description: "Право вызова: +12 к атаке", stats: { attack: 12 } },
+      { pieces: 4, description: "Вес короны: +80 к здоровью и +10 к защите", stats: { health: 80, defense: 10 } },
+      { pieces: 6, description: "Первое имя: +12 к скорости и +12 п.п. к критическому шансу", stats: { speed: 12, crit: 12 } },
+    ],
+  },
 ];
 
 const additionalItemTemplates: ItemTemplate[] = additionalSetSpecs.flatMap((set) =>
   (Object.keys(set.pieceNames) as EquipmentSlot[]).map((slot, index) => ({
     id: `${set.id}-${slot}`, name: set.pieceNames[slot], slot, allowedClasses: set.classes,
     primaryStat: set.stats[index % set.stats.length], setId: set.id,
+    exclusiveToElite: set.id === "crown-sovereign" || undefined,
   })),
 );
 
