@@ -1,3 +1,26 @@
+.game-shell small,
+.equipment-dialog small,
+.tournament-reminder small {
+  font-size: 12px;
+  line-height: 1.4;
+}
+.game-shell button,
+.game-shell select,
+.equipment-dialog button,
+.equipment-dialog select {
+  font-size: 13px;
+}
+.page-heading > p,
+.activity-card > p,
+.activity-state,
+.activity-levels,
+.worn-item p,
+.forge-card-copy p,
+.world-rules ol {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 @media (max-width: 1180px) {
   .game-header {
     grid-template-columns: auto 1fr auto auto;
@@ -61,6 +84,13 @@
 }
 
 @media (max-width: 820px) {
+  .skill-tactics {
+    grid-template-columns: 1fr;
+  }
+  .skill-section-heading {
+    align-items: start;
+    flex-direction: column;
+  }
   .creation-screen,
   .mode-screen {
     padding: 0;
@@ -403,13 +433,22 @@
     padding: 0;
   }
   .battle-window {
+    height: 100dvh;
     min-height: 100vh;
+    overflow-y: auto;
     border: 0;
     box-shadow: none;
   }
   .battle-title {
     align-items: start;
     flex-direction: column;
+  }
+  .battle-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .battle-controls label {
+    justify-content: space-between;
   }
   .battle-stage {
     grid-template-columns: 1fr;
@@ -430,6 +469,13 @@
   .battle-result {
     align-items: stretch;
     flex-direction: column;
+  }
+  .battle-result-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .tactic-mode-buttons {
+    grid-template-columns: 1fr;
   }
 }
 

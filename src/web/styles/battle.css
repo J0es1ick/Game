@@ -16,9 +16,12 @@
   background: rgba(24, 21, 17, 0.94);
 }
 .battle-window {
+  display: flex;
   width: 100%;
+  height: min(900px, calc(100dvh - 50px));
   max-width: 1120px;
   min-width: 0;
+  flex-direction: column;
   margin: auto;
   overflow: hidden;
   border: 1px solid #8f846f;
@@ -40,7 +43,7 @@
   margin: 0;
   color: #b8ad99;
   font:
-    9px "Courier New",
+    12px "Courier New",
     monospace;
 }
 .battle-title h2 {
@@ -105,27 +108,42 @@
 }
 .battle-controls {
   display: flex;
-  align-items: end;
-  gap: 10px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-top: 1px solid #8f8573;
+  background: #312d26;
 }
 .battle-controls label {
-  display: grid;
-  gap: 4px;
-  color: #aaa08d;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #d8cfbd;
   font:
-    8px "Courier New",
+    12px "Courier New",
     monospace;
   text-transform: uppercase;
 }
 .battle-controls select {
-  height: 32px;
+  min-width: 130px;
+  height: 38px;
+  padding: 0 10px;
   border: 1px solid #756d5f;
   color: #eee5d2;
   background: #27231e;
 }
+.battle-controls .plain-button {
+  min-height: 38px;
+  color: #eee5d2;
+  background: #27231e;
+  font-size: 13px;
+}
 .battle-stage {
   display: grid;
-  min-height: 330px;
+  min-height: 260px;
+  flex: 1 1 330px;
   grid-template-columns: 1fr 260px 1fr;
   align-items: center;
   gap: 20px;
@@ -145,7 +163,7 @@
 .combatant-role {
   color: var(--red);
   font:
-    9px "Courier New",
+    11px "Courier New",
     monospace;
 }
 .combatant h3 {
@@ -157,7 +175,7 @@
 }
 .combatant p {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 .battle-health {
   height: 13px;
@@ -176,7 +194,7 @@
 }
 .combatant strong {
   font:
-    10px "Courier New",
+    12px "Courier New",
     monospace;
 }
 .combatant.acting {
@@ -200,19 +218,23 @@
 }
 .battle-action b {
   display: block;
+  max-width: 260px;
   margin: 17px 0 8px;
+  overflow-wrap: anywhere;
   font:
     700 17px/1.2 "Inter Tight",
     sans-serif;
 }
 .battle-action p {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
 }
 .battle-log {
   display: grid;
-  max-height: 135px;
+  min-height: 90px;
+  max-height: 140px;
+  flex: 0 1 140px;
   grid-template-columns: 1fr 1fr;
   gap: 0 20px;
   overflow-y: auto;
@@ -226,7 +248,7 @@
   border-bottom: 1px dotted #c2b8a6;
   color: #625c50;
   font:
-    9px/1.3 "Courier New",
+    11px/1.35 "Courier New",
     monospace;
 }
 .battle-log p.critical {
@@ -249,7 +271,7 @@
   margin-bottom: 7px;
   color: #625b4e;
   font:
-    8px "Courier New",
+    11px "Courier New",
     monospace;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -260,17 +282,26 @@
   gap: 5px;
 }
 .battle-skill {
+  max-width: 100%;
   padding: 5px 7px;
   border: 1px solid #aaa08d;
   color: #625c50;
   background: #eee8dc;
   font:
-    8px/1.2 "Courier New",
+    11px/1.25 "Courier New",
     monospace;
+  overflow-wrap: anywhere;
   transition:
     background 0.15s ease,
     color 0.15s ease,
     transform 0.15s ease;
+}
+.battle-skill.awaiting-input {
+  color: #fff8e7;
+  background: var(--green);
+  outline: 3px solid #d5b568;
+  transform: translateY(-2px);
+  animation: manual-choice-pulse 900ms ease-in-out infinite alternate;
 }
 .battle-skill.attack {
   border-left: 3px solid var(--red);
@@ -308,7 +339,22 @@
 .battle-result p {
   margin: 0;
   color: #cbc2af;
-  font-size: 10px;
+  font-size: 12px;
+}
+.battle-result-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+.battle-result-actions .plain-button {
+  min-height: 46px;
+  color: #f1ead9;
+  background: transparent;
+}
+
+@keyframes manual-choice-pulse {
+  to { box-shadow: 0 0 0 4px rgba(213, 181, 104, 0.22); }
 }
 
 .toast-region {

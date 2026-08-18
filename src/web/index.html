@@ -196,6 +196,7 @@
 
       <section class="page" id="page-hero" aria-labelledby="hero-visual-title">
         <header class="page-heading"><div><p class="eyebrow">ЭКИПИРОВКА ГЕРОЯ</p><h1 id="hero-visual-title">Ваш герой</h1></div><p>Соберите образ из отдельных предметов: каждый нагрудник, шлем, пара перчаток и оружие отображаются на герое и снимаются независимо.</p></header>
+        <div class="gear-actions paper-panel" id="hero-gear-actions"></div>
         <div class="hero-visual-layout">
           <section class="character-showcase">
             <div class="character-backdrop"><span id="visual-class-name">—</span><strong id="visual-hero-name">—</strong></div>
@@ -214,7 +215,7 @@
       <section class="page" id="page-arsenal" aria-labelledby="arsenal-title">
         <header class="page-heading"><div><p class="eyebrow">СНАРЯЖЕНИЕ ГЕРОЯ</p><h1 id="arsenal-title">Инвентарь</h1></div><p>Сравнивайте характеристики и выбирайте вещи перед следующей активностью.</p></header>
         <div class="arsenal-layout">
-          <section class="paper-panel equipment-panel"><h2>Надето</h2><div class="equipment-grid" id="equipment-grid"></div><div id="set-bonuses"></div></section>
+          <section class="paper-panel equipment-panel"><h2>Надето</h2><div class="gear-actions compact" id="inventory-gear-actions"></div><div class="equipment-grid" id="equipment-grid"></div><div id="set-bonuses"></div></section>
           <section class="paper-panel inventory-panel"><header><div><h2>Рюкзак</h2><small id="inventory-result-count"></small></div><div class="inventory-filter-stack"><div class="filter-row" id="inventory-filters"></div><label>Комплект<select id="inventory-set-filter"></select></label><label>Редкость<select id="inventory-rarity-filter"></select></label><label>Новизна<select id="inventory-sort"><option value="newest">Сначала новые</option><option value="oldest">Сначала старые</option></select></label></div></header><div class="item-grid" id="inventory-grid"></div><button class="plain-button inventory-more" id="inventory-more" hidden>Показать ещё</button></section>
           <aside class="paper-panel stats-panel" id="hero-stats"></aside>
         </div>
@@ -227,8 +228,12 @@
       </section>
 
       <section class="page" id="page-skills" aria-labelledby="skills-title">
-        <header class="page-heading"><div><p class="eyebrow">АВТОМАТИЧЕСКАЯ ТАКТИКА</p><h1 id="skills-title">Книга навыков</h1></div><p>Герой сам выбирает доступный навык по ситуации. Новые приёмы открываются с уровнем и легендарными предметами.</p></header>
+        <header class="page-heading"><div><p class="eyebrow">ТАКТИКА И БИЛД</p><h1 id="skills-title">Книга навыков</h1></div><p>Выберите до четырёх активных приёмов или доверьте сборку герою. Реликтовые навыки становятся доступны только вместе с подходящей экипировкой.</p></header>
+        <section class="skill-tactics paper-panel" id="skill-tactics"></section>
+        <header class="skill-section-heading"><div><p class="eyebrow">КЛАССОВЫЕ ПРИЁМЫ</p><h2>Изученные и будущие навыки</h2></div></header>
         <div class="skill-road" id="skill-road"></div>
+        <header class="skill-section-heading"><div><p class="eyebrow">СВОЙСТВА СНАРЯЖЕНИЯ</p><h2>Справочник реликтовых навыков</h2></div><p>Такой навык может появиться на легендарном или мифическом предмете. В карточке указано, доступен ли он сейчас.</p></header>
+        <div class="skill-road equipment-skill-book" id="equipment-skill-book"></div>
       </section>
 
       <section class="page" id="page-collections" aria-labelledby="collections-title">
@@ -302,7 +307,7 @@
 
     <section class="battle-overlay" id="battle-overlay" hidden aria-live="polite">
       <div class="battle-window">
-        <header class="battle-title"><div><p id="battle-place">АРЕНА</p><h2 id="battle-name">Бой</h2></div><div class="battle-controls"><label>Темп<select id="battle-speed"><option value="900">медленно</option><option value="450" selected>обычно</option><option value="160">быстро</option></select></label><button class="plain-button" id="skip-battle">Показать итог</button></div></header>
+        <header class="battle-title"><div><p id="battle-place">АРЕНА</p><h2 id="battle-name">Бой</h2></div></header>
         <div class="tournament-panel" id="tournament-panel" hidden><header><span id="tournament-round-label">СЕТКА</span><strong id="tournament-progress">0 / 0</strong></header><div class="bracket-strip" id="bracket-strip"></div></div>
         <div class="battle-stage">
           <article class="combatant hero-combatant" id="battle-hero"><span class="combatant-role">ВАШ ГЕРОЙ</span><h3>—</h3><p>—</p><div class="battle-health"><i></i></div><strong>0 / 0 HP</strong></article>
@@ -311,7 +316,8 @@
         </div>
         <div class="battle-skills" id="battle-skills"><div data-fighter="hero"><strong>Навыки героя</strong><div></div></div><div data-fighter="enemy"><strong>Навыки противника</strong><div></div></div></div>
         <div class="battle-log" id="battle-log"></div>
-        <footer class="battle-result" id="battle-result" hidden><div></div><button class="button primary" id="close-battle">Вернуться на карту</button></footer>
+        <div class="battle-controls"><label>Скорость боя<select id="battle-speed"><option value="900">Медленно</option><option value="450" selected>Обычно</option><option value="160">Быстро</option></select></label><button class="plain-button" id="manual-battle-step" type="button" hidden>Выполнить ход</button><button class="plain-button" id="skip-battle">Пропустить бой</button></div>
+        <footer class="battle-result" id="battle-result" hidden><div></div><div class="battle-result-actions"><button class="plain-button" id="battle-quick-equip" type="button" hidden>Надеть добычу</button><button class="button primary" id="close-battle">Вернуться на карту</button></div></footer>
       </div>
     </section>
 

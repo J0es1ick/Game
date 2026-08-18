@@ -16,6 +16,32 @@
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
+.gear-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-bottom: 18px;
+}
+.gear-actions.compact {
+  display: grid;
+  margin: -5px 0 16px;
+  padding: 0 0 16px;
+  border-bottom: 1px solid #b6ad9d;
+}
+.auto-equip-toggle {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 5px;
+  color: #4f4a40;
+  font-size: 13px;
+  font-weight: 600;
+}
+.auto-equip-toggle input {
+  width: 18px;
+  height: 18px;
+}
 .equipment-slot {
   min-height: 112px;
   padding: 12px;
@@ -51,20 +77,20 @@
 .equipment-slot small {
   color: var(--muted);
   font:
-    10px "Courier New",
+    12px "Courier New",
     monospace;
   text-transform: uppercase;
 }
 .equipment-slot strong {
   margin: 6px 0;
   font:
-    700 13px/1.25 "Inter Tight",
+    700 15px/1.25 "Inter Tight",
     sans-serif;
 }
 .equipment-slot span {
   color: #5d584c;
   font:
-    9px/1.45 "Courier New",
+    12px/1.45 "Courier New",
     monospace;
 }
 .equipment-slot.empty {
@@ -82,7 +108,7 @@
   padding: 8px;
   background: #e4dbc9;
   color: #5b5548;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
 }
 .inventory-panel > header {
@@ -100,7 +126,7 @@
 .inventory-panel > header small {
   color: var(--muted);
   font:
-    10px "Courier New",
+    12px "Courier New",
     monospace;
 }
 .inventory-filter-stack {
@@ -116,7 +142,7 @@
   gap: 3px;
   color: var(--muted);
   font:
-    9px "Courier New",
+    11px "Courier New",
     monospace;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -143,7 +169,7 @@
   border: 1px solid #aaa08c;
   color: #3f3a32;
   background: #e8e0d2;
-  font-size: 10px;
+  font-size: 12px;
 }
 .filter-row button.active {
   color: #fff;
@@ -204,7 +230,7 @@
   gap: 7px;
   color: var(--muted);
   font:
-    10px "Courier New",
+    11px "Courier New",
     monospace;
   text-transform: uppercase;
 }
@@ -231,7 +257,7 @@
 }
 .item-card > small {
   color: #5d594f;
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 500;
 }
 .item-stats {
@@ -239,14 +265,14 @@
   padding: 8px;
   background: #e1d9ca;
   font:
-    10px/1.5 "Courier New",
+    12px/1.5 "Courier New",
     monospace;
 }
 .item-affix,
 .item-skill {
   margin: -5px 0 10px;
   color: #7a5314;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .item-skill {
@@ -269,7 +295,7 @@
   border: 1px solid #877d6b;
   color: #2f2c25;
   background: #e2dacb;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
 }
 .small-button:hover:not(:disabled) {
@@ -537,10 +563,11 @@ body.equipment-dialog-open {
   gap: 15px;
   padding: 17px;
   border: 1px solid #a69c88;
+  border-top: 5px solid var(--rarity-color, #8b877c);
   background: #ddd5c6;
 }
 .comparison-item.candidate {
-  border-top: 5px solid var(--red);
+  border-top-color: var(--rarity-color, #8b877c);
   background: #f0eadf;
 }
 .comparison-item > .eyebrow {
@@ -554,7 +581,7 @@ body.equipment-dialog-open {
 .comparison-item small {
   color: var(--muted);
   font:
-    10px "Courier New",
+    12px "Courier New",
     monospace;
   text-transform: uppercase;
 }
@@ -572,7 +599,7 @@ body.equipment-dialog-open {
 .comparison-empty {
   grid-column: 1 / -1;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 13px;
 }
 .comparison-difference {
   display: grid;
@@ -601,7 +628,7 @@ body.equipment-dialog-open {
   border: 1px solid #aaa08d;
   background: #e7dfd0;
   font:
-    10px "Courier New",
+    12px "Courier New",
     monospace;
 }
 .comparison-stat strong {
@@ -624,7 +651,7 @@ body.equipment-dialog-open {
   grid-column: 1 / -1;
   margin: 3px 0 0;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.45;
 }
 .comparison-actions {
@@ -646,7 +673,7 @@ body.equipment-dialog-open {
 .stats-hint {
   margin-top: 18px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .empty-copy {

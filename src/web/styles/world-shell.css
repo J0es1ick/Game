@@ -251,6 +251,11 @@
   padding: 16px;
   border-top: 4px solid var(--rarity-color, #898478);
 }
+.forge-card.equipped {
+  border-left: 6px solid var(--green);
+  background: #edf0e4;
+  box-shadow: 5px 5px 0 rgba(67, 83, 65, 0.18);
+}
 .forge-art {
   width: 78px;
   height: 106px;

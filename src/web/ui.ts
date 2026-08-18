@@ -1,10 +1,11 @@
-import { combatantSnapshot, describeSetProgress, nextSkills, unlockedSkills } from "../gameplay/AdvancedBattle";
+import { MAX_ACTIVE_SKILLS, combatantSnapshot, describeSetProgress, nextSkills, unlockedSkills } from "../gameplay/AdvancedBattle";
 import {
   ARENAS,
   CLASS_DEFINITIONS,
   DUEL_BOSSES,
   DUEL_TIERS,
   DUNGEONS,
+  EQUIPMENT_SKILLS,
   EQUIPMENT_SETS,
   ITEM_TEMPLATES,
   RARITY_LABELS,
@@ -58,6 +59,35 @@ let currentTournament: TournamentReport | null = null;
 let tournamentBattleIndex = 0;
 let battleTurnIndex = 0;
 let battleHealth = { hero: 0, enemy: 0 };
+
+function renderGearActions(): void {
+  if (!game) return;
+  const renderInto = (container: HTMLElement) => {
+    container.replaceChildren();
+    const best = element("button", "button", "Надеть лучшее");
+    const set = element("button", "button", "Собрать лучший комплект");
+    const auto = element("label", "auto-equip-toggle");
+    const checkbox = element("input") as HTMLInputElement;
+    checkbox.type = "checkbox";
+    checkbox.checked = game!.save.hero.autoEquipBest;
+    auto.append(checkbox, document.createTextNode(" Автоматически надевать улучшения"));
+    best.addEventListener("click", () => {
+      const equipped = game!.equipBest(); persist(); renderAll();
+      toast(equipped.length ? "Выбрано лучшее доступное снаряжение." : "Подходящего снаряжения пока нет.");
+    });
+    set.addEventListener("click", () => {
+      const equipped = game!.equipBest("set"); persist(); renderAll();
+      toast(equipped.length ? "Собран наиболее полный доступный комплект." : "Частей комплектов пока нет.");
+    });
+    checkbox.addEventListener("change", () => {
+      game!.setAutoEquipBest(checkbox.checked); persist(); renderAll();
+      toast(checkbox.checked ? "Автоэкипировка включена." : "Автоэкипировка выключена.");
+    });
+    container.append(best, set, auto);
+  };
+  renderInto($("#hero-gear-actions"));
+  renderInto($("#inventory-gear-actions"));
+}
 
 function loadGame(): WorldGame | null {
   try {
@@ -439,6 +469,15 @@ function renderTournamentReminder(): void {
 function renderMap(): void {
   if (!game) return;
   renderHeroCard();
+  const trainingCap = game.trainingLevelCap();
+  const trainingCopy = $("#daily-actions-section article p");
+  const trainingButton = $("#training-btn") as HTMLButtonElement;
+  const trainingBlocked = game.save.hero.level >= trainingCap;
+  trainingCopy.textContent = trainingBlocked
+    ? `Предел тренировок для текущей арены достигнут: ${trainingCap} уровень. Продвиньтесь в следующую турнирную лигу.`
+    : `Безопасный опыт до ${trainingCap} уровня. Дальше потребуется продвижение на арене.`;
+  trainingButton.disabled = trainingBlocked;
+  trainingButton.textContent = trainingBlocked ? "Достигнут предел" : "Тренироваться";
   const arenaRoute = $("#arena-route"); arenaRoute.replaceChildren(...ARENAS.map(activityCard));
   const dungeonRoute = $("#dungeon-route"); dungeonRoute.replaceChildren(...DUNGEONS.map(activityCard));
   const tournamentsToday = ARENAS.filter((arena) => game!.registeredTournamentDay(arena.id) === game!.save.worldDay).length;
@@ -552,10 +591,14 @@ function equipFromDialog(item: EquipmentItem): void {
 
 function comparisonItemContent(container: HTMLElement, item: EquipmentItem | undefined, heading: string): void {
   container.replaceChildren(element("p", "eyebrow", heading));
+  container.style.removeProperty("--rarity-color");
+  container.classList.remove("has-item");
   if (!item) {
     container.append(element("h3", "", "Слот пуст"), element("p", "comparison-empty", "На персонаже пока нет предмета этого типа."));
     return;
   }
+  container.classList.add("has-item");
+  container.style.setProperty("--rarity-color", rarityColors[item.rarity]);
   const artwork = equipmentArtwork(item.slot, classForTemplate(item.allowedClasses), "comparison-art equipment-art", item);
   artwork.style.setProperty("--rarity-color", rarityColors[item.rarity]);
   const copy = element("div", "comparison-item-copy");
@@ -814,20 +857,85 @@ function renderSkills(): void {
   if (!game) return;
   const hero = game.save.hero;
   const activeItems = equippedItems();
-  const available = new Set(unlockedSkills(hero.classId, hero.level, activeItems).map((skill) => skill.id));
-  const relevant = SKILLS.filter((skill) => skill.classes === "all" || skill.classes.includes(hero.classId)).sort((a, b) => a.unlockLevel - b.unlockLevel);
-  const road = $("#skill-road"); road.replaceChildren();
-  relevant.forEach((skill) => {
+  const availableSkills = unlockedSkills(hero.classId, hero.level, activeItems);
+  const available = new Set(availableSkills.map((skill) => skill.id));
+  const selected = new Set(hero.selectedSkillIds.filter((id) => available.has(id)));
+  const kindNames = { attack: "Атака", heal: "Лечение", buff: "Усиление", control: "Контроль" } as const;
+  const recommended = [...availableSkills].sort((a, b) => b.priority - a.priority).slice(0, MAX_ACTIVE_SKILLS);
+  const currentBuild = hero.autoSelectSkills ? recommended : availableSkills.filter((skill) => selected.has(skill.id));
+
+  const tactics = $("#skill-tactics"); tactics.replaceChildren();
+  const copy = element("div", "skill-tactics-copy");
+  copy.append(
+    element("p", "eyebrow", "АКТИВНАЯ СБОРКА"),
+    element("h2", "", hero.autoSelectSkills ? "Лучшие навыки выбираются автоматически" : `${currentBuild.length} из ${MAX_ACTIVE_SKILLS} навыков выбрано`),
+    element("p", "", currentBuild.length > 0 ? currentBuild.map((skill) => skill.name).join(" · ") : "Выберите хотя бы один доступный приём ниже."),
+  );
+  const controls = element("div", "skill-tactics-controls");
+  const autoBuild = element("label", "tactic-toggle");
+  const autoBuildInput = element("input") as HTMLInputElement;
+  autoBuildInput.type = "checkbox"; autoBuildInput.checked = hero.autoSelectSkills;
+  autoBuild.append(autoBuildInput, document.createTextNode(" Автоматически выбирать лучшие навыки"));
+  autoBuildInput.addEventListener("change", () => { game!.setAutoSelectSkills(autoBuildInput.checked); persist(); renderSkills(); });
+  const modeLabel = element("span", "tactic-label", "Ведение боя");
+  const modeButtons = element("div", "tactic-mode-buttons");
+  (["auto", "manual"] as const).forEach((mode) => {
+    const button = element("button", hero.combatMode === mode ? "active" : "", mode === "auto" ? "Автоматически" : "Подтверждать ходы");
+    button.type = "button";
+    button.addEventListener("click", () => { game!.setCombatMode(mode); persist(); renderSkills(); });
+    modeButtons.append(button);
+  });
+  controls.append(autoBuild, modeLabel, modeButtons);
+  tactics.append(copy, controls);
+
+  const toggleSkill = (skillId: string) => {
+    const next = new Set(hero.selectedSkillIds.filter((id) => available.has(id)));
+    if (next.has(skillId)) next.delete(skillId);
+    else if (next.size < MAX_ACTIVE_SKILLS) next.add(skillId);
+    else { toast(`Можно выбрать не больше ${MAX_ACTIVE_SKILLS} навыков.`, "error"); return; }
+    game!.setAutoSelectSkills(false);
+    game!.setSelectedSkills([...next]);
+    persist(); renderSkills();
+  };
+  const skillCard = (skill: typeof SKILLS[number], status: string, unlocked: boolean, source?: string) => {
+    const active = selected.has(skill.id) && !hero.autoSelectSkills;
+    const node = element("article", `skill-node ${skill.kind}${unlocked ? " unlocked" : " locked"}${active ? " selected" : ""}${skill.equipmentOnly ? " gear-skill" : ""}`);
+    node.append(
+      element("span", "skill-level", status),
+      element("h3", "", skill.name),
+      element("p", "", source ? `${skill.description} ${source}` : skill.description),
+      element("div", "skill-meta", `${kindNames[skill.kind]} · перезарядка ${skill.cooldown} х.`),
+    );
+    if (unlocked) {
+      const button = element("button", `skill-select${active ? " active" : ""}`, hero.autoSelectSkills ? "Добавить в ручную сборку" : active ? "Убрать из сборки" : "Добавить в сборку");
+      button.type = "button";
+      button.addEventListener("click", () => toggleSkill(skill.id));
+      node.append(button);
+    }
+    return node;
+  };
+
+  const relevant = SKILLS
+    .filter((skill) => !skill.equipmentOnly && (skill.classes === "all" || skill.classes.includes(hero.classId)))
+    .sort((a, b) => a.unlockLevel - b.unlockLevel);
+  const road = $("#skill-road"); road.replaceChildren(...relevant.map((skill) => {
     const unlocked = available.has(skill.id);
-    const node = element("article", `skill-node ${skill.kind}${unlocked ? " unlocked" : " locked"}`);
-    node.append(element("span", "skill-level", unlocked ? `УР. ${skill.unlockLevel} · ОТКРЫТО` : `ОТКРОЕТСЯ НА УР. ${skill.unlockLevel}`), element("h3", "", skill.name), element("p", "", skill.description));
-    const meta = element("div", "skill-meta", `${skill.kind.toUpperCase()} · перезарядка ${skill.cooldown} х.`); node.append(meta); road.append(node);
+    return skillCard(skill, unlocked ? `УР. ${skill.unlockLevel} · ОТКРЫТО` : `ОТКРОЕТСЯ НА УР. ${skill.unlockLevel}`, unlocked);
+  }));
+
+  const book = $("#equipment-skill-book");
+  const ownedBySkill = new Map<string, EquipmentItem[]>();
+  hero.inventory.filter((item) => item.grantedSkillId).forEach((item) => {
+    const items = ownedBySkill.get(item.grantedSkillId!) ?? []; items.push(item); ownedBySkill.set(item.grantedSkillId!, items);
   });
-  activeItems.filter((item) => item.grantedSkillId).forEach((item) => {
-    const skill = skillById(item.grantedSkillId!); if (!skill) return;
-    const node = element("article", "skill-node gear-skill unlocked");
-    node.append(element("span", "skill-level", "ОТ ЭКИПИРОВКИ"), element("h3", "", skill.name), element("p", "", `${skill.description} Источник: ${item.name}.`)); road.prepend(node);
-  });
+  const equipmentSkills = EQUIPMENT_SKILLS.filter((skill) => skill.classes === "all" || skill.classes.includes(hero.classId));
+  book.replaceChildren(...equipmentSkills.map((skill) => {
+    const activeSource = activeItems.find((item) => item.grantedSkillId === skill.id);
+    const owned = ownedBySkill.get(skill.id) ?? [];
+    const status = activeSource ? "АКТИВЕН ОТ ЭКИПИРОВКИ" : owned.length ? "ЕСТЬ В ИНВЕНТАРЕ" : "ЕЩЁ НЕ НАЙДЕН";
+    const source = activeSource ? `Источник: ${activeSource.name}.` : owned.length ? `Найден на: ${owned[0].name}. Наденьте предмет, чтобы активировать приём.` : "Ищите на легендарных и мифических предметах.";
+    return skillCard(skill, status, Boolean(activeSource), source);
+  }));
 }
 
 function renderCollections(): void {
@@ -876,7 +984,11 @@ function renderForge(): void {
   const hero = game.save.hero;
   $("#forge-marks").textContent = `${hero.temperingMarks} ${hero.temperingMarks === 1 ? "печать" : hero.temperingMarks >= 2 && hero.temperingMarks <= 4 ? "печати" : "печатей"}`;
   const grid = $("#forge-grid");
-  const order = [...hero.inventory].sort((a, b) => (b.enhancement ?? 0) - (a.enhancement ?? 0) || b.level - a.level);
+  const equippedIds = new Set(Object.values(hero.equipped));
+  const order = [...hero.inventory].sort((a, b) =>
+    Number(equippedIds.has(b.id)) - Number(equippedIds.has(a.id))
+    || (b.enhancement ?? 0) - (a.enhancement ?? 0)
+    || b.level - a.level);
   grid.replaceChildren(...order.map((item) => {
     const card = element("article", `forge-card paper-panel ${rarityClass[item.rarity]}`);
     card.style.setProperty("--rarity-color", rarityColors[item.rarity]);
@@ -884,7 +996,8 @@ function renderForge(): void {
     art.style.setProperty("--rarity-color", rarityColors[item.rarity]);
     const copy = element("div", "forge-card-copy");
     const enhancement = item.enhancement ?? 0;
-    copy.append(element("small", "", `${SLOT_LABELS[item.slot]} · ${RARITY_LABELS[item.rarity]}`), element("h3", "", item.name), element("p", "", `${item.level} ур. · закалка +${enhancement}/5`), element("p", "item-stats", itemStatsText(item)));
+    copy.append(element("small", "", `${equippedIds.has(item.id) ? "НАДЕТО · " : ""}${SLOT_LABELS[item.slot]} · ${RARITY_LABELS[item.rarity]}`), element("h3", "", item.name), element("p", "", `${item.level} ур. · закалка +${enhancement}/5`), element("p", "item-stats", itemStatsText(item)));
+    if (equippedIds.has(item.id)) card.classList.add("equipped");
     const button = element("button", "button", enhancement >= 5 ? "Максимальная закалка" : `Улучшить · ${game!.upgradeCost(item.id)} печ.`);
     button.type = "button";
     button.disabled = enhancement >= 5 || hero.temperingMarks < game!.upgradeCost(item.id);
@@ -925,12 +1038,14 @@ function renderChronicle(): void {
 
 function renderAll(): void {
   if (!game) return;
-  renderHeader(); renderMap(); renderHeroVisual(); renderArsenal(); renderForge(); renderSkills(); renderCollections(); renderShop(); renderLeaders(); renderChronicle(); renderTournamentReminder();
+  renderHeader(); renderMap(); renderHeroVisual(); renderGearActions(); renderArsenal(); renderForge(); renderSkills(); renderCollections(); renderShop(); renderLeaders(); renderChronicle(); renderTournamentReminder();
 }
 
 function setCombatant(container: HTMLElement, fighter: CombatantSnapshot, health: number): void {
   container.querySelector("h3")!.textContent = fighter.name;
-  container.querySelector("p")!.textContent = `${CLASS_DEFINITIONS[fighter.classId].name} · уровень ${fighter.level}`;
+  container.querySelector("p")!.textContent = fighter.originalLevel
+    ? `${CLASS_DEFINITIONS[fighter.classId].name} · уровень ${fighter.level} (снижен с ${fighter.originalLevel})`
+    : `${CLASS_DEFINITIONS[fighter.classId].name} · уровень ${fighter.level}`;
   container.querySelector("strong")!.textContent = `${Math.max(0, health)} / ${fighter.maxHealth} HP`;
   const fill = container.querySelector(".battle-health i") as HTMLElement;
   fill.style.width = `${Math.max(0, health / fighter.maxHealth * 100)}%`;
@@ -941,12 +1056,20 @@ function renderBattleSkills(report: BattleReport): void {
   (["hero", "enemy"] as const).forEach((side) => {
     const fighter = side === "hero" ? report.heroBefore : report.enemyBefore;
     const list = panel.querySelector<HTMLElement>(`[data-fighter="${side}"] > div`)!;
-    const regular = element("span", "battle-skill ready basic", "Обычная атака");
-    regular.dataset.skillId = "basic";
+    const interactive = side === "hero" && game?.save.hero.combatMode === "manual";
+    const makeChip = (label: string, id: string, className: string): HTMLElement => {
+      const chip = interactive ? element("button", className, label) : element("span", className, label);
+      if (chip instanceof HTMLButtonElement) {
+        chip.type = "button";
+        chip.addEventListener("click", () => { if (chip.classList.contains("awaiting-input")) confirmManualBattleTurn(); });
+      }
+      chip.dataset.skillId = id;
+      return chip;
+    };
+    const regular = makeChip("Обычная атака", "basic", "battle-skill ready basic");
     const skills = fighter.skills.map((id) => {
       const skill = skillById(id);
-      const chip = element("span", `battle-skill ready ${skill?.kind ?? "attack"}`, skill?.name ?? id);
-      chip.dataset.skillId = id;
+      const chip = makeChip(skill?.name ?? id, id, `battle-skill ready ${skill?.kind ?? "attack"}`);
       if (skill) chip.title = `${skill.description} Перезарядка: ${skill.cooldown} х.`;
       return chip;
     });
@@ -976,8 +1099,17 @@ function startActivity(activityId: string): void {
 
 function trainHero(): void {
   if (!game) return;
-  const result = game.train(); persist(); renderAll();
-  toast(`${result.title}: +${result.experience} опыта${result.levelsGained ? `, +${result.levelsGained} ур.` : ""}.`);
+  try {
+    const result = game.train(); persist(); renderAll();
+    toast(`${result.title}: +${result.experience} опыта${result.levelsGained ? `, +${result.levelsGained} ур.` : ""}.`);
+  } catch (error) { toast((error as Error).message, "error"); }
+}
+
+function confirmManualBattleTurn(): void {
+  if (!currentReport || game?.save.hero.combatMode !== "manual") return;
+  const next = currentReport.turns[battleTurnIndex];
+  if (!next || next.actorId !== "hero") return;
+  playBattleTurn();
 }
 
 function startDuel(tierId?: string): void {
@@ -1032,6 +1164,7 @@ function openBattleReport(report: BattleReport): void {
   $("#battle-name").textContent = currentReport.activity.name;
   $("#battle-turn").textContent = "ХОД 0"; $("#battle-action").textContent = "Бойцы выходят на площадку"; $("#battle-detail").textContent = "";
   $("#battle-log").replaceChildren(); $("#battle-result").hidden = true;
+  $("#battle-quick-equip").hidden = true;
   $("#close-battle").textContent = "Вернуться на карту";
   if (!currentTournament) $("#tournament-panel").hidden = true;
   setCombatant($("#battle-hero"), currentReport.heroBefore, battleHealth.hero);
@@ -1044,12 +1177,28 @@ function openBattleReport(report: BattleReport): void {
 
 function scheduleBattleTurn(): void {
   if (!currentReport || battleTurnIndex >= currentReport.turns.length) { finishBattlePlayback(); return; }
+  const next = currentReport.turns[battleTurnIndex];
+  const manual = game?.save.hero.combatMode === "manual" && next.actorId === "hero";
+  const manualButton = $("#manual-battle-step") as HTMLButtonElement;
+  $$("#battle-skills .battle-skill").forEach((chip) => chip.classList.remove("awaiting-input"));
+  if (manual) {
+    const skillId = next.skillId ?? "basic";
+    const chip = $<HTMLElement>(`#battle-skills [data-fighter="hero"] [data-skill-id="${skillId}"]`);
+    chip?.classList.add("awaiting-input");
+    manualButton.hidden = false;
+    manualButton.textContent = `Применить: ${next.action}`;
+    $("#battle-action").textContent = "Ваш ход — подтвердите выбранный приём";
+    return;
+  }
+  manualButton.hidden = true;
   const delay = Number(($("#battle-speed") as HTMLSelectElement).value);
   battleTimer = window.setTimeout(playBattleTurn, delay);
 }
 
 function playBattleTurn(): void {
   if (!currentReport) return;
+  $("#manual-battle-step").hidden = true;
+  $$("#battle-skills .battle-skill").forEach((chip) => chip.classList.remove("awaiting-input"));
   const turn = currentReport.turns[battleTurnIndex++];
   if (!turn) { finishBattlePlayback(); return; }
   if (turn.actorId === "hero") { battleHealth.hero = turn.actorHealth; battleHealth.enemy = turn.targetHealth; }
@@ -1071,6 +1220,7 @@ function playBattleTurn(): void {
 function finishBattlePlayback(): void {
   if (!currentReport) return;
   if (battleTimer !== null) window.clearTimeout(battleTimer); battleTimer = null;
+  $("#manual-battle-step").hidden = true;
   const finalHeroHealth = currentReport.heroWon ? Math.max(1, battleHealth.hero) : 0;
   const finalEnemyHealth = currentReport.heroWon ? 0 : Math.max(1, battleHealth.enemy);
   setCombatant($("#battle-hero"), currentReport.heroBefore, finalHeroHealth);
@@ -1095,6 +1245,22 @@ function finishBattlePlayback(): void {
   if (finalTournamentBattle) lines.push(`Чемпион: ${currentTournament!.championName}`);
   copy.append(element("p", "", lines.join(" · ")));
   $("#close-battle").textContent = hasNextTournamentBattle ? "Следующий бой" : "Вернуться на карту";
+  const quickEquip = $("#battle-quick-equip") as HTMLButtonElement;
+  const rewardItem = !hasNextTournamentBattle ? finalRewards.item : undefined;
+  quickEquip.hidden = !rewardItem;
+  quickEquip.onclick = null;
+  if (rewardItem && game) {
+    const equipped = game.save.hero.equipped[rewardItem.slot] === rewardItem.id;
+    quickEquip.disabled = equipped;
+    quickEquip.textContent = equipped ? "Уже надето автоматически" : "Надеть добычу";
+    quickEquip.onclick = () => {
+      try {
+        game!.equip(rewardItem.id); persist(); renderAll();
+        quickEquip.disabled = true; quickEquip.textContent = "Надето";
+        toast(`${rewardItem.name} экипирован.`);
+      } catch (error) { toast((error as Error).message, "error"); }
+    };
+  }
   renderAll();
 }
 
@@ -1224,6 +1390,7 @@ window.addEventListener("keydown", (event) => {
   else if (!$("#equipment-picker").hidden) closeEquipmentPicker();
 });
 $("#skip-battle").addEventListener("click", skipBattle);
+$("#manual-battle-step").addEventListener("click", confirmManualBattleTurn);
 $("#close-battle").addEventListener("click", closeBattle);
 window.addEventListener("beforeunload", persist);
 
