@@ -199,7 +199,8 @@ function renderHeader(): void {
   $("#header-level").textContent = String(hero.level);
   $("#header-gold").textContent = `${hero.gold} ¤`;
   $("#header-marks").textContent = String(hero.temperingMarks);
-  $("#header-rank").textContent = `#${game.heroRank()}`;
+  const eliteRank = game.heroEliteRank();
+  $("#header-rank").textContent = eliteRank ? `Элита #${eliteRank}` : `#${game.heroRank()}`;
   $("#header-day").textContent = String(game.save.worldDay);
   $("#inventory-count").textContent = String(hero.inventory.length);
   $("#collection-count").textContent = `${game.save.discoveredItems.length}/${ITEM_TEMPLATES.length}`;
@@ -986,10 +987,10 @@ function renderEndgame(): void {
     const availability = game!.availability(activity);
     const card = element("article", `activity-card endgame${availability.unlocked ? "" : " locked"}`);
     card.style.setProperty("--activity-accent", activity.accent);
-    const label = activity.id === "crown-league" ? game!.crownLeagueTier().name.toUpperCase() : "РЕДКАЯ ЦЕЛЬ";
+    const label = activity.id === "crown-league" ? game!.crownLeagueTier().name.toUpperCase() : "ПОСЛЕДОВАТЕЛЬНЫЙ ВЫЗОВ";
     const reward = activity.id === "crown-league"
-      ? `${game!.save.hero.crownLeaguePoints} очк. · ${game!.save.hero.crownLeagueWins} побед`
-      : `${game!.save.hero.legendHuntWins} легенд побеждено · мифическая добыча`;
+      ? `${game!.heroEliteRank() ? `место #${game!.heroEliteRank()} · ` : "квалификация · "}${game!.save.hero.crownLeagueWins} побед в лиге`
+      : `${game!.save.hero.legendHuntWins} побед в охоте · ${game!.save.hero.legendDefenses} защит титула`;
     card.append(
       element("div", "activity-head", label),
       element("h3", "", activity.name),
@@ -998,13 +999,55 @@ function renderEndgame(): void {
       element("div", "activity-state", availability.reason),
     );
     const button = element("button", "button activity-button", availability.unlocked
-      ? activity.id === "crown-league" ? "Выйти на бой лиги" : "Начать охоту"
+      ? activity.id === "crown-league" ? `Начать турнир на ${30} бойцов` : "Бросить следующий вызов"
       : "Закрыто");
     button.disabled = !availability.unlocked;
     button.addEventListener("click", () => startEndgame(activity.id));
     card.append(button);
     return card;
   }));
+
+  const pending = game.pendingLegendChallenge();
+  if (pending) {
+    const card = element("article", "activity-card endgame elite-defense");
+    card.style.setProperty("--activity-accent", "#9c5044");
+    card.append(
+      element("div", "activity-head", "ВЫЗОВ ВАШЕМУ ТИТУЛУ"),
+      element("h3", "", pending.name),
+      element("p", "", `Боец элиты пытается занять ваше место. При поражении вы поменяетесь позициями.`),
+      element("div", "activity-levels", `${CLASS_DEFINITIONS[pending.classId].name} · уровень ${pending.level}`),
+    );
+    const defend = element("button", "button activity-button", "Защитить титул");
+    defend.addEventListener("click", startLegendDefense); card.append(defend); route.append(card);
+  }
+
+  const board = $("#elite-board");
+  const elite = game.eliteLeaderboard();
+  const header = element("header");
+  const heading = element("div");
+  heading.append(element("p", "eyebrow", "ЗАКРЫТАЯ ЛИГА"), element("h3", "", "Тридцать бойцов элиты"));
+  header.append(heading, element("p", "", "Первые пять носят титулы легенд. Места меняются в Лиге короны и последовательных личных вызовах."));
+  const wrap = element("div", "leader-table-wrap");
+  const table = element("table", "leader-table");
+  const thead = element("thead"); const headRow = element("tr");
+  ["Место", "Титул", "Боец", "Класс", "Ур.", "Очки элиты", "Короны"].forEach((label) => headRow.append(element("th", "", label)));
+  thead.append(headRow);
+  const tbody = element("tbody");
+  elite.forEach((entry, index) => {
+    const rank = index + 1;
+    const row = element("tr", `${entry.isHero ? "is-hero " : ""}${rank <= 5 ? "legend" : ""}`.trim());
+    row.append(
+      element("td", "elite-rank", `#${rank}`),
+      element("td", rank <= 5 ? "elite-title" : "", game!.legendTitle(rank) ?? "Элита"),
+      element("td", "", entry.name),
+      element("td", "", CLASS_DEFINITIONS[entry.classId].name),
+      element("td", "", String(entry.level)),
+      element("td", "", String(entry.rating)),
+      element("td", "", String(game!.save.eliteCrownWins[entry.id] ?? (entry.isHero ? game!.save.hero.crownLeagueWins : 0))),
+    );
+    tbody.append(row);
+  });
+  table.append(thead, tbody); wrap.append(table); board.replaceChildren(header, wrap);
 }
 
 function renderCollections(): void {
@@ -1177,10 +1220,25 @@ function trainHero(): void {
 function startEndgame(activityId: "crown-league" | "legend-hunt"): void {
   if (!game) return;
   try {
-    currentTournament = null;
-    currentReport = activityId === "crown-league" ? game.playCrownLeague() : game.huntLegend();
+    if (activityId === "crown-league") {
+      currentTournament = game.playCrownLeague();
+      tournamentBattleIndex = 0;
+      currentReport = currentTournament.heroBattles[0] ?? null;
+    } else {
+      currentTournament = null;
+      currentReport = game.huntLegend();
+    }
     persist();
   } catch (error) { toast((error as Error).message, "error"); return; }
+  if (currentTournament) renderTournamentBracket();
+  if (!currentReport) { toast("В турнирной сетке не найден бой героя.", "error"); return; }
+  openBattleReport(currentReport);
+}
+
+function startLegendDefense(): void {
+  if (!game) return;
+  try { currentTournament = null; currentReport = game.defendLegendTitle(); persist(); }
+  catch (error) { toast((error as Error).message, "error"); return; }
   openBattleReport(currentReport);
 }
 

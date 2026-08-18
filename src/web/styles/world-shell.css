@@ -316,6 +316,9 @@
 }
 
 .main-nav {
+  position: sticky;
+  z-index: 29;
+  top: 76px;
   display: flex;
   overflow-x: auto;
   gap: 2px;
@@ -396,7 +399,7 @@
 .map-shortcuts {
   position: sticky;
   z-index: 22;
-  top: 88px;
+  top: 133px;
   display: flex;
   width: 100%;
   align-items: stretch;
@@ -476,7 +479,7 @@
 #tournaments-section,
 #dungeons-section,
 #endgame-section {
-  scroll-margin-top: 170px;
+  scroll-margin-top: 220px;
 }
 
 .map-layout {
@@ -772,6 +775,26 @@
 .endgame-route .activity-card:not(.locked) {
   box-shadow: 5px 5px 0 rgba(78, 55, 44, 0.2);
 }
+.elite-board {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid #857761;
+  background: #e5dccb;
+  box-shadow: 5px 5px 0 rgba(60, 48, 38, 0.18);
+}
+.elite-board > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 14px;
+}
+.elite-board h3 { margin: 3px 0 0; font-size: 25px; }
+.elite-board header p { max-width: 650px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.elite-rank { font-family: "Courier New", monospace; }
+.elite-title { color: #8a6525; font-weight: 750; }
+.elite-board .leader-table tr.legend { background: #e8d7a9; }
+.elite-board .leader-table tr.legend:nth-child(even) { background: #dfcc9d; }
 
 .class-change-panel {
   display: grid;
