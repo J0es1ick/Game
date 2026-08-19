@@ -168,6 +168,7 @@ export class WorldGame {
       for (let index = 0; index < elapsedDays; index += 1) {
         this.simulateDailyWorld();
         this.save.worldDay += 1;
+        this.clearExpiredTournamentRegistrations();
       }
       this.save.lastSimulatedAt = now;
       this.event("system", `Пока вас не было, мир прожил ${elapsedDays} дн. Все арены, данжи и турниры продолжали работать.`);
@@ -196,6 +197,35 @@ export class WorldGame {
     const day = this.nextTournamentDay(arenaId);
     this.save.tournamentRegistrations[arenaId] = day;
     this.event("tournament", `${this.save.hero.name} записался на «${arena.name}» в день ${day}.`);
+    return day;
+  }
+
+  public nextCrownLeagueDay(): number {
+    return (Math.floor(this.save.worldDay / CROWN_LEAGUE_INTERVAL) + 1) * CROWN_LEAGUE_INTERVAL;
+  }
+
+  public registeredCrownLeagueDay(): number | undefined {
+    return this.save.tournamentRegistrations["crown-league"];
+  }
+
+  public crownLeagueRegistrationAvailability(): ActivityAvailability {
+    const qualification = this.crownLeagueQualification();
+    if (!qualification.unlocked) return qualification;
+    const registeredDay = this.registeredCrownLeagueDay();
+    if (registeredDay && registeredDay >= this.save.worldDay) {
+      return { unlocked: false, reason: `Место уже зарезервировано на день ${registeredDay}.` };
+    }
+    return { unlocked: true, reason: `${qualification.reason} Ближайшая Лига состоится в день ${this.nextCrownLeagueDay()}.` };
+  }
+
+  public registerCrownLeague(): number {
+    const existing = this.registeredCrownLeagueDay();
+    if (existing && existing >= this.save.worldDay) return existing;
+    const availability = this.crownLeagueRegistrationAvailability();
+    if (!availability.unlocked) throw new Error(availability.reason);
+    const day = this.nextCrownLeagueDay();
+    this.save.tournamentRegistrations["crown-league"] = day;
+    this.event("tournament", `${this.save.hero.name} записался в Лигу короны на день ${day}.`);
     return day;
   }
 
@@ -462,29 +492,14 @@ export class WorldGame {
   }
 
   public crownLeagueAvailability(): ActivityAvailability {
-    const hero = this.save.hero;
-    const finalArenaIndex = ARENAS.length - 1;
-    if (hero.highestArena < finalArenaIndex || (hero.arenaWins[finalArenaIndex] ?? 0) < 1) {
-      return { unlocked: false, reason: `Сначала станьте чемпионом турнира «${ARENAS[finalArenaIndex].name}».` };
-    }
-    const eliteRank = this.heroEliteRank();
-    const ordinaryRank = this.heroRank();
-    let qualification: string;
-    if (eliteRank) qualification = `Место в элите: #${eliteRank}. Вы входите в сетку из ${ELITE_SIZE} бойцов.`;
-    else {
-      if (!ordinaryRank || ordinaryRank > 2) {
-        return { unlocked: false, reason: `Для квалификации нужно место #1–2 обычного рейтинга. Сейчас: #${ordinaryRank || "—"}.` };
-      }
-      qualification = `Квалификация с места #${ordinaryRank}: только чемпион турнира войдёт в элиту.`;
-    }
-
-    const remainder = this.save.worldDay % CROWN_LEAGUE_INTERVAL;
+    const qualification = this.crownLeagueQualification();
+    if (!qualification.unlocked) return qualification;
+    const registeredDay = this.registeredCrownLeagueDay();
     const lastLeagueDay = this.save.lastCrownLeagueDay;
-    if (remainder !== 0) {
-      const nextLeagueDay = this.save.worldDay + CROWN_LEAGUE_INTERVAL - remainder;
+    if (registeredDay && registeredDay > this.save.worldDay) {
       return {
         unlocked: false,
-        reason: `${qualification} Лига проводится раз в ${CROWN_LEAGUE_INTERVAL} дней; следующая — в день ${nextLeagueDay}.`,
+        reason: `${qualification.reason} Вы записаны на день ${registeredDay}; до события ${registeredDay - this.save.worldDay} дн.`,
       };
     }
     if (lastLeagueDay === this.save.worldDay) {
@@ -493,7 +508,30 @@ export class WorldGame {
         reason: `Сегодняшняя Лига уже завершена. Следующая — в день ${this.save.worldDay + CROWN_LEAGUE_INTERVAL}.`,
       };
     }
-    return { unlocked: true, reason: `${qualification} Сегодня день Лиги короны.` };
+    if (registeredDay === this.save.worldDay) {
+      return { unlocked: true, reason: `${qualification.reason} Сегодня день Лиги короны, место в сетке подтверждено.` };
+    }
+    return {
+      unlocked: false,
+      reason: `${qualification.reason} Для участия нужна предварительная запись; ближайшая Лига — в день ${this.nextCrownLeagueDay()}.`,
+    };
+  }
+
+  private crownLeagueQualification(): ActivityAvailability {
+    const hero = this.save.hero;
+    const finalArenaIndex = ARENAS.length - 1;
+    if (hero.highestArena < finalArenaIndex || (hero.arenaWins[finalArenaIndex] ?? 0) < 1) {
+      return { unlocked: false, reason: `Сначала станьте чемпионом турнира «${ARENAS[finalArenaIndex].name}».` };
+    }
+    const eliteRank = this.heroEliteRank();
+    if (eliteRank) {
+      return { unlocked: true, reason: `Место в элите: #${eliteRank}. Вы входите в сетку из ${ELITE_SIZE} бойцов.` };
+    }
+    const ordinaryRank = this.heroRank();
+    if (!ordinaryRank || ordinaryRank > 2) {
+      return { unlocked: false, reason: `Для квалификации нужно место #1–2 обычного рейтинга. Сейчас: #${ordinaryRank || "—"}.` };
+    }
+    return { unlocked: true, reason: `Квалификация с места #${ordinaryRank}: только чемпион турнира войдёт в элиту.` };
   }
 
   public legendHuntAvailability(): ActivityAvailability {
@@ -622,6 +660,7 @@ export class WorldGame {
     }
     this.save.hero.temperingMarks += temperingMarks;
     this.save.lastCrownLeagueDay = this.save.worldDay;
+    delete this.save.tournamentRegistrations["crown-league"];
     if (wasElite || !heroWon) this.sortEliteByRating();
     this.syncCrownSet();
     this.event("tournament", `Лига короны завершена. Чемпион: ${champion.name}. Сетка: ${ELITE_SIZE} бойцов.`);
@@ -1303,6 +1342,10 @@ export class WorldGame {
       }
     }
 
+    if (this.registeredCrownLeagueDay() === this.save.worldDay) {
+      this.syncCrownSet();
+      return;
+    }
     const lastLeague = this.save.lastCrownLeagueDay ?? 0;
     if (this.save.worldDay % CROWN_LEAGUE_INTERVAL !== 0 || this.save.worldDay === lastLeague) {
       this.syncCrownSet(); return;
@@ -1343,10 +1386,15 @@ export class WorldGame {
     this.save.worldDay += 1;
     this.refreshShopIfNeeded();
     this.save.lastSimulatedAt = Date.now();
+    this.clearExpiredTournamentRegistrations();
+  }
+
+  private clearExpiredTournamentRegistrations(): void {
     Object.entries(this.save.tournamentRegistrations).forEach(([arenaId, day]) => {
       if (day < this.save.worldDay) {
         const arena = ARENAS.find((candidate) => candidate.id === arenaId);
-        this.event("tournament", `${this.save.hero.name} пропустил запись на «${arena?.name ?? arenaId}» в день ${day}.`);
+        const name = arena?.name ?? (arenaId === "crown-league" ? "Лига короны" : arenaId);
+        this.event("tournament", `${this.save.hero.name} пропустил запись на «${name}» в день ${day}.`);
         delete this.save.tournamentRegistrations[arenaId];
       }
     });

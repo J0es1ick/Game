@@ -163,6 +163,10 @@ describe("постоянный RPG-мир", () => {
     game.save.worldDay = ARENAS[ARENAS.length - 1].tournamentInterval;
     expect(game.crownLeagueAvailability().unlocked).toBe(false);
     expect(game.crownLeagueAvailability().reason).toContain(`день ${crownLeagueInterval}`);
+    expect(game.crownLeagueRegistrationAvailability().unlocked).toBe(true);
+    expect(game.registerCrownLeague()).toBe(crownLeagueInterval);
+    expect(game.registeredCrownLeagueDay()).toBe(crownLeagueInterval);
+    expect(game.crownLeagueAvailability().reason).toContain(`записаны на день ${crownLeagueInterval}`);
     game.save.worldDay = crownLeagueInterval;
     expect(game.crownLeagueAvailability().unlocked).toBe(true);
     const beforeDay = game.save.worldDay;
@@ -171,6 +175,7 @@ describe("постоянный RPG-мир", () => {
     expect(report.matches).toHaveLength(29);
     expect(report.heroBattles.length).toBeGreaterThan(0);
     expect(game.save.worldDay).toBe(beforeDay + 1);
+    expect(game.registeredCrownLeagueDay()).toBeUndefined();
     expect(game.heroEliteRank()).toBeDefined();
     game.save.eliteLeagueMemberIds = [
       ...game.save.eliteLeagueMemberIds.filter((id) => id !== "hero").slice(0, 5),
