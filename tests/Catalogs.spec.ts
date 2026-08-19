@@ -52,6 +52,12 @@ const AUDITED_COAT_SETS: Record<string, {
 };
 
 describe("Каталоги конфигурации", () => {
+  it("не показывает внутренние английские ключи в бонусах комплектов", () => {
+    EQUIPMENT_SETS.flatMap((set) => set.bonuses).forEach((bonus) => {
+      expect(bonus.description).not.toMatch(/\b(?:health|attack|defense|speed|crit)\b/i);
+    });
+  });
+
   it("возвращает независимые экземпляры навыка", () => {
     const first = createSkill("ледяные стрелы")!;
     const second = createSkill("ледяные стрелы")!;

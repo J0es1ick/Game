@@ -452,6 +452,14 @@ export const ITEM_TEMPLATES: ItemTemplate[] = [
   ...additionalItemTemplates,
 ];
 
+const statBonusLabels: Record<keyof Stats, string> = {
+  health: "здоровью",
+  attack: "атаке",
+  defense: "защите",
+  speed: "скорости",
+  crit: "критическому шансу",
+};
+
 export const EQUIPMENT_SETS: EquipmentSetDefinition[] = [
   { id: "wanderer", name: "Путь странника", description: "Универсальный комплект для первых арен.", purpose: "Закрывает слабые места любого класса и помогает понять, какие характеристики полезны герою.", classes: "all", pieces: ITEM_TEMPLATES.filter((item) => item.setId === "wanderer").map((item) => item.id), bonuses: [{ pieces: 2, description: "+8 к здоровью" }, { pieces: 4, description: "+3 к атаке и защите" }, { pieces: 6, description: "+5% к шансу критического удара" }] },
   { id: "bastion", name: "Последний бастион", description: "Тяжёлый рыцарский комплект.", purpose: "Для долгих боёв: здоровье, защита и усиление блока щитом.", classes: ["Knight"], pieces: ITEM_TEMPLATES.filter((item) => item.setId === "bastion").map((item) => item.id), bonuses: [{ pieces: 2, description: "+6 к защите" }, { pieces: 4, description: "Блок рыцаря усилен до 24%" }, { pieces: 6, description: "Первый смертельный удар оставляет 1 HP" }] },
@@ -464,9 +472,9 @@ export const EQUIPMENT_SETS: EquipmentSetDefinition[] = [
     id: set.id, name: set.name, description: set.description, purpose: set.purpose, classes: set.classes,
     pieces: ITEM_TEMPLATES.filter((item) => item.setId === set.id).map((item) => item.id),
     bonuses: set.bonuses ?? [
-      { pieces: 2, description: `+${set.stats[0] === "health" ? 18 : 4} к ${set.stats[0]}`, stats: { [set.stats[0]]: set.stats[0] === "health" ? 18 : 4 } },
-      { pieces: 4, description: `+${set.stats[1] === "health" ? 28 : 6} к ${set.stats[1]}`, stats: { [set.stats[1]]: set.stats[1] === "health" ? 28 : 6 } },
-      { pieces: 6, description: `+${set.stats[2] === "health" ? 38 : 8} к ${set.stats[2]}`, stats: { [set.stats[2]]: set.stats[2] === "health" ? 38 : 8 } },
+      { pieces: 2, description: `+${set.stats[0] === "health" ? 18 : 4} к ${statBonusLabels[set.stats[0]]}`, stats: { [set.stats[0]]: set.stats[0] === "health" ? 18 : 4 } },
+      { pieces: 4, description: `+${set.stats[1] === "health" ? 28 : 6} к ${statBonusLabels[set.stats[1]]}`, stats: { [set.stats[1]]: set.stats[1] === "health" ? 28 : 6 } },
+      { pieces: 6, description: `+${set.stats[2] === "health" ? 38 : 8} к ${statBonusLabels[set.stats[2]]}`, stats: { [set.stats[2]]: set.stats[2] === "health" ? 38 : 8 } },
     ],
   })),
 ];
