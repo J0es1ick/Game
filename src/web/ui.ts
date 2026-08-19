@@ -57,6 +57,8 @@ let comparisonItemId: string | null = null;
 let comparisonShopIndex: number | null = null;
 let dismissedTournamentReminderKey: string | null = null;
 let lootReminderTimer: number | null = null;
+let lootReminderQueue: Array<{ itemId: string; equippedItemId: string | null }> = [];
+let lootReminderIndex = 0;
 let battleTimer: number | null = null;
 let currentReport: BattleReport | null = null;
 let currentTournament: TournamentReport | null = null;
@@ -66,6 +68,7 @@ let battleHealth = { hero: 0, enemy: 0 };
 let battleReturnScrollY = 0;
 let battleReturnPage = "map";
 let battleEquipmentBefore: Partial<Record<EquipmentSlot, string>> | null = null;
+let battleInventoryBefore: Set<string> | null = null;
 let tutorialStepIndex = 0;
 const leaderboardObservers = new Map<string, IntersectionObserver>();
 
@@ -595,12 +598,45 @@ function registerForTournament(arenaId: string): void {
   } catch (error) { toast((error as Error).message, "error"); }
 }
 
-function tournamentsScheduledToday(): ArenaDefinition[] {
-  if (!game) return [];
-  return ARENAS.filter((arena) => game!.registeredTournamentDay(arena.id) === game!.save.worldDay);
+function registerForCrownLeague(): void {
+  if (!game) return;
+  try {
+    const day = game.registerCrownLeague();
+    persist();
+    renderAll();
+    toast(`Место в Лиге короны зарезервировано на день ${day}.`);
+  } catch (error) { toast((error as Error).message, "error"); }
 }
 
-function tournamentReminderKey(arenas: ArenaDefinition[]): string {
+interface ScheduledTournament {
+  id: string;
+  name: string;
+  participants: number;
+  rewardGold: number;
+  place: string;
+  crownLeague: boolean;
+}
+
+function tournamentsScheduledToday(): ScheduledTournament[] {
+  if (!game) return [];
+  const scheduled: ScheduledTournament[] = ARENAS
+    .filter((arena) => game!.registeredTournamentDay(arena.id) === game!.save.worldDay)
+    .map((arena) => ({ ...arena, crownLeague: false }));
+  if (game.registeredCrownLeagueDay() === game.save.worldDay) {
+    const crown = ENDGAME_ACTIVITIES.find((activity) => activity.id === "crown-league")!;
+    scheduled.push({
+      id: crown.id,
+      name: crown.name,
+      participants: 30,
+      rewardGold: crown.rewardGold,
+      place: crown.place,
+      crownLeague: true,
+    });
+  }
+  return scheduled;
+}
+
+function tournamentReminderKey(arenas: ScheduledTournament[]): string {
   return `${game?.save.worldDay ?? 0}:${arenas.map((arena) => arena.id).sort().join(",")}`;
 }
 
@@ -622,7 +658,7 @@ function renderTournamentReminder(): void {
     );
     const start = element("button", "button primary", "Начать турнир");
     start.type = "button";
-    start.addEventListener("click", () => startTournament(arena.id));
+    start.addEventListener("click", () => arena.crownLeague ? startEndgame("crown-league") : startTournament(arena.id));
     row.append(copy, start);
     return row;
   }));
@@ -643,7 +679,7 @@ function renderMap(): void {
   trainingButton.textContent = trainingBlocked ? "Достигнут предел" : "Тренироваться";
   const arenaRoute = $("#arena-route"); arenaRoute.replaceChildren(...ARENAS.map(activityCard));
   const dungeonRoute = $("#dungeon-route"); dungeonRoute.replaceChildren(...DUNGEONS.map(activityCard));
-  const tournamentsToday = ARENAS.filter((arena) => game!.registeredTournamentDay(arena.id) === game!.save.worldDay).length;
+  const tournamentsToday = tournamentsScheduledToday().length;
   const openTournaments = ARENAS.filter((arena) => game!.availability(arena).unlocked).length;
   const openDungeons = DUNGEONS.filter((dungeon) => game!.availability(dungeon).unlocked).length;
   const openDuels = DUEL_TIERS.filter((duel) => game!.availability(duel).unlocked).length;
@@ -653,8 +689,13 @@ function renderMap(): void {
   $("#quick-tournament-status").textContent = tournamentsToday > 0 ? `${tournamentsToday} сегодня` : `${openTournaments} открыто`;
   $("#quick-dungeon-status").textContent = `${openDungeons} доступно`;
   const crownAvailable = game.crownLeagueAvailability().unlocked;
+  const crownRegistrationDay = game.registeredCrownLeagueDay();
   const huntAvailable = game.legendHuntAvailability().unlocked;
-  $("#quick-endgame-status").textContent = huntAvailable ? "Легенда найдена" : crownAvailable ? game.crownLeagueTier().name : "Закрыто";
+  $("#quick-endgame-status").textContent = huntAvailable
+    ? "Легенда найдена"
+    : crownAvailable
+      ? game.crownLeagueTier().name
+      : crownRegistrationDay ? `Лига: день ${crownRegistrationDay}` : "Закрыто";
   renderDuels();
   renderEndgame();
   const hero = game.save.hero;
@@ -836,12 +877,18 @@ function openEquipmentComparison(itemId: string, shopIndex: number | null = null
   window.setTimeout(() => ($("#close-equipment-comparison") as HTMLButtonElement).focus(), 0);
 }
 
-function hideLootReminder(): void {
+function concealLootReminder(): void {
   if (lootReminderTimer !== null) window.clearTimeout(lootReminderTimer);
   lootReminderTimer = null;
   const reminder = $("#loot-reminder");
   reminder.hidden = true;
   reminder.classList.remove("is-visible");
+}
+
+function hideLootReminder(): void {
+  concealLootReminder();
+  lootReminderQueue = [];
+  lootReminderIndex = 0;
 }
 
 function lootReminderItemContent(container: HTMLElement, item: EquipmentItem | undefined, heading: string): void {
@@ -859,13 +906,27 @@ function lootReminderItemContent(container: HTMLElement, item: EquipmentItem | u
   );
 }
 
-function showLootReminder(item: EquipmentItem, equippedItemId: string | null): void {
+function renderLootReminder(): void {
   if (!game) return;
-  hideLootReminder();
+  concealLootReminder();
+  const queued = lootReminderQueue[lootReminderIndex];
+  if (!queued) {
+    hideLootReminder();
+    return;
+  }
+  const item = game.save.hero.inventory.find((candidate) => candidate.id === queued.itemId);
+  if (!item) {
+    advanceLootReminder();
+    return;
+  }
+  const equippedItemId = queued.equippedItemId;
   const equipped = equippedItemId ? game.save.hero.inventory.find((candidate) => candidate.id === equippedItemId) : undefined;
   lootReminderItemContent($("#loot-reminder-equipped"), equipped, "НАДЕТО");
   lootReminderItemContent($("#loot-reminder-candidate"), item, "ДОБЫЧА");
   $("#loot-reminder-title").textContent = item.name;
+  $("#loot-reminder-progress").textContent = lootReminderQueue.length > 1
+    ? `ПОЛУЧЕНА ДОБЫЧА · ${lootReminderIndex + 1} ИЗ ${lootReminderQueue.length}`
+    : "ПОЛУЧЕНА ДОБЫЧА";
 
   const currentStats = effectiveItemStats(equipped);
   const candidateStats = effectiveItemStats(item);
@@ -879,7 +940,7 @@ function showLootReminder(item: EquipmentItem, equippedItemId: string | null): v
   equip.textContent = alreadyEquipped ? "Уже надето автоматически" : canHeroEquip(item) ? "Надеть" : "Не подходит классу";
   equip.onclick = () => {
     try {
-      game!.equip(item.id); persist(); renderAll(); hideLootReminder(); toast(`${item.name} экипирован.`);
+      game!.equip(item.id); persist(); renderAll(); advanceLootReminder(); toast(`${item.name} экипирован.`);
     } catch (error) { toast((error as Error).message, "error"); }
   };
 
@@ -887,7 +948,25 @@ function showLootReminder(item: EquipmentItem, equippedItemId: string | null): v
   reminder.hidden = false;
   void reminder.offsetWidth;
   reminder.classList.add("is-visible");
-  lootReminderTimer = window.setTimeout(hideLootReminder, 5_000);
+  lootReminderTimer = window.setTimeout(advanceLootReminder, 5_000);
+}
+
+function advanceLootReminder(): void {
+  concealLootReminder();
+  lootReminderIndex += 1;
+  if (lootReminderIndex >= lootReminderQueue.length) {
+    hideLootReminder();
+    return;
+  }
+  window.setTimeout(renderLootReminder, 40);
+}
+
+function showLootReminders(items: EquipmentItem[], equipmentBefore: Partial<Record<EquipmentSlot, string>> | null): void {
+  hideLootReminder();
+  if (items.length === 0) return;
+  lootReminderQueue = items.map((item) => ({ itemId: item.id, equippedItemId: equipmentBefore?.[item.slot] ?? null }));
+  lootReminderIndex = 0;
+  renderLootReminder();
 }
 
 function pickerItemCard(item: EquipmentItem, equippedId?: string): HTMLElement {
@@ -1181,10 +1260,14 @@ function renderEndgame(): void {
   const route = $("#endgame-route");
   route.replaceChildren(...ENDGAME_ACTIVITIES.map((activity) => {
     const availability = game!.availability(activity);
-    const card = element("article", `activity-card endgame${availability.unlocked ? "" : " locked"}`);
+    const crownLeague = activity.id === "crown-league";
+    const registeredDay = crownLeague ? game!.registeredCrownLeagueDay() : undefined;
+    const registration = crownLeague ? game!.crownLeagueRegistrationAvailability() : undefined;
+    const canAct = availability.unlocked || Boolean(registration?.unlocked);
+    const card = element("article", `activity-card endgame${canAct || registeredDay ? "" : " locked"}${registeredDay ? " registered" : ""}`);
     card.style.setProperty("--activity-accent", activity.accent);
-    const label = activity.id === "crown-league" ? game!.crownLeagueTier().name.toUpperCase() : "ПОСЛЕДОВАТЕЛЬНЫЙ ВЫЗОВ";
-    const reward = activity.id === "crown-league"
+    const label = crownLeague ? game!.crownLeagueTier().name.toUpperCase() : "ПОСЛЕДОВАТЕЛЬНЫЙ ВЫЗОВ";
+    const reward = crownLeague
       ? `${game!.heroEliteRank() ? `место #${game!.heroEliteRank()} · ` : "квалификация · "}${game!.save.hero.crownLeagueWins} побед в лиге`
       : `${game!.save.hero.legendHuntWins} побед в охоте · ${game!.save.hero.legendDefenses} защит титула`;
     card.append(
@@ -1194,11 +1277,23 @@ function renderEndgame(): void {
       element("div", "activity-levels", reward),
       element("div", "activity-state", availability.reason),
     );
-    const button = element("button", "button activity-button", availability.unlocked
-      ? activity.id === "crown-league" ? `Начать турнир на ${30} бойцов` : "Бросить следующий вызов"
-      : "Закрыто");
-    button.disabled = !availability.unlocked;
-    button.addEventListener("click", () => startEndgame(activity.id));
+    const buttonLabel = crownLeague
+      ? availability.unlocked
+        ? `Начать турнир на ${30} бойцов`
+        : registeredDay && registeredDay > game!.save.worldDay
+          ? `Записан на день ${registeredDay}`
+          : registration?.unlocked
+            ? `Записаться на день ${game!.nextCrownLeagueDay()}`
+            : "Закрыто"
+      : availability.unlocked ? "Бросить следующий вызов" : "Закрыто";
+    const button = element("button", "button activity-button", buttonLabel);
+    button.disabled = crownLeague
+      ? !availability.unlocked && !registration?.unlocked
+      : !availability.unlocked;
+    button.addEventListener("click", () => {
+      if (crownLeague && !availability.unlocked) registerForCrownLeague();
+      else startEndgame(activity.id);
+    });
     card.append(button);
     return card;
   }));
@@ -1453,7 +1548,9 @@ function markUsedBattleSkill(actorId: string, skillId?: string): void {
 }
 
 function captureBattleEquipment(): void {
+  hideLootReminder();
   battleEquipmentBefore = game ? { ...game.save.hero.equipped } : null;
+  battleInventoryBefore = game ? new Set(game.save.hero.inventory.map((item) => item.id)) : null;
 }
 
 function startActivity(activityId: string): void {
@@ -1652,12 +1749,13 @@ function finishBattlePlayback(): void {
   if (finalTournamentBattle) lines.push(`Чемпион: ${currentTournament!.championName}`);
   copy.append(element("p", "", lines.join(" · ")));
   $("#close-battle").textContent = hasNextTournamentBattle ? "Следующий бой" : "Вернуться на карту";
-  const rewardItem = !hasNextTournamentBattle ? finalRewards.item : undefined;
+  const inventoryBefore = battleInventoryBefore;
+  const newlyAcquiredItems = !hasNextTournamentBattle && game && inventoryBefore
+    ? game.save.hero.inventory.filter((item) => !inventoryBefore.has(item.id))
+    : [];
+  if (newlyAcquiredItems.length === 0 && !hasNextTournamentBattle && finalRewards.item) newlyAcquiredItems.push(finalRewards.item);
   renderAll();
-  if (rewardItem && game) {
-    const equippedBefore = battleEquipmentBefore?.[rewardItem.slot] ?? null;
-    showLootReminder(rewardItem, equippedBefore);
-  }
+  showLootReminders(newlyAcquiredItems, battleEquipmentBefore);
 }
 
 function skipBattle(): void {
@@ -1675,7 +1773,7 @@ function closeBattle(): void {
     openBattleReport(currentTournament.heroBattles[tournamentBattleIndex]);
     return;
   }
-  currentReport = null; currentTournament = null; battleEquipmentBefore = null; $("#battle-overlay").hidden = true; $("#tournament-panel").hidden = true; document.body.classList.remove("battle-open");
+  currentReport = null; currentTournament = null; battleEquipmentBefore = null; battleInventoryBefore = null; $("#battle-overlay").hidden = true; $("#tournament-panel").hidden = true; document.body.classList.remove("battle-open");
   renderAll(); showPage(battleReturnPage, false);
   window.requestAnimationFrame(() => window.scrollTo({ top: battleReturnScrollY, behavior: "auto" }));
 }
@@ -1797,12 +1895,14 @@ $("#dismiss-tournament-reminder").addEventListener("click", () => {
   dismissedTournamentReminderKey = tournamentReminderKey(tournamentsScheduledToday());
   $("#tournament-reminder").hidden = true;
 });
-$("#dismiss-loot-reminder").addEventListener("click", hideLootReminder);
+$("#dismiss-loot-reminder").addEventListener("click", advanceLootReminder);
 $("#open-tournament-calendar").addEventListener("click", () => {
-  dismissedTournamentReminderKey = tournamentReminderKey(tournamentsScheduledToday());
+  const scheduled = tournamentsScheduledToday();
+  dismissedTournamentReminderKey = tournamentReminderKey(scheduled);
   $("#tournament-reminder").hidden = true;
   showPage("map");
-  window.setTimeout(() => $("#tournaments-section").scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  const target = scheduled.some((event) => event.crownLeague) ? "#endgame-section" : "#tournaments-section";
+  window.setTimeout(() => $(target).scrollIntoView({ behavior: "smooth", block: "start" }), 0);
 });
 $("#close-equipment-picker").addEventListener("click", closeEquipmentPicker);
 $("#close-equipment-comparison").addEventListener("click", closeEquipmentComparison);
