@@ -56,6 +56,7 @@ let equipmentPickerSlot: EquipmentSlot | null = null;
 let comparisonItemId: string | null = null;
 let comparisonShopIndex: number | null = null;
 let dismissedTournamentReminderKey: string | null = null;
+let lootReminderTimer: number | null = null;
 let battleTimer: number | null = null;
 let currentReport: BattleReport | null = null;
 let currentTournament: TournamentReport | null = null;
@@ -64,6 +65,7 @@ let battleTurnIndex = 0;
 let battleHealth = { hero: 0, enemy: 0 };
 let battleReturnScrollY = 0;
 let battleReturnPage = "map";
+let battleEquipmentBefore: Partial<Record<EquipmentSlot, string>> | null = null;
 let tutorialStepIndex = 0;
 const leaderboardObservers = new Map<string, IntersectionObserver>();
 
@@ -174,8 +176,8 @@ function markRankMovement(row: HTMLTableRowElement, nameCell: HTMLTableCellEleme
   if (!hasSnapshot) return;
   if (previousRank === undefined) {
     row.classList.add("rank-newcomer");
-    const marker = element("span", "rank-change newcomer", "новый");
-    marker.title = "Новый участник рейтинга с прошлого посещения";
+    const marker = element("span", "rank-change newcomer", "вошёл");
+    marker.title = "Вошёл в отображаемую сотню с прошлого посещения";
     nameCell.append(marker);
     return;
   }
@@ -716,6 +718,20 @@ function effectiveItemStats(item?: EquipmentItem): Record<ComparisonStat, number
   return stats;
 }
 
+function statComparisonRow(stat: ComparisonStat, current: number, candidate: number, className: string): HTMLElement {
+  const difference = candidate - current;
+  const state = difference > 0 ? "positive" : difference < 0 ? "negative" : "neutral";
+  const row = element("div", `${className} ${state}`);
+  const values = element("span", "stat-comparison-values");
+  values.append(element("i", "", String(current)), element("b", "", "→"), element("i", "", String(candidate)));
+  row.append(
+    element("span", "stat-comparison-label", comparisonStatLabels[stat]),
+    values,
+    element("strong", "stat-comparison-delta", difference > 0 ? `+${difference}` : String(difference)),
+  );
+  return row;
+}
+
 function equippedItemInSlot(slot: EquipmentSlot): EquipmentItem | undefined {
   if (!game) return undefined;
   const itemId = game.save.hero.equipped[slot];
@@ -789,15 +805,10 @@ function renderEquipmentComparison(): void {
   const currentStats = effectiveItemStats(equipped);
   const candidateStats = effectiveItemStats(candidate);
   const list = $("#comparison-stat-list");
-  list.replaceChildren(...comparisonStats.map((key) => {
-    const difference = candidateStats[key] - currentStats[key];
-    const row = element("div", `comparison-stat ${difference > 0 ? "positive" : difference < 0 ? "negative" : "neutral"}`);
-    row.append(element("span", "", comparisonStatLabels[key]), element("strong", "", difference > 0 ? `+${difference}` : String(difference)));
-    return row;
-  }));
+  list.replaceChildren(...comparisonStats.map((key) => statComparisonRow(key, currentStats[key], candidateStats[key], "comparison-stat")));
 
   const equip = $("#comparison-equip") as HTMLButtonElement;
-  const alreadyEquipped = equipped?.id === candidate.id;
+  const alreadyEquipped = game.save.hero.equipped[candidate.slot] === candidate.id;
   if (shopOffer) {
     equip.disabled = shopOffer.sold || game.save.hero.gold < candidate.price;
     equip.textContent = shopOffer.sold ? "Продано" : `Купить · ${candidate.price} ¤`;
@@ -823,6 +834,60 @@ function openEquipmentComparison(itemId: string, shopIndex: number | null = null
   layer.hidden = false;
   document.body.classList.add("equipment-dialog-open");
   window.setTimeout(() => ($("#close-equipment-comparison") as HTMLButtonElement).focus(), 0);
+}
+
+function hideLootReminder(): void {
+  if (lootReminderTimer !== null) window.clearTimeout(lootReminderTimer);
+  lootReminderTimer = null;
+  const reminder = $("#loot-reminder");
+  reminder.hidden = true;
+  reminder.classList.remove("is-visible");
+}
+
+function lootReminderItemContent(container: HTMLElement, item: EquipmentItem | undefined, heading: string): void {
+  container.replaceChildren(element("small", "", heading));
+  container.style.removeProperty("--rarity-color");
+  if (!item) {
+    container.append(element("strong", "", "Слот пуст"), element("p", "", "Предмет этого типа не надет."));
+    return;
+  }
+  container.style.setProperty("--rarity-color", rarityColors[item.rarity]);
+  container.append(
+    element("strong", "", item.name),
+    element("p", "", `${RARITY_LABELS[item.rarity]} · ${item.level} ур.`),
+    element("p", "loot-reminder-stats", itemStatsText(item)),
+  );
+}
+
+function showLootReminder(item: EquipmentItem, equippedItemId: string | null): void {
+  if (!game) return;
+  hideLootReminder();
+  const equipped = equippedItemId ? game.save.hero.inventory.find((candidate) => candidate.id === equippedItemId) : undefined;
+  lootReminderItemContent($("#loot-reminder-equipped"), equipped, "НАДЕТО");
+  lootReminderItemContent($("#loot-reminder-candidate"), item, "ДОБЫЧА");
+  $("#loot-reminder-title").textContent = item.name;
+
+  const currentStats = effectiveItemStats(equipped);
+  const candidateStats = effectiveItemStats(item);
+  $("#loot-reminder-difference").replaceChildren(
+    ...comparisonStats.map((stat) => statComparisonRow(stat, currentStats[stat], candidateStats[stat], "loot-reminder-stat")),
+  );
+
+  const equip = $("#loot-reminder-equip") as HTMLButtonElement;
+  const alreadyEquipped = game.save.hero.equipped[item.slot] === item.id;
+  equip.disabled = alreadyEquipped || !canHeroEquip(item);
+  equip.textContent = alreadyEquipped ? "Уже надето автоматически" : canHeroEquip(item) ? "Надеть" : "Не подходит классу";
+  equip.onclick = () => {
+    try {
+      game!.equip(item.id); persist(); renderAll(); hideLootReminder(); toast(`${item.name} экипирован.`);
+    } catch (error) { toast((error as Error).message, "error"); }
+  };
+
+  const reminder = $("#loot-reminder");
+  reminder.hidden = false;
+  void reminder.offsetWidth;
+  reminder.classList.add("is-visible");
+  lootReminderTimer = window.setTimeout(hideLootReminder, 5_000);
 }
 
 function pickerItemCard(item: EquipmentItem, equippedId?: string): HTMLElement {
@@ -1387,14 +1452,19 @@ function markUsedBattleSkill(actorId: string, skillId?: string): void {
   chip?.classList.add("used");
 }
 
+function captureBattleEquipment(): void {
+  battleEquipmentBefore = game ? { ...game.save.hero.equipped } : null;
+}
+
 function startActivity(activityId: string): void {
   if (!game) return;
+  captureBattleEquipment();
   try {
     currentTournament = null;
     currentReport = game.play(activityId);
     persist();
   } catch (error) {
-    toast((error as Error).message, "error"); return;
+    battleEquipmentBefore = null; toast((error as Error).message, "error"); return;
   }
   openBattleReport(currentReport);
 }
@@ -1409,6 +1479,7 @@ function trainHero(): void {
 
 function startEndgame(activityId: "crown-league" | "legend-hunt"): void {
   if (!game) return;
+  captureBattleEquipment();
   try {
     if (activityId === "crown-league") {
       currentTournament = game.playCrownLeague();
@@ -1419,16 +1490,17 @@ function startEndgame(activityId: "crown-league" | "legend-hunt"): void {
       currentReport = game.huntLegend();
     }
     persist();
-  } catch (error) { toast((error as Error).message, "error"); return; }
+  } catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); return; }
   if (currentTournament) renderTournamentBracket();
-  if (!currentReport) { toast("В турнирной сетке не найден бой героя.", "error"); return; }
+  if (!currentReport) { battleEquipmentBefore = null; toast("В турнирной сетке не найден бой героя.", "error"); return; }
   openBattleReport(currentReport);
 }
 
 function startLegendDefense(): void {
   if (!game) return;
+  captureBattleEquipment();
   try { currentTournament = null; currentReport = game.defendLegendTitle(); persist(); }
-  catch (error) { toast((error as Error).message, "error"); return; }
+  catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); return; }
   openBattleReport(currentReport);
 }
 
@@ -1441,31 +1513,34 @@ function confirmManualBattleTurn(): void {
 
 function startDuel(tierId?: string): void {
   if (!game) return;
+  captureBattleEquipment();
   let result;
   try { result = game.duel(tierId); persist(); renderAll(); }
-  catch (error) { toast((error as Error).message, "error"); return; }
-  if (!result.battle) return;
+  catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); return; }
+  if (!result.battle) { battleEquipmentBefore = null; return; }
   currentTournament = null; currentReport = result.battle; openBattleReport(result.battle);
 }
 
 function startBossFight(bossId: string): void {
   if (!game) return;
+  captureBattleEquipment();
   let result;
   try { result = game.fightBoss(bossId); persist(); renderAll(); }
-  catch (error) { toast((error as Error).message, "error"); return; }
-  if (!result.battle) return;
+  catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); return; }
+  if (!result.battle) { battleEquipmentBefore = null; return; }
   currentTournament = null; currentReport = result.battle; openBattleReport(result.battle);
 }
 
 function startTournament(arenaId: string): void {
   if (!game) return;
+  captureBattleEquipment();
   try { currentTournament = game.playTournament(arenaId); persist(); }
-  catch (error) { toast((error as Error).message, "error"); return; }
+  catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); return; }
   renderTournamentReminder();
   tournamentBattleIndex = 0;
   renderTournamentBracket();
   currentReport = currentTournament.heroBattles[0] ?? null;
-  if (!currentReport) { toast("Герой не попал в турнирную сетку.", "error"); return; }
+  if (!currentReport) { battleEquipmentBefore = null; toast("Герой не попал в турнирную сетку.", "error"); return; }
   openBattleReport(currentReport);
 }
 
@@ -1484,6 +1559,7 @@ function renderTournamentBracket(): void {
 }
 
 function openBattleReport(report: BattleReport): void {
+  hideLootReminder();
   if ($("#battle-overlay").hidden) {
     battleReturnScrollY = window.scrollY;
     battleReturnPage = document.querySelector<HTMLElement>(".page.active")?.id.replace("page-", "") ?? "map";
@@ -1495,7 +1571,6 @@ function openBattleReport(report: BattleReport): void {
   $("#battle-name").textContent = currentReport.activity.name;
   $("#battle-turn").textContent = "ХОД 0"; $("#battle-action").textContent = "Бойцы выходят на площадку"; $("#battle-detail").textContent = "";
   $("#battle-log").replaceChildren(); $("#battle-result").hidden = true;
-  $("#battle-quick-equip").hidden = true;
   $("#close-battle").textContent = "Вернуться на карту";
   if (!currentTournament) $("#tournament-panel").hidden = true;
   setCombatant($("#battle-hero"), currentReport.heroBefore, battleHealth.hero);
@@ -1577,23 +1652,12 @@ function finishBattlePlayback(): void {
   if (finalTournamentBattle) lines.push(`Чемпион: ${currentTournament!.championName}`);
   copy.append(element("p", "", lines.join(" · ")));
   $("#close-battle").textContent = hasNextTournamentBattle ? "Следующий бой" : "Вернуться на карту";
-  const quickEquip = $("#battle-quick-equip") as HTMLButtonElement;
   const rewardItem = !hasNextTournamentBattle ? finalRewards.item : undefined;
-  quickEquip.hidden = !rewardItem;
-  quickEquip.onclick = null;
-  if (rewardItem && game) {
-    const equipped = game.save.hero.equipped[rewardItem.slot] === rewardItem.id;
-    quickEquip.disabled = equipped;
-    quickEquip.textContent = equipped ? "Уже надето автоматически" : "Надеть добычу";
-    quickEquip.onclick = () => {
-      try {
-        game!.equip(rewardItem.id); persist(); renderAll();
-        quickEquip.disabled = true; quickEquip.textContent = "Надето";
-        toast(`${rewardItem.name} экипирован.`);
-      } catch (error) { toast((error as Error).message, "error"); }
-    };
-  }
   renderAll();
+  if (rewardItem && game) {
+    const equippedBefore = battleEquipmentBefore?.[rewardItem.slot] ?? null;
+    showLootReminder(rewardItem, equippedBefore);
+  }
 }
 
 function skipBattle(): void {
@@ -1611,7 +1675,7 @@ function closeBattle(): void {
     openBattleReport(currentTournament.heroBattles[tournamentBattleIndex]);
     return;
   }
-  currentReport = null; currentTournament = null; $("#battle-overlay").hidden = true; $("#tournament-panel").hidden = true; document.body.classList.remove("battle-open");
+  currentReport = null; currentTournament = null; battleEquipmentBefore = null; $("#battle-overlay").hidden = true; $("#tournament-panel").hidden = true; document.body.classList.remove("battle-open");
   renderAll(); showPage(battleReturnPage, false);
   window.requestAnimationFrame(() => window.scrollTo({ top: battleReturnScrollY, behavior: "auto" }));
 }
@@ -1733,6 +1797,7 @@ $("#dismiss-tournament-reminder").addEventListener("click", () => {
   dismissedTournamentReminderKey = tournamentReminderKey(tournamentsScheduledToday());
   $("#tournament-reminder").hidden = true;
 });
+$("#dismiss-loot-reminder").addEventListener("click", hideLootReminder);
 $("#open-tournament-calendar").addEventListener("click", () => {
   dismissedTournamentReminderKey = tournamentReminderKey(tournamentsScheduledToday());
   $("#tournament-reminder").hidden = true;

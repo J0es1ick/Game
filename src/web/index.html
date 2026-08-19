@@ -285,6 +285,21 @@
       <button class="plain-button tournament-reminder-map" id="open-tournament-calendar" type="button">Открыть календарь турниров</button>
     </aside>
 
+    <aside class="loot-reminder" id="loot-reminder" hidden aria-live="assertive" aria-labelledby="loot-reminder-title">
+      <header>
+        <div><p class="eyebrow">ПОЛУЧЕНА ДОБЫЧА</p><h2 id="loot-reminder-title">Сравнить предмет</h2></div>
+        <button class="dialog-close" id="dismiss-loot-reminder" type="button" aria-label="Закрыть уведомление">×</button>
+      </header>
+      <div class="loot-reminder-items">
+        <article id="loot-reminder-equipped"></article>
+        <span aria-hidden="true">→</span>
+        <article id="loot-reminder-candidate"></article>
+      </div>
+      <div class="loot-reminder-difference" id="loot-reminder-difference"></div>
+      <button class="button primary" id="loot-reminder-equip" type="button">Надеть</button>
+      <i class="loot-reminder-timebar" aria-hidden="true"></i>
+    </aside>
+
     <section class="tutorial-layer" id="tutorial-layer" hidden role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
       <div class="tutorial-dialog">
         <header><div><p class="eyebrow">КРАТКОЕ ОБУЧЕНИЕ</p><h2 id="tutorial-title">Добро пожаловать</h2></div><span id="tutorial-progress">1 / 5</span></header>
@@ -344,7 +359,7 @@
         <div class="battle-skills" id="battle-skills"><div data-fighter="hero"><strong>Навыки героя</strong><div></div></div><div data-fighter="enemy"><strong>Навыки противника</strong><div></div></div></div>
         <div class="battle-log" id="battle-log"></div>
         <div class="battle-controls"><label>Скорость боя<select id="battle-speed"><option value="900">Медленно</option><option value="450" selected>Обычно</option><option value="160">Быстро</option></select></label><button class="plain-button" id="manual-battle-step" type="button" hidden>Выполнить ход</button><button class="plain-button" id="skip-battle">Пропустить бой</button></div>
-        <footer class="battle-result" id="battle-result" hidden><div></div><div class="battle-result-actions"><button class="plain-button" id="battle-quick-equip" type="button" hidden>Надеть добычу</button><button class="button primary" id="close-battle">Вернуться на карту</button></div></footer>
+        <footer class="battle-result" id="battle-result" hidden><div></div><div class="battle-result-actions"><button class="button primary" id="close-battle">Вернуться на карту</button></div></footer>
       </div>
     </section>
 

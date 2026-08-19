@@ -168,7 +168,8 @@
   .page-heading > p {
     margin-top: 15px;
   }
-  .tournament-reminder {
+  .tournament-reminder,
+  .loot-reminder {
     top: 16px;
     right: 16px;
   }
@@ -300,7 +301,8 @@
   .main-nav button {
     padding: 0 13px;
   }
-  .tournament-reminder {
+  .tournament-reminder,
+  .loot-reminder {
     top: 10px;
     right: 10px;
     width: calc(100vw - 20px);
@@ -314,6 +316,15 @@
   }
   .tournament-reminder-item .button {
     width: 100%;
+  }
+  .loot-reminder-items {
+    grid-template-columns: 1fr;
+  }
+  .loot-reminder-items > span {
+    display: none;
+  }
+  .loot-reminder-difference {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .map-shortcuts {
     display: grid;

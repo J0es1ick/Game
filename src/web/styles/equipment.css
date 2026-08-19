@@ -385,6 +385,128 @@
   width: 100%;
   margin-top: 10px;
 }
+.loot-reminder {
+  position: fixed;
+  z-index: 90;
+  top: 92px;
+  right: 24px;
+  width: min(520px, calc(100vw - 32px));
+  padding: 17px;
+  overflow: hidden;
+  border: 1px solid #6f6655;
+  border-top: 6px solid var(--green);
+  background: #efe7d6;
+  box-shadow: 9px 10px 0 rgba(27, 23, 18, 0.34);
+}
+.loot-reminder.is-visible {
+  animation: reminder-in 220ms ease-out;
+}
+.loot-reminder > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.loot-reminder h2 {
+  max-width: 420px;
+  margin: 2px 0 11px;
+  overflow-wrap: anywhere;
+  font-size: 21px;
+  line-height: 1.08;
+}
+.loot-reminder-items {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: 7px;
+}
+.loot-reminder-items > span {
+  align-self: center;
+  color: var(--muted);
+  font-size: 19px;
+}
+.loot-reminder-items article {
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid #aaa08c;
+  border-top: 4px solid var(--rarity-color, #8b877c);
+  background: #e1d8c7;
+}
+.loot-reminder-items small,
+.loot-reminder-items strong,
+.loot-reminder-items p {
+  display: block;
+}
+.loot-reminder-items small {
+  margin-bottom: 5px;
+  color: var(--muted);
+  font: 9px/1.2 "Courier New", monospace;
+}
+.loot-reminder-items strong {
+  overflow-wrap: anywhere;
+  font: 700 13px/1.15 "Inter Tight", sans-serif;
+}
+.loot-reminder-items p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.25;
+}
+.loot-reminder-items .loot-reminder-stats {
+  color: var(--text);
+  font-family: "Courier New", monospace;
+}
+.loot-reminder-difference {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 4px;
+  margin: 10px 0;
+}
+.loot-reminder-stat {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  padding: 7px;
+  border: 1px solid #aaa08c;
+  background: #e7dfd0;
+}
+.loot-reminder-stat.positive {
+  border-color: #8da48a;
+  background: #dbe4d6;
+}
+.loot-reminder-stat.negative {
+  border-color: #bc8d82;
+  background: #ead5cf;
+}
+.loot-reminder-stat .stat-comparison-label {
+  color: #625b50;
+  font: 8px/1 "Courier New", monospace;
+}
+.loot-reminder-stat .stat-comparison-values {
+  font-size: 9px;
+}
+.loot-reminder-stat .stat-comparison-delta {
+  font-size: 13px;
+}
+.loot-reminder > .button {
+  width: 100%;
+}
+.loot-reminder-timebar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  background: var(--green);
+  transform-origin: left center;
+}
+.loot-reminder.is-visible .loot-reminder-timebar {
+  animation: loot-reminder-life 5s linear forwards;
+}
+@keyframes loot-reminder-life {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
 @keyframes reminder-in {
   from { opacity: 0; transform: translateY(-12px); }
   to { opacity: 1; transform: translateY(0); }
@@ -632,11 +754,11 @@ body.equipment-dialog-open {
   gap: 5px;
 }
 .comparison-stat {
-  display: flex;
-  min-height: 48px;
+  display: grid;
+  min-height: 68px;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
-  gap: 7px;
+  gap: 6px;
   padding: 8px;
   border: 1px solid #aaa08d;
   background: #e7dfd0;
@@ -649,6 +771,32 @@ body.equipment-dialog-open {
     700 14px "Inter Tight",
     sans-serif;
 }
+.stat-comparison-label {
+  grid-column: 1 / -1;
+  font-weight: 700;
+}
+.stat-comparison-values {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  color: #655f54;
+  font-family: "Courier New", monospace;
+  white-space: nowrap;
+}
+.stat-comparison-values i {
+  font-style: normal;
+}
+.stat-comparison-values b {
+  color: #8b8273;
+  font-weight: normal;
+}
+.stat-comparison-delta {
+  justify-self: end;
+  padding: 3px 5px;
+  border: 1px solid currentColor;
+  line-height: 1;
+}
 .comparison-stat.positive {
   color: #385b42;
   background: #dbe4d6;
@@ -658,6 +806,15 @@ body.equipment-dialog-open {
   background: #e8d5ce;
 }
 .comparison-stat.neutral {
+  color: #777064;
+}
+.loot-reminder-stat.positive .stat-comparison-delta {
+  color: #2f6841;
+}
+.loot-reminder-stat.negative .stat-comparison-delta {
+  color: #9a372f;
+}
+.loot-reminder-stat.neutral .stat-comparison-delta {
   color: #777064;
 }
 .comparison-note {
