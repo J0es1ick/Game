@@ -318,9 +318,50 @@ describe("постоянный RPG-мир", () => {
     game.simulateElapsed(1_000 + 600_000 * 4);
     ARENAS.forEach((arena, arenaIndex) => {
       const local = game.save.enemies.filter((enemy) => enemy.alive && enemy.arenaIndex === arenaIndex);
-      expect(local.length).toBeGreaterThanOrEqual(16);
+      expect(local.length).toBeGreaterThanOrEqual(12);
       expect(local.every((enemy) => enemy.level >= arena.enemyLevel[0] || enemy.wins > 0)).toBe(true);
     });
+  });
+
+  test("не заменяет большую часть сотни лучших после длительной фоновой симуляции", () => {
+    let state = 0x2f6e2b1;
+    const random = jest.spyOn(Math, "random").mockImplementation(() => {
+      state = (state * 1664525 + 1013904223) >>> 0;
+      return state / 0x1_0000_0000;
+    });
+
+    try {
+      const game = WorldGame.create("Летописец", "Knight", 1_000);
+      const initialEnemyIds = new Set(game.save.enemies.map((enemy) => enemy.id));
+      const previousTop = new Set(game.leaderboard().map((entry) => entry.id));
+
+      expect(game.simulateElapsed(1_000 + 600_000 * 14)).toBe(14);
+
+      const currentTop = game.leaderboard();
+      const retained = currentTop.filter((entry) => previousTop.has(entry.id)).length;
+      const enteredTop = currentTop.filter((entry) => !previousTop.has(entry.id)).length;
+      const recruits = game.save.enemies.filter((enemy) => !initialEnemyIds.has(enemy.id));
+
+      expect(retained).toBeGreaterThanOrEqual(75);
+      expect(enteredTop).toBeLessThanOrEqual(25);
+      expect(recruits.every((enemy) => enemy.tournamentWins <= 12)).toBe(true);
+    } finally {
+      random.mockRestore();
+    }
+  });
+
+  test("не создаёт новых бойцов только из-за перезагрузки сохранения", () => {
+    const game = WorldGame.create("Хранитель", "Archer", 1_000);
+    const elite = new Set(game.save.eliteLeagueMemberIds);
+    ARENAS.forEach((_, arenaIndex) => {
+      const fighter = game.save.enemies.find((enemy) => enemy.alive && enemy.arenaIndex === arenaIndex && !elite.has(enemy.id));
+      if (fighter) fighter.alive = false;
+    });
+    const idsBeforeRestore = game.save.enemies.map((enemy) => enemy.id);
+
+    const restored = WorldGame.restore(game.save);
+
+    expect(restored.save.enemies.map((enemy) => enemy.id)).toEqual(idsBeforeRestore);
   });
 
   test("учитывает экипировку в итоговых характеристиках", () => {

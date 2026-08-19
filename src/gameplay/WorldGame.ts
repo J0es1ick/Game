@@ -52,6 +52,9 @@ const LEGEND_COUNT = 5;
 const FINAL_ARENA_INTERVAL = ARENAS[ARENAS.length - 1]?.tournamentInterval ?? 14;
 const CROWN_LEAGUE_INTERVAL = FINAL_ARENA_INTERVAL * 2;
 const CROWN_SET_ID = "crown-sovereign";
+const ARENA_POPULATION_TARGET = 16;
+const ARENA_POPULATION_FLOOR = 12;
+const BACKGROUND_LETHALITY_SCALE = 0.14;
 export const CLASS_CHANGE_GOLD_COST = 25_000;
 export const CLASS_CHANGE_MARK_COST = 5;
 
@@ -97,7 +100,7 @@ export class WorldGame {
     });
     game.ensureEliteLeague();
     game.syncCrownSet();
-    game.ensurePopulations();
+    game.ensurePopulations(true);
     game.rotateShop();
     game.event("system", `${hero.name} начал путь в Нижнем городе.`);
     return game;
@@ -150,7 +153,7 @@ export class WorldGame {
     game.save.enemies.forEach((enemy) => { enemy.rating = game.enemyWorldRating(enemy); });
     game.ensureEliteLeague();
     game.syncCrownSet();
-    game.ensurePopulations();
+    game.ensurePopulations(false, false);
     game.save.shopOffers.forEach((offer) => { offer.item.price = calculateItemPrice(offer.item.level, offer.item.rarity); });
     game.cleanupVisualTestCatalog();
     game.recalculateHeroRating();
@@ -167,7 +170,6 @@ export class WorldGame {
         this.save.worldDay += 1;
       }
       this.save.lastSimulatedAt = now;
-      this.ensurePopulations();
       this.event("system", `Пока вас не было, мир прожил ${elapsedDays} дн. Все арены, данжи и турниры продолжали работать.`);
       this.refreshShopIfNeeded();
     }
@@ -366,7 +368,7 @@ export class WorldGame {
     const eventsBefore = this.save.events.length;
     const pool = this.save.enemies.filter((enemy) => enemy.alive && enemy.arenaIndex === arenaIndex)
       .sort((a, b) => Math.abs(this.enemyPower(a) - this.heroPower()) - Math.abs(this.enemyPower(b) - this.heroPower()));
-    while (pool.length < arena.participants - 1) { const enemy = this.createEnemy(arenaIndex); this.save.enemies.push(enemy); pool.push(enemy); }
+    while (pool.length < arena.participants - 1) { const enemy = this.createEnemy(arenaIndex, true); this.save.enemies.push(enemy); pool.push(enemy); }
     const selected = this.shuffle(pool.slice(0, arena.participants - 1));
     let participants: Array<HeroProfile | EnemyProfile> = this.shuffle([this.save.hero, ...selected]);
     const matches: TournamentMatch[] = [];
@@ -1073,10 +1075,11 @@ export class WorldGame {
     return levels;
   }
 
-  private createEnemy(arenaIndex: number): EnemyProfile {
+  private createEnemy(arenaIndex: number, newcomer = false): EnemyProfile {
     const arena = ARENAS[arenaIndex];
     const classId = pick(classes);
-    const level = randomInt(arena.enemyLevel[0], arena.enemyLevel[1]);
+    const newcomerLevelCeiling = Math.min(arena.enemyLevel[1], arena.enemyLevel[0] + Math.max(1, Math.ceil((arena.enemyLevel[1] - arena.enemyLevel[0]) * 0.3)));
+    const level = randomInt(arena.enemyLevel[0], newcomer ? newcomerLevelCeiling : arena.enemyLevel[1]);
     const gearCount = Math.min(6, 2 + Math.floor(level / 5));
     const equipment = Array.from({ length: gearCount }, (_, index) => createItem(level, {
       classId, slot: (["weapon", "offhand", "chest", "head", "hands", "feet"] as EquipmentSlot[])[index],
@@ -1085,13 +1088,17 @@ export class WorldGame {
     const equipped: EnemyProfile["equipped"] = {};
     equipment.forEach((item) => { equipped[item.slot] = item.id; });
     const name = `${pick(enemyNames)} ${String.fromCharCode(65 + randomInt(0, 20))}.`;
+    const wins = newcomer ? randomInt(0, Math.max(1, arenaIndex)) : randomInt(arenaIndex * 3, arenaIndex * 9 + 5);
+    const tournamentWins = newcomer ? randomInt(0, Math.max(0, Math.floor(arenaIndex / 2))) : randomInt(arenaIndex * 4, arenaIndex * 12 + 6);
     const enemy: EnemyProfile = {
       id: uid("enemy"), name, title: pick(enemyTitles), origin: pick(enemyOrigins), classId, level,
-      experience: randomInt(0, 80 + level * 20), rating: 0, wins: randomInt(arenaIndex * 3, arenaIndex * 9 + 5),
-      tournamentWins: randomInt(arenaIndex * 4, arenaIndex * 12 + 6), kills: randomInt(0, Math.max(0, arenaIndex * 2)),
-      losses: randomInt(0, 5), arenaIndex, arenaWins: randomInt(0, Math.max(1, arenaIndex)), alive: true,
+      experience: newcomer ? randomInt(0, 35 + level * 4) : randomInt(0, 80 + level * 20), rating: 0, wins,
+      tournamentWins, kills: newcomer ? 0 : randomInt(0, Math.max(0, arenaIndex * 2)),
+      losses: newcomer ? randomInt(0, 1) : randomInt(0, 5), arenaIndex,
+      arenaWins: newcomer ? 0 : randomInt(0, Math.max(1, arenaIndex)), alive: true,
       equipment, equipped, history: [`Начал путь: ${arena.name}.`],
     };
+    if (newcomer) enemy.history = [`Прибыл на арену «${arena.name}» в день ${this.save.worldDay}.`];
     enemy.rating = this.enemyWorldRating(enemy);
     return enemy;
   }
@@ -1110,7 +1117,7 @@ export class WorldGame {
     const eligible = localFighters.filter((enemy) => enemy.level >= minLevel && enemy.level <= maxLevel);
     const pool = eligible.length > 0 ? eligible : localFighters;
     if (pool.length === 0) {
-      const enemy = this.createEnemy(arenaIndex);
+      const enemy = this.createEnemy(arenaIndex, true);
       this.save.enemies.push(enemy);
       return enemy;
     }
@@ -1197,7 +1204,7 @@ export class WorldGame {
       winner.wins += 1; winner.arenaWins += 1; winner.experience += 70 + arenaIndex * 22;
       loser.losses += 1;
       if (recordEvents) this.event("battle", `${winner.name} победил ${loser.name} на арене «${ARENAS[arenaIndex].name}».`);
-      const lethal = Math.random() < ARENAS[arenaIndex].lethalChance * 0.45;
+      const lethal = Math.random() < ARENAS[arenaIndex].lethalChance * BACKGROUND_LETHALITY_SCALE;
       if (lethal) {
         winner.kills += 1;
         loser.alive = false; loser.history.push(`Погиб в фоновом бою против ${winner.name}.`);
@@ -1334,7 +1341,6 @@ export class WorldGame {
   private completeDay(skipTournamentArenaId?: string): void {
     this.simulateDailyWorld(skipTournamentArenaId);
     this.save.worldDay += 1;
-    this.ensurePopulations();
     this.refreshShopIfNeeded();
     this.save.lastSimulatedAt = Date.now();
     Object.entries(this.save.tournamentRegistrations).forEach(([arenaId, day]) => {
@@ -1357,11 +1363,17 @@ export class WorldGame {
     enemy.rating = this.enemyWorldRating(enemy);
   }
 
-  private ensurePopulations(): void {
+  private ensurePopulations(fillImmediately = false, allowRoutineRecruitment = true): void {
     const eliteIds = new Set(this.save.eliteLeagueMemberIds);
     ARENAS.forEach((_, arenaIndex) => {
       const alive = this.save.enemies.filter((enemy) => enemy.alive && enemy.arenaIndex === arenaIndex && !eliteIds.has(enemy.id)).length;
-      for (let index = alive; index < 16; index += 1) this.save.enemies.push(this.createEnemy(arenaIndex));
+      const missing = Math.max(0, ARENA_POPULATION_TARGET - alive);
+      const emergencyRecruitment = Math.max(0, ARENA_POPULATION_FLOOR - alive);
+      const routineRecruitment = allowRoutineRecruitment ? Math.min(1, missing) : 0;
+      const recruits = fillImmediately ? missing : Math.max(emergencyRecruitment, routineRecruitment);
+      for (let index = 0; index < recruits; index += 1) {
+        this.save.enemies.push(this.createEnemy(arenaIndex, !fillImmediately));
+      }
     });
     if (this.save.enemies.length > 260) {
       const encounteredIds = new Set(Object.keys(this.save.hero.rivalries));
