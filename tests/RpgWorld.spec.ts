@@ -159,6 +159,11 @@ describe("постоянный RPG-мир", () => {
     game.save.enemies.filter((enemy) => eliteIds.has(enemy.id)).forEach((enemy) => {
       enemy.level = 1; enemy.equipment = []; enemy.equipped = {};
     });
+    const crownLeagueInterval = ARENAS[ARENAS.length - 1].tournamentInterval * 2;
+    game.save.worldDay = ARENAS[ARENAS.length - 1].tournamentInterval;
+    expect(game.crownLeagueAvailability().unlocked).toBe(false);
+    expect(game.crownLeagueAvailability().reason).toContain(`день ${crownLeagueInterval}`);
+    game.save.worldDay = crownLeagueInterval;
     expect(game.crownLeagueAvailability().unlocked).toBe(true);
     const beforeDay = game.save.worldDay;
     const report = game.playCrownLeague();
@@ -174,6 +179,47 @@ describe("постоянный RPG-мир", () => {
     ].slice(0, 30);
     game.save.lastLegendHuntDay = undefined;
     expect(game.legendHuntAvailability().reason).toContain("Следующая ступень: #5");
+  });
+
+  test("выдаёт регалии короны только при смене владельца и не надевает их без разрешения", () => {
+    const game = WorldGame.create("Регент", "Knight", 1_000);
+    const equippedBefore = { ...game.save.hero.equipped };
+    game.save.eliteLeagueMemberIds = ["hero", ...game.save.eliteLeagueMemberIds.filter((id) => id !== "hero")].slice(0, 30);
+    game.save.crownSetOwnerId = undefined;
+    game.save.hero.autoEquipBest = false;
+
+    const restored = WorldGame.restore(JSON.parse(JSON.stringify(game.save)));
+    const crownItems = restored.save.hero.inventory.filter((item) => item.setId === "crown-sovereign");
+    expect(crownItems).toHaveLength(6);
+    expect(restored.save.hero.equipped).toEqual(equippedBefore);
+    expect(restored.heroRank()).toBeUndefined();
+    expect(restored.heroEliteRank()).toBe(1);
+
+    const inventorySize = restored.save.hero.inventory.length;
+    restored.eliteLeaderboard();
+    restored.eliteLeaderboard();
+    expect(restored.save.hero.inventory).toHaveLength(inventorySize);
+    expect(() => restored.sell(crownItems[0].id)).toThrow("нельзя продать");
+
+    const restoredAgain = WorldGame.restore(JSON.parse(JSON.stringify(restored.save)));
+    expect(restoredAgain.save.hero.inventory.filter((item) => item.setId === "crown-sovereign")).toHaveLength(6);
+  });
+
+  test("массово продаёт только ненадетые обычные предметы", () => {
+    const game = WorldGame.create("Купец", "Knight", 1_000);
+    const extra = createItem(3, { classId: "Knight", rarity: "rare" });
+    game.save.shopOffers = [{ item: extra, sold: false }];
+    game.save.hero.gold = extra.price;
+    game.buy(0);
+    const equippedIds = new Set(Object.values(game.save.hero.equipped));
+    const expectedCount = game.save.hero.inventory.filter((item) => !equippedIds.has(item.id) && game.canSell(item.id)).length;
+    const goldBefore = game.save.hero.gold;
+
+    const result = game.sellUnequipped();
+    expect(result.count).toBe(expectedCount);
+    expect(result.value).toBeGreaterThan(0);
+    expect(game.save.hero.gold).toBe(goldBefore + result.value);
+    expect(game.save.hero.inventory.every((item) => equippedIds.has(item.id) || !game.canSell(item.id))).toBe(true);
   });
 
   test("позволяет позднему герою сменить класс без потери уровня и инвентаря", () => {

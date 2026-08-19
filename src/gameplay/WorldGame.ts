@@ -7,6 +7,7 @@ import {
   DUNGEONS,
   ENDGAME_ACTIVITIES,
   EQUIPMENT_SETS,
+  ITEM_TEMPLATES,
   RARITY_LABELS,
   RARITY_ORDER,
   SKILLS,
@@ -48,7 +49,8 @@ const classes = Object.keys(CLASS_DEFINITIONS) as HeroClass[];
 const VISUAL_TEST_CATALOG_CLEANUP_MIGRATION = "remove-visual-test-catalog-v1";
 const ELITE_SIZE = 30;
 const LEGEND_COUNT = 5;
-const CROWN_LEAGUE_INTERVAL = 7;
+const FINAL_ARENA_INTERVAL = ARENAS[ARENAS.length - 1]?.tournamentInterval ?? 14;
+const CROWN_LEAGUE_INTERVAL = FINAL_ARENA_INTERVAL * 2;
 const CROWN_SET_ID = "crown-sovereign";
 export const CLASS_CHANGE_GOLD_COST = 25_000;
 export const CLASS_CHANGE_MARK_COST = 5;
@@ -87,13 +89,14 @@ export class WorldGame {
       version: 2, migrations: [], hero, enemies: [], worldDay: 1, lastSimulatedAt: now,
       dungeonClears: {}, shopDay: 1, shopOffers: [],
       discoveredItems: starter.inventory.map((item) => item.templateId), tournamentRegistrations: {}, defeatedBosses: [],
-      huntedLegendIds: [], eliteLeagueMemberIds: [], eliteRatings: {}, eliteCrownWins: {}, events: [],
+      huntedLegendIds: [], eliteLeagueMemberIds: [], eliteRatings: {}, eliteCrownWins: {}, tutorialCompleted: false, events: [],
     };
     const game = new WorldGame(save);
     ARENAS.forEach((_, arenaIndex) => {
       for (let index = 0; index < 19; index += 1) game.save.enemies.push(game.createEnemy(arenaIndex));
     });
     game.ensureEliteLeague();
+    game.syncCrownSet();
     game.ensurePopulations();
     game.rotateShop();
     game.event("system", `${hero.name} начал путь в Нижнем городе.`);
@@ -111,6 +114,9 @@ export class WorldGame {
     game.save.eliteLeagueMemberIds ??= [];
     game.save.eliteRatings ??= {};
     game.save.eliteCrownWins ??= {};
+    // Older saves have already entered the world, even if they were created
+    // before the tutorial acquired an explicit "seen" marker.
+    game.save.tutorialCompleted = true;
     const hero = game.save.hero;
     hero.inventory.forEach((item) => {
       item.name = item.name.replace(/^\[3D-прототип\]\s*/, "");
@@ -143,6 +149,7 @@ export class WorldGame {
     });
     game.save.enemies.forEach((enemy) => { enemy.rating = game.enemyWorldRating(enemy); });
     game.ensureEliteLeague();
+    game.syncCrownSet();
     game.ensurePopulations();
     game.save.shopOffers.forEach((offer) => { offer.item.price = calculateItemPrice(offer.item.level, offer.item.rarity); });
     game.cleanupVisualTestCatalog();
@@ -459,12 +466,32 @@ export class WorldGame {
       return { unlocked: false, reason: `Сначала станьте чемпионом турнира «${ARENAS[finalArenaIndex].name}».` };
     }
     const eliteRank = this.heroEliteRank();
-    if (eliteRank) return { unlocked: true, reason: `Место в элите: #${eliteRank}. Вы входите в сетку из ${ELITE_SIZE} бойцов.` };
     const ordinaryRank = this.heroRank();
-    if (ordinaryRank < 1 || ordinaryRank > 2) {
-      return { unlocked: false, reason: `Для квалификации нужно место #1–2 обычного рейтинга. Сейчас: #${ordinaryRank || "—"}.` };
+    let qualification: string;
+    if (eliteRank) qualification = `Место в элите: #${eliteRank}. Вы входите в сетку из ${ELITE_SIZE} бойцов.`;
+    else {
+      if (!ordinaryRank || ordinaryRank > 2) {
+        return { unlocked: false, reason: `Для квалификации нужно место #1–2 обычного рейтинга. Сейчас: #${ordinaryRank || "—"}.` };
+      }
+      qualification = `Квалификация с места #${ordinaryRank}: только чемпион турнира войдёт в элиту.`;
     }
-    return { unlocked: true, reason: `Квалификация с места #${ordinaryRank}: только чемпион турнира войдёт в элиту.` };
+
+    const remainder = this.save.worldDay % CROWN_LEAGUE_INTERVAL;
+    const lastLeagueDay = this.save.lastCrownLeagueDay;
+    if (remainder !== 0) {
+      const nextLeagueDay = this.save.worldDay + CROWN_LEAGUE_INTERVAL - remainder;
+      return {
+        unlocked: false,
+        reason: `${qualification} Лига проводится раз в ${CROWN_LEAGUE_INTERVAL} дней; следующая — в день ${nextLeagueDay}.`,
+      };
+    }
+    if (lastLeagueDay === this.save.worldDay) {
+      return {
+        unlocked: false,
+        reason: `Сегодняшняя Лига уже завершена. Следующая — в день ${this.save.worldDay + CROWN_LEAGUE_INTERVAL}.`,
+      };
+    }
+    return { unlocked: true, reason: `${qualification} Сегодня день Лиги короны.` };
   }
 
   public legendHuntAvailability(): ActivityAvailability {
@@ -490,7 +517,6 @@ export class WorldGame {
   }
 
   public eliteLeaderboard(): LeaderboardEntry[] {
-    this.ensureEliteLeague();
     return this.save.eliteLeagueMemberIds
       .map((id) => this.leaderboardEntry(id, true))
       .filter((entry): entry is LeaderboardEntry => Boolean(entry));
@@ -763,10 +789,28 @@ export class WorldGame {
     const item = this.save.hero.inventory.find((candidate) => candidate.id === itemId);
     if (!item) return 0;
     if (Object.values(this.save.hero.equipped).includes(itemId)) throw new Error("Сначала снимите предмет.");
+    if (!this.canSell(itemId)) throw new Error("Регалии живой короны нельзя продать, пока они принадлежат лидеру элиты.");
     const value = Math.max(1, Math.round(item.price * 0.45));
     this.save.hero.inventory = this.save.hero.inventory.filter((candidate) => candidate.id !== itemId);
     this.save.hero.gold += value;
     return value;
+  }
+
+  public canSell(itemId: string): boolean {
+    const item = this.save.hero.inventory.find((candidate) => candidate.id === itemId);
+    if (!item) return false;
+    const template = ITEM_TEMPLATES.find((candidate) => candidate.id === item.templateId);
+    return !template?.exclusiveToElite;
+  }
+
+  public sellUnequipped(): { count: number; value: number } {
+    const equippedIds = new Set(Object.values(this.save.hero.equipped));
+    const sellable = this.save.hero.inventory.filter((item) => !equippedIds.has(item.id) && this.canSell(item.id));
+    const ids = new Set(sellable.map((item) => item.id));
+    const value = sellable.reduce((total, item) => total + Math.max(1, Math.round(item.price * 0.45)), 0);
+    this.save.hero.inventory = this.save.hero.inventory.filter((item) => !ids.has(item.id));
+    this.save.hero.gold += value;
+    return { count: sellable.length, value };
   }
 
   public buy(index: number): EquipmentItem {
@@ -806,8 +850,9 @@ export class WorldGame {
     return this.leaderboardAll().slice(0, 100);
   }
 
-  public heroRank(): number {
-    return this.leaderboardAll().findIndex((entry) => entry.id === "hero") + 1;
+  public heroRank(): number | undefined {
+    const index = this.leaderboardAll().findIndex((entry) => entry.id === "hero");
+    return index >= 0 ? index + 1 : undefined;
   }
 
   private leaderboardAll(): LeaderboardEntry[] {
@@ -871,7 +916,6 @@ export class WorldGame {
       this.save.eliteRatings[id] ??= 6200 - index * 45 + (fighter ? Math.round((fighter.level + (id === "hero" ? this.heroPower() : this.enemyPower(fighter as EnemyProfile))) / 8) : 0);
       this.save.eliteCrownWins[id] ??= 0;
     });
-    this.syncCrownSet();
   }
 
   private adjustEliteRating(id: string, amount: number): void {
@@ -928,15 +972,17 @@ export class WorldGame {
       });
     };
     strip(this.save.hero); this.save.enemies.forEach(strip);
+    if (this.save.crownSetOwnerId === leaderId) return;
     const leader = this.fighterById(leaderId);
     if (!leader) return;
     const owned = leader.id === "hero" ? (leader as HeroProfile).inventory : (leader as EnemyProfile).equipment;
     templateIds.forEach((templateId) => {
       if (owned.some((item) => item.templateId === templateId)) return;
       const item = createItem(leader.level + 4, { classId: leader.classId, templateId, rarity: "mythic" });
-      owned.push(item); leader.equipped[item.slot] = item.id;
-      if (leader.id === "hero" && !this.save.discoveredItems.includes(templateId)) this.save.discoveredItems.push(templateId);
+      if (leader.id === "hero") this.addItem(item);
+      else { owned.push(item); leader.equipped[item.slot] = item.id; }
     });
+    this.save.crownSetOwnerId = leaderId;
   }
 
   private recalculateHeroRating(): void {

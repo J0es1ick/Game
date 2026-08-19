@@ -303,6 +303,8 @@ export interface GameSave {
   eliteLeagueMemberIds: string[];
   eliteRatings: Record<string, number>;
   eliteCrownWins: Record<string, number>;
+  crownSetOwnerId?: string;
+  tutorialCompleted?: boolean;
   pendingEliteChallengeId?: string;
   events: WorldEvent[];
 }
