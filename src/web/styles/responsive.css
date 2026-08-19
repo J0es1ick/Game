@@ -23,7 +23,7 @@
 
 @media (max-width: 1180px) {
   .game-header {
-    grid-template-columns: auto 1fr auto auto;
+    grid-template-columns: auto 1fr auto auto auto;
   }
   .resources {
     display: none;
@@ -70,6 +70,9 @@
   }
   .collection-pieces {
     grid-template-columns: repeat(3, 1fr);
+  }
+  .sets-list {
+    grid-template-columns: 1fr;
   }
   .basic-workbench {
     grid-template-columns: 290px minmax(0, 1fr);
@@ -143,6 +146,10 @@
     position: static;
     grid-template-columns: 1fr auto;
     gap: 13px;
+  }
+  .game-header > .plain-button {
+    padding-inline: 8px;
+    font-size: 11px;
   }
   .main-nav { top: 0; }
   .hero-summary {
@@ -481,6 +488,63 @@
   }
   .tactic-mode-buttons {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 1181px) and (min-height: 800px) {
+  .game-shell {
+    padding-top: 28px;
+    padding-bottom: 32px;
+  }
+  .page-heading {
+    margin-bottom: 18px;
+    padding-bottom: 14px;
+  }
+  .page-heading h1 {
+    font-size: clamp(40px, 4vw, 49px);
+  }
+  .skill-tactics {
+    margin-bottom: 16px;
+  }
+  .skill-section-heading {
+    margin: 20px 0 11px;
+    padding-bottom: 9px;
+  }
+  .skill-node {
+    min-height: 164px;
+    padding: 14px;
+  }
+  .skill-node h3 {
+    margin: 12px 0 7px;
+  }
+  .skill-meta {
+    margin-top: 10px;
+  }
+  .skill-select {
+    margin-top: 10px;
+  }
+  .shopkeeper {
+    margin-bottom: 16px;
+  }
+}
+
+@media (max-width: 560px) {
+  .tutorial-layer {
+    padding: 0;
+  }
+  .tutorial-dialog {
+    min-height: 100dvh;
+    padding: 22px 16px;
+    border: 0;
+    box-shadow: none;
+  }
+  .tutorial-dialog > footer {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+  .tutorial-dialog > footer > div,
+  .tutorial-dialog > footer button {
+    width: 100%;
   }
 }
 

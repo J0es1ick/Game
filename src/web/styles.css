@@ -6,4 +6,6 @@
 @import "./styles/character.css";
 @import "./styles/progression.css";
 @import "./styles/battle.css";
+/* Shared motion language for both game modes and all overlays. */
+@import "./styles/motion.css";
 @import "./styles/responsive.css";

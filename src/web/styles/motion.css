@@ -1,0 +1,271 @@
+:root {
+  --motion-fast: 140ms;
+  --motion-base: 220ms;
+  --motion-slow: 420ms;
+  --motion-ease: cubic-bezier(0.2, 0.72, 0.25, 1);
+}
+
+button,
+a,
+select,
+input,
+.paper-panel,
+.mode-card,
+.class-option,
+.activity-card,
+.item-card,
+.skill-node,
+.set-card,
+.forge-card,
+.worn-item,
+.picker-item,
+.collection-pieces > div,
+.leader-table tbody tr {
+  transition:
+    color var(--motion-fast) ease,
+    background-color var(--motion-fast) ease,
+    border-color var(--motion-fast) ease,
+    box-shadow var(--motion-base) var(--motion-ease),
+    transform var(--motion-base) var(--motion-ease),
+    opacity var(--motion-fast) ease;
+}
+
+button:not(:disabled):active,
+.mode-card:active,
+.class-option:active {
+  transform: translateY(1px) scale(0.985);
+}
+
+.main-nav button {
+  position: relative;
+  overflow: hidden;
+}
+.main-nav button::after {
+  position: absolute;
+  right: 18px;
+  bottom: 5px;
+  left: 18px;
+  height: 2px;
+  background: #f0d397;
+  content: "";
+  opacity: 0;
+  transform: scaleX(0.25);
+  transition:
+    opacity var(--motion-fast) ease,
+    transform var(--motion-base) var(--motion-ease);
+}
+.main-nav button.active::after {
+  opacity: 0.9;
+  transform: scaleX(1);
+}
+
+.page.active .page-heading > div,
+.page.active .page-heading > p {
+  animation: ui-heading-in 300ms var(--motion-ease) both;
+}
+.page.active .page-heading > p { animation-delay: 55ms; }
+
+.page.active .map-shortcuts,
+.page.active .gear-actions,
+.page.active .class-change-panel,
+.page.active .collection-overview,
+.page.active .shopkeeper,
+.page.active .leader-summary,
+.page.active .leader-table-wrap,
+.page.active .chronicle-layout,
+.page.active .skill-tactics,
+.page.active .forge-summary,
+.page.active .hero-visual-layout,
+.page.active .arsenal-layout {
+  animation: ui-section-in 300ms var(--motion-ease) both;
+}
+
+.activity-route > .activity-card,
+.item-grid > .item-card,
+.skill-road > .skill-node,
+.sets-list > .set-card,
+.forge-grid > .forge-card,
+.equipment-grid > .worn-item,
+.equipment-picker-grid > .picker-item,
+.collection-pieces > div,
+.history-list > article,
+.event-list > .world-event,
+.bracket-strip > article {
+  animation: ui-card-in 260ms var(--motion-ease) both;
+}
+
+.activity-route > :nth-child(2),
+.item-grid > :nth-child(2),
+.skill-road > :nth-child(2),
+.sets-list > :nth-child(2),
+.forge-grid > :nth-child(2),
+.equipment-grid > :nth-child(2) { animation-delay: 35ms; }
+.activity-route > :nth-child(3),
+.item-grid > :nth-child(3),
+.skill-road > :nth-child(3),
+.sets-list > :nth-child(3),
+.forge-grid > :nth-child(3),
+.equipment-grid > :nth-child(3) { animation-delay: 70ms; }
+.activity-route > :nth-child(4),
+.item-grid > :nth-child(4),
+.skill-road > :nth-child(4),
+.sets-list > :nth-child(4),
+.forge-grid > :nth-child(4),
+.equipment-grid > :nth-child(4) { animation-delay: 105ms; }
+.activity-route > :nth-child(5),
+.item-grid > :nth-child(5),
+.skill-road > :nth-child(5),
+.sets-list > :nth-child(5),
+.forge-grid > :nth-child(5),
+.equipment-grid > :nth-child(5) { animation-delay: 140ms; }
+.activity-route > :nth-child(6),
+.item-grid > :nth-child(6),
+.skill-road > :nth-child(6),
+.sets-list > :nth-child(6),
+.forge-grid > :nth-child(6),
+.equipment-grid > :nth-child(6) { animation-delay: 175ms; }
+
+.leader-table tbody tr.leader-row-awaiting {
+  opacity: 0;
+}
+.leader-table tbody tr.leader-row-visible {
+  animation: leaderboard-row-reveal 260ms var(--motion-ease) both;
+}
+.leader-table tbody tr.leader-row-visible.rank-moved-up {
+  animation-name: leaderboard-row-up;
+  animation-duration: 520ms;
+}
+.leader-table tbody tr.leader-row-visible.rank-moved-down {
+  animation-name: leaderboard-row-down;
+  animation-duration: 520ms;
+}
+.leader-table tbody tr.leader-row-visible.rank-newcomer {
+  animation-name: leaderboard-row-new;
+  animation-duration: 440ms;
+}
+
+@media (hover: hover) {
+  .activity-card:not(.locked):hover,
+  .item-card:not(.sold):hover,
+  .skill-node:not(.locked):hover,
+  .set-card:hover,
+  .forge-card:hover,
+  .worn-item:hover,
+  .picker-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 6px 7px 0 rgba(58, 49, 38, 0.16);
+  }
+  .collection-pieces > div:hover {
+    transform: translateY(-2px);
+  }
+  .leader-table tbody tr:hover {
+    box-shadow: inset 4px 0 0 var(--yellow);
+  }
+}
+
+.equipment-dialog-layer:not([hidden]),
+.battle-overlay:not([hidden]),
+.tutorial-layer:not([hidden]) {
+  animation: ui-veil-in 180ms ease-out both;
+}
+.equipment-dialog-layer:not([hidden]) > .equipment-dialog,
+.battle-overlay:not([hidden]) > .battle-window {
+  animation: ui-dialog-in 280ms var(--motion-ease) both;
+}
+.mode-screen:not(.hidden) .mode-paper,
+.creation-screen:not(.hidden) .creation-paper {
+  animation: ui-dialog-in 360ms var(--motion-ease) both;
+}
+
+.tournament-reminder-item,
+.world-notice:not([hidden]) {
+  animation: ui-card-in 260ms var(--motion-ease) both;
+}
+
+.resources dd.value-updated,
+.main-nav span.value-updated {
+  animation: ui-value-pop 300ms var(--motion-ease) both;
+}
+
+.battle-action.turn-updated b,
+.battle-action.turn-updated p,
+.battle-log p:last-child {
+  animation: ui-turn-in 200ms ease-out both;
+}
+
+.experience-line i,
+.collection-meter i,
+.battle-health i,
+.basic-health i {
+  transition: width var(--motion-slow) var(--motion-ease);
+}
+
+.equipment-art,
+.collection-art,
+.portrait,
+.large-portrait {
+  transition:
+    filter var(--motion-base) ease,
+    transform var(--motion-base) var(--motion-ease);
+}
+@media (hover: hover) {
+  .item-card:hover .equipment-art,
+  .worn-item:hover .equipment-art,
+  .picker-item:hover .equipment-art {
+    transform: translateY(-2px) scale(1.025);
+    filter: drop-shadow(3px 5px 2px rgba(48, 40, 30, 0.24));
+  }
+}
+
+@keyframes ui-heading-in {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ui-section-in {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ui-card-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes ui-row-in {
+  from { opacity: 0; transform: translateX(-7px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes leaderboard-row-reveal {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes leaderboard-row-up {
+  0% { opacity: 0; transform: translateY(var(--rank-offset, 32px)); box-shadow: inset 5px 0 0 #64805e; }
+  72% { opacity: 1; transform: translateY(-2px); box-shadow: inset 5px 0 0 #64805e; }
+  100% { opacity: 1; transform: translateY(0); box-shadow: inset 0 0 0 transparent; }
+}
+@keyframes leaderboard-row-down {
+  0% { opacity: 0; transform: translateY(var(--rank-offset, -32px)); box-shadow: inset 5px 0 0 #a65345; }
+  72% { opacity: 1; transform: translateY(2px); box-shadow: inset 5px 0 0 #a65345; }
+  100% { opacity: 1; transform: translateY(0); box-shadow: inset 0 0 0 transparent; }
+}
+@keyframes leaderboard-row-new {
+  0% { opacity: 0; transform: translateX(-18px); box-shadow: inset 5px 0 0 var(--yellow); }
+  72% { opacity: 1; transform: translateX(0); box-shadow: inset 5px 0 0 var(--yellow); }
+  100% { opacity: 1; box-shadow: inset 0 0 0 transparent; }
+}
+@keyframes ui-veil-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ui-dialog-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes ui-value-pop {
+  0% { color: #f1d18f; transform: translateY(2px) scale(0.94); }
+  65% { transform: translateY(-1px) scale(1.06); }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes ui-turn-in {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}

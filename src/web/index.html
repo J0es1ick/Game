@@ -60,6 +60,7 @@
         <div><dt>Место</dt><dd id="header-rank">—</dd></div>
         <div><dt>День мира</dt><dd id="header-day">—</dd></div>
       </dl>
+      <button class="plain-button" id="open-tutorial-btn" title="Открыть краткое обучение">Как играть</button>
       <button class="plain-button" id="new-game-btn" title="Удалить локальное сохранение и создать нового героя">Новая игра</button>
       <button class="plain-button" id="switch-mode-btn">Сменить режим</button>
     </header>
@@ -224,7 +225,7 @@
         <header class="page-heading"><div><p class="eyebrow">СНАРЯЖЕНИЕ ГЕРОЯ</p><h1 id="arsenal-title">Инвентарь</h1></div><p>Сравнивайте характеристики и выбирайте вещи перед следующей активностью.</p></header>
         <div class="arsenal-layout">
           <section class="paper-panel equipment-panel"><h2>Надето</h2><div class="gear-actions compact" id="inventory-gear-actions"></div><div class="equipment-grid" id="equipment-grid"></div><div id="set-bonuses"></div></section>
-          <section class="paper-panel inventory-panel"><header><div><h2>Рюкзак</h2><small id="inventory-result-count"></small></div><div class="inventory-filter-stack"><div class="filter-row" id="inventory-filters"></div><label>Комплект<select id="inventory-set-filter"></select></label><label>Редкость<select id="inventory-rarity-filter"></select></label><label>Новизна<select id="inventory-sort"><option value="newest">Сначала новые</option><option value="oldest">Сначала старые</option></select></label></div></header><div class="item-grid" id="inventory-grid"></div><button class="plain-button inventory-more" id="inventory-more" hidden>Показать ещё</button></section>
+          <section class="paper-panel inventory-panel"><header><div class="inventory-title"><h2>Рюкзак</h2><small id="inventory-result-count"></small><button class="plain-button inventory-sell-all" id="inventory-sell-unequipped" type="button">Продать ненадетое</button></div><div class="inventory-filter-stack"><div class="filter-row" id="inventory-filters"></div><label>Комплект<select id="inventory-set-filter"></select></label><label>Редкость<select id="inventory-rarity-filter"></select></label><label>Новизна<select id="inventory-sort"><option value="newest">Сначала новые</option><option value="oldest">Сначала старые</option></select></label></div></header><div class="item-grid" id="inventory-grid"></div><button class="plain-button inventory-more" id="inventory-more" hidden>Показать ещё</button></section>
           <aside class="paper-panel stats-panel" id="hero-stats"></aside>
         </div>
       </section>
@@ -283,6 +284,18 @@
       <div class="tournament-reminder-list" id="tournament-reminder-list"></div>
       <button class="plain-button tournament-reminder-map" id="open-tournament-calendar" type="button">Открыть календарь турниров</button>
     </aside>
+
+    <section class="tutorial-layer" id="tutorial-layer" hidden role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
+      <div class="tutorial-dialog">
+        <header><div><p class="eyebrow">КРАТКОЕ ОБУЧЕНИЕ</p><h2 id="tutorial-title">Добро пожаловать</h2></div><span id="tutorial-progress">1 / 5</span></header>
+        <div class="tutorial-illustration" id="tutorial-illustration" aria-hidden="true">01</div>
+        <p id="tutorial-copy"></p>
+        <footer>
+          <button class="plain-button" id="tutorial-skip" type="button">Пропустить обучение</button>
+          <div><button class="plain-button" id="tutorial-back" type="button">Назад</button><button class="button primary" id="tutorial-next" type="button">Далее</button></div>
+        </footer>
+      </div>
+    </section>
 
     <section class="equipment-dialog-layer" id="equipment-picker" hidden role="dialog" aria-modal="true" aria-labelledby="equipment-picker-title">
       <div class="equipment-dialog equipment-picker-dialog">

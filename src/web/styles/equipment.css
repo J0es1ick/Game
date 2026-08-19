@@ -123,6 +123,16 @@
 .inventory-panel > header h2 {
   margin-bottom: 3px;
 }
+.inventory-title {
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+}
+.inventory-sell-all {
+  min-height: 34px;
+  margin-top: 8px;
+  padding: 5px 10px;
+}
 .inventory-panel > header small {
   color: var(--muted);
   font:
@@ -279,17 +289,20 @@
   color: var(--red);
 }
 .item-controls {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
   margin-top: auto;
+}
+.item-controls .sell-button {
+  grid-column: 1 / -1;
+  white-space: nowrap;
 }
 .inventory-more {
   display: block;
   margin: 20px auto 0;
 }
 .small-button {
-  flex: 1;
   min-height: 34px;
   padding: 0 9px;
   border: 1px solid #877d6b;

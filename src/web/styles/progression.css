@@ -189,6 +189,7 @@
 }
 .sets-list {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 17px;
 }
 .set-card {
@@ -235,7 +236,7 @@
 }
 .collection-pieces {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 7px;
   margin: 17px 0;
 }
@@ -273,13 +274,13 @@
 }
 .collection-pieces strong {
   font:
-    700 10px/1.25 "Inter Tight",
+    700 12px/1.25 "Inter Tight",
     sans-serif;
 }
 .collection-pieces small {
   margin-top: 3px;
   color: var(--muted);
-  font-size: 8px;
+  font-size: 10px;
 }
 .set-bonus-list {
   display: flex;
@@ -294,7 +295,7 @@
   border: 1px solid #aaa08e;
   color: #777064;
   background: #d7cfc0;
-  font-size: 9px;
+  font-size: 11px;
 }
 .set-bonus-list li.active {
   border-color: #728269;
@@ -338,6 +339,33 @@
 .shop-grid {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
+.shop-grid .item-card {
+  position: relative;
+  min-height: 0;
+  padding: 12px;
+}
+.shop-grid .item-card > .equipment-art {
+  position: absolute;
+  top: 39px;
+  right: 12px;
+  width: 62px;
+  height: 72px;
+  margin: 0;
+}
+.shop-grid .item-card h3 {
+  min-height: 58px;
+  margin-top: 8px;
+  padding-right: 68px;
+  font-size: 17px;
+}
+.shop-grid .item-stats {
+  margin: 8px 0;
+  padding: 6px 8px;
+}
+.shop-grid .item-affix,
+.shop-grid .item-skill {
+  margin-bottom: 7px;
+}
 
 .leader-summary {
   display: grid;
@@ -377,6 +405,36 @@
 .leader-table td {
   padding: 11px 12px;
   border-bottom: 1px solid #d2cabb;
+}
+.leader-name-cell {
+  white-space: nowrap;
+}
+.rank-change {
+  display: inline-flex;
+  min-width: 34px;
+  min-height: 20px;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border: 1px solid currentcolor;
+  color: #5b5549;
+  background: rgba(244, 240, 229, 0.78);
+  font: 750 10px/1 "Inter Tight", sans-serif;
+  vertical-align: middle;
+  animation: rank-change-pop 520ms var(--motion-ease) both;
+}
+.rank-change.up { color: #3f694a; }
+.rank-change.down { color: #94473d; }
+.rank-change.newcomer { color: #7a5b20; }
+.leader-table tr.is-hero .rank-change {
+  color: inherit;
+  background: rgba(40, 35, 29, 0.28);
+}
+@keyframes rank-change-pop {
+  0%, 35% { opacity: 0; transform: translateY(5px) scale(0.86); }
+  75% { opacity: 1; transform: translateY(-1px) scale(1.06); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 .leader-table tr:nth-child(even) {
   background: #e9e3d7;

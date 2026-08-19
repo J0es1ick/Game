@@ -32,6 +32,8 @@ import {
 
 const SAVE_KEY = "dust-and-crown-save-v2";
 const MODE_KEY = "dust-and-crown-mode";
+const LEADER_SNAPSHOT_KEY = "dust-and-crown-leader-snapshot-v1";
+const ELITE_SNAPSHOT_KEY = "dust-and-crown-elite-snapshot-v1";
 const $ = <T extends HTMLElement>(selector: string): T => document.querySelector(selector) as T;
 const $$ = <T extends HTMLElement>(selector: string): T[] => Array.from(document.querySelectorAll(selector)) as T[];
 
@@ -62,6 +64,18 @@ let battleTurnIndex = 0;
 let battleHealth = { hero: 0, enemy: 0 };
 let battleReturnScrollY = 0;
 let battleReturnPage = "map";
+let tutorialStepIndex = 0;
+const leaderboardObservers = new Map<string, IntersectionObserver>();
+
+type RankingSnapshot = Record<string, number>;
+
+const tutorialSteps = [
+  { title: "Карта задаёт ритм", copy: "Начните с тренировки, дуэлей и доступных данжей. На турниры нужно записываться заранее: в день события игра напомнит о старте." },
+  { title: "Герой сражается сам", copy: "В автоматическом режиме герой выбирает приёмы самостоятельно. В книге навыков можно ограничить сборку четырьмя умениями или включить ручное подтверждение ходов." },
+  { title: "Снаряжение определяет билд", copy: "Сравнивайте добычу, собирайте комплекты и закаляйте лучшие вещи в кузнице. Автоэкипировка работает только тогда, когда вы сами включили её." },
+  { title: "Мир развивается без героя", copy: "Соперники получают уровни, меняют арены и могут погибнуть навсегда. Их результаты видны в личной истории, сотне лучших и летописи мира." },
+  { title: "Путь продолжается после финальной арены", copy: "Победа на последней арене открывает Лигу короны. Чемпион квалификации входит в элитную тридцатку, а первые пять мест можно оспаривать в Охоте на легенд." },
+] as const;
 
 function renderGearActions(): void {
   if (!game) return;
@@ -140,6 +154,106 @@ function toast(message: string, kind: "ok" | "error" = "ok"): void {
   window.setTimeout(() => node.remove(), 3200);
 }
 
+function loadRankingSnapshot(key: string): RankingSnapshot {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) ?? "{}") as unknown;
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, number] =>
+      typeof entry[1] === "number" && Number.isFinite(entry[1]) && entry[1] > 0));
+  } catch {
+    return {};
+  }
+}
+
+function saveRankingSnapshot(key: string, entries: Array<{ id: string }>): void {
+  const snapshot = Object.fromEntries(entries.map((entry, index) => [entry.id, index + 1]));
+  localStorage.setItem(key, JSON.stringify(snapshot));
+}
+
+function markRankMovement(row: HTMLTableRowElement, nameCell: HTMLTableCellElement, previousRank: number | undefined, currentRank: number, hasSnapshot: boolean): void {
+  if (!hasSnapshot) return;
+  if (previousRank === undefined) {
+    row.classList.add("rank-newcomer");
+    const marker = element("span", "rank-change newcomer", "новый");
+    marker.title = "Новый участник рейтинга с прошлого посещения";
+    nameCell.append(marker);
+    return;
+  }
+  const places = previousRank - currentRank;
+  if (places === 0) return;
+  const movedUp = places > 0;
+  row.classList.add(movedUp ? "rank-moved-up" : "rank-moved-down");
+  row.style.setProperty("--rank-offset", `${Math.max(-72, Math.min(72, places * 11))}px`);
+  const marker = element("span", `rank-change ${movedUp ? "up" : "down"}`, `${movedUp ? "↑" : "↓"}${Math.abs(places)}`);
+  marker.title = `${movedUp ? "Поднялся" : "Опустился"} на ${Math.abs(places)} мест с прошлого посещения`;
+  nameCell.append(marker);
+}
+
+function observeLeaderboardRows(body: HTMLTableSectionElement): void {
+  leaderboardObservers.get(body.id)?.disconnect();
+  const rows = Array.from(body.querySelectorAll("tr"));
+  rows.forEach((row) => row.classList.add("leader-row-awaiting"));
+  if (!("IntersectionObserver" in window)) {
+    rows.forEach((row) => row.classList.add("leader-row-visible"));
+    return;
+  }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add("leader-row-visible");
+      observer.unobserve(entry.target);
+    });
+  }, { threshold: 0.08, rootMargin: "0px 0px -4% 0px" });
+  rows.forEach((row) => observer.observe(row));
+  leaderboardObservers.set(body.id, observer);
+}
+
+function replayAnimation(node: HTMLElement, className: string): void {
+  node.classList.remove(className);
+  void node.offsetWidth;
+  node.classList.add(className);
+}
+
+function setAnimatedText(selector: string, text: string): void {
+  const node = $(selector);
+  if (node.textContent === text) return;
+  node.textContent = text;
+  replayAnimation(node, "value-updated");
+}
+
+function renderTutorial(animate = true): void {
+  const step = tutorialSteps[tutorialStepIndex];
+  $("#tutorial-title").textContent = step.title;
+  $("#tutorial-copy").textContent = step.copy;
+  $("#tutorial-progress").textContent = `${tutorialStepIndex + 1} / ${tutorialSteps.length}`;
+  $("#tutorial-illustration").textContent = String(tutorialStepIndex + 1).padStart(2, "0");
+  const back = $("#tutorial-back") as HTMLButtonElement;
+  const next = $("#tutorial-next") as HTMLButtonElement;
+  back.hidden = tutorialStepIndex === 0;
+  next.textContent = tutorialStepIndex === tutorialSteps.length - 1 ? "Начать игру" : "Далее";
+  if (animate) {
+    replayAnimation($(".tutorial-dialog"), "step-changing");
+  }
+}
+
+function openTutorial(firstVisit = false): void {
+  if (!game) return;
+  tutorialStepIndex = 0;
+  $("#tutorial-layer").hidden = false;
+  renderTutorial();
+  if (firstVisit && !game.save.tutorialCompleted) {
+    game.save.tutorialCompleted = true;
+    persist();
+  }
+}
+
+function finishTutorial(): void {
+  if (!game) return;
+  game.save.tutorialCompleted = true;
+  persist();
+  $("#tutorial-layer").hidden = true;
+}
+
 function equippedItems(): EquipmentItem[] {
   if (!game) return [];
   const ids = new Set(Object.values(game.save.hero.equipped));
@@ -172,6 +286,8 @@ function createHero(): void {
     return;
   }
   game = WorldGame.create(name, selectedClass);
+  localStorage.removeItem(LEADER_SNAPSHOT_KEY);
+  localStorage.removeItem(ELITE_SNAPSHOT_KEY);
   game.save.hero.appearance = {
     hairStyle: Number(($("#hero-hair") as HTMLSelectElement).value) as 0 | 1 | 2,
     faceStyle: 0,
@@ -179,12 +295,15 @@ function createHero(): void {
   persist();
   $("#creation-screen").classList.add("hidden");
   renderAll();
+  openTutorial(true);
   toast(`${name}: путь начался.`);
 }
 
 function showPage(page: string, scrollToTop = true): void {
   $$(".main-nav button").forEach((button) => button.classList.toggle("active", button.dataset.page === page));
   $$(".page").forEach((section) => section.classList.toggle("active", section.id === `page-${page}`));
+  if (page === "leaders") renderLeaders(true);
+  if (page === "elite") renderEliteLeaders(true);
   if (scrollToTop) window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -196,14 +315,14 @@ function renderHeader(): void {
   $("#header-hero-name").textContent = hero.name;
   const championships = hero.arenaWins.reduce((total, wins) => total + wins, 0);
   $("#header-hero-meta").textContent = `${CLASS_DEFINITIONS[hero.classId].name} · ${championships} побед в турнирах · победы в дуэлях ${hero.duelWins} · поражения ${hero.duelLosses}`;
-  $("#header-level").textContent = String(hero.level);
-  $("#header-gold").textContent = `${hero.gold} ¤`;
-  $("#header-marks").textContent = String(hero.temperingMarks);
+  setAnimatedText("#header-level", String(hero.level));
+  setAnimatedText("#header-gold", `${hero.gold} ¤`);
+  setAnimatedText("#header-marks", String(hero.temperingMarks));
   const eliteRank = game.heroEliteRank();
-  $("#header-rank").textContent = eliteRank ? `Элита #${eliteRank}` : `#${game.heroRank()}`;
-  $("#header-day").textContent = String(game.save.worldDay);
-  $("#inventory-count").textContent = String(hero.inventory.length);
-  $("#collection-count").textContent = `${game.save.discoveredItems.length}/${ITEM_TEMPLATES.length}`;
+  setAnimatedText("#header-rank", eliteRank ? `Элита #${eliteRank}` : `#${game.heroRank() ?? "—"}`);
+  setAnimatedText("#header-day", String(game.save.worldDay));
+  setAnimatedText("#inventory-count", String(hero.inventory.length));
+  setAnimatedText("#collection-count", `${game.save.discoveredItems.length}/${ITEM_TEMPLATES.length}`);
 }
 
 function statRow(label: string, value: string | number): HTMLElement {
@@ -338,6 +457,7 @@ function renderHeroHistory(): void {
     return b.lastMetDay - a.lastMetDay || (b.wins + b.losses) - (a.wins + a.losses);
   });
   const topHundred = new Map(game.leaderboard().map((entry, index) => [entry.id, { entry, rank: index + 1 }]));
+  const elite = new Map(game.eliteLeaderboard().map((entry, index) => [entry.id, { entry, rank: index + 1 }]));
   const livingWorldFighters = new Map(game.save.enemies.map((enemy) => [enemy.id, enemy]));
   const career = $("#hero-career-stats");
   career.replaceChildren(element("p", "eyebrow", "КАРЬЕРА"), element("h2", "", "Статистика героя"));
@@ -393,8 +513,11 @@ function renderHeroHistory(): void {
     const row = element("article");
     const copy = element("div");
     const ranked = topHundred.get(record.enemyId);
+    const eliteFighter = elite.get(record.enemyId);
     const worldFighter = livingWorldFighters.get(record.enemyId);
-    const worldStatus = ranked
+    const worldStatus = eliteFighter
+      ? `Элита №${eliteFighter.rank} · ${game!.legendTitle(eliteFighter.rank) ?? "участник Лиги короны"} · рейтинг ${eliteFighter.entry.rating}`
+      : ranked
       ? `№${ranked.rank} в мире · рейтинг ${ranked.entry.rating} · ${ARENAS[ranked.entry.arenaIndex]?.name ?? "арена не указана"}`
       : worldFighter?.alive
         ? `Вне первой сотни · рейтинг ${worldFighter.rating} · ${ARENAS[worldFighter.arenaIndex]?.name ?? "арена не указана"}`
@@ -408,7 +531,7 @@ function renderHeroHistory(): void {
     copy.append(
       element("strong", "", record.name),
       element("small", "", `${CLASS_DEFINITIONS[record.classId].name} · последняя встреча: день ${record.lastMetDay}`),
-      element("span", `rivalry-world-rank${ranked ? " ranked" : ""}`, worldStatus),
+      element("span", `rivalry-world-rank${eliteFighter ? " elite" : ranked ? " ranked" : ""}`, worldStatus),
     );
     const wins = element("b", "rivalry-score", String(record.wins));
     wins.setAttribute("aria-label", `Победы: ${record.wins}`);
@@ -790,7 +913,10 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
         persist(); renderAll(); toast(equipped ? `${item.name} снят.` : `${item.name} экипирован.`);
       } catch (error) { toast((error as Error).message, "error"); }
     });
-    const sell = element("button", "small-button muted", `Продать · ${Math.round(item.price * 0.45)} ¤`); sell.disabled = equipped;
+    const sellable = game!.canSell(item.id);
+    const sell = element("button", "small-button muted sell-button", sellable ? `Продать · ${Math.round(item.price * 0.45)} ¤` : "Регалия короны");
+    sell.disabled = equipped || !sellable;
+    if (!sellable) sell.title = "Этот уникальный комплект принадлежит первой легенде и не продаётся.";
     sell.addEventListener("click", () => {
       const scrollTop = window.scrollY;
       const inventoryGrid = $("#inventory-grid");
@@ -887,6 +1013,11 @@ function renderArsenal(): void {
   inventory.replaceChildren(...visibleItems.map((item) => createItemCard(item, "inventory")));
   if (items.length === 0) inventory.append(element("p", "empty-copy", "По выбранным фильтрам предметов нет."));
   $("#inventory-result-count").textContent = `Показано ${visibleItems.length} из ${items.length}`;
+  const equippedIds = new Set(Object.values(game.save.hero.equipped));
+  const bulkSell = $("#inventory-sell-unequipped") as HTMLButtonElement;
+  const sellableUnequipped = game.save.hero.inventory.filter((item) => !equippedIds.has(item.id) && game!.canSell(item.id)).length;
+  bulkSell.disabled = sellableUnequipped === 0;
+  bulkSell.textContent = sellableUnequipped > 0 ? `Продать ненадетое · ${sellableUnequipped}` : "Нет ненадетых вещей";
   const more = $("#inventory-more") as HTMLButtonElement;
   more.hidden = visibleItems.length >= items.length;
   const snapshot = combatantSnapshot(game.save.hero);
@@ -1123,24 +1254,45 @@ function renderForge(): void {
   if (order.length === 0) grid.append(element("p", "empty-copy", "В инвентаре нет предметов для закалки."));
 }
 
-function renderLeaders(): void {
+function renderLeaders(trackMovement = false): void {
   if (!game) return;
   const leaders = game.leaderboard();
+  const previousRanks = trackMovement ? loadRankingSnapshot(LEADER_SNAPSHOT_KEY) : {};
+  const hasSnapshot = Object.keys(previousRanks).length > 0;
   const heroRank = game.heroRank();
+  const eliteRank = game.heroEliteRank();
   const alive = game.save.enemies.filter((enemy) => enemy.alive).length;
   const dead = game.save.enemies.length - alive;
-  const summary = $("#leader-summary"); summary.replaceChildren(statRow("Ваше место", `#${heroRank}`), statRow("Живых бойцов", alive), statRow("Погибло навсегда", dead), statRow("Активных арен", ARENAS.length));
-  const body = $("#leader-table"); body.replaceChildren();
+  const rankSummary = eliteRank ? element("div", "stat-row elite-rank-link") : statRow("Ваше место", `#${heroRank ?? "—"}`);
+  if (eliteRank) {
+    const link = element("button", "plain-button", `Открыть элиту · #${eliteRank}`);
+    link.type = "button";
+    link.addEventListener("click", () => showPage("elite"));
+    rankSummary.append(element("span", "", "Вы находитесь в другом рейтинге"), link);
+  }
+  const summary = $("#leader-summary"); summary.replaceChildren(rankSummary, statRow("Живых бойцов", alive), statRow("Погибло навсегда", dead), statRow("Активных арен", ARENAS.length));
+  const body = $<HTMLTableSectionElement>("#leader-table"); body.replaceChildren();
   leaders.forEach((entry, index) => {
     const row = element("tr", entry.isHero ? "is-hero" : "");
-    [String(index + 1), entry.name, CLASS_DEFINITIONS[entry.classId].name, ARENAS[entry.arenaIndex]?.name ?? "—", String(entry.level), String(entry.tournamentWins), String(entry.wins), String(entry.losses), String(entry.kills), String(entry.rating)].forEach((value) => row.append(element("td", "", value)));
+    if (trackMovement) row.classList.add("leader-row-awaiting");
+    const rankCell = element("td", "", String(index + 1));
+    const nameCell = element("td", "leader-name-cell", entry.name);
+    markRankMovement(row, nameCell, previousRanks[entry.id], index + 1, hasSnapshot);
+    row.append(rankCell, nameCell);
+    [CLASS_DEFINITIONS[entry.classId].name, ARENAS[entry.arenaIndex]?.name ?? "—", String(entry.level), String(entry.tournamentWins), String(entry.wins), String(entry.losses), String(entry.kills), String(entry.rating)].forEach((value) => row.append(element("td", "", value)));
     body.append(row);
   });
+  if (trackMovement) {
+    saveRankingSnapshot(LEADER_SNAPSHOT_KEY, leaders);
+    window.requestAnimationFrame(() => observeLeaderboardRows(body));
+  }
 }
 
-function renderEliteLeaders(): void {
+function renderEliteLeaders(trackMovement = false): void {
   if (!game) return;
   const elite = game.eliteLeaderboard();
+  const previousRanks = trackMovement ? loadRankingSnapshot(ELITE_SNAPSHOT_KEY) : {};
+  const hasSnapshot = Object.keys(previousRanks).length > 0;
   const heroRank = game.heroEliteRank();
   const leader = elite[0];
   $("#elite-leader-summary").replaceChildren(
@@ -1149,14 +1301,17 @@ function renderEliteLeaders(): void {
     statRow("Легенд", Math.min(5, elite.length)),
     statRow("Первая корона", leader?.name ?? "—"),
   );
-  const body = $("#elite-leader-table"); body.replaceChildren();
+  const body = $<HTMLTableSectionElement>("#elite-leader-table"); body.replaceChildren();
   elite.forEach((entry, index) => {
     const rank = index + 1;
     const row = element("tr", `${entry.isHero ? "is-hero " : ""}${rank <= 5 ? "legend" : ""}`.trim());
+    if (trackMovement) row.classList.add("leader-row-awaiting");
+    const rankCell = element("td", "", `#${rank}`);
+    const titleCell = element("td", rank <= 5 ? "elite-title" : "", game!.legendTitle(rank) ?? "Элита");
+    const nameCell = element("td", "leader-name-cell", entry.name);
+    markRankMovement(row, nameCell, previousRanks[entry.id], rank, hasSnapshot);
+    row.append(rankCell, titleCell, nameCell);
     [
-      `#${rank}`,
-      game!.legendTitle(rank) ?? "Элита",
-      entry.name,
       CLASS_DEFINITIONS[entry.classId].name,
       String(entry.level),
       String(entry.rating),
@@ -1164,9 +1319,13 @@ function renderEliteLeaders(): void {
       String(entry.wins),
       String(entry.losses),
       String(entry.kills),
-    ].forEach((value, cellIndex) => row.append(element("td", cellIndex === 1 && rank <= 5 ? "elite-title" : "", value)));
+    ].forEach((value) => row.append(element("td", "", value)));
     body.append(row);
   });
+  if (trackMovement) {
+    saveRankingSnapshot(ELITE_SNAPSHOT_KEY, elite);
+    window.requestAnimationFrame(() => observeLeaderboardRows(body));
+  }
 }
 
 function renderChronicle(): void {
@@ -1380,6 +1539,7 @@ function playBattleTurn(): void {
   $("#battle-turn").textContent = `ХОД ${turn.turn}`;
   $("#battle-action").textContent = `${turn.actorName}: ${turn.action}`;
   $("#battle-detail").textContent = `${turn.damage ? `${turn.damage} урона` : "без урона"}${turn.healing ? ` · +${turn.healing} HP` : ""}${turn.critical ? " · критический удар" : ""}. ${turn.detail}`;
+  replayAnimation($(".battle-action"), "turn-updated");
   markUsedBattleSkill(turn.actorId, turn.skillId);
   const actor = turn.actorId === "hero" ? $("#battle-hero") : $("#battle-enemy");
   const target = turn.targetId === "hero" ? $("#battle-hero") : $("#battle-enemy");
@@ -1487,7 +1647,10 @@ function activateWorldMode(): void {
 
 function newGame(): void {
   if (!window.confirm("Удалить героя, предметы и историю мира? Это действие нельзя отменить.")) return;
-  localStorage.removeItem(SAVE_KEY); game = null; location.reload();
+  localStorage.removeItem(SAVE_KEY);
+  localStorage.removeItem(LEADER_SNAPSHOT_KEY);
+  localStorage.removeItem(ELITE_SNAPSHOT_KEY);
+  game = null; location.reload();
 }
 
 function bootstrapWorld(): void {
@@ -1504,6 +1667,7 @@ function bootstrapWorld(): void {
     notice.textContent = `Мир продолжал жить без вас: прошло ${cycles} дн. фоновых турниров, дуэлей и вылазок.`;
   }
   persist(); renderAll();
+  if (!game.save.tutorialCompleted) openTutorial(true);
 }
 
 function bootstrap(): void {
@@ -1543,6 +1707,28 @@ $("#inventory-set-filter").addEventListener("change", (event) => { inventorySetF
 $("#inventory-rarity-filter").addEventListener("change", (event) => { inventoryRarityFilter = (event.target as HTMLSelectElement).value as Rarity | "all"; inventoryVisibleLimit = 60; renderArsenal(); });
 $("#inventory-sort").addEventListener("change", (event) => { inventorySort = (event.target as HTMLSelectElement).value as "newest" | "oldest"; inventoryVisibleLimit = 60; renderArsenal(); });
 $("#inventory-more").addEventListener("click", () => { inventoryVisibleLimit += 60; renderArsenal(); });
+$("#inventory-sell-unequipped").addEventListener("click", () => {
+  if (!game) return;
+  const equippedIds = new Set(Object.values(game.save.hero.equipped));
+  const count = game.save.hero.inventory.filter((item) => !equippedIds.has(item.id) && game!.canSell(item.id)).length;
+  if (count === 0) return;
+  if (!window.confirm(`Продать все ненадетые предметы (${count})? Регалии короны и надетые вещи останутся у героя.`)) return;
+  const scrollTop = window.scrollY;
+  const result = game.sellUnequipped();
+  persist(); renderHeader(); renderArsenal(); window.scrollTo(0, scrollTop);
+  toast(`Продано предметов: ${result.count}. Получено ${result.value} монет.`);
+});
+$("#open-tutorial-btn").addEventListener("click", () => openTutorial(false));
+$("#tutorial-skip").addEventListener("click", finishTutorial);
+$("#tutorial-back").addEventListener("click", () => {
+  tutorialStepIndex = Math.max(0, tutorialStepIndex - 1);
+  renderTutorial();
+});
+$("#tutorial-next").addEventListener("click", () => {
+  if (tutorialStepIndex >= tutorialSteps.length - 1) { finishTutorial(); return; }
+  tutorialStepIndex += 1;
+  renderTutorial();
+});
 $("#dismiss-tournament-reminder").addEventListener("click", () => {
   dismissedTournamentReminderKey = tournamentReminderKey(tournamentsScheduledToday());
   $("#tournament-reminder").hidden = true;
