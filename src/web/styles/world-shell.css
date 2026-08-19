@@ -485,7 +485,7 @@
 #tournaments-section,
 #dungeons-section,
 #endgame-section {
-  scroll-margin-top: 220px;
+  scroll-margin-top: 240px;
 }
 
 .map-layout {
@@ -504,7 +504,7 @@
 .hero-card,
 .next-goal {
   position: sticky;
-  top: 142px;
+  top: 230px;
   padding: 18px;
 }
 .hero-card-top {
