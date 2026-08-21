@@ -304,11 +304,23 @@ function createHero(): void {
   toast(`${name}: путь начался.`);
 }
 
-function showPage(page: string, scrollToTop = true): void {
+function showPage(page: string, scrollToTop = true, refresh = true): void {
   $$(".main-nav button").forEach((button) => button.classList.toggle("active", button.dataset.page === page));
   $$(".page").forEach((section) => section.classList.toggle("active", section.id === `page-${page}`));
-  if (page === "leaders") renderLeaders(true);
-  if (page === "elite") renderEliteLeaders(true);
+  if (game && refresh) {
+    switch (page) {
+      case "map": renderMap(); break;
+      case "hero": renderHeroVisual(); renderGearActions(); break;
+      case "arsenal": renderGearActions(); renderArsenal(); break;
+      case "forge": renderForge(); break;
+      case "skills": renderSkills(); break;
+      case "collections": renderCollections(); break;
+      case "shop": renderShop(); break;
+      case "leaders": renderLeaders(true); break;
+      case "elite": renderEliteLeaders(true); break;
+      case "chronicle": renderChronicle(); break;
+    }
+  }
   if (scrollToTop) window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -558,10 +570,11 @@ function renderHeroHistory(): void {
   necrology.append(deadList);
 }
 
-function activityCard(activity: ArenaDefinition | DungeonDefinition): HTMLElement {
+function activityCard(activity: ArenaDefinition | DungeonDefinition, animateItems = true): HTMLElement {
   if (!game) return element("article");
   const availability = game.availability(activity);
   const card = element("article", `activity-card ${activity.kind}${availability.unlocked ? "" : " locked"}`);
+  if (!animateItems) card.classList.add("no-entry-motion");
   card.style.setProperty("--activity-accent", activity.accent);
   const index = activity.kind === "arena" ? ARENAS.findIndex((item) => item.id === activity.id) + 1 : DUNGEONS.findIndex((item) => item.id === activity.id) + 1;
   const head = element("div", "activity-head");
@@ -593,7 +606,7 @@ function activityCard(activity: ArenaDefinition | DungeonDefinition): HTMLElemen
 function registerForTournament(arenaId: string): void {
   if (!game) return;
   try {
-    const day = game.registerTournament(arenaId); persist(); renderAll();
+    const day = game.registerTournament(arenaId); persist(); refreshMapViews(false);
     toast(`Место зарезервировано. Турнир начнётся в день ${day}.`);
   } catch (error) { toast((error as Error).message, "error"); }
 }
@@ -603,7 +616,7 @@ function registerForCrownLeague(): void {
   try {
     const day = game.registerCrownLeague();
     persist();
-    renderAll();
+    refreshMapViews(false);
     toast(`Место в Лиге короны зарезервировано на день ${day}.`);
   } catch (error) { toast((error as Error).message, "error"); }
 }
@@ -665,7 +678,7 @@ function renderTournamentReminder(): void {
   reminder.hidden = false;
 }
 
-function renderMap(): void {
+function renderMap(animateItems = true): void {
   if (!game) return;
   renderHeroCard();
   const trainingCap = game.trainingLevelCap();
@@ -677,8 +690,8 @@ function renderMap(): void {
     : `Безопасный опыт до ${trainingCap} уровня. Дальше потребуется продвижение на арене.`;
   trainingButton.disabled = trainingBlocked;
   trainingButton.textContent = trainingBlocked ? "Достигнут предел" : "Тренироваться";
-  const arenaRoute = $("#arena-route"); arenaRoute.replaceChildren(...ARENAS.map(activityCard));
-  const dungeonRoute = $("#dungeon-route"); dungeonRoute.replaceChildren(...DUNGEONS.map(activityCard));
+  const arenaRoute = $("#arena-route"); arenaRoute.replaceChildren(...ARENAS.map((arena) => activityCard(arena, animateItems)));
+  const dungeonRoute = $("#dungeon-route"); dungeonRoute.replaceChildren(...DUNGEONS.map((dungeon) => activityCard(dungeon, animateItems)));
   const tournamentsToday = tournamentsScheduledToday().length;
   const openTournaments = ARENAS.filter((arena) => game!.availability(arena).unlocked).length;
   const openDungeons = DUNGEONS.filter((dungeon) => game!.availability(dungeon).unlocked).length;
@@ -696,8 +709,8 @@ function renderMap(): void {
     : crownAvailable
       ? game.crownLeagueTier().name
       : crownRegistrationDay ? `Лига: день ${crownRegistrationDay}` : "Закрыто";
-  renderDuels();
-  renderEndgame();
+  renderDuels(animateItems);
+  renderEndgame(animateItems);
   const hero = game.save.hero;
   const next = nextSkills(hero.classId, hero.level)[0];
   const currentArena = ARENAS[hero.highestArena];
@@ -716,13 +729,14 @@ function renderMap(): void {
   goal.append(feed);
 }
 
-function renderDuels(): void {
+function renderDuels(animateItems = true): void {
   if (!game) return;
   $("#duel-summary").textContent = `Победы ${game.save.hero.duelWins} · поражения ${game.save.hero.duelLosses}. Мировой рейтинг от этих боёв не меняется.`;
   const route = $("#duel-route"); route.replaceChildren();
   DUEL_TIERS.forEach((duel, index) => {
     const availability = game!.availability(duel);
     const card = element("article", `activity-card duel${availability.unlocked ? "" : " locked"}`);
+    if (!animateItems) card.classList.add("no-entry-motion");
     card.style.setProperty("--activity-accent", duel.accent);
     card.append(element("div", "activity-head", `СТУПЕНЬ ${String(index + 1).padStart(2, "0")}`), element("h3", "", duel.name), element("p", "", duel.description), element("div", "activity-state", availability.reason));
     const button = element("button", "button activity-button", availability.unlocked ? "Начать дуэль" : "Закрыто"); button.disabled = !availability.unlocked;
@@ -733,6 +747,7 @@ function renderDuels(): void {
     const defeated = game!.save.defeatedBosses.includes(boss.id);
     const availability = game!.availability(boss);
     const card = element("article", `activity-card boss${availability.unlocked ? "" : " locked"}${defeated ? " defeated" : ""}`);
+    if (!animateItems) card.classList.add("no-entry-motion");
     card.style.setProperty("--activity-accent", boss.accent);
     card.append(element("div", "activity-head", defeated ? "ПОБЕЖДЁН" : "УНИКАЛЬНАЯ ПОБЕДА"), element("h3", "", boss.name), element("p", "", boss.description), element("div", "activity-levels", `Уровень ${boss.level} · уникальная добыча`), element("div", "activity-state", availability.reason));
     const button = element("button", "button activity-button", defeated ? "История завершена" : availability.unlocked ? "Вызвать на бой" : "Закрыто"); button.disabled = !availability.unlocked;
@@ -1269,7 +1284,7 @@ function renderSkills(animateItems = true): void {
   }));
 }
 
-function renderEndgame(): void {
+function renderEndgame(animateItems = true): void {
   if (!game) return;
   const route = $("#endgame-route");
   route.replaceChildren(...ENDGAME_ACTIVITIES.map((activity) => {
@@ -1279,6 +1294,7 @@ function renderEndgame(): void {
     const registration = crownLeague ? game!.crownLeagueRegistrationAvailability() : undefined;
     const canAct = availability.unlocked || Boolean(registration?.unlocked);
     const card = element("article", `activity-card endgame${canAct || registeredDay ? "" : " locked"}${registeredDay ? " registered" : ""}`);
+    if (!animateItems) card.classList.add("no-entry-motion");
     card.style.setProperty("--activity-accent", activity.accent);
     const label = crownLeague ? game!.crownLeagueTier().name.toUpperCase() : "ПОСЛЕДОВАТЕЛЬНЫЙ ВЫЗОВ";
     const reward = crownLeague
@@ -1315,6 +1331,7 @@ function renderEndgame(): void {
   const pending = game.pendingLegendChallenge();
   if (pending) {
     const card = element("article", "activity-card endgame elite-defense");
+    if (!animateItems) card.classList.add("no-entry-motion");
     card.style.setProperty("--activity-accent", "#9c5044");
     card.append(
       element("div", "activity-head", "ВЫЗОВ ВАШЕМУ ТИТУЛУ"),
@@ -1538,6 +1555,13 @@ function refreshEquipmentViews(preserveForgeOrder = false): void {
   renderSkills(false);
 }
 
+function refreshMapViews(animateItems = false): void {
+  if (!game) return;
+  renderHeader();
+  renderMap(animateItems);
+  renderTournamentReminder();
+}
+
 function renderAll(): void {
   if (!game) return;
   renderHeader(); renderMap(); renderHeroVisual(); renderGearActions(); renderArsenal(); renderForge(); renderSkills(); renderCollections(); renderShop(); renderLeaders(); renderEliteLeaders(); renderChronicle(); renderTournamentReminder();
@@ -1609,7 +1633,9 @@ function startActivity(activityId: string): void {
 function trainHero(): void {
   if (!game) return;
   try {
-    const result = game.train(); persist(); renderAll();
+    const result = game.train();
+    persist();
+    refreshMapViews(false);
     toast(`${result.title}: +${result.experience} опыта${result.levelsGained ? `, +${result.levelsGained} ур.` : ""}.`);
   } catch (error) { toast((error as Error).message, "error"); }
 }
@@ -1814,7 +1840,7 @@ function closeBattle(): void {
     return;
   }
   currentReport = null; currentTournament = null; battleEquipmentBefore = null; battleInventoryBefore = null; $("#battle-overlay").hidden = true; $("#tournament-panel").hidden = true; document.body.classList.remove("battle-open");
-  renderAll(); showPage(battleReturnPage, false);
+  showPage(battleReturnPage, false, false);
   window.requestAnimationFrame(() => window.scrollTo({ top: battleReturnScrollY, behavior: "auto" }));
 }
 
