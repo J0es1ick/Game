@@ -94,15 +94,15 @@ function renderGearActions(): void {
     checkbox.checked = game!.save.hero.autoEquipBest;
     auto.append(checkbox, document.createTextNode(" Автоматически надевать лучшее"));
     best.addEventListener("click", () => {
-      const equipped = game!.equipBest(); persist(); renderAll();
+      const equipped = game!.equipBest(); persist(); refreshEquipmentViews(true);
       toast(equipped.length ? "Выбрано лучшее доступное снаряжение." : "Подходящего снаряжения пока нет.");
     });
     set.addEventListener("click", () => {
-      const equipped = game!.equipBest("set"); persist(); renderAll();
+      const equipped = game!.equipBest("set"); persist(); refreshEquipmentViews(true);
       toast(equipped.length ? "Собран наиболее полный доступный комплект." : "Частей комплектов пока нет.");
     });
     checkbox.addEventListener("change", () => {
-      game!.setAutoEquipBest(checkbox.checked); persist(); renderAll();
+      game!.setAutoEquipBest(checkbox.checked); persist(); refreshEquipmentViews(true);
       toast(checkbox.checked ? "Автоэкипировка включена." : "Автоэкипировка выключена.");
     });
     container.append(best, set, auto);
@@ -401,7 +401,7 @@ function renderHeroVisual(): void {
     row.append(swatch, copy);
     if (item) {
       const remove = element("button", "small-button unequip-inline", "Снять");
-      remove.addEventListener("click", (event) => { event.stopPropagation(); game!.unequip(slot); persist(); renderAll(); toast(`${item.name} снят.`); });
+      remove.addEventListener("click", (event) => { event.stopPropagation(); game!.unequip(slot); persist(); refreshEquipmentViews(true); toast(`${item.name} снят.`); });
       row.append(remove);
     }
     designs.append(row);
@@ -804,7 +804,7 @@ function equipFromDialog(item: EquipmentItem): void {
     persist();
     closeEquipmentComparison();
     closeEquipmentPicker();
-    renderAll();
+    refreshEquipmentViews(true);
     toast(`${item.name} экипирован.`);
   } catch (error) {
     toast((error as Error).message, "error");
@@ -856,7 +856,7 @@ function renderEquipmentComparison(): void {
     equip.onclick = () => {
       try {
         const bought = game!.buy(comparisonShopIndex!);
-        persist(); closeEquipmentComparison(); renderAll(); toast(`${bought.name} добавлен в инвентарь.`);
+        persist(); closeEquipmentComparison(); renderShop(); renderCollections(); refreshEquipmentViews(true); toast(`${bought.name} добавлен в инвентарь.`);
       } catch (error) { toast((error as Error).message, "error"); }
     };
   } else {
@@ -940,7 +940,7 @@ function renderLootReminder(): void {
   equip.textContent = alreadyEquipped ? "Уже надето автоматически" : canHeroEquip(item) ? "Надеть" : "Не подходит классу";
   equip.onclick = () => {
     try {
-      game!.equip(item.id); persist(); renderAll(); advanceLootReminder(); toast(`${item.name} экипирован.`);
+      game!.equip(item.id); persist(); refreshEquipmentViews(true); advanceLootReminder(); toast(`${item.name} экипирован.`);
     } catch (error) { toast((error as Error).message, "error"); }
   };
 
@@ -1005,7 +1005,7 @@ function renderEquipmentPicker(): void {
     const remove = element("button", "small-button muted", "Снять");
     remove.type = "button";
     remove.addEventListener("click", () => {
-      game!.unequip(slot); persist(); renderAll(); renderEquipmentPicker(); toast(`${equipped.name} снят.`);
+      game!.unequip(slot); persist(); refreshEquipmentViews(true); renderEquipmentPicker(); toast(`${equipped.name} снят.`);
     });
     line.append(copy, remove); current.append(line);
   } else {
@@ -1054,7 +1054,7 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
       try {
         if (equipped) game!.unequip(item.slot);
         else game!.equip(item.id);
-        persist(); renderAll(); toast(equipped ? `${item.name} снят.` : `${item.name} экипирован.`);
+        persist(); refreshEquipmentViews(true); toast(equipped ? `${item.name} снят.` : `${item.name} экипирован.`);
       } catch (error) { toast((error as Error).message, "error"); }
     });
     const sellable = game!.canSell(item.id);
@@ -1071,7 +1071,7 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
         persist();
         inventoryGrid.style.minHeight = `${previousHeight}px`;
         renderHeader();
-        renderArsenal();
+        renderArsenal(false);
         window.scrollTo(0, scrollTop);
         window.requestAnimationFrame(() => {
           inventoryGrid.style.minHeight = "";
@@ -1087,14 +1087,23 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
     compare.disabled = sold;
     compare.addEventListener("click", () => openEquipmentComparison(item.id, shopIndex));
     const buy = element("button", "button", sold ? "Продано" : `Купить · ${item.price} ¤`); buy.disabled = sold || game.save.hero.gold < item.price;
-    buy.addEventListener("click", () => { try { const bought = game!.buy(shopIndex); persist(); renderAll(); toast(`${bought.name} добавлен в инвентарь.`); } catch (error) { toast((error as Error).message, "error"); } });
+    buy.addEventListener("click", () => {
+      try {
+        const bought = game!.buy(shopIndex);
+        persist();
+        renderShop();
+        renderCollections();
+        refreshEquipmentViews(true);
+        toast(`${bought.name} добавлен в инвентарь.`);
+      } catch (error) { toast((error as Error).message, "error"); }
+    });
     controls.append(compare, buy);
   }
   card.append(controls);
   return card;
 }
 
-function renderArsenal(): void {
+function renderArsenal(animateItems = true): void {
   if (!game) return;
   const slots: EquipmentSlot[] = ["weapon", "offhand", "head", "chest", "hands", "feet"];
   const grid = $("#equipment-grid"); grid.replaceChildren();
@@ -1154,14 +1163,18 @@ function renderArsenal(): void {
       return inventorySort === "newest" ? -difference : difference;
     });
   const visibleItems = items.slice(0, inventoryVisibleLimit);
-  inventory.replaceChildren(...visibleItems.map((item) => createItemCard(item, "inventory")));
+  inventory.replaceChildren(...visibleItems.map((item) => {
+    const card = createItemCard(item, "inventory");
+    if (!animateItems) card.classList.add("no-entry-motion");
+    return card;
+  }));
   if (items.length === 0) inventory.append(element("p", "empty-copy", "По выбранным фильтрам предметов нет."));
   $("#inventory-result-count").textContent = `Показано ${visibleItems.length} из ${items.length}`;
   const equippedIds = new Set(Object.values(game.save.hero.equipped));
   const bulkSell = $("#inventory-sell-unequipped") as HTMLButtonElement;
   const sellableUnequipped = game.save.hero.inventory.filter((item) => !equippedIds.has(item.id) && game!.canSell(item.id)).length;
   bulkSell.disabled = sellableUnequipped === 0;
-  bulkSell.textContent = sellableUnequipped > 0 ? `Продать ненадетое · ${sellableUnequipped}` : "Нет ненадетых вещей";
+  bulkSell.textContent = sellableUnequipped > 0 ? `Продать неиспользуемое · ${sellableUnequipped}` : "Нет неиспользуемых вещей";
   const more = $("#inventory-more") as HTMLButtonElement;
   more.hidden = visibleItems.length >= items.length;
   const snapshot = combatantSnapshot(game.save.hero);
@@ -1170,7 +1183,7 @@ function renderArsenal(): void {
   stats.append(element("p", "stats-hint", "Характеристики уже включают уровень, экипировку, свойства редкости и активные бонусы комплектов."));
 }
 
-function renderSkills(): void {
+function renderSkills(animateItems = true): void {
   if (!game) return;
   const hero = game.save.hero;
   const activeItems = equippedItems();
@@ -1193,13 +1206,13 @@ function renderSkills(): void {
   const autoBuildInput = element("input") as HTMLInputElement;
   autoBuildInput.type = "checkbox"; autoBuildInput.checked = hero.autoSelectSkills;
   autoBuild.append(autoBuildInput, document.createTextNode(" Автоматически выбирать лучшие навыки"));
-  autoBuildInput.addEventListener("change", () => { game!.setAutoSelectSkills(autoBuildInput.checked); persist(); renderSkills(); });
+  autoBuildInput.addEventListener("change", () => { game!.setAutoSelectSkills(autoBuildInput.checked); persist(); renderSkills(false); });
   const modeLabel = element("span", "tactic-label", "Ведение боя");
   const modeButtons = element("div", "tactic-mode-buttons");
   (["auto", "manual"] as const).forEach((mode) => {
     const button = element("button", hero.combatMode === mode ? "active" : "", mode === "auto" ? "Автоматически" : "Подтверждать ходы");
     button.type = "button";
-    button.addEventListener("click", () => { game!.setCombatMode(mode); persist(); renderSkills(); });
+    button.addEventListener("click", () => { game!.setCombatMode(mode); persist(); renderSkills(false); });
     modeButtons.append(button);
   });
   controls.append(autoBuild, modeLabel, modeButtons);
@@ -1212,7 +1225,7 @@ function renderSkills(): void {
     else { toast(`Можно выбрать не больше ${MAX_ACTIVE_SKILLS} навыков.`, "error"); return; }
     game!.setAutoSelectSkills(false);
     game!.setSelectedSkills([...next]);
-    persist(); renderSkills();
+    persist(); renderSkills(false);
   };
   const skillCard = (skill: typeof SKILLS[number], status: string, unlocked: boolean, source?: string) => {
     const active = selected.has(skill.id) && !hero.autoSelectSkills;
@@ -1229,6 +1242,7 @@ function renderSkills(): void {
       button.addEventListener("click", () => toggleSkill(skill.id));
       node.append(button);
     }
+    if (!animateItems) node.classList.add("no-entry-motion");
     return node;
   };
 
@@ -1382,18 +1396,34 @@ function renderShop(): void {
   $("#shop-grid").replaceChildren(...game.save.shopOffers.map((offer, index) => createItemCard(offer.item, "shop", index, offer.sold)));
 }
 
-function renderForge(): void {
+function renderForge(animateItems = true, preserveOrder = false): void {
   if (!game) return;
   const hero = game.save.hero;
   $("#forge-marks").textContent = `${hero.temperingMarks} ${hero.temperingMarks === 1 ? "печать" : hero.temperingMarks >= 2 && hero.temperingMarks <= 4 ? "печати" : "печатей"}`;
   const grid = $("#forge-grid");
   const equippedIds = new Set(Object.values(hero.equipped));
-  const order = [...hero.inventory].sort((a, b) =>
-    Number(equippedIds.has(b.id)) - Number(equippedIds.has(a.id))
-    || (b.enhancement ?? 0) - (a.enhancement ?? 0)
-    || b.level - a.level);
+  const displayedOrder = new Map(
+    Array.from(grid.querySelectorAll<HTMLElement>("[data-item-id]"))
+      .map((card, index) => [card.dataset.itemId!, index]),
+  );
+  const order = [...hero.inventory].sort((a, b) => {
+    if (preserveOrder) {
+      const aOrder = displayedOrder.get(a.id);
+      const bOrder = displayedOrder.get(b.id);
+      if (aOrder !== undefined || bOrder !== undefined) {
+        if (aOrder === undefined) return 1;
+        if (bOrder === undefined) return -1;
+        return aOrder - bOrder;
+      }
+    }
+    return Number(equippedIds.has(b.id)) - Number(equippedIds.has(a.id))
+      || (b.enhancement ?? 0) - (a.enhancement ?? 0)
+      || b.level - a.level;
+  });
   grid.replaceChildren(...order.map((item) => {
     const card = element("article", `forge-card paper-panel ${rarityClass[item.rarity]}`);
+    card.dataset.itemId = item.id;
+    if (!animateItems) card.classList.add("no-entry-motion");
     card.style.setProperty("--rarity-color", rarityColors[item.rarity]);
     const art = equipmentArtwork(item.slot, classForTemplate(item.allowedClasses), "forge-art equipment-art", item);
     art.style.setProperty("--rarity-color", rarityColors[item.rarity]);
@@ -1405,7 +1435,7 @@ function renderForge(): void {
     button.type = "button";
     button.disabled = enhancement >= 5 || hero.temperingMarks < game!.upgradeCost(item.id);
     button.addEventListener("click", () => {
-      try { game!.upgradeItem(item.id); persist(); renderAll(); toast(`${item.name} усилен.`); }
+      try { game!.upgradeItem(item.id); persist(); refreshEquipmentViews(true); toast(`${item.name} усилен.`); }
       catch (error) { toast((error as Error).message, "error"); }
     });
     card.append(art, copy, button);
@@ -1496,6 +1526,16 @@ function renderChronicle(): void {
     row.append(element("span", "event-day", `ДЕНЬ ${event.day}`), element("p", "", event.message)); list.append(row);
   });
   if (game.save.events.length === 0) list.append(element("p", "empty-copy", "Мир ещё не успел оставить событий в летописи."));
+}
+
+function refreshEquipmentViews(preserveForgeOrder = false): void {
+  if (!game) return;
+  renderHeader();
+  renderHeroVisual();
+  renderGearActions();
+  renderArsenal(false);
+  renderForge(false, preserveForgeOrder);
+  renderSkills(false);
 }
 
 function renderAll(): void {
@@ -1874,10 +1914,10 @@ $("#inventory-sell-unequipped").addEventListener("click", () => {
   const equippedIds = new Set(Object.values(game.save.hero.equipped));
   const count = game.save.hero.inventory.filter((item) => !equippedIds.has(item.id) && game!.canSell(item.id)).length;
   if (count === 0) return;
-  if (!window.confirm(`Продать все ненадетые предметы (${count})? Регалии короны и надетые вещи останутся у героя.`)) return;
+  if (!window.confirm(`Продать все неиспользуемые предметы (${count})? Регалии короны и надетые вещи останутся у героя.`)) return;
   const scrollTop = window.scrollY;
   const result = game.sellUnequipped();
-  persist(); renderHeader(); renderArsenal(); window.scrollTo(0, scrollTop);
+  persist(); renderHeader(); renderArsenal(false); window.scrollTo(0, scrollTop);
   toast(`Продано предметов: ${result.count}. Получено ${result.value} монет.`);
 });
 $("#open-tutorial-btn").addEventListener("click", () => openTutorial(false));

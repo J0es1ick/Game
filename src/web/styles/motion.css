@@ -94,6 +94,11 @@ button:not(:disabled):active,
   animation: ui-card-in 260ms var(--motion-ease) both;
 }
 
+.no-entry-motion {
+  animation: none !important;
+  animation-delay: 0s !important;
+}
+
 .activity-route > :nth-child(2),
 .item-grid > :nth-child(2),
 .skill-road > :nth-child(2),
