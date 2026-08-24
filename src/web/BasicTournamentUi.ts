@@ -4,6 +4,8 @@ import { Logger } from "../utils/output/Logger";
 import { Player } from "../abstract/Player";
 import { createSkill } from "../catalogs/SkillCatalog";
 import { createRandomWeapon } from "../catalogs/WeaponCatalog";
+import { gameAudio } from "./GameAudio";
+import { queueWorldEffect } from "./WorldEffects";
 
 const $ = <T extends HTMLElement>(selector: string): T => document.querySelector(selector) as T;
 
@@ -94,6 +96,18 @@ function step(): void {
   if (!game?.battleActive) return;
   const report = game.doStep();
   if (!report) return;
+  gameAudio.basicTurn(report.damage, report.skipped, report.attacker.className);
+  if (report.battleFinished && report.winner) {
+    queueWorldEffect({
+      eyebrow: report.tournamentFinished ? "ТУРНИР ЗАВЕРШЁН" : "БОЙ ЗАВЕРШЁН",
+      title: report.winner.name,
+      description: report.tournamentFinished ? "Последний соперник побеждён. Определён чемпион турнирной сетки." : `${report.defeated?.name ?? "Соперник"} покидает турнирную сетку.`,
+      symbol: report.tournamentFinished ? "♛" : "⚔",
+      tone: "positive",
+      duration: report.tournamentFinished ? 2400 : 1600,
+    });
+    if (report.tournamentFinished) gameAudio.battleResult(true);
+  }
   if (report.tournamentFinished) addLog(`Турнир завершён. Чемпион — ${game.champion?.name}.`, true);
   renderBattle(report);
 }
@@ -148,6 +162,7 @@ function createTournament(): void {
   stopAuto();
   game = new Game(players, undefined, logger, { arenaName: ($("#basic-arena") as HTMLSelectElement).value });
   game.startTournament();
+  gameAudio.battleStart(false);
   $("#basic-trace").replaceChildren(element("li", "", "Турнир создан. Выполните ход, чтобы увидеть вызванные методы."));
   renderBattle();
 }

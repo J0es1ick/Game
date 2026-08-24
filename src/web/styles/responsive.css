@@ -23,7 +23,7 @@
 
 @media (max-width: 1180px) {
   .game-header {
-    grid-template-columns: auto 1fr auto auto auto;
+    grid-template-columns: auto 1fr auto auto auto auto;
   }
   .resources {
     display: none;

@@ -54,12 +54,15 @@
         <div><strong id="header-hero-name">—</strong><small id="header-hero-meta">герой не создан</small></div>
       </div>
       <dl class="resources">
-        <div><dt>Уровень</dt><dd id="header-level">—</dd></div>
-        <div><dt>Монеты</dt><dd id="header-gold">—</dd></div>
-        <div><dt>Печати</dt><dd id="header-marks">—</dd></div>
-        <div><dt>Место</dt><dd id="header-rank">—</dd></div>
-        <div><dt>День мира</dt><dd id="header-day">—</dd></div>
+        <div><dt data-term="level">Уровень</dt><dd id="header-level">—</dd></div>
+        <div><dt data-term="gold">Монеты</dt><dd id="header-gold">—</dd></div>
+        <div><dt data-term="marks">Печати</dt><dd id="header-marks">—</dd></div>
+        <div><dt data-term="rank">Место</dt><dd id="header-rank">—</dd></div>
+        <div><dt data-term="day">День мира</dt><dd id="header-day">—</dd></div>
       </dl>
+      <button class="plain-button sound-toggle" id="sound-toggle" type="button" aria-pressed="false" aria-label="Отключить звуки" title="Отключить звуки">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h4l5-4v12l-5-4H4z"/><g class="sound-waves"><path d="M16 9c1.5 1.7 1.5 4.3 0 6"/><path d="M19 6c3 3.3 3 8.7 0 12"/></g><path class="sound-off-line" d="M5 4l14 16"/></svg>
+      </button>
       <button class="plain-button" id="open-tutorial-btn" title="Открыть краткое обучение">Как играть</button>
       <button class="plain-button" id="new-game-btn" title="Удалить локальное сохранение и создать нового героя">Новая игра</button>
       <button class="plain-button" id="switch-mode-btn">Сменить режим</button>
@@ -75,7 +78,7 @@
       <button data-page="collections">Коллекции <span id="collection-count">0</span></button>
       <button data-page="shop">Лавка</button>
       <button data-page="leaders">Сотня лучших</button>
-      <button data-page="elite">Элита <span>30</span></button>
+      <button data-page="elite" data-term="legend">Элита <span>30</span></button>
       <button data-page="chronicle">Мир</button>
     </nav>
 
@@ -86,7 +89,7 @@
           <h1>Базовый турнир</h1>
           <p>Полный интерфейс исходной версии: ручное и случайное создание участников, турнирная сетка, пошаговый журнал и разбор фактически вызванных методов.</p>
         </div>
-        <div class="basic-head-actions"><span id="basic-global-status">Добавьте минимум двух участников</span><button class="plain-button" id="basic-switch-mode">Сменить режим</button></div>
+        <div class="basic-head-actions"><span id="basic-global-status">Добавьте минимум двух участников</span><button class="plain-button sound-toggle" id="basic-sound-toggle" type="button" aria-pressed="false" aria-label="Отключить звуки" title="Отключить звуки"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h4l5-4v12l-5-4H4z"/><g class="sound-waves"><path d="M16 9c1.5 1.7 1.5 4.3 0 6"/><path d="M19 6c3 3.3 3 8.7 0 12"/></g><path class="sound-off-line" d="M5 4l14 16"/></svg></button><button class="plain-button" id="basic-switch-mode">Сменить режим</button></div>
       </header>
 
       <section class="basic-patterns paper-panel" aria-label="Последовательность механизмов">
@@ -231,7 +234,7 @@
               <div class="inventory-title"><p class="eyebrow">СОДЕРЖИМОЕ РЮКЗАКА</p><h2>Предметы</h2><small id="inventory-result-count"></small></div>
               <button class="plain-button inventory-sell-all" id="inventory-sell-unequipped" type="button"><span>Продать неиспользуемое</span><small>Надетое и регалии останутся</small></button>
             </header>
-            <div class="inventory-filter-stack"><div class="filter-row" id="inventory-filters"></div><label>Комплект<select id="inventory-set-filter"></select></label><label>Редкость<select id="inventory-rarity-filter"></select></label><label>Новизна<select id="inventory-sort"><option value="newest">Сначала новые</option><option value="oldest">Сначала старые</option></select></label></div>
+            <div class="inventory-filter-stack"><div class="filter-row" id="inventory-filters"></div><label data-term="set">Комплект<select id="inventory-set-filter"></select></label><label data-term="rarity">Редкость<select id="inventory-rarity-filter"></select></label><label>Новизна<select id="inventory-sort"><option value="newest">Сначала новые</option><option value="oldest">Сначала старые</option></select></label></div>
             <div class="item-grid" id="inventory-grid"></div><button class="plain-button inventory-more" id="inventory-more" hidden>Показать ещё</button>
           </section>
           <aside class="paper-panel stats-panel" id="hero-stats"></aside>
@@ -240,7 +243,7 @@
 
       <section class="page" id="page-forge" aria-labelledby="forge-title">
         <header class="page-heading"><div><p class="eyebrow">ПОСТОЯННОЕ УСИЛЕНИЕ ПРЕДМЕТОВ</p><h1 id="forge-title">Кузница</h1></div><p>Печати закалки добываются в поздних турнирах, у особых противников и изредка в сложных данжах. Золотом их купить нельзя.</p></header>
-        <div class="forge-summary paper-panel"><div><small>ДОСТУПНЫЙ РЕСУРС</small><strong id="forge-marks">0 печатей</strong></div><p>Каждый следующий уровень закалки дороже. Максимум — +5; характеристики предмета растут при каждом улучшении.</p></div>
+        <div class="forge-summary paper-panel"><div><small>ДОСТУПНЫЙ РЕСУРС</small><strong id="forge-marks" data-term="marks">0 печатей</strong></div><p data-term="enhancement">Каждый следующий уровень закалки дороже. Максимум — +5; характеристики предмета растут при каждом улучшении.</p></div>
         <section class="relic-workshop paper-panel" id="relic-workshop"></section>
         <div class="forge-grid" id="forge-grid"></div>
       </section>
@@ -255,7 +258,7 @@
       </section>
 
       <section class="page" id="page-contracts" aria-labelledby="contracts-title">
-        <header class="page-heading"><div><p class="eyebrow">РЕПУТАЦИЯ И ЗАКАЗЫ МИРА</p><h1 id="contracts-title">Фракции и контракты</h1></div><p>Выберите, чьи интересы поддерживать. Контракты используют обычные активности мира и дают им конкретную цель.</p></header>
+        <header class="page-heading"><div><p class="eyebrow">РЕПУТАЦИЯ И ЗАКАЗЫ МИРА</p><h1 id="contracts-title" data-term="factionReputation">Фракции и контракты</h1></div><p>Выберите, чьи интересы поддерживать. Контракты используют обычные активности мира и дают им конкретную цель.</p></header>
         <section class="active-contract paper-panel" id="active-contract"></section>
         <section class="reputation-guide paper-panel" id="reputation-guide" aria-labelledby="reputation-guide-title"></section>
         <div class="faction-grid" id="faction-grid"></div>
@@ -278,13 +281,13 @@
       <section class="page" id="page-leaders" aria-labelledby="leaders-title">
         <header class="page-heading"><div><p class="eyebrow">ТОЛЬКО ТУРНИРНЫЕ РЕЗУЛЬТАТЫ</p><h1 id="leaders-title">Сотня лучших бойцов</h1></div><p>Дуэли и подземелья не дают мировой рейтинг. Новая арена начинает влиять на место только после первой победы в турнире на ней.</p></header>
         <div class="leader-summary" id="leader-summary"></div>
-        <div class="leader-table-wrap"><table class="leader-table"><thead><tr><th>#</th><th>Боец</th><th>Класс</th><th>Арена</th><th>Ур.</th><th>Турниры</th><th>Победы</th><th>Поражения</th><th>Убийства</th><th>Рейтинг</th></tr></thead><tbody id="leader-table"></tbody></table></div>
+        <div class="leader-table-wrap"><table class="leader-table"><thead><tr><th>#</th><th>Боец</th><th>Класс</th><th>Арена</th><th data-term="level">Ур.</th><th data-term="tournament">Турниры</th><th>Победы</th><th>Поражения</th><th data-term="kill">Убийства</th><th data-term="rating">Рейтинг</th></tr></thead><tbody id="leader-table"></tbody></table></div>
       </section>
 
       <section class="page" id="page-elite" aria-labelledby="elite-title">
-        <header class="page-heading"><div><p class="eyebrow">ЗАКРЫТАЯ ЛИГА ПОСЛЕДНЕЙ АРЕНЫ</p><h1 id="elite-title">Тридцать бойцов элиты</h1></div><p>В элиту входят только чемпионы последней арены. Первые пять носят титулы легенд, а место в таблице можно изменить в Лиге короны и личных вызовах.</p></header>
+        <header class="page-heading"><div><p class="eyebrow">ЗАКРЫТАЯ ЛИГА ПОСЛЕДНЕЙ АРЕНЫ</p><h1 id="elite-title" data-term="crownLeague">Тридцать бойцов элиты</h1></div><p>В элиту входят только чемпионы последней арены. Первые пять носят титулы легенд, а место в таблице можно изменить в Лиге короны и личных вызовах.</p></header>
         <div class="leader-summary" id="elite-leader-summary"></div>
-        <div class="leader-table-wrap"><table class="leader-table elite-table"><thead><tr><th>#</th><th>Титул</th><th>Боец</th><th>Класс</th><th>Ур.</th><th>Очки элиты</th><th>Короны</th><th>Победы</th><th>Поражения</th><th>Убийства</th></tr></thead><tbody id="elite-leader-table"></tbody></table></div>
+        <div class="leader-table-wrap"><table class="leader-table elite-table"><thead><tr><th>#</th><th data-term="legend">Титул</th><th>Боец</th><th>Класс</th><th data-term="level">Ур.</th><th data-term="rating">Очки элиты</th><th data-term="crownLeague">Короны</th><th>Победы</th><th>Поражения</th><th data-term="kill">Убийства</th></tr></thead><tbody id="elite-leader-table"></tbody></table></div>
       </section>
 
       <section class="page" id="page-chronicle" aria-labelledby="chronicle-title">
@@ -393,11 +396,12 @@
         <div class="battle-skills" id="battle-skills"><div data-fighter="hero"><strong>Навыки героя</strong><div></div></div><div data-fighter="enemy"><strong>Навыки противника</strong><div></div></div></div>
         <div class="battle-log" id="battle-log"></div>
         <div class="battle-rules" id="battle-rules" hidden></div>
-        <div class="battle-controls"><label>Скорость боя<select id="battle-speed"><option value="900">Медленно</option><option value="450" selected>Обычно</option><option value="160">Быстро</option></select></label><button class="plain-button" id="manual-battle-step" type="button" hidden>Выполнить ход</button><button class="plain-button" id="skip-battle">Пропустить бой</button></div>
+        <div class="battle-controls"><label data-term="battleSpeed">Скорость боя<select id="battle-speed"><option value="900">Медленно</option><option value="450" selected>Обычно</option><option value="160">Быстро</option></select></label><button class="plain-button" id="manual-battle-step" type="button" hidden>Выполнить ход</button><button class="plain-button" id="skip-battle">Пропустить бой</button></div>
         <footer class="battle-result" id="battle-result" hidden><div></div><div class="battle-result-actions"><button class="button primary" id="close-battle">Вернуться на карту</button></div></footer>
       </div>
     </section>
 
+    <div class="world-effect-stage" id="world-effect-stage" aria-live="polite" aria-atomic="true"></div>
     <div class="toast-region" id="toast-region" aria-live="polite"></div>
     <script type="module" src="./ui.ts"></script>
   </body>

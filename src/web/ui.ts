@@ -27,6 +27,9 @@ import {
 import { CLASS_CHANGE_GOLD_COST, CLASS_CHANGE_MARK_COST, WorldGame, skillById } from "../gameplay/WorldGame";
 import { createEquipmentIcon, renderCharacterDoll } from "./CharacterDoll";
 import { basicTournamentUi } from "./BasicTournamentUi";
+import { gameAudio } from "./GameAudio";
+import { initializeGlossary, markTerm } from "./Glossary";
+import { queueWorldEffect } from "./WorldEffects";
 import {
   ActivityDefinition,
   ArenaDefinition,
@@ -200,6 +203,30 @@ function toast(message: string, kind: "ok" | "error" = "ok"): void {
   const node = element("div", `toast ${kind}`, message);
   $("#toast-region").append(node);
   window.setTimeout(() => node.remove(), 3200);
+}
+
+function updateSoundControls(): void {
+  ["#sound-toggle", "#basic-sound-toggle"].forEach((selector) => {
+    const button = document.querySelector<HTMLButtonElement>(selector);
+    if (!button) return;
+    button.setAttribute("aria-pressed", String(gameAudio.isMuted));
+    button.setAttribute("aria-label", gameAudio.isMuted ? "Включить звуки" : "Отключить звуки");
+    button.title = gameAudio.isMuted ? "Включить звуки" : "Отключить звуки";
+  });
+}
+
+function initializeStickyOffsets(): void {
+  const header = document.querySelector<HTMLElement>(".game-header");
+  if (!header) return;
+  const sync = () => document.documentElement.style.setProperty("--game-header-height", `${Math.ceil(header.getBoundingClientRect().height)}px`);
+  sync();
+  if ("ResizeObserver" in window) new ResizeObserver(sync).observe(header);
+}
+
+function toggleSound(): void {
+  const muted = gameAudio.toggle();
+  updateSoundControls();
+  toast(muted ? "Звуки отключены." : "Звуки включены.");
 }
 
 function featureStatsText(stats: Partial<Stats>): string {
@@ -414,6 +441,7 @@ function createHero(): void {
   renderAll();
   openTutorial(true);
   toast(`${name}: путь начался.`);
+  queueWorldEffect({ eyebrow: "НОВАЯ ЛЕТОПИСЬ", title: name, description: `${CLASS_DEFINITIONS[selectedClass].name} выходит на первую арену.`, symbol: classIcons[selectedClass], tone: "legendary", sound: "reputation", duration: 2600 });
 }
 
 function showPage(page: string, scrollToTop = true, refresh = true): void {
@@ -458,7 +486,12 @@ function renderHeader(): void {
 
 function statRow(label: string, value: string | number): HTMLElement {
   const row = element("div", "stat-row");
-  row.append(element("span", "", label), element("strong", "", String(value)));
+  const labelNode = element("span", "", label);
+  const terms: Record<string, "health" | "attack" | "defense" | "speed" | "crit"> = {
+    "Здоровье": "health", "Атака": "attack", "Защита": "defense", "Скорость": "speed", "Крит. шанс": "crit",
+  };
+  if (terms[label]) markTerm(labelNode, terms[label]);
+  row.append(labelNode, element("strong", "", String(value)));
   return row;
 }
 
@@ -588,6 +621,7 @@ function renderClassChangePanel(): void {
     try {
       game!.changeHeroClass(nextClass); persist(); renderAll();
       toast(`Новый класс: ${nextName}. Подходящее снаряжение надето автоматически.`);
+      queueWorldEffect({ eyebrow: "НОВАЯ СПЕЦИАЛИЗАЦИЯ", title: nextName, description: "Класс изменён. Навыки и подходящее снаряжение собраны заново.", symbol: "✦", tone: "legendary", sound: "reputation" });
     } catch (error) { toast((error as Error).message, "error"); }
   });
   controls.append(select, button, element("small", "", `Смен класса: ${hero.classChanges}`));
@@ -752,6 +786,7 @@ function registerForTournament(arenaId: string): void {
   try {
     const day = game.registerTournament(arenaId); persist(); refreshMapViews(false);
     toast(`Место зарезервировано. Турнир начнётся в день ${day}.`);
+    queueWorldEffect({ eyebrow: "КАЛЕНДАРЬ ТУРНИРОВ", title: `Запись на день ${day}`, description: "Место в сетке закреплено за героем. В день события появится напоминание.", symbol: "◇", sound: "choice" });
   } catch (error) { toast((error as Error).message, "error"); }
 }
 
@@ -762,6 +797,7 @@ function registerForCrownLeague(): void {
     persist();
     refreshMapViews(false);
     toast(`Место в Лиге короны зарезервировано на день ${day}.`);
+    queueWorldEffect({ eyebrow: "ЭЛИТНЫЙ ОТБОР", title: `Лига короны · день ${day}`, description: "Победа в редком турнире откроет дорогу в элитную тридцатку.", symbol: "♛", tone: "legendary", sound: "reputation" });
   } catch (error) { toast((error as Error).message, "error"); }
 }
 
@@ -1063,6 +1099,7 @@ function renderEquipmentComparison(): void {
       try {
         const bought = game!.buy(comparisonShopIndex!);
         persist(); closeEquipmentComparison(); renderShop(); renderCollections(); refreshEquipmentViews(true); toast(`${bought.name} добавлен в инвентарь.`);
+        queueWorldEffect({ eyebrow: "НОВАЯ ПОКУПКА", title: bought.name, description: `${RARITY_LABELS[bought.rarity]} снаряжение добавлено в инвентарь.`, symbol: "◆", tone: rarityAtLeastUi(bought.rarity, "legendary") ? "legendary" : "positive", sound: "loot" });
       } catch (error) { toast((error as Error).message, "error"); }
     };
   } else {
@@ -1312,10 +1349,14 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
   if (!game) return element("article");
   const card = element("article", `item-card ${rarityClass[item.rarity]}${sold ? " sold" : ""}`);
   const head = element("div", "item-head");
-  head.append(element("span", "item-slot", SLOT_LABELS[item.slot]), element("span", "rarity-label", RARITY_LABELS[item.rarity]));
+  const rarity = markTerm(element("span", "rarity-label", RARITY_LABELS[item.rarity]), "rarity");
+  head.append(element("span", "item-slot", SLOT_LABELS[item.slot]), rarity);
   const artwork = equipmentArtwork(item.slot, classForTemplate(item.allowedClasses), "equipment-art", item);
   artwork.style.setProperty("--rarity-color", rarityColors[item.rarity]);
-  card.append(head, artwork, element("h3", "", displayItemName(item)), element("small", "", `Предмет ${item.level} уровня${item.enhancement ? ` · закалка +${item.enhancement}` : ""}${rarityAtLeastUi(item.rarity, "legendary") ? ` · наследие ${item.relicTier ?? 0}/3` : ""}`), element("p", "item-stats", itemStatsText(item)));
+  const progress = element("small", "", `Предмет ${item.level} уровня${item.enhancement ? ` · закалка +${item.enhancement}` : ""}${rarityAtLeastUi(item.rarity, "legendary") ? ` · наследие ${item.relicTier ?? 0}/3` : ""}`);
+  if (rarityAtLeastUi(item.rarity, "legendary")) markTerm(progress, "relic");
+  else if (item.enhancement) markTerm(progress, "enhancement");
+  card.append(head, artwork, element("h3", "", displayItemName(item)), progress, element("p", "item-stats", itemStatsText(item)));
   if (item.affix) card.append(element("p", "item-affix", `${item.affix.name}: +${item.affix.value} · ${item.affix.description}`));
   if (item.grantedSkillId) card.append(element("p", "item-skill", `Навык: ${skillById(item.grantedSkillId)?.name ?? item.grantedSkillId}`));
   const controls = element("div", "item-controls");
@@ -1371,6 +1412,7 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
         renderCollections();
         refreshEquipmentViews(true);
         toast(`${bought.name} добавлен в инвентарь.`);
+        queueWorldEffect({ eyebrow: "НОВАЯ ПОКУПКА", title: bought.name, description: `${RARITY_LABELS[bought.rarity]} снаряжение добавлено в инвентарь.`, symbol: "◆", tone: rarityAtLeastUi(bought.rarity, "legendary") ? "legendary" : "positive", sound: "loot" });
       } catch (error) { toast((error as Error).message, "error"); }
     });
     controls.append(compare, buy);
@@ -1758,7 +1800,10 @@ function renderContracts(): void {
 
 function acceptContract(id: string, approach: "honor" | "profit"): void {
   if (!game) return;
-  try { const contract = game.acceptContract(id, approach); persist(); renderContracts(); renderHeader(); toast(`Принят контракт «${contract.title}».`); }
+  try {
+    const contract = game.acceptContract(id, approach); persist(); renderContracts(); renderHeader(); toast(`Принят контракт «${contract.title}».`);
+    queueWorldEffect({ eyebrow: approach === "honor" ? "КЛЯТВА ЧЕСТИ" : "УСЛОВИЯ СДЕЛКИ", title: contract.title, description: approach === "honor" ? "Репутация фракции важнее быстрой прибыли." : "Награда монетами важнее признания фракции.", symbol: "§", tone: "neutral", sound: "reputation" });
+  }
   catch (error) { toast((error as Error).message, "error"); }
 }
 
@@ -1843,7 +1888,10 @@ function renderForge(animateItems = true, preserveOrder = false): void {
     button.type = "button";
     button.disabled = enhancement >= 5 || hero.temperingMarks < game!.upgradeCost(item.id);
     button.addEventListener("click", () => {
-      try { game!.upgradeItem(item.id); persist(); refreshEquipmentViews(true); toast(`${item.name} усилен.`); }
+      try {
+        game!.upgradeItem(item.id); persist(); refreshEquipmentViews(true); toast(`${item.name} усилен.`);
+        queueWorldEffect({ eyebrow: "КУЗНИЦА", title: `${item.name} · закалка +${enhancement + 1}`, description: "Характеристики предмета повышены навсегда.", symbol: "⚒", tone: "positive", sound: "forge" });
+      }
       catch (error) { toast((error as Error).message, "error"); }
     });
     const actions = element("div", "forge-card-actions");
@@ -1911,6 +1959,7 @@ function renderRelicWorkshop(): void {
   const head = element("div", "relic-workshop-head");
   head.append(element("p", "eyebrow", "НАСЛЕДИЕ СНАРЯЖЕНИЯ"), element("h2", "", "Предметы помнят победы"), element("p", "", "Надетые легендарные и мифические вещи получают известность в боях. На первой ступени можно выбрать постоянный путь развития."));
   const resource = statRow("Реликтовая пыль", hero.relicDust);
+  markTerm(resource.querySelector<HTMLElement>("span")!, "relicDust");
   const list = element("div", "relic-ready-list");
   ready.forEach((item) => {
     const row = element("article");
@@ -1922,7 +1971,10 @@ function renderRelicWorkshop(): void {
       const button = element("button", "plain-button", path.name);
       button.setAttribute("aria-describedby", tooltipId);
       button.disabled = hero.relicDust < 8;
-      button.addEventListener("click", () => { try { game!.awakenRelic(item.id, path.id); persist(); renderForge(false); toast(`${item.name} обрёл собственный путь.`); } catch (error) { toast((error as Error).message, "error"); } });
+      button.addEventListener("click", () => { try {
+        game!.awakenRelic(item.id, path.id); persist(); renderForge(false); toast(`${item.name} обрёл собственный путь.`);
+        queueWorldEffect({ eyebrow: "ПРОБУЖДЕНИЕ РЕЛИКВИИ", title: path.name, description: path.description, stats: featureStatsText(path.stats).split(" · ").filter(Boolean), symbol: "✦", tone: "legendary", sound: "loot", duration: 2800 });
+      } catch (error) { toast((error as Error).message, "error"); } });
       const tooltip = element("aside", "relic-path-tooltip");
       tooltip.id = tooltipId;
       tooltip.setAttribute("role", "tooltip");
@@ -2069,6 +2121,7 @@ function startActivity(activityId: string): void {
     game.startExpedition(activityId);
     persist(); renderMap(false); openDungeonWindow();
     toast("Поход начат. Выберите первый маршрут.");
+    queueWorldEffect({ eyebrow: "ЭКСПЕДИЦИЯ", title: "Отряд покинул лагерь", description: "Выбирайте путь после каждого этапа: риск меняет опасность и возможную добычу.", symbol: "↟", sound: "choice" });
   } catch (error) {
     toast((error as Error).message, "error");
   }
@@ -2122,7 +2175,19 @@ function trainHero(): void {
     const result = game.train();
     persist();
     refreshMapViews(false);
-    toast(`${result.title}: +${result.experience} опыта${result.levelsGained ? `, +${result.levelsGained} ур.` : ""}.`);
+    queueWorldEffect({
+      eyebrow: "ТРЕНИРОВОЧНЫЙ ДЕНЬ", title: result.title,
+      description: `Получено ${result.experience} опыта${result.levelsGained ? ` и ${result.levelsGained} ур.` : ""}.`,
+      symbol: "⚔", tone: "positive", sound: "training", duration: 1700,
+      aggregation: {
+        key: "training", count: 1, totals: { experience: result.experience, levels: result.levelsGained },
+        format: (count, totals) => ({
+          eyebrow: "СЕРИЯ ТРЕНИРОВОК",
+          title: `${count} тренировочных дней завершено`,
+          description: `Всего получено ${totals.experience ?? 0} опыта${totals.levels ? ` и ${totals.levels} ур.` : ""}.`,
+        }),
+      },
+    });
   } catch (error) { toast((error as Error).message, "error"); }
 }
 
@@ -2234,6 +2299,7 @@ function openBattleReport(report: BattleReport): void {
   renderBattleSkills(currentReport);
   $("#battle-overlay").hidden = false;
   document.body.classList.add("battle-open");
+  gameAudio.battleStart(currentReport.activity.kind === "boss" || currentReport.activity.kind === "dungeon");
   scheduleBattleTurn();
 }
 
@@ -2275,6 +2341,8 @@ function playBattleTurn(): void {
   const actor = turn.actorId === "hero" ? $("#battle-hero") : $("#battle-enemy");
   const target = turn.targetId === "hero" ? $("#battle-hero") : $("#battle-enemy");
   actor.classList.remove("acting"); target.classList.remove("hit"); void actor.offsetWidth; actor.classList.add("acting"); if (turn.damage > 0) target.classList.add("hit");
+  const actorClass = turn.actorId === "hero" ? currentReport.heroBefore.classId : currentReport.enemyBefore.classId;
+  gameAudio.battleTurn(turn, actorClass);
   const log = element("p", turn.critical ? "critical" : "", `${turn.turn}. ${turn.actorName} — ${turn.action}: ${turn.damage} урона${turn.healing ? `, +${turn.healing} HP` : ""}.`);
   $("#battle-log").prepend(log);
   scheduleBattleTurn();
@@ -2314,6 +2382,15 @@ function finishBattlePlayback(): void {
   const title = finalTournamentBattle
     ? (currentTournament!.heroWon ? "Вы — чемпион турнира" : `Турнир завершён · место ${currentTournament!.heroPlacement}`)
     : currentReport.heroWon ? "Победа" : "Поражение";
+  gameAudio.battleResult(currentReport.heroWon);
+  queueWorldEffect({
+    eyebrow: currentReport.activity.name,
+    title,
+    description: currentReport.heroWon ? `${currentReport.enemyBefore.name} побеждён.` : `${currentReport.enemyBefore.name} оказался сильнее.`,
+    symbol: currentReport.heroWon ? "♛" : "×",
+    tone: currentReport.heroWon ? "positive" : "negative",
+    duration: 1800,
+  });
   copy.append(element("h3", "", title));
   const lines = hasNextTournamentBattle
     ? ["Раунд пройден. Следующий соперник уже определён турнирной сеткой."]
@@ -2333,6 +2410,15 @@ function finishBattlePlayback(): void {
     featureList.append(...featureChanges.map(battleFeatureChangeCard));
     featurePanel.append(featureList);
     copy.append(featurePanel);
+    featureChanges.forEach((change) => queueWorldEffect({
+      eyebrow: `${change.fighterName} · ${change.kind}`,
+      title: change.name,
+      description: change.description,
+      stats: featureStatsText(change.stats).split(" · ").filter(Boolean),
+      symbol: change.kind === "Травма" ? "✕" : change.kind === "Шрам" ? "⌁" : "✦",
+      tone: change.kind === "Травма" ? "negative" : "positive",
+      duration: 2500,
+    }));
   }
   $("#close-battle").textContent = hasNextTournamentBattle
     ? "Следующий бой"
@@ -2435,6 +2521,9 @@ function bootstrapWorld(): void {
 }
 
 function bootstrap(): void {
+  initializeGlossary();
+  initializeStickyOffsets();
+  updateSoundControls();
   renderCreation();
   const mode = localStorage.getItem(MODE_KEY);
   if (mode === "basic") { activateBasicMode(); return; }
@@ -2455,6 +2544,8 @@ $$<HTMLButtonElement>("[data-scroll-target]").forEach((button) => button.addEven
   document.getElementById(button.dataset.scrollTarget!)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }));
 $("#new-game-btn").addEventListener("click", newGame);
+$("#sound-toggle").addEventListener("click", toggleSound);
+$("#basic-sound-toggle").addEventListener("click", toggleSound);
 $("#switch-mode-btn").addEventListener("click", switchMode);
 $("#basic-switch-mode").addEventListener("click", switchMode);
 $("#basic-mode-btn").addEventListener("click", activateBasicMode);

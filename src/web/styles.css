@@ -8,6 +8,7 @@
 @import "./styles/world-expansion.css";
 @import "./styles/battle.css";
 @import "./styles/guidance.css";
+@import "./styles/effects.css";
 /* Shared motion language for both game modes and all overlays. */
 @import "./styles/motion.css";
 @import "./styles/responsive.css";

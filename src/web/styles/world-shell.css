@@ -4,7 +4,7 @@
   top: 0;
   display: grid;
   min-height: 76px;
-  grid-template-columns: auto minmax(190px, 0.7fr) 1fr auto auto auto;
+  grid-template-columns: auto minmax(190px, 0.7fr) 1fr auto auto auto auto;
   align-items: center;
   gap: 24px;
   padding: 10px clamp(16px, 4vw, 54px);
@@ -324,7 +324,7 @@
 .main-nav {
   position: sticky;
   z-index: 29;
-  top: 76px;
+  top: var(--game-header-height, 76px);
   display: flex;
   overflow-x: auto;
   gap: 2px;
