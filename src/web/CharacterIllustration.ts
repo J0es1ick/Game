@@ -1228,7 +1228,7 @@ export function renderCharacterIllustration(
       ${slots.chest && chestProfile ? `<g class="doll-slot-back is-equipped" style="${itemStyle(slots.chest)}">${chestBack(chestProfile, rarityTier[slots.chest.rarity])}</g>` : ""}
       ${baseCharacter}
       ${slotGroup("feet", slots.feet, classId)}
-      ${slotGroup("chest", slots.chest, classId, !slots.head)}
+      ${slotGroup("chest", slots.chest, classId)}
       ${slotGroup("hands", slots.hands, classId)}
       ${slotGroup("head", slots.head, classId)}
       ${slotGroup("weapon", slots.weapon, classId)}

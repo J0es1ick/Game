@@ -117,7 +117,7 @@ describe("2D character illustration contracts", () => {
     for (const paths of pathsBySet.slice(1)) expect(paths).toEqual(pathsBySet[0]);
   });
 
-  it("shows a chest collar only while the head slot is empty", () => {
+  it("keeps chest collars under equipped helmets", () => {
     for (const setId of ["wanderer", "argent", "ash-hunter", "comet", "lotus", "pilgrim"]) {
       const bareHead = render({ chest: equipment("chest", setId, "epic") });
       const coveredHead = render({
@@ -126,7 +126,8 @@ describe("2D character illustration contracts", () => {
       });
 
       expect(bareHead).toContain('class="armor-collar"');
-      expect(coveredHead).not.toContain('class="armor-collar"');
+      expect(coveredHead).toContain('class="armor-collar"');
+      expect(coveredHead.indexOf('data-slot="chest"')).toBeLessThan(coveredHead.indexOf('data-slot="head"'));
     }
   });
 
