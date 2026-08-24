@@ -57,6 +57,12 @@ import {
   TournamentReport,
   WorldEvent,
 } from "./WorldTypes";
+import {
+  WORLD_RATING_ARENA_BAND,
+  enemyExperienceRequirement,
+  heroExperienceRequirement,
+  normalizeExperienceProgress,
+} from "./ProgressionBalance";
 
 const enemyNames = [
   "Бран", "Хельга", "Торен", "Сив", "Мартен", "Рута", "Кай", "Орса", "Флинт", "Лисса",
@@ -68,6 +74,7 @@ const enemyOrigins = ["Нижний город", "Пепельная слобо�
 const classes = Object.keys(CLASS_DEFINITIONS) as HeroClass[];
 
 const VISUAL_TEST_CATALOG_CLEANUP_MIGRATION = "remove-visual-test-catalog-v1";
+const PROGRESSION_CURVE_MIGRATION = "rebalance-progression-curves-v1";
 const ELITE_SIZE = 30;
 const LEGEND_COUNT = 5;
 const FINAL_ARENA_INTERVAL = ARENAS[ARENAS.length - 1]?.tournamentInterval ?? 14;
@@ -104,7 +111,7 @@ export class WorldGame {
     const starter = starterEquipment(classId);
     const hero: HeroProfile = {
       id: "hero", name: name.trim() || "Безымянный", classId, level: 1, experience: 0,
-      experienceToNextLevel: 100, gold: 180, temperingMarks: 0, rating: 1000, wins: 0, losses: 0,
+      experienceToNextLevel: heroExperienceRequirement(1), gold: 180, temperingMarks: 0, rating: 1000, wins: 0, losses: 0,
       tournamentMatchWins: 0, tournamentMatchLosses: 0, duelWins: 0, duelLosses: 0,
       dungeonWins: 0, dungeonLosses: 0, bossWins: 0, kills: 0, rivalries: {},
       arenaWins: ARENAS.map(() => 0), highestArena: 0, inventory: starter.inventory,
@@ -116,7 +123,7 @@ export class WorldGame {
       appearance: { hairStyle: 0, faceStyle: 0 }, createdAt: now,
     };
     const save: GameSave = {
-      version: 2, migrations: [], hero, enemies: [], worldDay: 1, lastSimulatedAt: now,
+      version: 2, migrations: [PROGRESSION_CURVE_MIGRATION], hero, enemies: [], worldDay: 1, lastSimulatedAt: now,
       dungeonClears: {}, shopDay: 1, shopOffers: [],
       discoveredItems: starter.inventory.map((item) => item.templateId), tournamentRegistrations: {}, defeatedBosses: [],
       huntedLegendIds: [], eliteLeagueMemberIds: [], eliteRatings: {}, eliteCrownWins: {}, tutorialCompleted: false, events: [],
@@ -183,6 +190,15 @@ export class WorldGame {
       .filter((id, index, values) => values.indexOf(id) === index && SKILLS.some((skill) => skill.id === id))
       .slice(0, MAX_ACTIVE_SKILLS);
     if (hero.combatMode !== "manual") hero.combatMode = "auto";
+    if (!game.save.migrations.includes(PROGRESSION_CURVE_MIGRATION)) {
+      const requirement = heroExperienceRequirement(hero.level);
+      hero.experience = normalizeExperienceProgress(hero.experience, hero.experienceToNextLevel, requirement);
+      hero.experienceToNextLevel = requirement;
+      game.save.migrations.push(PROGRESSION_CURVE_MIGRATION);
+    } else {
+      hero.experienceToNextLevel = heroExperienceRequirement(hero.level);
+      hero.experience = Math.min(hero.experience, hero.experienceToNextLevel - 1);
+    }
     hero.inventory.forEach((item) => { item.enhancement ??= 0; item.relicTier ??= 0; item.relicRenown ??= 0; item.relicHistory ??= []; });
     game.save.enemies.forEach((enemy) => {
       enemy.tournamentWins ??= Math.min(enemy.wins, Math.max(0, enemy.arenaIndex * 2));
@@ -410,7 +426,7 @@ export class WorldGame {
     const combat = resolveCombat(this.save.hero, enemy);
     const heroWon = combat.winnerId === "hero";
     const enemyDied = false;
-    const exp = heroWon ? activity.rewardExperience + enemy.level * 7 : Math.round(activity.rewardExperience * 0.2);
+    const exp = heroWon ? activity.rewardExperience + enemy.level * 4 : Math.round(activity.rewardExperience * 0.2);
     const gold = heroWon ? activity.rewardGold + randomInt(0, Math.round(activity.rewardGold * 0.25)) : 0;
     const levelsGained = this.gainHeroExperience(exp);
     this.save.hero.gold += gold;
@@ -481,7 +497,7 @@ export class WorldGame {
     const enemy = this.matchDuelEnemy(tier, arenaIndex);
     const combat = resolveCombat(this.save.hero, enemy);
     const heroWon = combat.winnerId === "hero";
-    const experience = heroWon ? tier.rewardExperience + enemy.level * 6 : Math.round(tier.rewardExperience * 0.28);
+    const experience = heroWon ? tier.rewardExperience + enemy.level * 4 : Math.round(tier.rewardExperience * 0.28);
     const gold = heroWon ? tier.rewardGold + enemy.level * 4 : 0;
     const levelsGained = this.gainHeroExperience(experience);
     this.save.hero.gold += gold;
@@ -945,7 +961,7 @@ export class WorldGame {
     const enemy = this.currentLegendTarget()!;
     const combat = resolveCombat(this.save.hero, enemy);
     const heroWon = combat.winnerId === "hero";
-    const experience = heroWon ? activity.rewardExperience + enemy.level * 35 : Math.round(activity.rewardExperience * 0.18);
+    const experience = heroWon ? activity.rewardExperience + enemy.level * 18 : Math.round(activity.rewardExperience * 0.18);
     const gold = heroWon ? activity.rewardGold + enemy.tournamentWins * 120 : 0;
     const levelsGained = this.gainHeroExperience(experience);
     this.save.hero.gold += gold;
@@ -1292,16 +1308,23 @@ export class WorldGame {
 
   private recalculateHeroRating(): void {
     const hero = this.save.hero;
-    const championships = hero.arenaWins.reduce((sum, count, index) => sum + count * (45 + index * 18), 0);
+    const championships = hero.arenaWins.reduce((sum, count, index) => sum + count * (30 + index * 16), 0);
     const hasProvedCurrentArena = (hero.arenaWins[hero.highestArena] ?? 0) > 0;
     const provenArena = Math.max(0, hero.highestArena - (hasProvedCurrentArena ? 0 : 1));
-    hero.rating = 1000 + provenArena * 650 + Math.min(560, hero.tournamentMatchWins * 12)
-      + Math.min(360, championships) + Math.min(120, hero.level * 4) - Math.min(180, hero.tournamentMatchLosses * 8);
-    hero.rating += Math.min(900, hero.crownLeaguePoints * 15);
+    hero.rating = 1000 + provenArena * WORLD_RATING_ARENA_BAND
+      + Math.min(260, hero.tournamentMatchWins * 6)
+      + Math.min(200, championships)
+      + Math.min(100, hero.level * 3)
+      - Math.min(180, hero.tournamentMatchLosses * 5);
   }
 
   private enemyWorldRating(enemy: EnemyProfile): number {
-    return 1000 + enemy.arenaIndex * 650 + Math.min(620, enemy.tournamentWins * 12) + Math.min(160, enemy.level * 4);
+    const provenArena = Math.max(0, enemy.arenaIndex - (enemy.tournamentWins > 0 ? 0 : 1));
+    return 1000 + provenArena * WORLD_RATING_ARENA_BAND
+      + Math.min(300, enemy.tournamentWins * 7)
+      + Math.min(160, enemy.wins * 2)
+      + Math.min(100, enemy.level * 3)
+      - Math.min(140, enemy.losses * 2);
   }
 
   private addItem(item: EquipmentItem): void {
@@ -1458,7 +1481,7 @@ export class WorldGame {
         id: `contract-${faction.id}-${this.save.worldDay}-${this.save.completedContracts}`, factionId: faction.id, title: labels[objective][(this.save.worldDay + index) % 2],
         description: `${faction.name} просит выполнить задачу: ${objective === "training" ? "провести тренировочные дни" : objective === "duel" ? "победить в дуэлях" : objective === "dungeon" ? "завершить поход в данж" : objective === "tournament" ? "стать чемпионом турнира" : "победить особого противника"}.`,
         objective, target, progress: 0, rewardGold: Math.round((450 + this.save.hero.level * 55 + index * 130) * rewardMultiplier),
-        rewardExperience: Math.round((90 + this.save.hero.level * 14) * rewardMultiplier), rewardReputation: 5 + index,
+        rewardExperience: Math.round((70 + this.save.hero.level * 9) * rewardMultiplier), rewardReputation: 5 + index,
         createdDay: this.save.worldDay, expiresDay: this.save.worldDay + CONTRACT_LIFETIME,
       };
     });
@@ -1525,7 +1548,7 @@ export class WorldGame {
     while (hero.experience >= hero.experienceToNextLevel && hero.level < levelCap) {
       hero.experience -= hero.experienceToNextLevel;
       hero.level += 1; levels += 1;
-      hero.experienceToNextLevel = Math.round(hero.experienceToNextLevel * 1.28);
+      hero.experienceToNextLevel = heroExperienceRequirement(hero.level);
     }
     if (hero.level >= levelCap) hero.experience = Math.min(hero.experience, Math.max(0, hero.experienceToNextLevel - 1));
     return levels;
@@ -1545,7 +1568,7 @@ export class WorldGame {
     equipment.forEach((item) => { equipped[item.slot] = item.id; });
     const name = `${pick(enemyNames)} ${String.fromCharCode(65 + randomInt(0, 20))}.`;
     const wins = newcomer ? randomInt(0, Math.max(1, arenaIndex)) : randomInt(arenaIndex * 3, arenaIndex * 9 + 5);
-    const tournamentWins = newcomer ? randomInt(0, Math.max(0, Math.floor(arenaIndex / 2))) : randomInt(arenaIndex * 4, arenaIndex * 12 + 6);
+    const tournamentWins = newcomer ? 0 : randomInt(arenaIndex * 4, arenaIndex * 12 + 6);
     const enemy: EnemyProfile = {
       id: uid("enemy"), name, title: pick(enemyTitles), origin: pick(enemyOrigins), classId, level,
       experience: newcomer ? randomInt(0, 35 + level * 4) : randomInt(0, 80 + level * 20), rating: 0, wins,
@@ -1822,7 +1845,10 @@ export class WorldGame {
   }
 
   private progressEnemy(enemy: EnemyProfile, recordEvent = true): void {
-    while (enemy.experience >= 85 + enemy.level * 28) { enemy.experience -= 85 + enemy.level * 28; enemy.level += 1; }
+    while (enemy.experience >= enemyExperienceRequirement(enemy.level)) {
+      enemy.experience -= enemyExperienceRequirement(enemy.level);
+      enemy.level += 1;
+    }
     const nextArena = ARENAS[enemy.arenaIndex + 1];
     if (nextArena && enemy.arenaWins >= ARENAS[enemy.arenaIndex].winsToAdvance && enemy.level >= nextArena.minLevel) {
       const old = ARENAS[enemy.arenaIndex].name; enemy.arenaIndex += 1; enemy.arenaWins = 0;

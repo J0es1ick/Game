@@ -151,10 +151,11 @@ function toRuntime(profile: HeroProfile | EnemyProfile, options: RuntimeOptions 
   const items = equippedItems("inventory" in profile ? profile.inventory : profile.equipment, profile.equipped);
   const definition = CLASS_DEFINITIONS[profile.classId];
   const effectiveLevel = levelCap ? Math.min(profile.level, levelCap) : profile.level;
+  const completedLevels = effectiveLevel - 1;
   const levelBonus: Partial<Stats> = {
-    health: (effectiveLevel - 1) * 11,
-    attack: (effectiveLevel - 1) * 2.1,
-    defense: (effectiveLevel - 1) * 1.35,
+    health: completedLevels * 19 + completedLevels ** 2 * 0.45,
+    attack: completedLevels * 1.45,
+    defense: completedLevels * 1.15,
     speed: Math.floor((effectiveLevel - 1) / 4),
     crit: Math.floor((effectiveLevel - 1) / 6),
   };
@@ -162,6 +163,11 @@ function toRuntime(profile: HeroProfile | EnemyProfile, options: RuntimeOptions 
   let stats = applySetStats(addStats(addStats(addStats(definition.startingStats, levelBonus), itemStats(items, levelCap)), featureStats(profile)), counts);
   const rules = TOURNAMENT_RULES.filter((rule) => ruleIds.includes(rule.id));
   rules.forEach((rule) => { stats = addStats(stats, side === "hero" ? rule.heroStats ?? {} : rule.enemyStats ?? {}); });
+  stats.health = Math.max(1, Math.round(stats.health));
+  stats.attack = Math.max(1, Math.round(stats.attack));
+  stats.defense = Math.max(0, Math.round(stats.defense));
+  stats.speed = Math.max(1, Math.round(stats.speed));
+  stats.crit = Math.max(0, Math.min(60, Math.round(stats.crit)));
   const disableHealing = rules.some((rule) => rule.disableHealing);
   const skills = activeSkills(profile, skillsFor(profile.classId, effectiveLevel, items)).filter((skill) => !disableHealing || skill.kind !== "heal");
   const model = new PlayerFactory().create({
@@ -226,15 +232,15 @@ function attackDamage(actor: RuntimeFighter, target: RuntimeFighter, multiplier 
   const classAttack = actor.model.modifyCombatAttack(actor.attack * multiplier, actorContext);
   actor.combo = classAttack.combo ?? actor.combo;
   if (classAttack.detail) detail = classAttack.detail;
-  const criticalChance = actor.crit + actor.model.criticalChanceBonus(actorContext);
+  const criticalChance = Math.min(60, actor.crit + actor.model.criticalChanceBonus(actorContext));
   const critical = Math.random() * 100 < criticalChance;
   const variance = 0.9 + Math.random() * 0.2;
   const weakened = 1 - actor.weakened;
   actor.weakened = 0;
-  const raw = classAttack.damage * (1 + actor.buff) * weakened * variance * (critical ? 1.55 : 1);
+  const raw = classAttack.damage * (1 + actor.buff) * weakened * variance * (critical ? 1.45 : 1);
   actor.buff = 0;
-  const defense = target.defense * 0.58;
-  let damage = Math.max(1, Math.round(raw - defense));
+  const armorMultiplier = 120 / (120 + Math.max(0, target.defense) * 1.35);
+  let damage = Math.max(1, Math.round(raw * armorMultiplier));
   const defended = target.model.modifyCombatDefense(damage, {
     attackCounter: target.attackCounter,
     combo: target.combo,
@@ -265,7 +271,8 @@ function performTurn(turn: number, actor: RuntimeFighter, target: RuntimeFighter
     action = skill.name;
     actor.cooldowns[skill.id] = skill.cooldown;
     if (skill.kind === "heal") {
-      healing = Math.min(actor.maxHealth - actor.health, Math.round(skill.power + actor.level * 1.2));
+      const healthShare = skill.power >= 40 ? 0.12 : 0.08;
+      healing = Math.min(actor.maxHealth - actor.health, Math.round(skill.power + actor.level * 1.2 + actor.maxHealth * healthShare));
       actor.health += healing;
       detail = `восстановлено ${healing} HP`;
     } else if (skill.kind === "buff") {

@@ -1,7 +1,8 @@
-import { MAX_ACTIVE_SKILLS, combatantSnapshot, unlockedSkills } from "../src/gameplay/AdvancedBattle";
-import { ARENAS, CLASS_DEFINITIONS, DUEL_BOSSES, DUNGEONS, ENDGAME_ACTIVITIES, EQUIPMENT_SETS, ITEM_TEMPLATES, SKILLS } from "../src/catalogs/WorldCatalog";
+import { MAX_ACTIVE_SKILLS, combatantSnapshot, resolveCombat, unlockedSkills } from "../src/gameplay/AdvancedBattle";
+import { ARENAS, CLASS_DEFINITIONS, DUEL_BOSSES, DUEL_TIERS, DUNGEONS, ENDGAME_ACTIVITIES, EQUIPMENT_SETS, ITEM_TEMPLATES, SKILLS } from "../src/catalogs/WorldCatalog";
 import { calculateItemPrice, createItem } from "../src/factories/ItemFactory";
 import { WorldGame } from "../src/gameplay/WorldGame";
+import { enemyExperienceRequirement, heroExperienceRequirement } from "../src/gameplay/ProgressionBalance";
 import { TournamentArena } from "../src/arenas/TournamentArena";
 
 describe("постоянный RPG-мир", () => {
@@ -62,6 +63,55 @@ describe("постоянный RPG-мир", () => {
     game.save.hero.arenaWins = [2, 3, 3, 0, 0, 0];
     const restored = WorldGame.restore(game.save);
     expect(restored.heroRank()).toBeGreaterThan(1);
+  });
+
+  test("не позволяет возглавить мир до победы на последней арене", () => {
+    const game = WorldGame.create("Претендент", "Swordsman", 1_000);
+    game.save.hero.level = 40;
+    game.save.hero.highestArena = ARENAS.length - 2;
+    game.save.hero.tournamentMatchWins = 500;
+    game.save.hero.tournamentMatchLosses = 0;
+    game.save.hero.arenaWins = [20, 20, 20, 20, 20, 0];
+
+    const restored = WorldGame.restore(game.save);
+    const leader = restored.leaderboard()[0];
+
+    expect(restored.heroRank()).toBeGreaterThan(1);
+    expect(leader.arenaIndex).toBe(ARENAS.length - 1);
+  });
+
+  test("сводит требования опыта игрока и мира к сопоставимым кривым", () => {
+    expect(heroExperienceRequirement(1)).toBe(100);
+    expect(heroExperienceRequirement(30)).toBeLessThan(5_000);
+    expect(enemyExperienceRequirement(30)).toBeGreaterThan(heroExperienceRequirement(30) * 0.65);
+
+    const game = WorldGame.create("Ветеран", "Knight", 1_000);
+    game.save.hero.level = 29;
+    game.save.hero.experience = 50_000;
+    game.save.hero.experienceToNextLevel = 100_000;
+    game.save.migrations = game.save.migrations?.filter((migration) => migration !== "rebalance-progression-curves-v1");
+    const restored = WorldGame.restore(game.save);
+
+    expect(restored.save.hero.experienceToNextLevel).toBe(heroExperienceRequirement(29));
+    expect(restored.save.hero.experience).toBeCloseTo(heroExperienceRequirement(29) / 2, -1);
+  });
+
+  test("держит награды активностей в масштабе новой кривой опыта", () => {
+    ARENAS.forEach((arena) => {
+      expect(arena.rewardExperience).toBeLessThanOrEqual(heroExperienceRequirement(arena.minLevel) * 1.4);
+    });
+    DUNGEONS.forEach((dungeon) => {
+      expect(dungeon.rewardExperience).toBeLessThan(heroExperienceRequirement(dungeon.minLevel));
+    });
+    DUEL_TIERS.forEach((duel) => {
+      expect(duel.rewardExperience).toBeLessThan(heroExperienceRequirement(duel.minLevel));
+    });
+    DUEL_BOSSES.forEach((boss) => {
+      expect(boss.rewardExperience).toBeLessThanOrEqual(heroExperienceRequirement(boss.requiredLevel) * 1.05);
+    });
+    ENDGAME_ACTIVITIES.forEach((activity) => {
+      expect(activity.rewardExperience).toBeLessThan(heroExperienceRequirement(30));
+    });
   });
 
   test("не начисляет рейтинг только за открытие следующей арены", () => {
@@ -137,6 +187,33 @@ describe("постоянный RPG-мир", () => {
     const scaled = combatantSnapshot(game.save.hero, 5);
     expect(scaled.level).toBe(5);
     expect(scaled.originalLevel).toBe(24);
+  });
+
+  test("поздние сборки выдерживают серию ударов вместо обмена ваншотами", () => {
+    const game = WorldGame.create("Чемпион", "Swordsman", 1_000);
+    const hero = game.save.hero;
+    hero.level = 30;
+    hero.inventory = (["weapon", "offhand", "head", "chest", "hands", "feet"] as const).map((slot) =>
+      createItem(30, { classId: hero.classId, slot, rarity: "mythic" }));
+    hero.equipped = Object.fromEntries(hero.inventory.map((item) => [item.slot, item.id]));
+
+    const enemy = game.save.enemies.find((candidate) => candidate.arenaIndex === ARENAS.length - 1)!;
+    enemy.level = 40;
+    enemy.equipment = (["weapon", "offhand", "head", "chest", "hands", "feet"] as const).map((slot) =>
+      createItem(40, { classId: enemy.classId, slot, rarity: "mythic" }));
+    enemy.equipped = Object.fromEntries(enemy.equipment.map((item) => [item.slot, item.id]));
+
+    const heroSnapshot = combatantSnapshot(hero);
+    const enemySnapshot = combatantSnapshot(enemy);
+    const random = jest.spyOn(Math, "random").mockReturnValue(0.1);
+    const combat = resolveCombat(hero, enemy);
+    random.mockRestore();
+    const largestHitRatio = Math.max(...combat.turns.map((turn) => turn.damage / (turn.targetId === "hero" ? heroSnapshot.maxHealth : enemySnapshot.maxHealth)));
+
+    expect(heroSnapshot.maxHealth).toBeGreaterThan(heroSnapshot.attack * 3);
+    expect(enemySnapshot.maxHealth).toBeGreaterThan(enemySnapshot.attack * 3);
+    expect(largestHitRatio).toBeLessThan(0.7);
+    expect(combat.turns.length).toBeGreaterThan(4);
   });
 
   test("поддерживает автоснаряжение и сборку максимум из четырёх навыков", () => {
