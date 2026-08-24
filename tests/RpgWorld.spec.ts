@@ -181,6 +181,56 @@ describe("постоянный RPG-мир", () => {
     expect(game.trainingLevelCap()).toBe(ARENAS[1].enemyLevel[1] + 1);
   });
 
+  test("не предлагает и без штрафа отзывает контракт на недоступные тренировки", () => {
+    const game = WorldGame.create("Ветеран", "Monk", 1_000);
+    game.save.hero.level = game.trainingLevelCap();
+    const blocked = { ...game.save.contractOffers[0], objective: "training" as const, title: "День дисциплины" };
+    game.save.contractOffers = [blocked];
+    game.save.activeContract = { ...blocked, approach: "honor" };
+
+    const restored = WorldGame.restore(JSON.parse(JSON.stringify(game.save)));
+
+    expect(restored.save.activeContract).toBeUndefined();
+    expect(restored.save.contractOffers.every((contract) => contract.objective !== "training")).toBe(true);
+    expect(restored.save.events.some((event) => event.message.includes("отозван без штрафа"))).toBe(true);
+  });
+
+  test("блокирует смену дня при вызове легенде и умеет рассчитать защиту в фоне", () => {
+    const game = WorldGame.create("Легенда", "Knight", 1_000);
+    const challengerId = game.save.eliteLeagueMemberIds[0];
+    game.save.eliteLeagueMemberIds = ["hero", ...game.save.eliteLeagueMemberIds.filter((id) => id !== challengerId), challengerId].slice(0, 30);
+    game.save.pendingEliteChallengeId = game.save.eliteLeagueMemberIds[1];
+    const dayBefore = game.save.worldDay;
+    const experienceBefore = game.save.hero.experience;
+
+    expect(() => game.train()).toThrow("Сначала защитите место легенды");
+    expect(game.save.worldDay).toBe(dayBefore);
+    expect(game.save.hero.experience).toBe(experienceBefore);
+    expect(game.simulateElapsed(game.save.lastSimulatedAt + 600_000 * 3)).toBe(0);
+    expect(game.save.worldDay).toBe(dayBefore);
+
+    game.setAutoResolveLegendChallenges(true);
+    game.train();
+
+    expect(game.save.worldDay).toBe(dayBefore + 1);
+    expect(game.save.pendingEliteChallengeId).toBeUndefined();
+    expect(game.consumeAutomaticLegendDefense()).toBeDefined();
+  });
+
+  test("вычитает рейтинг за каждое поражение в официальном турнире", () => {
+    const game = WorldGame.create("Турнирщик", "Swordsman", 1_000);
+    game.save.hero.level = 18;
+    game.save.hero.highestArena = 3;
+    game.save.hero.arenaWins = [2, 2, 1, 1, 0, 0];
+    game.save.hero.tournamentMatchWins = 20;
+    game.save.hero.tournamentMatchLosses = 0;
+    const withoutLoss = WorldGame.restore(JSON.parse(JSON.stringify(game.save))).save.hero.rating;
+    game.save.hero.tournamentMatchLosses = 1;
+    const withLoss = WorldGame.restore(JSON.parse(JSON.stringify(game.save))).save.hero.rating;
+
+    expect(withoutLoss - withLoss).toBe(8);
+  });
+
   test("масштабирует высокого героя под раннюю арену", () => {
     const game = WorldGame.create("Чемпион", "Swordsman", 1_000);
     game.save.hero.level = 24;

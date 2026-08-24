@@ -1350,7 +1350,7 @@ export class WorldGame {
       + Math.min(260, hero.tournamentMatchWins * 6)
       + Math.min(200, championships)
       + Math.min(100, hero.level * 3)
-      - Math.min(180, hero.tournamentMatchLosses * 5);
+      - Math.min(260, hero.tournamentMatchLosses * 8);
   }
 
   private enemyWorldRating(enemy: EnemyProfile): number {
