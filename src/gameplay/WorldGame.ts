@@ -267,6 +267,10 @@ export class WorldGame {
     if (this.save.activeContract) throw new Error("Сначала завершите или отмените действующий контракт.");
     const offer = this.save.contractOffers.find((candidate) => candidate.id === contractId);
     if (!offer) throw new Error("Предложение больше недоступно.");
+    if (offer.objective === "training" && this.save.hero.level >= this.trainingLevelCap()) {
+      this.refreshContracts(true);
+      throw new Error("Предел тренировок достигнут. Фракция заменила недоступное поручение.");
+    }
     this.save.activeContract = { ...offer, approach };
     this.save.contractOffers = this.save.contractOffers.filter((candidate) => candidate.id !== contractId);
     this.event("system", `${this.save.hero.name} принял контракт «${offer.title}» (${approach === "honor" ? "честь" : "выгода"}).`);
@@ -1459,12 +1463,19 @@ export class WorldGame {
   }
 
   private refreshContracts(force: boolean): void {
-    const active = this.save.activeContract;
+    let active = this.save.activeContract;
+    const trainingAvailable = this.save.hero.level < this.trainingLevelCap();
+    if (active?.objective === "training" && !trainingAvailable) {
+      this.event("system", `Контракт «${active.title}» отозван без штрафа: герой достиг предела тренировок текущей арены.`);
+      this.save.activeContract = undefined;
+      active = undefined;
+    }
     if (active && active.expiresDay < this.save.worldDay) {
       this.event("system", `Срок контракта «${active.title}» истёк.`);
       this.save.activeContract = undefined;
     }
-    const stillValid = this.save.contractOffers.filter((offer) => offer.expiresDay >= this.save.worldDay);
+    const stillValid = this.save.contractOffers.filter((offer) =>
+      offer.expiresDay >= this.save.worldDay && (offer.objective !== "training" || trainingAvailable));
     if (!force && stillValid.length >= FACTIONS.length) { this.save.contractOffers = stillValid; return; }
     const labels: Record<ContractObjective, string[]> = {
       training: ["Показательная выучка", "День дисциплины"], duel: ["Честный вызов", "Долг клинка"],
@@ -1472,7 +1483,9 @@ export class WorldGame {
       boss: ["Закрыть старый счёт", "Охота за печатью"],
     };
     this.save.contractOffers = FACTIONS.map((faction, index) => {
-      const available = faction.objectives.filter((objective) => objective !== "boss" || this.save.hero.highestArena >= 2);
+      const available = faction.objectives.filter((objective) =>
+        (objective !== "boss" || this.save.hero.highestArena >= 2)
+        && (objective !== "training" || trainingAvailable));
       const objective = available[(this.save.worldDay + index + this.save.completedContracts) % available.length];
       const target = objective === "training" ? 2 : objective === "duel" ? 3 : 1;
       const reputation = this.save.hero.factionReputation[faction.id] ?? 0;
