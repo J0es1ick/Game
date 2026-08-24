@@ -1,0 +1,313 @@
+.activity-rules {
+  margin: 12px 0 2px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--yellow);
+  color: #4f493e;
+  background: #e4dccb;
+  font: 600 11px/1.45 "Inter", sans-serif;
+}
+
+.expedition-board {
+  margin: 18px 0 0;
+  border-top: 6px solid var(--blue);
+}
+
+.expedition-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, .8fr);
+  gap: 28px;
+  align-items: end;
+  margin-bottom: 20px;
+}
+
+.expedition-heading h3,
+.active-contract h2,
+.relic-workshop h2 {
+  margin: 5px 0 7px;
+  font-size: 28px;
+}
+
+.expedition-heading p,
+.relic-workshop p,
+.active-contract p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.expedition-condition {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  border: 1px solid #a99f8c;
+  background: #dfd7c7;
+}
+
+.expedition-condition .stat-row {
+  padding: 9px 11px;
+}
+
+.expedition-choices,
+.faction-grid,
+.contract-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.expedition-choice {
+  display: grid;
+  min-height: 210px;
+  padding: 17px;
+  border: 1px solid #a59a86;
+  border-top: 5px solid var(--green);
+  background: var(--paper-light);
+}
+
+.expedition-choice.risk { border-top-color: var(--red); }
+.expedition-choice.rest { border-top-color: var(--yellow); }
+.expedition-choice small { color: var(--muted); font: 10px "Courier New", monospace; }
+.expedition-choice h4 { margin: 14px 0 7px; font-size: 21px; }
+.expedition-choice p { margin: 0; color: var(--muted); line-height: 1.45; }
+.expedition-choice > span { align-self: end; margin: 14px 0 10px; font-size: 12px; }
+.expedition-choice .button { width: 100%; }
+.expedition-path { margin: 16px 0 8px; color: var(--muted); font: 12px "Courier New", monospace; }
+.expedition-retreat { margin-top: 5px; }
+
+.fighter-feature-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 18px;
+  padding-top: 15px;
+  border-top: 1px solid #aaa08d;
+}
+
+.fighter-feature-list > strong { font-size: 16px; }
+.fighter-feature-list > div { padding: 9px; border-left: 3px solid var(--green); background: #ded6c7; }
+.fighter-feature-list > div.injury { border-left-color: var(--red); background: #e5d1c6; }
+.fighter-feature-list small,
+.fighter-feature-list b,
+.fighter-feature-list span { display: block; }
+.fighter-feature-list small { color: var(--muted); font: 9px "Courier New", monospace; }
+.fighter-feature-list b { margin: 3px 0; font-size: 13px; }
+.fighter-feature-list span { color: var(--muted); font-size: 11px; line-height: 1.35; }
+
+.tactical-profile-picker {
+  display: grid;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid #aaa08d;
+}
+
+.tactical-profile-picker select { min-height: 40px; }
+.tactical-profile-picker small { color: var(--muted); font-size: 11px; line-height: 1.4; }
+
+.active-contract {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 18px;
+  border-left: 6px solid var(--red);
+}
+
+.contract-progress {
+  width: min(520px, 100%);
+  height: 10px;
+  margin: 16px 0 7px;
+  border: 1px solid #9f9581;
+  background: #d4ccbc;
+}
+.contract-progress i { display: block; height: 100%; background: var(--green); }
+
+.reputation-guide {
+  display: grid;
+  grid-template-columns: minmax(250px, .85fr) minmax(520px, 1.65fr);
+  gap: 22px;
+  margin-bottom: 18px;
+  border-left: 6px solid var(--green);
+}
+.reputation-guide-copy h2 { margin: 5px 0 8px; font-size: 22px; }
+.reputation-guide-copy > p:last-child { margin: 0; color: var(--muted); line-height: 1.5; }
+.reputation-tier-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid #b5ab98; }
+.reputation-tier-list article { display: grid; align-content: center; gap: 5px; min-height: 96px; padding: 12px; border-left: 1px solid #b5ab98; background: #e5ddcd; }
+.reputation-tier-list article:first-child { border-left: 0; }
+.reputation-tier-list article:not(.base) { box-shadow: inset 0 4px 0 var(--green); }
+.reputation-tier-list small { color: var(--red); font: 9px "Courier New", monospace; letter-spacing: .06em; }
+.reputation-tier-list strong { font-size: 14px; }
+.reputation-tier-list span { color: #526b58; font: 700 10px/1.4 "Courier New", monospace; }
+.faction-contract-benefit { min-height: 0 !important; margin: 10px 0 0; padding-top: 9px; border-top: 1px dotted #aaa08d; color: #526b58 !important; font-size: 11px; }
+
+.faction-card,
+.contract-card {
+  position: relative;
+  border-top: 5px solid var(--faction-accent);
+}
+.faction-card h3,
+.contract-card h3 { margin: 8px 0; font-size: 23px; }
+.faction-card blockquote { margin: 12px 0; padding-left: 12px; border-left: 2px solid var(--faction-accent); color: #574f43; font-style: italic; }
+.faction-card > p:not(.eyebrow),
+.contract-card > p { min-height: 48px; color: var(--muted); line-height: 1.45; }
+.contract-grid { margin-bottom: 32px; }
+.contract-rewards { margin: 16px 0 12px; padding: 10px; background: #ded6c6; font: 11px/1.45 "Courier New", monospace; }
+.contract-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.contract-actions .button { width: 100%; min-height: 45px; padding: 8px; font-size: 12px; }
+.contract-approach-option { position: relative; min-width: 0; }
+.contract-approach-tooltip {
+  position: absolute;
+  z-index: 24;
+  left: 50%;
+  bottom: calc(100% + 11px);
+  width: min(290px, calc(100vw - 38px));
+  padding: 13px 14px;
+  border: 1px solid #6e6556;
+  border-top: 4px solid var(--faction-accent, var(--green));
+  color: var(--ink);
+  background: #f1ebdf;
+  box-shadow: 6px 7px 0 rgba(43, 37, 29, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 7px);
+  transition: opacity 140ms ease, transform 140ms ease, visibility 140ms;
+  visibility: hidden;
+}
+.contract-approach-tooltip::after {
+  position: absolute;
+  top: 100%;
+  left: calc(50% - 7px);
+  width: 13px;
+  height: 13px;
+  border-right: 1px solid #6e6556;
+  border-bottom: 1px solid #6e6556;
+  background: #f1ebdf;
+  content: "";
+  transform: rotate(45deg) translateY(-7px);
+}
+.contract-approach-tooltip small,
+.contract-approach-tooltip strong,
+.contract-approach-tooltip p,
+.contract-approach-tooltip b { display: block; }
+.contract-approach-tooltip small { color: var(--red); font: 9px "Courier New", monospace; letter-spacing: .08em; }
+.contract-approach-tooltip strong { margin: 5px 0; font-size: 15px; }
+.contract-approach-tooltip p { margin: 0; color: #5d5548; font-size: 12px; line-height: 1.45; }
+.contract-approach-tooltip b { margin-top: 8px; color: #526b58; font: 700 11px/1.45 "Courier New", monospace; }
+.contract-approach-option:hover .contract-approach-tooltip,
+.contract-approach-option:focus-within .contract-approach-tooltip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  visibility: visible;
+}
+.contract-approach-option.honor .contract-approach-tooltip {
+  left: 0;
+  transform: translateY(7px);
+}
+.contract-approach-option.honor .contract-approach-tooltip::after { left: 36px; }
+.contract-approach-option.profit .contract-approach-tooltip {
+  right: 0;
+  left: auto;
+  transform: translateY(7px);
+}
+.contract-approach-option.profit .contract-approach-tooltip::after {
+  right: 36px;
+  left: auto;
+}
+.contract-approach-option.honor:hover .contract-approach-tooltip,
+.contract-approach-option.honor:focus-within .contract-approach-tooltip,
+.contract-approach-option.profit:hover .contract-approach-tooltip,
+.contract-approach-option.profit:focus-within .contract-approach-tooltip { transform: translateY(0); }
+
+.relic-workshop {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 22px;
+  margin: 18px 0;
+  border-left: 6px solid #8a5b93;
+}
+.relic-ready-list { grid-column: 1 / -1; display: grid; gap: 8px; }
+.relic-ready-list article { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px; border: 1px solid #aaa08e; background: #e2dacb; }
+.relic-ready-list strong,
+.relic-ready-list small { display: block; }
+.relic-ready-list small { margin-top: 3px; color: var(--muted); }
+.relic-ready-list article > div:last-child { display: flex; flex-wrap: wrap; gap: 6px; }
+.relic-path-option {
+  position: relative;
+  display: inline-flex;
+}
+.relic-path-tooltip {
+  position: absolute;
+  z-index: 24;
+  left: 50%;
+  bottom: calc(100% + 11px);
+  width: min(270px, calc(100vw - 38px));
+  padding: 13px 14px;
+  border: 1px solid #6e6556;
+  border-top: 4px solid var(--green);
+  color: #332f28;
+  background: #f1ebdf;
+  box-shadow: 6px 7px 0 rgba(43, 37, 29, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 7px);
+  transition: opacity 140ms ease, transform 140ms ease, visibility 140ms;
+  visibility: hidden;
+}
+.relic-path-tooltip::after {
+  position: absolute;
+  top: 100%;
+  left: calc(50% - 7px);
+  width: 13px;
+  height: 13px;
+  border-right: 1px solid #6e6556;
+  border-bottom: 1px solid #6e6556;
+  background: #f1ebdf;
+  content: "";
+  transform: rotate(45deg) translateY(-7px);
+}
+.relic-path-tooltip small,
+.relic-path-tooltip strong,
+.relic-path-tooltip span,
+.relic-path-tooltip p,
+.relic-path-tooltip b { display: block; }
+.relic-path-tooltip small { color: var(--red); font: 9px "Courier New", monospace; letter-spacing: .08em; }
+.relic-path-tooltip strong { margin: 5px 0; font-size: 15px; }
+.relic-path-tooltip p { margin: 0; color: #5d5548; font-size: 12px; line-height: 1.45; }
+.relic-path-tooltip .feature-stats { margin-top: 8px; color: #526b58; font: 700 11px "Courier New", monospace; }
+.relic-path-option:hover .relic-path-tooltip,
+.relic-path-option:focus-within .relic-path-tooltip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  visibility: visible;
+}
+.forge-card-actions { display: grid; gap: 6px; }
+
+.battle-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 10px 18px;
+  border-top: 1px solid #9d927e;
+  background: #dcd4c4;
+}
+.battle-rules[hidden] { display: none; }
+.battle-rules span { display: flex; gap: 7px; padding: 7px 9px; border: 1px solid #a79c88; background: #eee7da; color: #625b4e; font-size: 11px; }
+.battle-rules b { color: #833e34; }
+.rivalry-adaptation { margin-top: 4px; color: #8a4b3d; font-size: 11px; font-weight: 600; }
+.rivalry-traits { margin-top: 3px; color: #5c705d; font-size: 11px; }
+
+@media (max-width: 980px) {
+  .expedition-heading,
+  .reputation-guide,
+  .relic-workshop { grid-template-columns: 1fr; }
+  .expedition-choices,
+  .faction-grid,
+  .contract-grid { grid-template-columns: 1fr; }
+  .relic-ready-list { grid-column: 1; }
+}
+
+@media (max-width: 620px) {
+  .reputation-tier-list { grid-template-columns: 1fr 1fr; }
+  .reputation-tier-list article:nth-child(3) { border-left: 0; }
+  .active-contract,
+  .relic-ready-list article { align-items: stretch; flex-direction: column; }
+  .contract-actions { grid-template-columns: 1fr; }
+  .expedition-condition { grid-template-columns: 1fr; }
+}

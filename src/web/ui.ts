@@ -13,6 +13,17 @@ import {
   SLOT_LABELS,
   SKILLS,
 } from "../catalogs/WorldCatalog";
+import {
+  FACTIONS,
+  FACTION_REPUTATION_TIERS,
+  FIGHTER_SCARS,
+  FIGHTER_TRAITS,
+  ENEMY_ADAPTATIONS,
+  RELIC_PATHS,
+  RELIC_TIER_THRESHOLDS,
+  factionReputationTier,
+  TOURNAMENT_RULES,
+} from "../catalogs/WorldExpansionCatalog";
 import { CLASS_CHANGE_GOLD_COST, CLASS_CHANGE_MARK_COST, WorldGame, skillById } from "../gameplay/WorldGame";
 import { createEquipmentIcon, renderCharacterDoll } from "./CharacterDoll";
 import { basicTournamentUi } from "./BasicTournamentUi";
@@ -24,10 +35,13 @@ import {
   DungeonDefinition,
   EquipmentItem,
   EquipmentSlot,
+  ExpeditionStepReport,
+  FighterFeatureChange,
   GameSave,
   HeroClass,
   Rarity,
   TournamentReport,
+  Stats,
 } from "../gameplay/WorldTypes";
 
 const SAVE_KEY = "dust-and-crown-save-v2";
@@ -69,18 +83,47 @@ let battleReturnScrollY = 0;
 let battleReturnPage = "map";
 let battleEquipmentBefore: Partial<Record<EquipmentSlot, string>> | null = null;
 let battleInventoryBefore: Set<string> | null = null;
+let pendingExpeditionResult: ExpeditionStepReport | null = null;
+let pendingExpeditionLoot: { items: EquipmentItem[]; equipmentBefore: Partial<Record<EquipmentSlot, string>> | null } | null = null;
+let expeditionRewardFollowup: { items: EquipmentItem[]; equipmentBefore: Partial<Record<EquipmentSlot, string>> | null } | null = null;
 let tutorialStepIndex = 0;
+let tutorialTarget: HTMLElement | null = null;
+let tutorialPositionTimer: number | null = null;
+let tutorialReturnPage = "map";
+let tutorialReturnScrollY = 0;
 const leaderboardObservers = new Map<string, IntersectionObserver>();
 
 type RankingSnapshot = Record<string, number>;
 
-const tutorialSteps = [
-  { title: "Карта задаёт ритм", copy: "Начните с тренировки, дуэлей и доступных данжей. На турниры нужно записываться заранее: в день события игра напомнит о старте." },
-  { title: "Герой сражается сам", copy: "В автоматическом режиме герой выбирает приёмы самостоятельно. В книге навыков можно ограничить сборку четырьмя умениями или включить ручное подтверждение ходов." },
-  { title: "Снаряжение определяет билд", copy: "Сравнивайте добычу, собирайте комплекты и закаляйте лучшие вещи в кузнице. Автоэкипировка работает только тогда, когда вы сами включили её." },
-  { title: "Мир развивается без героя", copy: "Соперники получают уровни, меняют арены и могут погибнуть навсегда. Их результаты видны в личной истории, сотне лучших и летописи мира." },
-  { title: "Путь продолжается после финальной арены", copy: "Победа на последней арене открывает Лигу короны. Чемпион квалификации входит в элитную тридцатку, а первые пять мест можно оспаривать в Охоте на легенд." },
-] as const;
+type TutorialStep = {
+  page: string;
+  target: string;
+  title: string;
+  copy: string;
+  action: string;
+};
+
+const tutorialSteps: TutorialStep[] = [
+  { page: "map", target: ".game-header .hero-summary", title: "Это ваш герой", copy: "Кампания хранится в браузере и продолжается день за днём. В шапке всегда видны имя, класс и краткий итог карьеры.", action: "Начните с имени героя: рядом находятся все главные ресурсы кампании." },
+  { page: "map", target: ".game-header .resources", title: "Следите за ресурсами", copy: "Уровень открывает активности, монеты нужны для лавки и смены класса, а редкие печати — для постоянной закалки хорошего снаряжения.", action: "Проверяйте место в рейтинге и день мира перед записью на события." },
+  { page: "map", target: ".main-nav", title: "Разделы всегда под рукой", copy: "Закреплённая навигация ведёт к герою, инвентарю, кузнице, навыкам, контрактам, коллекциям, лавке и рейтингам.", action: "Нажимайте вкладки в этой строке; кнопка «Как играть» запустит этот маршрут снова." },
+  { page: "map", target: ".map-shortcuts", title: "Быстрый переход по карте", copy: "Карта длинная, поэтому этот ряд сразу переносит к тренировкам, дуэлям, боссам, турнирам, данжам и эндгейму.", action: "Нажмите нужную карточку перехода — страница сама прокрутится к активности." },
+  { page: "map", target: "#daily-actions-section", title: "Тренировка двигает день", copy: "Тренировка безопасно даёт опыт, но её потолок зависит от уже открытых арен. Каждый подход продвигает календарь и весь живой мир.", action: "Нажмите «Тренироваться», когда хотите развиться без риска и приблизить события." },
+  { page: "map", target: "#duels-section", title: "Дуэли строят отдельную карьеру", copy: "Здесь герой встречает обычных бойцов мира подходящей силы. Дуэльные победы не поднимают мировой рейтинг, но открывают новые ступени.", action: "Выберите доступную ступень и нажмите «Начать дуэль»." },
+  { page: "map", target: "#bosses-section", title: "Особые противники", copy: "Боссы — одноразовые испытания с условиями доступа и уникальной наградой под класс героя. Побеждённый босс больше не возвращается.", action: "Изучите условия на карточке; вступайте в бой, когда все требования отмечены." },
+  { page: "map", target: "#tournaments-section", title: "На турнир записываются заранее", copy: "Турнир состоит минимум из восьми участников и проходит в назначенный день. Более престижные события реже, опаснее и щедрее.", action: "Нажмите «Записаться», а в день турнира запустите сетку из появившегося напоминания." },
+  { page: "map", target: "#dungeons-section", title: "Данж — это экспедиция", copy: "Поход состоит из нескольких этапов. Безопасный путь бережёт здоровье, рискованный повышает шанс добычи, а отдых лечит ценой продвижения к финалу.", action: "Откройте данж, начните поход и выбирайте маршрут на доске экспедиции после каждого этапа." },
+  { page: "hero", target: ".hero-visual-layout", title: "Герой показывает всю экипировку", copy: "На этом экране видны внешний вид, итоговые характеристики, история боёв, соперники и некролог. Любой слот снаряжения можно открыть напрямую.", action: "Нажмите на надетый предмет, чтобы выбрать замену, сравнить её или снять вещь." },
+  { page: "arsenal", target: ".inventory-panel", title: "Инвентарь — центр сборки", copy: "Фильтруйте добычу по слоту, комплекту, редкости и новизне. Сравнение показывает точную прибавку или потерю каждой характеристики.", action: "Используйте «Сравнить» перед экипировкой; массовая продажа не трогает надетые вещи и регалии." },
+  { page: "forge", target: ".forge-summary", title: "Закаляйте только важные вещи", copy: "Печати добываются редко, а каждый следующий уровень закалки дороже. Надетое снаряжение всегда вынесено вверх списка.", action: "Выберите предмет и нажмите улучшение, если готовы потратить указанное число печатей." },
+  { page: "skills", target: "#skill-tactics", title: "Сборка ограничена четырьмя навыками", copy: "Автоматический режим подбирает сильные доступные приёмы. Для билдостроения отключите автоподбор и соберите набор вручную; здесь же включается ручной бой.", action: "Добавляйте и убирайте навыки карточками ниже, затем выберите автоматический бой или подтверждение ходов." },
+  { page: "contracts", target: "#reputation-guide", title: "Репутация улучшает будущие контракты", copy: "Каждая фракция отдельно запоминает вашу помощь. Новые статусы повышают награды монетами и опытом в следующих поручениях именно этой фракции.", action: "Подход «честь» быстрее поднимает репутацию, а «выгода» приносит больше денег сразу." },
+  { page: "collections", target: "#collection-overview", title: "Коллекция помнит каждую находку", copy: "Однажды найденный предмет остаётся в каталоге даже после продажи. Здесь видны недостающие части комплектов и их бонусы.", action: "Найдите желаемый комплект и ориентируйтесь на его подсказку при выборе активностей." },
+  { page: "shop", target: ".shopkeeper", title: "Лавка обновляется по календарю", copy: "Ассортимент подстраивается под класс и уровень героя. Цена зависит от силы и редкости, а сравнение работает до покупки.", action: "Сначала нажмите «Сравнить», затем покупайте только полезное для текущей сборки." },
+  { page: "leaders", target: ".leader-summary", title: "Мировой рейтинг дают турниры", copy: "Сотня лучших учитывает турнирные результаты. Дуэли и данжи вынесены в отдельную статистику, а место меняется только после реальных выступлений.", action: "Откройте таблицу после нескольких дней, чтобы увидеть анимированное изменение позиций." },
+  { page: "elite", target: "#page-elite .leader-summary", title: "Элита — поздняя игра", copy: "Чемпион последней арены может пройти Лигу короны и войти в элитную тридцатку. Первые пять — легенды; до лидера нужно последовательно победить стоящих выше.", action: "Вернитесь к эндгейму на карте после чемпионства и запишитесь в Лигу короны." },
+  { page: "chronicle", target: ".chronicle-layout", title: "Мир живёт без героя", copy: "Соперники тренируются, меняют арены, находят вещи и могут погибнуть навсегда. Летопись объясняет, что происходило, пока вы занимались своей карьерой.", action: "Обучение закончено. Нажмите «Начать игру», чтобы вернуться туда, откуда вы его открыли." },
+];
 
 function renderGearActions(): void {
   if (!game) return;
@@ -159,6 +202,16 @@ function toast(message: string, kind: "ok" | "error" = "ok"): void {
   window.setTimeout(() => node.remove(), 3200);
 }
 
+function featureStatsText(stats: Partial<Stats>): string {
+  const labels: Record<keyof Stats, string> = { health: "HP", attack: "ATK", defense: "DEF", speed: "SPD", crit: "CRIT" };
+  return Object.entries(stats)
+    .filter(([, value]) => Number(value) !== 0)
+    .map(([stat, value]) => `${Number(value) > 0 ? "+" : ""}${value} ${labels[stat as keyof Stats]}`)
+    .join(" · ");
+}
+
+function displayItemName(item: EquipmentItem): string { return item.relicName ?? item.name; }
+
 function loadRankingSnapshot(key: string): RankingSnapshot {
   try {
     const value = JSON.parse(localStorage.getItem(key) ?? "{}") as unknown;
@@ -230,19 +283,70 @@ function renderTutorial(animate = true): void {
   const step = tutorialSteps[tutorialStepIndex];
   $("#tutorial-title").textContent = step.title;
   $("#tutorial-copy").textContent = step.copy;
+  $("#tutorial-action-copy").textContent = step.action;
   $("#tutorial-progress").textContent = `${tutorialStepIndex + 1} / ${tutorialSteps.length}`;
-  $("#tutorial-illustration").textContent = String(tutorialStepIndex + 1).padStart(2, "0");
   const back = $("#tutorial-back") as HTMLButtonElement;
   const next = $("#tutorial-next") as HTMLButtonElement;
   back.hidden = tutorialStepIndex === 0;
   next.textContent = tutorialStepIndex === tutorialSteps.length - 1 ? "Начать игру" : "Далее";
+  showPage(step.page, false);
+  if (tutorialPositionTimer !== null) window.clearTimeout(tutorialPositionTimer);
+  tutorialPositionTimer = window.setTimeout(() => {
+    tutorialTarget = document.querySelector<HTMLElement>(step.target);
+    if (!tutorialTarget) tutorialTarget = $(".game-header");
+    const targetIsFixed = tutorialTarget.closest(".game-header, .main-nav");
+    if (targetIsFixed) window.scrollTo({ top: 0, behavior: animate ? "smooth" : "auto" });
+    else tutorialTarget.scrollIntoView({ behavior: animate ? "smooth" : "auto", block: "center", inline: "nearest" });
+    window.setTimeout(positionTutorial, animate ? 320 : 0);
+  }, 20);
   if (animate) {
     replayAnimation($(".tutorial-dialog"), "step-changing");
   }
 }
 
+function positionTutorial(): void {
+  if ($("#tutorial-layer").hidden || !tutorialTarget) return;
+  const rect = tutorialTarget.getBoundingClientRect();
+  const padding = 8;
+  const spotlight = $("#tutorial-spotlight");
+  const left = Math.max(6, rect.left - padding);
+  const top = Math.max(6, rect.top - padding);
+  const right = Math.min(window.innerWidth - 6, rect.right + padding);
+  const bottom = Math.min(window.innerHeight - 6, rect.bottom + padding);
+  spotlight.style.left = `${left}px`;
+  spotlight.style.top = `${top}px`;
+  spotlight.style.width = `${Math.max(24, right - left)}px`;
+  spotlight.style.height = `${Math.max(24, bottom - top)}px`;
+
+  const dialog = $("#tutorial-dialog");
+  if (window.innerWidth <= 560) return;
+  const gap = 20;
+  const dialogRect = dialog.getBoundingClientRect();
+  const dialogWidth = dialogRect.width || 410;
+  const dialogHeight = dialogRect.height || 330;
+  const roomRight = window.innerWidth - right;
+  const roomLeft = left;
+  const roomBelow = window.innerHeight - bottom;
+  let dialogLeft: number;
+  let dialogTop: number;
+  if (roomRight >= dialogWidth + gap) {
+    dialogLeft = right + gap;
+    dialogTop = rect.top + rect.height / 2 - dialogHeight / 2;
+  } else if (roomLeft >= dialogWidth + gap) {
+    dialogLeft = left - dialogWidth - gap;
+    dialogTop = rect.top + rect.height / 2 - dialogHeight / 2;
+  } else {
+    dialogLeft = window.innerWidth - dialogWidth - 18;
+    dialogTop = roomBelow >= dialogHeight + gap ? bottom + gap : top - dialogHeight - gap;
+  }
+  dialog.style.left = `${Math.max(12, Math.min(window.innerWidth - dialogWidth - 12, dialogLeft))}px`;
+  dialog.style.top = `${Math.max(12, Math.min(window.innerHeight - dialogHeight - 12, dialogTop))}px`;
+}
+
 function openTutorial(firstVisit = false): void {
   if (!game) return;
+  tutorialReturnPage = document.querySelector<HTMLElement>(".page.active")?.id.replace("page-", "") ?? "map";
+  tutorialReturnScrollY = window.scrollY;
   tutorialStepIndex = 0;
   $("#tutorial-layer").hidden = false;
   renderTutorial();
@@ -257,6 +361,14 @@ function finishTutorial(): void {
   game.save.tutorialCompleted = true;
   persist();
   $("#tutorial-layer").hidden = true;
+  if (tutorialPositionTimer !== null) window.clearTimeout(tutorialPositionTimer);
+  tutorialPositionTimer = null;
+  tutorialTarget = null;
+  const dialog = $("#tutorial-dialog");
+  dialog.style.removeProperty("left");
+  dialog.style.removeProperty("top");
+  showPage(tutorialReturnPage, false, false);
+  window.requestAnimationFrame(() => window.scrollTo({ top: tutorialReturnScrollY, behavior: "auto" }));
 }
 
 function equippedItems(): EquipmentItem[] {
@@ -314,6 +426,7 @@ function showPage(page: string, scrollToTop = true, refresh = true): void {
       case "arsenal": renderGearActions(); renderArsenal(); break;
       case "forge": renderForge(); break;
       case "skills": renderSkills(); break;
+      case "contracts": renderContracts(); break;
       case "collections": renderCollections(); break;
       case "shop": renderShop(); break;
       case "leaders": renderLeaders(true); break;
@@ -340,6 +453,7 @@ function renderHeader(): void {
   setAnimatedText("#header-day", String(game.save.worldDay));
   setAnimatedText("#inventory-count", String(hero.inventory.length));
   setAnimatedText("#collection-count", `${game.save.discoveredItems.length}/${ITEM_TEMPLATES.length}`);
+  setAnimatedText("#contract-count", game.save.activeContract ? `${game.save.activeContract.progress}/${game.save.activeContract.target}` : String(game.save.contractOffers.length));
 }
 
 function statRow(label: string, value: string | number): HTMLElement {
@@ -409,7 +523,7 @@ function renderHeroVisual(): void {
     const swatch = item ? equipmentArtwork(slot, hero.classId, "gear-swatch equipment-art", item) : element("span", "gear-swatch", "—");
     if (item) swatch.style.setProperty("--rarity-color", rarityColors[item.rarity]);
     const copy = element("div");
-    copy.append(element("small", "", SLOT_LABELS[slot]), element("strong", "", item?.name ?? "Ничего не надето"), element("p", "", item ? `${RARITY_LABELS[item.rarity]} · ${itemStatsText(item)}${item.setId ? ` · комплект ${EQUIPMENT_SETS.find((set) => set.id === item.setId)?.name ?? item.setId}` : ""}` : "Слот не даёт характеристик."));
+    copy.append(element("small", "", SLOT_LABELS[slot]), element("strong", "", item ? displayItemName(item) : "Ничего не надето"), element("p", "", item ? `${RARITY_LABELS[item.rarity]} · ${itemStatsText(item)}${item.setId ? ` · комплект ${EQUIPMENT_SETS.find((set) => set.id === item.setId)?.name ?? item.setId}` : ""}` : "Слот не даёт характеристик."));
     row.append(swatch, copy);
     if (item) {
       const remove = element("button", "small-button unequip-inline", "Снять");
@@ -422,6 +536,21 @@ function renderHeroVisual(): void {
   const stats = $("#visual-stats"); stats.replaceChildren(element("p", "eyebrow", "ОБРАЗ В БОЮ"), element("h2", "", CLASS_DEFINITIONS[hero.classId].epithet));
   stats.append(statRow("Сила вещей", snapshot.equipmentScore), statRow("Крит. шанс", `${snapshot.crit}%`), statRow("Скорость", snapshot.speed));
   stats.append(element("p", "passive", CLASS_DEFINITIONS[hero.classId].passive));
+  const features = element("div", "fighter-feature-list");
+  features.append(element("strong", "", "Черты и последствия"));
+  game.fighterFeatures(hero).forEach((feature) => {
+    const row = element("div");
+    row.append(element("small", "", feature.kind), element("b", "", feature.name), element("span", "", feature.description));
+    const stats = featureStatsText(feature.stats);
+    if (stats) row.append(element("em", "feature-stat-line", stats));
+    features.append(row);
+  });
+  hero.injuries.forEach((injury) => {
+    const row = element("div", "injury");
+    row.append(element("small", "", `ТРАВМА · ${injury.remainingDays} ДН.`), element("b", "", injury.name), element("span", "", injury.description), element("em", "feature-stat-line", featureStatsText(injury.stats)));
+    features.append(row);
+  });
+  stats.append(features);
   const editor = element("div", "appearance-editor");
   const appearanceTitle = element("strong", "", "Внешность");
   const hair = document.createElement("select");
@@ -468,14 +597,15 @@ function renderClassChangePanel(): void {
 function renderHeroHistory(): void {
   if (!game) return;
   const hero = game.save.hero;
-  const records = Object.values(hero.rivalries).sort((a, b) => {
+  const allRecords = Object.values(hero.rivalries);
+  const livingWorldFighters = new Map(game.save.enemies.map((enemy) => [enemy.id, enemy]));
+  const records = allRecords.filter((record) => livingWorldFighters.has(record.enemyId)).sort((a, b) => {
     if (rivalrySort === "wins") return b.wins - a.wins || b.lastMetDay - a.lastMetDay;
     if (rivalrySort === "losses") return b.losses - a.losses || b.lastMetDay - a.lastMetDay;
     return b.lastMetDay - a.lastMetDay || (b.wins + b.losses) - (a.wins + a.losses);
   });
   const topHundred = new Map(game.leaderboard().map((entry, index) => [entry.id, { entry, rank: index + 1 }]));
   const elite = new Map(game.eliteLeaderboard().map((entry, index) => [entry.id, { entry, rank: index + 1 }]));
-  const livingWorldFighters = new Map(game.save.enemies.map((enemy) => [enemy.id, enemy]));
   const career = $("#hero-career-stats");
   career.replaceChildren(element("p", "eyebrow", "КАРЬЕРА"), element("h2", "", "Статистика героя"));
   const careerResults = element("div", "career-results");
@@ -540,16 +670,20 @@ function renderHeroHistory(): void {
         ? `Вне первой сотни · рейтинг ${worldFighter.rating} · ${ARENAS[worldFighter.arenaIndex]?.name ?? "арена не указана"}`
         : worldFighter
           ? "Погиб · исключён из мирового рейтинга"
-          : record.enemyId.startsWith("boss-")
-            ? "Особый противник · не участвует в мировом рейтинге"
-            : record.enemyId.startsWith("dungeon-")
-              ? "Страж данжа · не участвует в мировом рейтинге"
-              : "Боец мира · текущая позиция в рейтинге недоступна";
+          : "Участник турниров · текущая позиция в рейтинге недоступна";
     copy.append(
       element("strong", "", record.name),
       element("small", "", `${CLASS_DEFINITIONS[record.classId].name} · последняя встреча: день ${record.lastMetDay}`),
       element("span", `rivalry-world-rank${eliteFighter ? " elite" : ranked ? " ranked" : ""}`, worldStatus),
     );
+    if (record.adaptationId) {
+      const adaptation = ENEMY_ADAPTATIONS.find((candidate) => candidate.id === record.adaptationId);
+      if (adaptation) copy.append(element("span", "rivalry-adaptation", `Адаптация против вас: ${adaptation.name} · ${adaptation.description} · ${featureStatsText(adaptation.stats)}`));
+    }
+    if (worldFighter) {
+      const features = game!.fighterFeatures(worldFighter).slice(0, 2).map((feature) => feature.name).join(" · ");
+      if (features) copy.append(element("span", "rivalry-traits", `Характер: ${features}`));
+    }
     const wins = element("b", "rivalry-score", String(record.wins));
     wins.setAttribute("aria-label", `Победы: ${record.wins}`);
     const losses = element("b", "rivalry-score", String(record.losses));
@@ -557,13 +691,13 @@ function renderHeroHistory(): void {
     row.append(copy, wins, losses);
     rivalryList.append(row);
   });
-  if (records.length === 0) rivalryList.append(element("p", "empty-copy", "Здесь появятся бойцы, с которыми герой уже встречался."));
+  if (records.length === 0) rivalryList.append(element("p", "empty-copy", "Здесь появятся участники турниров, с которыми герой уже встречался на арене или в дуэли."));
   if (records.length > 0) rivalries.append(rivalryHeader);
   rivalries.append(rivalryList);
 
   const necrology = $("#hero-necrology");
   necrology.replaceChildren(element("p", "eyebrow", "НЕКРОЛОГ"), element("h2", "", "Погибшие противники"));
-  const dead = records.filter((record) => record.killed);
+  const dead = allRecords.filter((record) => record.killed);
   const deadList = element("div", "history-list necrology-list");
   dead.forEach((record) => deadList.append(element("article", "", `${record.name} · побеждён в день ${record.lastMetDay}`)));
   if (dead.length === 0) deadList.append(element("p", "empty-copy", "Герой пока не завершил ни одной чужой истории навсегда."));
@@ -583,19 +717,29 @@ function activityCard(activity: ArenaDefinition | DungeonDefinition, animateItem
   const levels = element("div", "activity-levels", activity.kind === "arena"
     ? `Сетка: ${activity.participants} · каждые ${activity.tournamentInterval} дн. · приз ${activity.rewardGold} ¤`
     : `Уровни врагов: ${activity.enemyLevel[0]}–${activity.enemyLevel[1]}`);
+  if (activity.kind === "arena") {
+    const rules = element("div", "activity-rules", game.tournamentRules(activity.id, game.registeredTournamentDay(activity.id) ?? game.nextTournamentDay(activity.id)).map((rule) => rule.name).join(" · "));
+    rules.title = game.tournamentRules(activity.id, game.registeredTournamentDay(activity.id) ?? game.nextTournamentDay(activity.id)).map((rule) => `${rule.name}: ${rule.description}`).join("\n");
+    card.append(rules);
+  }
   const state = element("div", "activity-state", availability.reason);
   const registeredDay = activity.kind === "arena" ? game.registeredTournamentDay(activity.id) : undefined;
   const tournamentToday = activity.kind === "arena" && registeredDay === game.save.worldDay;
-  const buttonLabel = !availability.unlocked ? "Закрыто"
+  const activeDungeon = activity.kind === "dungeon" && game.save.activeExpedition?.dungeonId === activity.id;
+  const anotherDungeonActive = activity.kind === "dungeon" && Boolean(game.save.activeExpedition) && !activeDungeon;
+  const buttonLabel = activeDungeon ? "Продолжить поход"
+    : anotherDungeonActive ? "Сначала завершите текущий поход"
+      : !availability.unlocked ? "Закрыто"
     : activity.kind === "dungeon" ? "Начать вылазку"
       : tournamentToday ? "Начать турнир"
         : registeredDay ? `Записан на день ${registeredDay}`
           : `Записаться на день ${game.nextTournamentDay(activity.id)}`;
   const button = element("button", "button activity-button", buttonLabel);
-  button.disabled = !availability.unlocked;
+  button.disabled = (!availability.unlocked && !activeDungeon) || anotherDungeonActive;
   if (activity.kind === "arena" && registeredDay && !tournamentToday) button.disabled = true;
   button.addEventListener("click", () => {
-    if (activity.kind === "dungeon") startActivity(activity.id);
+    if (activeDungeon) openDungeonWindow();
+    else if (activity.kind === "dungeon") startActivity(activity.id);
     else if (tournamentToday) startTournament(activity.id);
     else registerForTournament(activity.id);
   });
@@ -692,6 +836,7 @@ function renderMap(animateItems = true): void {
   trainingButton.textContent = trainingBlocked ? "Достигнут предел" : "Тренироваться";
   const arenaRoute = $("#arena-route"); arenaRoute.replaceChildren(...ARENAS.map((arena) => activityCard(arena, animateItems)));
   const dungeonRoute = $("#dungeon-route"); dungeonRoute.replaceChildren(...DUNGEONS.map((dungeon) => activityCard(dungeon, animateItems)));
+  renderExpedition();
   const tournamentsToday = tournamentsScheduledToday().length;
   const openTournaments = ARENAS.filter((arena) => game!.availability(arena).unlocked).length;
   const openDungeons = DUNGEONS.filter((dungeon) => game!.availability(dungeon).unlocked).length;
@@ -727,6 +872,52 @@ function renderMap(animateItems = true): void {
   feed.append(element("h3", "", "Сейчас в мире"));
   events.forEach((event) => feed.append(element("p", "", `День ${event.day}. ${event.message}`)));
   goal.append(feed);
+}
+
+function renderExpedition(): void {
+  if (!game) return;
+  const board = $("#expedition-board");
+  const expedition = game.save.activeExpedition;
+  if (!expedition) { board.hidden = true; board.replaceChildren(); return; }
+  const dungeon = DUNGEONS.find((candidate) => candidate.id === expedition.dungeonId)!;
+  board.hidden = false;
+  const heading = element("header", "expedition-heading");
+  const copy = element("div");
+  copy.append(element("p", "eyebrow", "ПОХОД ПРОДОЛЖАЕТСЯ"), element("h3", "", dungeon.name), element("p", "", `Этап ${expedition.stage + 1} из ${expedition.maxStages}. Решение влияет на риск и объём добычи.`));
+  const condition = element("div", "expedition-condition");
+  condition.append(statRow("Силы", `${expedition.health}%`), statRow("Монеты", expedition.accumulatedGold), statRow("Опыт", expedition.accumulatedExperience), statRow("Трофеи", expedition.loot.length));
+  heading.append(copy, condition);
+  const choices = element("div", "expedition-choices");
+  game.expeditionChoices().forEach((choice) => {
+    const card = element("article", `expedition-choice ${choice.id}`);
+    card.append(element("small", "", `РИСК: ${choice.danger.toUpperCase()}`), element("h4", "", choice.name), element("p", "", choice.description), element("span", "", `Награда: ${choice.reward}`));
+    const button = element("button", "button", "Выбрать путь");
+    button.addEventListener("click", () => advanceExpedition(choice.id));
+    card.append(button); choices.append(card);
+  });
+  const retreat = element("button", "plain-button expedition-retreat", "Отступить и сохранить часть найденного");
+  retreat.addEventListener("click", retreatExpedition);
+  const path = element("p", "expedition-path", expedition.path.length ? `Пройденный путь: ${expedition.path.map((id) => id === "risk" ? "риск" : id === "rest" ? "лагерь" : "проход").join(" → ")}` : "Поход только начался.");
+  board.replaceChildren(heading, choices, path, retreat);
+}
+
+function openDungeonWindow(): void {
+  if (!game?.save.activeExpedition) return;
+  const dungeon = DUNGEONS.find((candidate) => candidate.id === game!.save.activeExpedition?.dungeonId);
+  $("#dungeon-window-kicker").textContent = "ЭКСПЕДИЦИЯ ПРОДОЛЖАЕТСЯ";
+  $("#dungeon-window-title").textContent = dungeon?.name ?? "Путь в глубину";
+  $("#dungeon-reward-view").hidden = true;
+  $("#dungeon-expedition-view").hidden = false;
+  renderExpedition();
+  $("#dungeon-layer").hidden = false;
+}
+
+function closeDungeonWindow(): void {
+  if (!$("#dungeon-reward-view").hidden) {
+    closeExpeditionRewards();
+    return;
+  }
+  $("#dungeon-layer").hidden = true;
 }
 
 function renderDuels(animateItems = true): void {
@@ -984,6 +1175,76 @@ function showLootReminders(items: EquipmentItem[], equipmentBefore: Partial<Reco
   renderLootReminder();
 }
 
+function itemCountLabel(count: number): string {
+  const tail = count % 100;
+  const last = count % 10;
+  if (tail >= 11 && tail <= 19) return `${count} предметов`;
+  if (last === 1) return `${count} предмет`;
+  if (last >= 2 && last <= 4) return `${count} предмета`;
+  return `${count} предметов`;
+}
+
+function expeditionRewardItem(item: EquipmentItem): HTMLElement {
+  const card = element("article", "expedition-reward-item");
+  card.style.setProperty("--rarity-color", rarityColors[item.rarity]);
+  const art = equipmentArtwork(item.slot, classForTemplate(item.allowedClasses), "equipment-art", item);
+  const copy = element("div");
+  copy.append(
+    element("small", "", `${RARITY_LABELS[item.rarity]} · ${SLOT_LABELS[item.slot]}`),
+    element("strong", "", displayItemName(item)),
+  );
+  card.append(art, copy);
+  return card;
+}
+
+function openExpeditionRewards(
+  result: ExpeditionStepReport,
+  items: EquipmentItem[],
+  equipmentBefore: Partial<Record<EquipmentSlot, string>> | null,
+): void {
+  hideLootReminder();
+  const rewards = result.rewards;
+  const dungeon = DUNGEONS.find((candidate) => candidate.id === result.expedition?.dungeonId);
+  expeditionRewardFollowup = { items, equipmentBefore };
+  $("#dungeon-window-kicker").textContent = result.completed ? "ЭКСПЕДИЦИЯ ЗАВЕРШЕНА" : "ВОЗВРАЩЕНИЕ ИЗ ПОХОДА";
+  $("#dungeon-window-title").textContent = result.completed
+    ? `Исследован данж «${dungeon?.name ?? "Неизвестный путь"}»`
+    : "Часть добычи удалось спасти";
+  $("#expedition-reward-copy").textContent = result.message;
+  const progress = result.expedition ? `${result.expedition.stage} / ${result.expedition.maxStages}` : "—";
+  $("#expedition-reward-stats").replaceChildren(
+    rewardStat("Пройдено этапов", progress),
+    rewardStat("Получено опыта", `+${rewards?.experience ?? 0}`),
+    rewardStat("Получено монет", `+${rewards?.gold ?? 0}`),
+    rewardStat("Новых уровней", `+${rewards?.levelsGained ?? 0}`),
+  );
+  $("#expedition-reward-loot-count").textContent = itemCountLabel(items.length);
+  const loot = $("#expedition-reward-items");
+  loot.replaceChildren(...(items.length
+    ? items.map(expeditionRewardItem)
+    : [element("p", "expedition-reward-empty", result.completed
+      ? "В этот раз снаряжение не найдено, но опыт и монеты уже начислены."
+      : "При отступлении найденные предметы сохранить не удалось.")]));
+  $("#dungeon-expedition-view").hidden = true;
+  $("#dungeon-reward-view").hidden = false;
+  $("#dungeon-layer").hidden = false;
+}
+
+function rewardStat(label: string, value: string): HTMLElement {
+  const card = element("article", "expedition-reward-stat");
+  card.append(element("small", "", label), element("strong", "", value));
+  return card;
+}
+
+function closeExpeditionRewards(): void {
+  $("#dungeon-layer").hidden = true;
+  $("#dungeon-reward-view").hidden = true;
+  $("#dungeon-expedition-view").hidden = false;
+  const followup = expeditionRewardFollowup;
+  expeditionRewardFollowup = null;
+  if (followup?.items.length) window.setTimeout(() => showLootReminders(followup.items, followup.equipmentBefore), 120);
+}
+
 function pickerItemCard(item: EquipmentItem, equippedId?: string): HTMLElement {
   if (!game) return element("article");
   const card = element("article", `picker-item ${rarityClass[item.rarity]}`);
@@ -1054,7 +1315,7 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
   head.append(element("span", "item-slot", SLOT_LABELS[item.slot]), element("span", "rarity-label", RARITY_LABELS[item.rarity]));
   const artwork = equipmentArtwork(item.slot, classForTemplate(item.allowedClasses), "equipment-art", item);
   artwork.style.setProperty("--rarity-color", rarityColors[item.rarity]);
-  card.append(head, artwork, element("h3", "", item.name), element("small", "", `Предмет ${item.level} уровня${item.enhancement ? ` · закалка +${item.enhancement}` : ""}`), element("p", "item-stats", itemStatsText(item)));
+  card.append(head, artwork, element("h3", "", displayItemName(item)), element("small", "", `Предмет ${item.level} уровня${item.enhancement ? ` · закалка +${item.enhancement}` : ""}${rarityAtLeastUi(item.rarity, "legendary") ? ` · наследие ${item.relicTier ?? 0}/3` : ""}`), element("p", "item-stats", itemStatsText(item)));
   if (item.affix) card.append(element("p", "item-affix", `${item.affix.name}: +${item.affix.value} · ${item.affix.description}`));
   if (item.grantedSkillId) card.append(element("p", "item-skill", `Навык: ${skillById(item.grantedSkillId)?.name ?? item.grantedSkillId}`));
   const controls = element("div", "item-controls");
@@ -1189,7 +1450,10 @@ function renderArsenal(animateItems = true): void {
   const bulkSell = $("#inventory-sell-unequipped") as HTMLButtonElement;
   const sellableUnequipped = game.save.hero.inventory.filter((item) => !equippedIds.has(item.id) && game!.canSell(item.id)).length;
   bulkSell.disabled = sellableUnequipped === 0;
-  bulkSell.textContent = sellableUnequipped > 0 ? `Продать неиспользуемое · ${sellableUnequipped}` : "Нет неиспользуемых вещей";
+  bulkSell.replaceChildren(
+    element("span", "", sellableUnequipped > 0 ? `Продать неиспользуемое · ${sellableUnequipped}` : "Нет неиспользуемых вещей"),
+    element("small", "", "Надетое и регалии останутся"),
+  );
   const more = $("#inventory-more") as HTMLButtonElement;
   more.hidden = visibleItems.length >= items.length;
   const snapshot = combatantSnapshot(game.save.hero);
@@ -1230,7 +1494,18 @@ function renderSkills(animateItems = true): void {
     button.addEventListener("click", () => { game!.setCombatMode(mode); persist(); renderSkills(false); });
     modeButtons.append(button);
   });
-  controls.append(autoBuild, modeLabel, modeButtons);
+  const profileLabel = element("label", "tactical-profile-picker");
+  profileLabel.append(element("span", "tactic-label", "Тактический профиль"));
+  const profileSelect = document.createElement("select");
+  hero.tacticalProfiles.forEach((profile) => profileSelect.append(new Option(profile.name, profile.id, false, profile.id === hero.activeTacticalProfileId)));
+  profileSelect.addEventListener("change", () => { game!.setTacticalProfile(profileSelect.value); persist(); renderSkills(false); });
+  const activeProfile = game.activeTacticalProfile();
+  const profileDescription = activeProfile.style === "aggressive" ? "Раньше использует добивающие атаки и реже лечится."
+    : activeProfile.style === "defensive" ? "Сохраняет сильные навыки и раньше восстанавливается."
+      : activeProfile.style === "control" ? "Сначала нарушает темп и ослабляет противника."
+        : "Универсальный порядок решений без перекоса.";
+  profileLabel.append(profileSelect, element("small", "", profileDescription));
+  controls.append(autoBuild, modeLabel, modeButtons, profileLabel);
   tactics.append(copy, controls);
 
   const toggleSkill = (skillId: string) => {
@@ -1307,6 +1582,10 @@ function renderEndgame(animateItems = true): void {
       element("div", "activity-levels", reward),
       element("div", "activity-state", availability.reason),
     );
+    if (crownLeague) {
+      const ruleDay = registeredDay ?? game!.nextCrownLeagueDay();
+      card.append(element("div", "activity-rules", game!.tournamentRules("crown-league", ruleDay).map((rule) => rule.name).join(" · ")));
+    }
     const buttonLabel = crownLeague
       ? availability.unlocked
         ? `Начать турнир на ${30} бойцов`
@@ -1372,6 +1651,117 @@ function renderEndgame(animateItems = true): void {
   table.append(thead, tbody); wrap.append(table); board.replaceChildren(header, wrap);
 }
 
+function renderContracts(): void {
+  if (!game) return;
+  const activePanel = $("#active-contract");
+  const active = game.save.activeContract;
+  if (active) {
+    const faction = FACTIONS.find((candidate) => candidate.id === active.factionId)!;
+    const copy = element("div");
+    copy.append(element("p", "eyebrow", "ДЕЙСТВУЮЩИЙ КОНТРАКТ"), element("h2", "", active.title), element("p", "", active.description));
+    const progress = element("div", "contract-progress");
+    const meter = element("i"); meter.style.width = `${active.progress / active.target * 100}%`; progress.append(meter);
+    copy.append(progress, element("strong", "", `${active.progress} / ${active.target} · ${faction.name} · до дня ${active.expiresDay}`));
+    const abandon = element("button", "plain-button", "Отказаться от контракта");
+    abandon.addEventListener("click", () => { if (!window.confirm("Отказ снизит репутацию фракции. Продолжить?")) return; game!.abandonContract(); persist(); renderContracts(); renderHeader(); });
+    activePanel.replaceChildren(copy, abandon);
+  } else {
+    activePanel.replaceChildren(element("div", "", ""));
+    activePanel.firstElementChild!.append(element("p", "eyebrow", "СВОБОДНЫЙ КОНТРАКТНЫЙ СЛОТ"), element("h2", "", "Выберите поручение"), element("p", "", "Задача будет выполняться вместе с привычными активностями — отдельный режим запускать не потребуется."));
+  }
+
+  const guide = $("#reputation-guide");
+  const guideCopy = element("div", "reputation-guide-copy");
+  guideCopy.append(
+    element("p", "eyebrow", "ЗАЧЕМ НУЖНА РЕПУТАЦИЯ"),
+    element("h2", "", "Доверие улучшает новые поручения"),
+    element("p", "", "У каждой фракции свой счёт доверия. Чем выше статус, тем больше монет и опыта она закладывает в новые контракты. Уже выданные поручения не пересчитываются; отказ от принятого контракта отнимает 2 репутации."),
+  );
+  const tiers = element("div", "reputation-tier-list");
+  FACTION_REPUTATION_TIERS.forEach((tier) => {
+    const item = element("article", tier.threshold === 0 ? "base" : "");
+    item.append(
+      element("small", "", tier.threshold === 0 ? "С НАЧАЛА" : `ОТ ${tier.threshold} РЕПУТАЦИИ`),
+      element("strong", "", tier.name),
+      element("span", "", tier.contractRewardBonus > 0 ? `+${Math.round(tier.contractRewardBonus * 100)}% к монетам и опыту` : "Базовые награды"),
+    );
+    tiers.append(item);
+  });
+  guide.replaceChildren(guideCopy, tiers);
+
+  const factions = $("#faction-grid");
+  factions.replaceChildren(...FACTIONS.map((faction) => {
+    const reputation = game!.save.hero.factionReputation[faction.id] ?? 0;
+    const tier = factionReputationTier(reputation);
+    const nextTier = FACTION_REPUTATION_TIERS.find((candidate) => candidate.threshold > reputation);
+    const card = element("article", "faction-card paper-panel"); card.style.setProperty("--faction-accent", faction.accent);
+    card.append(
+      element("p", "eyebrow", tier.name.toUpperCase()),
+      element("h3", "", faction.name),
+      element("blockquote", "", `«${faction.motto}»`),
+      element("p", "", faction.description),
+      statRow("Репутация", nextTier ? `${reputation} / ${nextTier.threshold}` : reputation),
+      element("p", "faction-contract-benefit", tier.contractRewardBonus > 0
+        ? `Новые контракты: +${Math.round(tier.contractRewardBonus * 100)}% к монетам и опыту.`
+        : `Следующий статус откроет +${Math.round((nextTier?.contractRewardBonus ?? 0) * 100)}% к наградам новых контрактов.`),
+    );
+    return card;
+  }));
+
+  const grid = $("#contract-grid");
+  grid.replaceChildren(...game.save.contractOffers.map((offer) => {
+    const faction = FACTIONS.find((candidate) => candidate.id === offer.factionId)!;
+    const card = element("article", "contract-card paper-panel"); card.style.setProperty("--faction-accent", faction.accent);
+    card.append(element("small", "", `${faction.name.toUpperCase()} · ДО ДНЯ ${offer.expiresDay}`), element("h3", "", offer.title), element("p", "", offer.description));
+    const rewards = element("div", "contract-rewards", `Награда: ${offer.rewardGold} ¤ · ${offer.rewardExperience} опыта · ${offer.rewardReputation} репутации`);
+    const actions = element("div", "contract-actions");
+    const approaches = [
+      {
+        id: "honor" as const,
+        label: "Принять ради чести",
+        eyebrow: "ЧЕСТЬ ФРАКЦИИ",
+        title: "Репутация прежде монет",
+        description: "Награда монетами остаётся обычной, зато репутация фракции увеличивается на 50%.",
+        reward: `${offer.rewardGold} ¤ · ${offer.rewardExperience} опыта · ${Math.round(offer.rewardReputation * 1.5)} репутации`,
+      },
+      {
+        id: "profit" as const,
+        label: "Принять ради выгоды",
+        eyebrow: "ЛИЧНАЯ ВЫГОДА",
+        title: "Монеты прежде признания",
+        description: "Награда монетами увеличивается на 35%, а репутация фракции остаётся обычной.",
+        reward: `${Math.round(offer.rewardGold * 1.35)} ¤ · ${offer.rewardExperience} опыта · ${offer.rewardReputation} репутации`,
+      },
+    ];
+    approaches.forEach((approach) => {
+      const option = element("div", `contract-approach-option ${approach.id}`);
+      const tooltipId = `contract-${offer.id}-${approach.id}`;
+      const button = element("button", "button", approach.label);
+      button.disabled = Boolean(active);
+      button.setAttribute("aria-describedby", tooltipId);
+      button.addEventListener("click", () => acceptContract(offer.id, approach.id));
+      const tooltip = element("aside", "contract-approach-tooltip");
+      tooltip.id = tooltipId;
+      tooltip.setAttribute("role", "tooltip");
+      tooltip.append(
+        element("small", "", approach.eyebrow),
+        element("strong", "", approach.title),
+        element("p", "", approach.description),
+        element("b", "", approach.reward),
+      );
+      option.append(button, tooltip);
+      actions.append(option);
+    });
+    card.append(rewards, actions); return card;
+  }));
+}
+
+function acceptContract(id: string, approach: "honor" | "profit"): void {
+  if (!game) return;
+  try { const contract = game.acceptContract(id, approach); persist(); renderContracts(); renderHeader(); toast(`Принят контракт «${contract.title}».`); }
+  catch (error) { toast((error as Error).message, "error"); }
+}
+
 function renderCollections(): void {
   if (!game) return;
   const found = new Set(game.save.discoveredItems);
@@ -1417,6 +1807,7 @@ function renderForge(animateItems = true, preserveOrder = false): void {
   if (!game) return;
   const hero = game.save.hero;
   $("#forge-marks").textContent = `${hero.temperingMarks} ${hero.temperingMarks === 1 ? "печать" : hero.temperingMarks >= 2 && hero.temperingMarks <= 4 ? "печати" : "печатей"}`;
+  renderRelicWorkshop();
   const grid = $("#forge-grid");
   const equippedIds = new Set(Object.values(hero.equipped));
   const displayedOrder = new Map(
@@ -1446,7 +1837,7 @@ function renderForge(animateItems = true, preserveOrder = false): void {
     art.style.setProperty("--rarity-color", rarityColors[item.rarity]);
     const copy = element("div", "forge-card-copy");
     const enhancement = item.enhancement ?? 0;
-    copy.append(element("small", "", `${equippedIds.has(item.id) ? "НАДЕТО · " : ""}${SLOT_LABELS[item.slot]} · ${RARITY_LABELS[item.rarity]}`), element("h3", "", item.name), element("p", "", `${item.level} ур. · закалка +${enhancement}/5`), element("p", "item-stats", itemStatsText(item)));
+    copy.append(element("small", "", `${equippedIds.has(item.id) ? "НАДЕТО · " : ""}${SLOT_LABELS[item.slot]} · ${RARITY_LABELS[item.rarity]}`), element("h3", "", item.relicName ?? item.name), element("p", "", `${item.level} ур. · закалка +${enhancement}/5${rarityAtLeastUi(item.rarity, "legendary") ? ` · наследие ${item.relicTier ?? 0}/3 (${item.relicRenown ?? 0})` : ""}`), element("p", "item-stats", itemStatsText(item)));
     if (equippedIds.has(item.id)) card.classList.add("equipped");
     const button = element("button", "button", enhancement >= 5 ? "Максимальная закалка" : `Улучшить · ${game!.upgradeCost(item.id)} печ.`);
     button.type = "button";
@@ -1455,7 +1846,18 @@ function renderForge(animateItems = true, preserveOrder = false): void {
       try { game!.upgradeItem(item.id); persist(); refreshEquipmentViews(true); toast(`${item.name} усилен.`); }
       catch (error) { toast((error as Error).message, "error"); }
     });
-    card.append(art, copy, button);
+    const actions = element("div", "forge-card-actions");
+    actions.append(button);
+    if (!equippedIds.has(item.id) && game!.canSell(item.id)) {
+      const salvage = element("button", "plain-button", "Разобрать в пыль");
+      salvage.addEventListener("click", () => {
+        if (!window.confirm(`Разобрать «${item.name}» без возможности восстановления?`)) return;
+        try { const dust = game!.salvageItem(item.id); persist(); renderForge(false); renderHeader(); toast(`Получено реликтовой пыли: ${dust}.`); }
+        catch (error) { toast((error as Error).message, "error"); }
+      });
+      actions.append(salvage);
+    }
+    card.append(art, copy, actions);
     return card;
   }));
   if (order.length === 0) grid.append(element("p", "empty-copy", "В инвентаре нет предметов для закалки."));
@@ -1493,6 +1895,50 @@ function renderLeaders(trackMovement = false): void {
     saveRankingSnapshot(LEADER_SNAPSHOT_KEY, leaders);
     window.requestAnimationFrame(() => observeLeaderboardRows(body));
   }
+}
+
+function rarityAtLeastUi(rarity: Rarity, minimum: Rarity): boolean {
+  const order: Rarity[] = ["common", "rare", "epic", "legendary", "mythic"];
+  return order.indexOf(rarity) >= order.indexOf(minimum);
+}
+
+function renderRelicWorkshop(): void {
+  if (!game) return;
+  const panel = $("#relic-workshop");
+  const hero = game.save.hero;
+  const relics = hero.inventory.filter((item) => rarityAtLeastUi(item.rarity, "legendary"));
+  const ready = relics.filter((item) => (item.relicTier ?? 0) >= 1 && !item.relicPath);
+  const head = element("div", "relic-workshop-head");
+  head.append(element("p", "eyebrow", "НАСЛЕДИЕ СНАРЯЖЕНИЯ"), element("h2", "", "Предметы помнят победы"), element("p", "", "Надетые легендарные и мифические вещи получают известность в боях. На первой ступени можно выбрать постоянный путь развития."));
+  const resource = statRow("Реликтовая пыль", hero.relicDust);
+  const list = element("div", "relic-ready-list");
+  ready.forEach((item) => {
+    const row = element("article");
+    const copy = element("div"); copy.append(element("strong", "", item.relicName ?? item.name), element("small", "", `Наследие ${item.relicTier}/3 · известность ${item.relicRenown ?? 0} · следующий порог ${RELIC_TIER_THRESHOLDS[Math.min(3, (item.relicTier ?? 0) + 1)]}`));
+    const actions = element("div");
+    RELIC_PATHS.forEach((path) => {
+      const option = element("div", "relic-path-option");
+      const tooltipId = `relic-path-${item.id}-${path.id}`;
+      const button = element("button", "plain-button", path.name);
+      button.setAttribute("aria-describedby", tooltipId);
+      button.disabled = hero.relicDust < 8;
+      button.addEventListener("click", () => { try { game!.awakenRelic(item.id, path.id); persist(); renderForge(false); toast(`${item.name} обрёл собственный путь.`); } catch (error) { toast((error as Error).message, "error"); } });
+      const tooltip = element("aside", "relic-path-tooltip");
+      tooltip.id = tooltipId;
+      tooltip.setAttribute("role", "tooltip");
+      tooltip.append(
+        element("small", "", "ПОСТОЯННЫЙ ВЫБОР"),
+        element("strong", "", path.name),
+        element("p", "", path.description),
+        element("b", "feature-stats", featureStatsText(path.stats)),
+      );
+      option.append(button, tooltip);
+      actions.append(option);
+    });
+    row.append(copy, actions); list.append(row);
+  });
+  if (ready.length === 0) list.append(element("p", "empty-copy", relics.length ? "Продолжайте побеждать с легендарными предметами: путь откроется на первой ступени наследия." : "Легендарных предметов пока нет."));
+  panel.replaceChildren(head, resource, list);
 }
 
 function renderEliteLeaders(trackMovement = false): void {
@@ -1564,7 +2010,7 @@ function refreshMapViews(animateItems = false): void {
 
 function renderAll(): void {
   if (!game) return;
-  renderHeader(); renderMap(); renderHeroVisual(); renderGearActions(); renderArsenal(); renderForge(); renderSkills(); renderCollections(); renderShop(); renderLeaders(); renderEliteLeaders(); renderChronicle(); renderTournamentReminder();
+  renderHeader(); renderMap(); renderHeroVisual(); renderGearActions(); renderArsenal(); renderForge(); renderSkills(); renderContracts(); renderCollections(); renderShop(); renderLeaders(); renderEliteLeaders(); renderChronicle(); renderTournamentReminder();
 }
 
 function setCombatant(container: HTMLElement, fighter: CombatantSnapshot, health: number): void {
@@ -1619,15 +2065,55 @@ function captureBattleEquipment(): void {
 
 function startActivity(activityId: string): void {
   if (!game) return;
+  try {
+    game.startExpedition(activityId);
+    persist(); renderMap(false); openDungeonWindow();
+    toast("Поход начат. Выберите первый маршрут.");
+  } catch (error) {
+    toast((error as Error).message, "error");
+  }
+}
+
+function advanceExpedition(choiceId: "safe" | "risk" | "rest"): void {
+  if (!game) return;
+  captureBattleEquipment();
+  let result: ExpeditionStepReport;
+  try { result = game.advanceExpedition(choiceId); persist(); }
+  catch (error) { battleEquipmentBefore = null; battleInventoryBefore = null; toast((error as Error).message, "error"); return; }
+  pendingExpeditionResult = result.completed || result.retreated ? result : null;
+  currentTournament = null;
+  if (result.battle) {
+    currentReport = result.battle;
+    openBattleReport(result.battle);
+    return;
+  }
+  const before = battleInventoryBefore;
+  const acquired = before ? game.save.hero.inventory.filter((item) => !before.has(item.id)) : [];
+  const equipmentBefore = battleEquipmentBefore;
+  battleEquipmentBefore = null; battleInventoryBefore = null;
+  refreshMapViews(false);
+  if (pendingExpeditionResult) {
+    openExpeditionRewards(pendingExpeditionResult, acquired, equipmentBefore);
+    pendingExpeditionResult = null;
+  } else {
+    showLootReminders(acquired, equipmentBefore);
+  }
+  toast(result.message);
+}
+
+function retreatExpedition(): void {
+  if (!game || !window.confirm("Завершить поход сейчас? Герой сохранит 55% награды и половину найденных предметов.")) return;
   captureBattleEquipment();
   try {
-    currentTournament = null;
-    currentReport = game.play(activityId);
-    persist();
-  } catch (error) {
-    battleEquipmentBefore = null; toast((error as Error).message, "error"); return;
-  }
-  openBattleReport(currentReport);
+    const before = battleInventoryBefore;
+    const result = game.retreatExpedition();
+    persist(); refreshMapViews(false);
+    const acquired = before ? game.save.hero.inventory.filter((item) => !before.has(item.id)) : [];
+    const equipmentBefore = battleEquipmentBefore;
+    battleEquipmentBefore = null; battleInventoryBefore = null;
+    openExpeditionRewards(result, acquired, equipmentBefore);
+    toast(result.message);
+  } catch (error) { battleEquipmentBefore = null; battleInventoryBefore = null; toast((error as Error).message, "error"); }
 }
 
 function trainHero(): void {
@@ -1732,8 +2218,15 @@ function openBattleReport(report: BattleReport): void {
   battleHealth = { hero: currentReport.heroBefore.maxHealth, enemy: currentReport.enemyBefore.maxHealth };
   $("#battle-place").textContent = currentReport.activity.place.toUpperCase();
   $("#battle-name").textContent = currentReport.activity.name;
+  const rulesPanel = $("#battle-rules");
+  const activeRules = TOURNAMENT_RULES.filter((rule) => currentReport?.ruleIds?.includes(rule.id));
+  rulesPanel.hidden = activeRules.length === 0;
+  rulesPanel.replaceChildren(...activeRules.map((rule) => {
+    const chip = element("span"); chip.append(element("b", "", rule.name), document.createTextNode(rule.description)); return chip;
+  }));
   $("#battle-turn").textContent = "ХОД 0"; $("#battle-action").textContent = "Бойцы выходят на площадку"; $("#battle-detail").textContent = "";
   $("#battle-log").replaceChildren(); $("#battle-result").hidden = true;
+  $("#skip-battle").hidden = false;
   $("#close-battle").textContent = "Вернуться на карту";
   if (!currentTournament) $("#tournament-panel").hidden = true;
   setCombatant($("#battle-hero"), currentReport.heroBefore, battleHealth.hero);
@@ -1787,10 +2280,28 @@ function playBattleTurn(): void {
   scheduleBattleTurn();
 }
 
+function battleFeatureChangeCard(change: FighterFeatureChange): HTMLElement {
+  const card = element("article", `battle-feature-change ${change.kind === "Травма" ? "negative" : ""}`);
+  card.append(
+    element("small", "", `${change.fighterName} · ${change.kind}`),
+    element("strong", "", change.name),
+    element("p", "", change.description),
+  );
+  const stats = element("div", "battle-feature-stats");
+  Object.entries(change.stats).filter(([, value]) => Number(value) !== 0).forEach(([stat, value]) => {
+    const amount = Number(value);
+    const chip = element("span", amount > 0 ? "positive" : "negative", `${amount > 0 ? "+" : ""}${amount} ${comparisonStatLabels[stat as ComparisonStat]}`);
+    stats.append(chip);
+  });
+  if (stats.childElementCount) card.append(stats);
+  return card;
+}
+
 function finishBattlePlayback(): void {
   if (!currentReport) return;
   if (battleTimer !== null) window.clearTimeout(battleTimer); battleTimer = null;
   $("#manual-battle-step").hidden = true;
+  $("#skip-battle").hidden = true;
   const finalHeroHealth = currentReport.heroWon ? Math.max(1, battleHealth.hero) : 0;
   const finalEnemyHealth = currentReport.heroWon ? 0 : Math.max(1, battleHealth.enemy);
   setCombatant($("#battle-hero"), currentReport.heroBefore, finalHeroHealth);
@@ -1814,14 +2325,29 @@ function finishBattlePlayback(): void {
   if (finalRewards.unlockedSkills.length) lines.push(`Открыты навыки: ${finalRewards.unlockedSkills.map((skill) => skill.name).join(", ")}`);
   if (finalTournamentBattle) lines.push(`Чемпион: ${currentTournament!.championName}`);
   copy.append(element("p", "", lines.join(" · ")));
-  $("#close-battle").textContent = hasNextTournamentBattle ? "Следующий бой" : "Вернуться на карту";
+  const featureChanges = game?.consumeFeatureChanges() ?? [];
+  if (featureChanges.length) {
+    const featurePanel = element("section", "battle-feature-changes");
+    featurePanel.append(element("h4", "", featureChanges.length === 1 ? "Бой оставил след" : "После боя появились новые свойства"));
+    const featureList = element("div");
+    featureList.append(...featureChanges.map(battleFeatureChangeCard));
+    featurePanel.append(featureList);
+    copy.append(featurePanel);
+  }
+  $("#close-battle").textContent = hasNextTournamentBattle
+    ? "Следующий бой"
+    : pendingExpeditionResult ? "Посмотреть итоги похода" : "Вернуться на карту";
   const inventoryBefore = battleInventoryBefore;
   const newlyAcquiredItems = !hasNextTournamentBattle && game && inventoryBefore
     ? game.save.hero.inventory.filter((item) => !inventoryBefore.has(item.id))
     : [];
   if (newlyAcquiredItems.length === 0 && !hasNextTournamentBattle && finalRewards.item) newlyAcquiredItems.push(finalRewards.item);
   renderAll();
-  showLootReminders(newlyAcquiredItems, battleEquipmentBefore);
+  if (pendingExpeditionResult && !hasNextTournamentBattle) {
+    pendingExpeditionLoot = { items: newlyAcquiredItems, equipmentBefore: battleEquipmentBefore };
+  } else {
+    showLootReminders(newlyAcquiredItems, battleEquipmentBefore);
+  }
 }
 
 function skipBattle(): void {
@@ -1839,9 +2365,16 @@ function closeBattle(): void {
     openBattleReport(currentTournament.heroBattles[tournamentBattleIndex]);
     return;
   }
+  const expeditionResult = pendingExpeditionResult;
+  const expeditionLoot = pendingExpeditionLoot;
+  pendingExpeditionResult = null;
+  pendingExpeditionLoot = null;
   currentReport = null; currentTournament = null; battleEquipmentBefore = null; battleInventoryBefore = null; $("#battle-overlay").hidden = true; $("#tournament-panel").hidden = true; document.body.classList.remove("battle-open");
   showPage(battleReturnPage, false, false);
-  window.requestAnimationFrame(() => window.scrollTo({ top: battleReturnScrollY, behavior: "auto" }));
+  window.requestAnimationFrame(() => {
+    window.scrollTo({ top: battleReturnScrollY, behavior: "auto" });
+    if (expeditionResult) openExpeditionRewards(expeditionResult, expeditionLoot?.items ?? expeditionResult.rewards?.items ?? [], expeditionLoot?.equipmentBefore ?? null);
+  });
 }
 
 function setWorldInterface(visible: boolean): void {
@@ -1849,7 +2382,10 @@ function setWorldInterface(visible: boolean): void {
   $(".main-nav").hidden = !visible;
   $(".game-shell").hidden = !visible;
   $("#basic-shell").hidden = visible;
-  if (!visible) $("#tournament-reminder").hidden = true;
+  if (!visible) {
+    $("#tournament-reminder").hidden = true;
+    $("#dungeon-layer").hidden = true;
+  }
 }
 
 function switchMode(): void {
@@ -1957,6 +2493,9 @@ $("#tutorial-next").addEventListener("click", () => {
   tutorialStepIndex += 1;
   renderTutorial();
 });
+$("#close-dungeon-window").addEventListener("click", closeDungeonWindow);
+$("#continue-expedition-rewards").addEventListener("click", closeExpeditionRewards);
+$("#dungeon-layer").addEventListener("click", (event) => { if (event.target === event.currentTarget) closeDungeonWindow(); });
 $("#dismiss-tournament-reminder").addEventListener("click", () => {
   dismissedTournamentReminderKey = tournamentReminderKey(tournamentsScheduledToday());
   $("#tournament-reminder").hidden = true;
@@ -1977,9 +2516,13 @@ $("#equipment-picker").addEventListener("click", (event) => { if (event.target =
 $("#equipment-comparison").addEventListener("click", (event) => { if (event.target === event.currentTarget) closeEquipmentComparison(); });
 window.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
-  if (!$("#equipment-comparison").hidden) closeEquipmentComparison();
+  if (!$("#tutorial-layer").hidden) finishTutorial();
+  else if (!$("#dungeon-layer").hidden) closeDungeonWindow();
+  else if (!$("#equipment-comparison").hidden) closeEquipmentComparison();
   else if (!$("#equipment-picker").hidden) closeEquipmentPicker();
 });
+window.addEventListener("resize", positionTutorial);
+window.addEventListener("scroll", positionTutorial, { passive: true });
 $("#skip-battle").addEventListener("click", skipBattle);
 $("#manual-battle-step").addEventListener("click", confirmManualBattleTurn);
 $("#close-battle").addEventListener("click", closeBattle);

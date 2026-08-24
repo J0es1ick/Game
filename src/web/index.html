@@ -71,6 +71,7 @@
       <button data-page="arsenal">Инвентарь <span id="inventory-count">0</span></button>
       <button data-page="forge">Кузница</button>
       <button data-page="skills">Навыки</button>
+      <button data-page="contracts">Контракты <span id="contract-count">0</span></button>
       <button data-page="collections">Коллекции <span id="collection-count">0</span></button>
       <button data-page="shop">Лавка</button>
       <button data-page="leaders">Сотня лучших</button>
@@ -225,7 +226,14 @@
         <header class="page-heading"><div><p class="eyebrow">СНАРЯЖЕНИЕ ГЕРОЯ</p><h1 id="arsenal-title">Инвентарь</h1></div><p>Сравнивайте характеристики и выбирайте вещи перед следующей активностью.</p></header>
         <div class="arsenal-layout">
           <section class="paper-panel equipment-panel"><h2>Надето</h2><div class="gear-actions compact" id="inventory-gear-actions"></div><div class="equipment-grid" id="equipment-grid"></div><div id="set-bonuses"></div></section>
-          <section class="paper-panel inventory-panel"><header><div class="inventory-title"><h2>Рюкзак</h2><small id="inventory-result-count"></small><button class="plain-button inventory-sell-all" id="inventory-sell-unequipped" type="button">Продать неиспользуемое</button></div><div class="inventory-filter-stack"><div class="filter-row" id="inventory-filters"></div><label>Комплект<select id="inventory-set-filter"></select></label><label>Редкость<select id="inventory-rarity-filter"></select></label><label>Новизна<select id="inventory-sort"><option value="newest">Сначала новые</option><option value="oldest">Сначала старые</option></select></label></div></header><div class="item-grid" id="inventory-grid"></div><button class="plain-button inventory-more" id="inventory-more" hidden>Показать ещё</button></section>
+          <section class="paper-panel inventory-panel">
+            <header class="inventory-heading">
+              <div class="inventory-title"><p class="eyebrow">СОДЕРЖИМОЕ РЮКЗАКА</p><h2>Предметы</h2><small id="inventory-result-count"></small></div>
+              <button class="plain-button inventory-sell-all" id="inventory-sell-unequipped" type="button"><span>Продать неиспользуемое</span><small>Надетое и регалии останутся</small></button>
+            </header>
+            <div class="inventory-filter-stack"><div class="filter-row" id="inventory-filters"></div><label>Комплект<select id="inventory-set-filter"></select></label><label>Редкость<select id="inventory-rarity-filter"></select></label><label>Новизна<select id="inventory-sort"><option value="newest">Сначала новые</option><option value="oldest">Сначала старые</option></select></label></div>
+            <div class="item-grid" id="inventory-grid"></div><button class="plain-button inventory-more" id="inventory-more" hidden>Показать ещё</button>
+          </section>
           <aside class="paper-panel stats-panel" id="hero-stats"></aside>
         </div>
       </section>
@@ -233,6 +241,7 @@
       <section class="page" id="page-forge" aria-labelledby="forge-title">
         <header class="page-heading"><div><p class="eyebrow">ПОСТОЯННОЕ УСИЛЕНИЕ ПРЕДМЕТОВ</p><h1 id="forge-title">Кузница</h1></div><p>Печати закалки добываются в поздних турнирах, у особых противников и изредка в сложных данжах. Золотом их купить нельзя.</p></header>
         <div class="forge-summary paper-panel"><div><small>ДОСТУПНЫЙ РЕСУРС</small><strong id="forge-marks">0 печатей</strong></div><p>Каждый следующий уровень закалки дороже. Максимум — +5; характеристики предмета растут при каждом улучшении.</p></div>
+        <section class="relic-workshop paper-panel" id="relic-workshop"></section>
         <div class="forge-grid" id="forge-grid"></div>
       </section>
 
@@ -243,6 +252,15 @@
         <div class="skill-road" id="skill-road"></div>
         <header class="skill-section-heading"><div><p class="eyebrow">СВОЙСТВА СНАРЯЖЕНИЯ</p><h2>Справочник реликтовых навыков</h2></div><p>Такой навык может появиться на легендарном или мифическом предмете. В карточке указано, доступен ли он сейчас.</p></header>
         <div class="skill-road equipment-skill-book" id="equipment-skill-book"></div>
+      </section>
+
+      <section class="page" id="page-contracts" aria-labelledby="contracts-title">
+        <header class="page-heading"><div><p class="eyebrow">РЕПУТАЦИЯ И ЗАКАЗЫ МИРА</p><h1 id="contracts-title">Фракции и контракты</h1></div><p>Выберите, чьи интересы поддерживать. Контракты используют обычные активности мира и дают им конкретную цель.</p></header>
+        <section class="active-contract paper-panel" id="active-contract"></section>
+        <section class="reputation-guide paper-panel" id="reputation-guide" aria-labelledby="reputation-guide-title"></section>
+        <div class="faction-grid" id="faction-grid"></div>
+        <header class="skill-section-heading"><div><p class="eyebrow">ДОСТУПНЫЕ ПОРУЧЕНИЯ</p><h2>Доска контрактов</h2></div><p>Подход «честь» повышает репутацию, «выгода» — денежную награду. Одновременно действует один контракт.</p></header>
+        <div class="contract-grid" id="contract-grid"></div>
       </section>
 
       <section class="page" id="page-collections" aria-labelledby="collections-title">
@@ -300,13 +318,29 @@
       <i class="loot-reminder-timebar" aria-hidden="true"></i>
     </aside>
 
-    <section class="tutorial-layer" id="tutorial-layer" hidden role="dialog" aria-modal="true" aria-labelledby="tutorial-title">
-      <div class="tutorial-dialog">
-        <header><div><p class="eyebrow">КРАТКОЕ ОБУЧЕНИЕ</p><h2 id="tutorial-title">Добро пожаловать</h2></div><span id="tutorial-progress">1 / 5</span></header>
-        <div class="tutorial-illustration" id="tutorial-illustration" aria-hidden="true">01</div>
+    <section class="dungeon-layer" id="dungeon-layer" hidden role="dialog" aria-modal="true" aria-labelledby="dungeon-window-title">
+      <div class="dungeon-dialog">
+        <header class="dungeon-dialog-heading"><div><p class="eyebrow" id="dungeon-window-kicker">ЭКСПЕДИЦИЯ</p><h2 id="dungeon-window-title">Путь в глубину</h2></div><button class="dialog-close" id="close-dungeon-window" type="button" aria-label="Закрыть окно данжа">×</button></header>
+        <div class="dungeon-expedition-view" id="dungeon-expedition-view">
+          <section class="expedition-board" id="expedition-board" hidden></section>
+        </div>
+        <div class="dungeon-reward-view" id="dungeon-reward-view" hidden>
+          <p class="expedition-reward-copy" id="expedition-reward-copy"></p>
+          <div class="expedition-reward-stats" id="expedition-reward-stats"></div>
+          <section class="expedition-reward-loot"><header><div><p class="eyebrow">СОХРАНЁННАЯ ДОБЫЧА</p><h3>Находки из похода</h3></div><span id="expedition-reward-loot-count">0 предметов</span></header><div id="expedition-reward-items"></div></section>
+          <footer><p>После закрытия можно сразу сравнить каждую находку с надетым предметом.</p><button class="button primary" id="continue-expedition-rewards" type="button">Забрать награды</button></footer>
+        </div>
+      </div>
+    </section>
+
+    <section class="tutorial-layer" id="tutorial-layer" hidden role="dialog" aria-modal="false" aria-labelledby="tutorial-title">
+      <div class="tutorial-spotlight" id="tutorial-spotlight" aria-hidden="true"></div>
+      <div class="tutorial-dialog" id="tutorial-dialog">
+        <header><div><p class="eyebrow">ИНТЕРАКТИВНОЕ ОБУЧЕНИЕ</p><h2 id="tutorial-title">Добро пожаловать</h2></div><span id="tutorial-progress">1 / 17</span></header>
         <p id="tutorial-copy"></p>
+        <div class="tutorial-action"><span aria-hidden="true">↳</span><p><small>ЧТО ДЕЛАТЬ</small><strong id="tutorial-action-copy"></strong></p></div>
         <footer>
-          <button class="plain-button" id="tutorial-skip" type="button">Пропустить обучение</button>
+          <button class="plain-button" id="tutorial-skip" type="button">Завершить обучение</button>
           <div><button class="plain-button" id="tutorial-back" type="button">Назад</button><button class="button primary" id="tutorial-next" type="button">Далее</button></div>
         </footer>
       </div>
@@ -358,6 +392,7 @@
         </div>
         <div class="battle-skills" id="battle-skills"><div data-fighter="hero"><strong>Навыки героя</strong><div></div></div><div data-fighter="enemy"><strong>Навыки противника</strong><div></div></div></div>
         <div class="battle-log" id="battle-log"></div>
+        <div class="battle-rules" id="battle-rules" hidden></div>
         <div class="battle-controls"><label>Скорость боя<select id="battle-speed"><option value="900">Медленно</option><option value="450" selected>Обычно</option><option value="160">Быстро</option></select></label><button class="plain-button" id="manual-battle-step" type="button" hidden>Выполнить ход</button><button class="plain-button" id="skip-battle">Пропустить бой</button></div>
         <footer class="battle-result" id="battle-result" hidden><div></div><div class="battle-result-actions"><button class="button primary" id="close-battle">Вернуться на карту</button></div></footer>
       </div>

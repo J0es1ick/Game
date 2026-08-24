@@ -113,11 +113,11 @@
 }
 .inventory-panel > header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 20px;
-  padding-bottom: 17px;
+  gap: 24px;
+  margin-bottom: 14px;
+  padding-bottom: 14px;
   border-bottom: 1px solid #b6ad9d;
 }
 .inventory-panel > header h2 {
@@ -126,13 +126,39 @@
 .inventory-title {
   display: grid;
   justify-items: start;
-  gap: 5px;
+  gap: 2px;
+}
+.inventory-title .eyebrow {
+  margin: 0 0 2px;
 }
 .inventory-sell-all {
-  min-height: 34px;
-  margin-top: 8px;
-  padding: 5px 10px;
+  display: grid;
+  min-height: 50px;
+  padding: 7px 12px;
+  text-align: left;
+  align-content: center;
+  gap: 2px;
 }
+.inventory-sell-all > span {
+  color: #302c25;
+  font-weight: 700;
+}
+.inventory-sell-all > small {
+  color: #6b6457;
+  font: 10px/1.25 "Courier New", monospace;
+}
+.inventory-sell-all:hover:not(:disabled),
+.inventory-sell-all:focus-visible:not(:disabled) {
+  border-color: #8f493a;
+  color: #302c25;
+  background: #eee4d2;
+  box-shadow: inset 4px 0 0 #a34d3d;
+  outline: none;
+}
+.inventory-sell-all:hover:not(:disabled) > span,
+.inventory-sell-all:focus-visible:not(:disabled) > span { color: #8f3f32; }
+.inventory-sell-all:hover:not(:disabled) > small,
+.inventory-sell-all:focus-visible:not(:disabled) > small { color: #5d5548; }
 .inventory-panel > header small {
   color: var(--muted);
   font:
@@ -142,7 +168,11 @@
 .inventory-filter-stack {
   display: grid;
   grid-template-columns: repeat(3, minmax(130px, 1fr));
-  gap: 7px;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 12px;
+  border: 1px solid #c0b7a5;
+  background: #e6dece;
 }
 .inventory-filter-stack .filter-row {
   grid-column: 1 / -1;

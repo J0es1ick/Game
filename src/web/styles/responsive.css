@@ -539,26 +539,6 @@
   }
 }
 
-@media (max-width: 560px) {
-  .tutorial-layer {
-    padding: 0;
-  }
-  .tutorial-dialog {
-    min-height: 100dvh;
-    padding: 22px 16px;
-    border: 0;
-    box-shadow: none;
-  }
-  .tutorial-dialog > footer {
-    align-items: stretch;
-    flex-direction: column-reverse;
-  }
-  .tutorial-dialog > footer > div,
-  .tutorial-dialog > footer button {
-    width: 100%;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
