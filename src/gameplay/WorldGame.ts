@@ -14,17 +14,36 @@ import {
 } from "../catalogs/WorldCatalog";
 import { calculateItemPrice, createItem, createStarterItems, equipmentScore, itemPower } from "../factories/ItemFactory";
 import {
+  CLASS_RELIC_EPITHETS,
+  DEFAULT_TACTICAL_PROFILES,
+  ENEMY_ADAPTATIONS,
+  EXPEDITION_CHOICES,
+  FACTIONS,
+  factionReputationTier,
+  FIGHTER_SCARS,
+  FIGHTER_TRAITS,
+  RELIC_PATHS,
+  RELIC_TIER_THRESHOLDS,
+  TOURNAMENT_RULES,
+} from "../catalogs/WorldExpansionCatalog";
+import {
   ActivityAvailability,
   ActivityDefinition,
   ArenaDefinition,
   BattleReport,
   BossDefinition,
+  ContractObjective,
+  ContractOffer,
   DailyActivityReport,
   DuelDefinition,
   DungeonDefinition,
+  DungeonExpedition,
   EnemyProfile,
   EquipmentItem,
   EquipmentSlot,
+  ExpeditionChoice,
+  ExpeditionStepReport,
+  FighterFeatureChange,
   GameSave,
   HeroClass,
   HeroProfile,
@@ -32,6 +51,8 @@ import {
   Rarity,
   ShopOffer,
   SkillDefinition,
+  Stats,
+  TacticalProfile,
   TournamentMatch,
   TournamentReport,
   WorldEvent,
@@ -55,6 +76,8 @@ const CROWN_SET_ID = "crown-sovereign";
 const ARENA_POPULATION_TARGET = 16;
 const ARENA_POPULATION_FLOOR = 12;
 const BACKGROUND_LETHALITY_SCALE = 0.14;
+const CONTRACT_LIFETIME = 7;
+const ACTIVE_INJURY_CHANCE = 0.24;
 export const CLASS_CHANGE_GOLD_COST = 25_000;
 export const CLASS_CHANGE_MARK_COST = 5;
 
@@ -71,6 +94,7 @@ function starterEquipment(classId: HeroClass): { inventory: EquipmentItem[]; equ
 
 export class WorldGame {
   public readonly save: GameSave;
+  private featureChanges: FighterFeatureChange[] = [];
 
   private constructor(save: GameSave) {
     this.save = save;
@@ -85,6 +109,9 @@ export class WorldGame {
       dungeonWins: 0, dungeonLosses: 0, bossWins: 0, kills: 0, rivalries: {},
       arenaWins: ARENAS.map(() => 0), highestArena: 0, inventory: starter.inventory,
       equipped: starter.equipped, autoEquipBest: false, autoSelectSkills: true, selectedSkillIds: [], combatMode: "auto",
+      traitIds: [FIGHTER_TRAITS[classes.indexOf(classId) % FIGHTER_TRAITS.length].id], scarIds: [], injuries: [],
+      tacticalProfiles: DEFAULT_TACTICAL_PROFILES.map((profile) => ({ ...profile })), activeTacticalProfileId: "balanced",
+      relicDust: 0, factionReputation: Object.fromEntries(FACTIONS.map((faction) => [faction.id, 0])),
       crownLeaguePoints: 0, crownLeagueWins: 0, legendHuntWins: 0, legendDefenses: 0, classChanges: 0,
       appearance: { hairStyle: 0, faceStyle: 0 }, createdAt: now,
     };
@@ -93,6 +120,7 @@ export class WorldGame {
       dungeonClears: {}, shopDay: 1, shopOffers: [],
       discoveredItems: starter.inventory.map((item) => item.templateId), tournamentRegistrations: {}, defeatedBosses: [],
       huntedLegendIds: [], eliteLeagueMemberIds: [], eliteRatings: {}, eliteCrownWins: {}, tutorialCompleted: false, events: [],
+      contractOffers: [], completedContracts: 0, tournamentRuleSeed: Math.max(1, now % 999_999),
     };
     const game = new WorldGame(save);
     ARENAS.forEach((_, arenaIndex) => {
@@ -102,6 +130,7 @@ export class WorldGame {
     game.syncCrownSet();
     game.ensurePopulations(true);
     game.rotateShop();
+    game.refreshContracts(true);
     game.event("system", `${hero.name} начал путь в Нижнем городе.`);
     return game;
   }
@@ -117,6 +146,9 @@ export class WorldGame {
     game.save.eliteLeagueMemberIds ??= [];
     game.save.eliteRatings ??= {};
     game.save.eliteCrownWins ??= {};
+    game.save.contractOffers ??= [];
+    game.save.completedContracts ??= 0;
+    game.save.tournamentRuleSeed ??= Math.max(1, game.save.hero.createdAt % 999_999);
     // Older saves have already entered the world, even if they were created
     // before the tutorial acquired an explicit "seen" marker.
     game.save.tutorialCompleted = true;
@@ -134,6 +166,13 @@ export class WorldGame {
     hero.dungeonWins ??= 0; hero.dungeonLosses ??= 0; hero.bossWins ??= game.save.defeatedBosses.length;
     hero.temperingMarks ??= 0; hero.kills ??= 0; hero.rivalries ??= {};
     hero.autoEquipBest ??= false;
+    hero.traitIds ??= [FIGHTER_TRAITS[classes.indexOf(hero.classId) % FIGHTER_TRAITS.length].id];
+    hero.scarIds ??= [];
+    hero.injuries ??= [];
+    hero.tacticalProfiles ??= DEFAULT_TACTICAL_PROFILES.map((profile) => ({ ...profile }));
+    hero.activeTacticalProfileId ??= "balanced";
+    hero.relicDust ??= 0;
+    hero.factionReputation ??= Object.fromEntries(FACTIONS.map((faction) => [faction.id, 0]));
     hero.crownLeaguePoints ??= 0;
     hero.crownLeagueWins ??= 0;
     hero.legendHuntWins ??= 0;
@@ -144,11 +183,16 @@ export class WorldGame {
       .filter((id, index, values) => values.indexOf(id) === index && SKILLS.some((skill) => skill.id === id))
       .slice(0, MAX_ACTIVE_SKILLS);
     if (hero.combatMode !== "manual") hero.combatMode = "auto";
-    hero.inventory.forEach((item) => { item.enhancement ??= 0; });
+    hero.inventory.forEach((item) => { item.enhancement ??= 0; item.relicTier ??= 0; item.relicRenown ??= 0; item.relicHistory ??= []; });
     game.save.enemies.forEach((enemy) => {
       enemy.tournamentWins ??= Math.min(enemy.wins, Math.max(0, enemy.arenaIndex * 2));
       enemy.kills ??= 0;
       enemy.equipment.forEach((item) => { item.enhancement ??= 0; });
+      enemy.traitIds ??= [FIGHTER_TRAITS[(classes.indexOf(enemy.classId) + enemy.level) % FIGHTER_TRAITS.length].id];
+      enemy.scarIds ??= [];
+      enemy.injuries ??= [];
+      enemy.adaptationIds ??= [];
+      enemy.tacticalStyle ??= DEFAULT_TACTICAL_PROFILES[(classes.indexOf(enemy.classId) + enemy.arenaIndex) % DEFAULT_TACTICAL_PROFILES.length].style;
     });
     game.save.enemies.forEach((enemy) => { enemy.rating = game.enemyWorldRating(enemy); });
     game.ensureEliteLeague();
@@ -157,18 +201,115 @@ export class WorldGame {
     game.save.shopOffers.forEach((offer) => { offer.item.price = calculateItemPrice(offer.item.level, offer.item.rarity); });
     game.cleanupVisualTestCatalog();
     game.recalculateHeroRating();
+    game.refreshContracts(false);
     return game;
   }
 
   public get activities(): Array<ArenaDefinition | DungeonDefinition> { return [...ARENAS, ...DUNGEONS]; }
+
+  public tournamentRules(arenaId: string, day = this.save.tournamentRegistrations[arenaId] ?? this.save.worldDay): typeof TOURNAMENT_RULES {
+    const source = `${arenaId}:${day}:${this.save.tournamentRuleSeed}`;
+    let hash = 0;
+    for (let index = 0; index < source.length; index += 1) hash = ((hash << 5) - hash + source.charCodeAt(index)) | 0;
+    const first = Math.abs(hash) % TOURNAMENT_RULES.length;
+    const second = Math.abs(hash * 31 + 17) % TOURNAMENT_RULES.length;
+    return [TOURNAMENT_RULES[first], ...(second === first ? [] : [TOURNAMENT_RULES[second]])];
+  }
+
+  public activeTacticalProfile(): TacticalProfile {
+    return this.save.hero.tacticalProfiles.find((profile) => profile.id === this.save.hero.activeTacticalProfileId)
+      ?? this.save.hero.tacticalProfiles[0];
+  }
+
+  public setTacticalProfile(profileId: string): TacticalProfile {
+    const profile = this.save.hero.tacticalProfiles.find((candidate) => candidate.id === profileId);
+    if (!profile) throw new Error("Тактический профиль не найден.");
+    this.save.hero.activeTacticalProfileId = profile.id;
+    return profile;
+  }
+
+  public fighterFeatures(profile: HeroProfile | EnemyProfile): Array<{ id: string; name: string; description: string; kind: string; stats: Partial<Stats> }> {
+    const ids = [
+      ...(profile.traitIds ?? []).map((id) => ({ id, kind: "Черта" })),
+      ...(profile.scarIds ?? []).map((id) => ({ id, kind: "Шрам" })),
+      ...("adaptationIds" in profile ? (profile.adaptationIds ?? []).map((id) => ({ id, kind: "Адаптация" })) : []),
+    ];
+    const definitions = [...FIGHTER_TRAITS, ...FIGHTER_SCARS, ...ENEMY_ADAPTATIONS];
+    return ids.map(({ id, kind }) => {
+      const feature = definitions.find((candidate) => candidate.id === id);
+      return { id, kind, name: feature?.name ?? id, description: feature?.description ?? "История этого свойства ещё не записана.", stats: feature?.stats ?? {} };
+    });
+  }
+
+  public consumeFeatureChanges(): FighterFeatureChange[] {
+    const changes = this.featureChanges.map((change) => ({ ...change, stats: { ...change.stats } }));
+    this.featureChanges = [];
+    return changes;
+  }
+
+  public acceptContract(contractId: string, approach: "honor" | "profit"): ContractOffer {
+    if (this.save.activeContract) throw new Error("Сначала завершите или отмените действующий контракт.");
+    const offer = this.save.contractOffers.find((candidate) => candidate.id === contractId);
+    if (!offer) throw new Error("Предложение больше недоступно.");
+    this.save.activeContract = { ...offer, approach };
+    this.save.contractOffers = this.save.contractOffers.filter((candidate) => candidate.id !== contractId);
+    this.event("system", `${this.save.hero.name} принял контракт «${offer.title}» (${approach === "honor" ? "честь" : "выгода"}).`);
+    return this.save.activeContract;
+  }
+
+  public abandonContract(): void {
+    const contract = this.save.activeContract;
+    if (!contract) return;
+    this.save.hero.factionReputation[contract.factionId] = Math.max(-20, (this.save.hero.factionReputation[contract.factionId] ?? 0) - 2);
+    this.event("system", `${this.save.hero.name} отказался от контракта «${contract.title}».`);
+    this.save.activeContract = undefined;
+  }
+
+  public salvageItem(itemId: string): number {
+    const item = this.save.hero.inventory.find((candidate) => candidate.id === itemId);
+    if (!item) throw new Error("Предмет не найден.");
+    if (Object.values(this.save.hero.equipped).includes(itemId)) throw new Error("Надетый предмет нельзя разобрать.");
+    if (!this.canSell(itemId)) throw new Error("Регалии короны нельзя разобрать.");
+    const dustByRarity: Record<Rarity, number> = { common: 1, rare: 2, epic: 4, legendary: 8, mythic: 14 };
+    const dust = dustByRarity[item.rarity] + (item.enhancement ?? 0);
+    this.save.hero.inventory = this.save.hero.inventory.filter((candidate) => candidate.id !== itemId);
+    this.save.hero.relicDust += dust;
+    this.event("loot", `${item.name} разобран: получено ${dust} ед. реликтовой пыли.`);
+    return dust;
+  }
+
+  public awakenRelic(itemId: string, pathId: "might" | "guard" | "tempo"): EquipmentItem {
+    const item = this.save.hero.inventory.find((candidate) => candidate.id === itemId);
+    if (!item) throw new Error("Предмет не найден.");
+    if (!rarityAtLeast(item.rarity, "legendary")) throw new Error("Историю могут обрести только легендарные и мифические вещи.");
+    if ((item.relicTier ?? 0) < 1) throw new Error("Сначала предмет должен заслужить имя в боях.");
+    if (item.relicPath) throw new Error("Путь этой реликвии уже выбран.");
+    const cost = 8;
+    if (this.save.hero.relicDust < cost) throw new Error(`Нужно реликтовой пыли: ${cost}.`);
+    const path = RELIC_PATHS.find((candidate) => candidate.id === pathId)!;
+    this.save.hero.relicDust -= cost;
+    item.relicPath = path.id;
+    Object.entries(path.stats).forEach(([stat, value]) => {
+      const key = stat as keyof Stats;
+      item.stats[key] = (item.stats[key] ?? 0) + Number(value);
+    });
+    const epithet = pick(CLASS_RELIC_EPITHETS[this.save.hero.classId]);
+    item.relicName = `${item.name} · ${epithet}`;
+    item.relicHistory ??= [];
+    item.relicHistory.push(`День ${this.save.worldDay}: выбран «${path.name}».`);
+    this.event("loot", `${item.name} обрёл имя «${item.relicName}».`);
+    return item;
+  }
 
   public simulateElapsed(now = Date.now()): number {
     const elapsedDays = Math.min(14, Math.max(0, Math.floor((now - this.save.lastSimulatedAt) / 600_000)));
     if (elapsedDays > 0) {
       for (let index = 0; index < elapsedDays; index += 1) {
         this.simulateDailyWorld();
+        this.healDailyInjuries();
         this.save.worldDay += 1;
         this.clearExpiredTournamentRegistrations();
+        this.refreshContracts(false);
       }
       this.save.lastSimulatedAt = now;
       this.event("system", `Пока вас не было, мир прожил ${elapsedDays} дн. Все арены, данжи и турниры продолжали работать.`);
@@ -296,6 +437,7 @@ export class WorldGame {
 
     if (heroWon) {
       this.save.dungeonClears[activity.id] = this.save.worldDay;
+      this.advanceContract("dungeon");
     }
     const eventsBefore = this.save.events.length;
     this.event("dungeon", `${this.save.hero.name} ${heroWon ? "завершил" : "не прошёл"} вылазку «${activity.name}».`);
@@ -319,6 +461,7 @@ export class WorldGame {
     }
     const experience = 34 + this.save.hero.level * 5;
     const levelsGained = this.gainHeroExperience(experience, levelCap);
+    this.advanceContract("training");
     this.event("system", `${this.save.hero.name} провёл день на тренировочной площадке и получил ${experience} опыта.`);
     this.completeDay();
     return { kind: "training", title: "Тренировка завершена", description: "Безопасная практика без добычи и рейтингового риска.", experience, gold: 0, levelsGained };
@@ -346,6 +489,7 @@ export class WorldGame {
     else { this.save.hero.losses += 1; this.save.hero.duelLosses += 1; }
     heroWon ? enemy.losses += 1 : enemy.wins += 1;
     this.recordHeroEncounter(enemy, heroWon);
+    if (heroWon) this.advanceContract("duel");
     this.event("battle", `${this.save.hero.name} ${heroWon ? "победил" : "проиграл"} ${enemy.name} в дуэли «${tier.name}».`);
     const battle: BattleReport = {
       activity: tier, heroBefore: combat.hero, enemyBefore: combat.enemy,
@@ -376,6 +520,7 @@ export class WorldGame {
       item = createItem(rewardLevel, { classId: this.save.hero.classId, templateId: boss.lootTemplateIds[this.save.hero.classId], rarity: boss.id === "nameless-duke" ? "mythic" : "legendary" });
       this.addItem(item);
       this.event("loot", `${this.save.hero.name} победил ${boss.name} и получил уникальный предмет «${item.name}».`);
+      this.advanceContract("boss");
     } else this.save.hero.losses += 1;
     this.recordHeroEncounter(enemy, heroWon);
     const battle: BattleReport = {
@@ -391,6 +536,7 @@ export class WorldGame {
     const arenaIndex = ARENAS.findIndex((candidate) => candidate.id === arenaId);
     const arena = ARENAS[arenaIndex];
     if (!arena) throw new Error("Турнир не найден.");
+    const ruleIds = this.tournamentRules(arenaId).map((rule) => rule.id);
     if (this.save.tournamentRegistrations[arenaId] !== this.save.worldDay) {
       throw new Error("На этот турнир нет действующей записи или его день ещё не наступил.");
     }
@@ -417,14 +563,14 @@ export class WorldGame {
         let battle: BattleReport | undefined;
         if (heroInvolved) {
           const enemy = (first.id === "hero" ? second : first) as EnemyProfile;
-          const combat = resolveCombat(this.save.hero, enemy, { heroLevelCap: arena.enemyLevel[1] + 1 });
+          const combat = resolveCombat(this.save.hero, enemy, { heroLevelCap: arena.enemyLevel[1] + 1, ruleIds });
           const heroWon = combat.winnerId === "hero";
           winner = heroWon ? this.save.hero : enemy;
           const enemyDied = heroWon && Math.random() < arena.lethalChance;
           battle = {
             activity: arena, heroBefore: combat.hero, enemyBefore: combat.enemy, winnerId: combat.winnerId,
             loserId: heroWon ? enemy.id : "hero", heroWon, enemyDied, turns: combat.turns,
-            rewards: { experience: 0, gold: 0, levelsGained: 0, unlockedSkills: [] }, worldEvents: [],
+            rewards: { experience: 0, gold: 0, levelsGained: 0, unlockedSkills: [] }, worldEvents: [], ruleIds,
           };
           heroBattles.push(battle);
           if (heroWon) { this.save.hero.wins += 1; this.save.hero.tournamentMatchWins += 1; }
@@ -472,6 +618,7 @@ export class WorldGame {
         this.save.hero.temperingMarks += temperingMarks;
         this.event("loot", `${this.save.hero.name} получил ${temperingMarks} печ. закалки за чемпионство.`);
       }
+      this.advanceContract("tournament");
     }
     this.recalculateHeroRating();
     this.event("tournament", `«${arena.name}» завершён. Чемпион: ${champion.name}. Участников: ${arena.participants}.`);
@@ -480,7 +627,7 @@ export class WorldGame {
     return {
       activity: arena, day: this.save.worldDay - 1, participantCount: arena.participants, matches,
       heroBattles, championName: champion.name, heroWon, heroPlacement,
-      rewards: { experience, gold, item, levelsGained, unlockedSkills: [], temperingMarks }, worldEvents: this.save.events.slice(eventsBefore),
+      rewards: { experience, gold, item, levelsGained, unlockedSkills: [], temperingMarks }, worldEvents: this.save.events.slice(eventsBefore), ruleIds,
     };
   }
 
@@ -514,6 +661,121 @@ export class WorldGame {
     return {
       unlocked: false,
       reason: `${qualification.reason} Для участия нужна предварительная запись; ближайшая Лига — в день ${this.nextCrownLeagueDay()}.`,
+    };
+  }
+
+  public startExpedition(dungeonId: string): DungeonExpedition {
+    if (this.save.activeExpedition) return this.save.activeExpedition;
+    const dungeon = DUNGEONS.find((candidate) => candidate.id === dungeonId);
+    if (!dungeon) throw new Error("Данж не найден.");
+    const availability = this.availability(dungeon);
+    if (!availability.unlocked) throw new Error(availability.reason);
+    this.save.activeExpedition = {
+      dungeonId, stage: 0, maxStages: dungeon.requiredArena >= 4 ? 5 : dungeon.requiredArena >= 2 ? 4 : 3,
+      health: 100, accumulatedGold: 0, accumulatedExperience: 0, loot: [], path: [],
+    };
+    this.event("dungeon", `${this.save.hero.name} начал поход «${dungeon.name}».`);
+    return this.save.activeExpedition;
+  }
+
+  public expeditionChoices(): ExpeditionChoice[] {
+    if (!this.save.activeExpedition) return [];
+    const expedition = this.save.activeExpedition;
+    return EXPEDITION_CHOICES.filter((choice) => choice.id !== "rest" || expedition.stage > 0 && expedition.health < 92);
+  }
+
+  public advanceExpedition(choiceId: ExpeditionChoice["id"]): ExpeditionStepReport {
+    const expedition = this.save.activeExpedition;
+    if (!expedition) throw new Error("Активного похода нет.");
+    const dungeon = DUNGEONS.find((candidate) => candidate.id === expedition.dungeonId)!;
+    const choice = this.expeditionChoices().find((candidate) => candidate.id === choiceId);
+    if (!choice) throw new Error("Этот путь сейчас недоступен.");
+    expedition.path.push(choice.id);
+
+    if (choice.id === "rest") {
+      expedition.health = Math.min(100, expedition.health + 28);
+      expedition.stage += 1;
+      if (expedition.stage >= expedition.maxStages) return this.finishExpedition(false, `Герой закрепил добычу и нашёл выход из «${dungeon.name}».`);
+      return { expedition, completed: false, retreated: false, message: "Лагерь восстановил силы, но приблизил поход к развязке." };
+    }
+
+    const levelBonus = expedition.stage + (choice.id === "risk" ? 3 : 0);
+    const enemy = this.createDungeonEnemy([
+      Math.min(dungeon.enemyLevel[1] + 2, dungeon.enemyLevel[0] + levelBonus),
+      Math.min(dungeon.enemyLevel[1] + 3, dungeon.enemyLevel[0] + levelBonus + 2),
+    ], dungeon.name);
+    const wear = Math.max(0, Math.round((100 - expedition.health) * 1.8));
+    const temporaryHero: HeroProfile = {
+      ...this.save.hero,
+      injuries: [...this.save.hero.injuries, ...(wear > 0 ? [{ id: "expedition-wear", name: "Усталость похода", description: "Накопленная усталость снижает запас сил.", remainingDays: 1, stats: { health: -wear }, gainedDay: this.save.worldDay }] : [])],
+    };
+    const combat = resolveCombat(temporaryHero, enemy);
+    const heroWon = combat.winnerId === "hero";
+    const lastTurn = combat.turns[combat.turns.length - 1];
+    const remainingHealth = heroWon
+      ? (lastTurn?.actorId === "hero" ? lastTurn.actorHealth : lastTurn?.targetHealth ?? combat.hero.maxHealth)
+      : 0;
+    expedition.health = Math.max(0, Math.round(remainingHealth / combat.hero.maxHealth * 100));
+    const stageExperience = Math.round(dungeon.rewardExperience / expedition.maxStages * (choice.id === "risk" ? 1.55 : 1));
+    const stageGold = Math.round(dungeon.rewardGold / expedition.maxStages * (choice.id === "risk" ? 1.7 : 1));
+    if (heroWon) {
+      expedition.accumulatedExperience += stageExperience;
+      expedition.accumulatedGold += stageGold;
+      const lootChance = choice.id === "risk" ? 0.72 : 0.34;
+      if (Math.random() < lootChance) {
+        expedition.loot.push(createItem(Math.min(this.save.hero.level + 2, dungeon.enemyLevel[1] + 1), {
+          classId: this.save.hero.classId,
+          minimumRarity: choice.id === "risk" && rarityAtLeast(dungeon.minimumRarity, "rare") ? dungeon.minimumRarity : dungeon.minimumRarity,
+        }));
+      }
+      expedition.stage += 1;
+    }
+    const battle: BattleReport = {
+      activity: dungeon, heroBefore: combat.hero, enemyBefore: combat.enemy, winnerId: combat.winnerId,
+      loserId: heroWon ? enemy.id : "hero", heroWon, enemyDied: false, turns: combat.turns,
+      rewards: { experience: 0, gold: 0, levelsGained: 0, unlockedSkills: [] }, worldEvents: [],
+    };
+    this.recordHeroEncounter(enemy, heroWon);
+    if (!heroWon) return this.finishExpedition(true, "Раненый герой отступил. Часть найденного удалось вынести.", battle);
+    if (expedition.stage >= expedition.maxStages) return this.finishExpedition(false, `Поход «${dungeon.name}» завершён. Все накопленные трофеи сохранены.`, battle);
+    return { expedition, battle, completed: false, retreated: false, message: `Этап ${expedition.stage}/${expedition.maxStages} пройден. Можно углубиться или отступить.` };
+  }
+
+  public retreatExpedition(): ExpeditionStepReport {
+    if (!this.save.activeExpedition) throw new Error("Активного похода нет.");
+    return this.finishExpedition(true, "Герой добровольно вернулся наверх и сохранил часть добычи.");
+  }
+
+  private finishExpedition(retreated: boolean, message: string, battle?: BattleReport): ExpeditionStepReport {
+    const expedition = this.save.activeExpedition!;
+    const finishedExpedition: DungeonExpedition = {
+      ...expedition,
+      loot: [...expedition.loot],
+      path: [...expedition.path],
+    };
+    const dungeon = DUNGEONS.find((candidate) => candidate.id === expedition.dungeonId)!;
+    const multiplier = retreated ? 0.55 : 1;
+    const experience = Math.round(expedition.accumulatedExperience * multiplier);
+    const gold = Math.round(expedition.accumulatedGold * multiplier);
+    const keptCount = retreated ? Math.ceil(expedition.loot.length / 2) : expedition.loot.length;
+    const items = expedition.loot.slice(0, keptCount);
+    items.forEach((item) => this.addItem(item));
+    this.save.hero.gold += gold;
+    const levelsGained = this.gainHeroExperience(experience);
+    if (retreated) { this.save.hero.losses += 1; this.save.hero.dungeonLosses += 1; }
+    else {
+      this.save.hero.wins += 1; this.save.hero.dungeonWins += 1;
+      this.save.dungeonClears[dungeon.id] = this.save.worldDay;
+      this.advanceContract("dungeon");
+    }
+    this.save.activeExpedition = undefined;
+    this.event("dungeon", message);
+    this.completeDay();
+    const rewards = { experience, gold, item: items[0], items, levelsGained, unlockedSkills: [] };
+    if (battle) battle.rewards = rewards;
+    return {
+      expedition: finishedExpedition, battle, completed: !retreated, retreated, message,
+      rewards,
     };
   }
 
@@ -586,6 +848,7 @@ export class WorldGame {
     const availability = this.crownLeagueAvailability();
     if (!availability.unlocked) throw new Error(availability.reason);
     this.ensureEliteLeague();
+    const ruleIds = this.tournamentRules("crown-league").map((rule) => rule.id);
     const eventsBefore = this.save.events.length;
     const wasElite = Boolean(this.heroEliteRank());
     const rosterIds = wasElite
@@ -607,12 +870,12 @@ export class WorldGame {
         let winner: HeroProfile | EnemyProfile; let battle: BattleReport | undefined;
         if (heroInvolved) {
           const enemy = (first.id === "hero" ? second : first) as EnemyProfile;
-          const combat = resolveCombat(this.save.hero, enemy);
+          const combat = resolveCombat(this.save.hero, enemy, { ruleIds });
           const heroWon = combat.winnerId === "hero";
           winner = heroWon ? this.save.hero : enemy;
           battle = { activity, heroBefore: combat.hero, enemyBefore: combat.enemy, winnerId: combat.winnerId,
             loserId: heroWon ? enemy.id : "hero", heroWon, enemyDied: false, turns: combat.turns,
-            rewards: { experience: 0, gold: 0, levelsGained: 0, unlockedSkills: [] }, worldEvents: [] };
+            rewards: { experience: 0, gold: 0, levelsGained: 0, unlockedSkills: [] }, worldEvents: [], ruleIds };
           heroBattles.push(battle);
           if (heroWon) { this.save.hero.wins += 1; this.save.hero.tournamentMatchWins += 1; }
           else { this.save.hero.losses += 1; this.save.hero.tournamentMatchLosses += 1; }
@@ -655,6 +918,7 @@ export class WorldGame {
       this.addItem(item);
       if (!wasElite) this.promoteIntoElite("hero");
       else this.adjustEliteRating("hero", 28);
+      this.advanceContract("tournament");
     } else if (wasElite) {
       this.save.hero.crownLeaguePoints += roundsWon * 3;
     }
@@ -670,7 +934,7 @@ export class WorldGame {
       activity, day: this.save.worldDay - 1, participantCount: ELITE_SIZE, matches, heroBattles,
       championName: champion.name, heroWon, heroPlacement,
       rewards: { experience, gold, item, levelsGained, unlockedSkills: [], temperingMarks },
-      worldEvents: this.save.events.slice(eventsBefore),
+      worldEvents: this.save.events.slice(eventsBefore), ruleIds,
     };
   }
 
@@ -1052,6 +1316,11 @@ export class WorldGame {
 
   private recordHeroEncounter(enemy: EnemyProfile, heroWon: boolean, killed = false): void {
     const hero = this.save.hero;
+    const isTournamentFighter = this.save.enemies.some((candidate) => candidate.id === enemy.id);
+    if (!isTournamentFighter) {
+      this.applyBattleConsequences(heroWon, enemy);
+      return;
+    }
     const record = hero.rivalries[enemy.id] ?? {
       enemyId: enemy.id, name: enemy.name, classId: enemy.classId,
       wins: 0, losses: 0, killed: false, lastMetDay: this.save.worldDay,
@@ -1059,6 +1328,8 @@ export class WorldGame {
     record.name = enemy.name;
     record.classId = enemy.classId;
     record.lastMetDay = this.save.worldDay;
+    record.meetings = (record.meetings ?? record.wins + record.losses) + 1;
+    record.intensity = Math.min(5, 1 + Math.floor(record.meetings / 2));
     if (heroWon) record.wins += 1;
     else record.losses += 1;
     if (killed && !record.killed) {
@@ -1066,6 +1337,152 @@ export class WorldGame {
       hero.kills += 1;
     }
     hero.rivalries[enemy.id] = record;
+    if (heroWon && !killed && record.wins >= 2 && record.wins % 2 === 0 && enemy.adaptationIds.length < ENEMY_ADAPTATIONS.length) {
+      const adaptation = ENEMY_ADAPTATIONS.find((candidate) => !enemy.adaptationIds.includes(candidate.id));
+      if (adaptation) {
+        enemy.adaptationIds.push(adaptation.id);
+        record.adaptationId = adaptation.id;
+        this.featureChanges.push({
+          fighterId: enemy.id, fighterName: enemy.name, kind: "Адаптация",
+          name: adaptation.name, description: adaptation.description, stats: { ...adaptation.stats },
+        });
+        enemy.history.push(`После ${record.wins}-го поражения от ${hero.name} получил адаптацию «${adaptation.name}».`);
+        this.event("battle", `${enemy.name} изучил стиль ${hero.name}: ${adaptation.name}.`);
+      }
+    }
+    this.applyBattleConsequences(heroWon, enemy);
+  }
+
+  private applyBattleConsequences(heroWon: boolean, enemy: EnemyProfile): void {
+    const hero = this.save.hero;
+    if (heroWon) {
+      this.gainRelicRenown(enemy);
+      if (hero.traitIds.length < 3 && hero.wins >= hero.traitIds.length * 12) {
+        const trait = FIGHTER_TRAITS.find((candidate) => !hero.traitIds.includes(candidate.id));
+        if (trait) {
+          hero.traitIds.push(trait.id);
+          this.featureChanges.push({
+            fighterId: hero.id, fighterName: hero.name, kind: "Черта",
+            name: trait.name, description: trait.description, stats: { ...trait.stats },
+          });
+          this.event("system", `${hero.name} приобрёл черту «${trait.name}».`);
+        }
+      }
+      return;
+    }
+    if (Math.random() < ACTIVE_INJURY_CHANCE && hero.injuries.length < 2) {
+      const injuries = [
+        { id: "bruised-ribs", name: "Ушиб рёбер", description: "Боль мешает держать удар.", stats: { health: -18, defense: -2 } },
+        { id: "cut-palm", name: "Рассечённая ладонь", description: "Хват временно ослаблен.", stats: { attack: -4 } },
+        { id: "sprained-ankle", name: "Растяжение", description: "Труднее перехватывать темп.", stats: { speed: -5 } },
+      ];
+      const injury = pick(injuries);
+      if (!hero.injuries.some((candidate) => candidate.id === injury.id)) {
+        hero.injuries.push({ ...injury, remainingDays: randomInt(2, 4), gainedDay: this.save.worldDay });
+        this.featureChanges.push({
+          fighterId: hero.id, fighterName: hero.name, kind: "Травма",
+          name: injury.name, description: `${injury.description} Временный эффект до восстановления.`, stats: { ...injury.stats },
+        });
+        this.event("system", `${hero.name} получил травму «${injury.name}». Она заживёт со временем.`);
+      }
+    }
+    if (hero.scarIds.length < 3 && this.save.hero.highestArena >= 2 && Math.random() < 0.1) {
+      const scar = FIGHTER_SCARS.find((candidate) => !hero.scarIds.includes(candidate.id));
+      if (scar) {
+        hero.scarIds.push(scar.id);
+        this.featureChanges.push({
+          fighterId: hero.id, fighterName: hero.name, kind: "Шрам",
+          name: scar.name, description: scar.description, stats: { ...scar.stats },
+        });
+        this.event("system", `${hero.name} выжил и сохранил шрам «${scar.name}».`);
+      }
+    }
+  }
+
+  private gainRelicRenown(enemy: EnemyProfile): void {
+    const equippedIds = new Set(Object.values(this.save.hero.equipped));
+    this.save.hero.inventory.filter((item) => equippedIds.has(item.id) && rarityAtLeast(item.rarity, "legendary")).forEach((item) => {
+      item.relicRenown = (item.relicRenown ?? 0) + (enemy.level >= this.save.hero.level + 2 ? 2 : 1);
+      item.relicHistory ??= [];
+      const previousTier = item.relicTier ?? 0;
+      let nextTier = previousTier;
+      RELIC_TIER_THRESHOLDS.forEach((threshold, tier) => { if ((item.relicRenown ?? 0) >= threshold) nextTier = tier as 0 | 1 | 2 | 3; });
+      if (nextTier <= previousTier) return;
+      item.relicTier = nextTier;
+      item.relicHistory.push(`День ${this.save.worldDay}: ступень наследия ${nextTier} после боя с ${enemy.name}.`);
+      const growth = nextTier === 1 ? 0.04 : nextTier === 2 ? 0.06 : 0.08;
+      const previousStats = { ...item.stats };
+      item.stats = Object.fromEntries(Object.entries(item.stats).map(([stat, value]) => [stat, Math.max(Number(value) + 1, Math.round(Number(value) * (1 + growth)))]));
+      const statGrowth = Object.fromEntries(Object.entries(item.stats).map(([stat, value]) => [stat, Number(value) - Number(previousStats[stat as keyof Stats] ?? 0)]));
+      this.featureChanges.push({
+        fighterId: this.save.hero.id, fighterName: this.save.hero.name, kind: "Наследие",
+        name: `${item.relicName ?? item.name}: ступень ${nextTier}`,
+        description: "Снаряжение запомнило победу и навсегда усилило собственные характеристики.",
+        stats: statGrowth,
+      });
+      this.event("loot", `${item.relicName ?? item.name} достиг ступени наследия ${nextTier}.`);
+    });
+  }
+
+  private healDailyInjuries(): void {
+    const update = (profile: HeroProfile | EnemyProfile) => {
+      profile.injuries.forEach((injury) => { injury.remainingDays = Math.max(0, injury.remainingDays - 1); });
+      const healed = profile.injuries.filter((injury) => injury.remainingDays === 0);
+      profile.injuries = profile.injuries.filter((injury) => injury.remainingDays > 0);
+      if (profile.id === "hero") healed.forEach((injury) => this.event("system", `${profile.name}: травма «${injury.name}» зажила.`));
+    };
+    update(this.save.hero);
+    this.save.enemies.filter((enemy) => enemy.alive).forEach(update);
+  }
+
+  private refreshContracts(force: boolean): void {
+    const active = this.save.activeContract;
+    if (active && active.expiresDay < this.save.worldDay) {
+      this.event("system", `Срок контракта «${active.title}» истёк.`);
+      this.save.activeContract = undefined;
+    }
+    const stillValid = this.save.contractOffers.filter((offer) => offer.expiresDay >= this.save.worldDay);
+    if (!force && stillValid.length >= FACTIONS.length) { this.save.contractOffers = stillValid; return; }
+    const labels: Record<ContractObjective, string[]> = {
+      training: ["Показательная выучка", "День дисциплины"], duel: ["Честный вызов", "Долг клинка"],
+      dungeon: ["След пропавшего отряда", "Груз из глубин"], tournament: ["Знамя на трибуне", "Место для имени"],
+      boss: ["Закрыть старый счёт", "Охота за печатью"],
+    };
+    this.save.contractOffers = FACTIONS.map((faction, index) => {
+      const available = faction.objectives.filter((objective) => objective !== "boss" || this.save.hero.highestArena >= 2);
+      const objective = available[(this.save.worldDay + index + this.save.completedContracts) % available.length];
+      const target = objective === "training" ? 2 : objective === "duel" ? 3 : 1;
+      const reputation = this.save.hero.factionReputation[faction.id] ?? 0;
+      const rewardMultiplier = 1 + factionReputationTier(reputation).contractRewardBonus;
+      return {
+        id: `contract-${faction.id}-${this.save.worldDay}-${this.save.completedContracts}`, factionId: faction.id, title: labels[objective][(this.save.worldDay + index) % 2],
+        description: `${faction.name} просит выполнить задачу: ${objective === "training" ? "провести тренировочные дни" : objective === "duel" ? "победить в дуэлях" : objective === "dungeon" ? "завершить поход в данж" : objective === "tournament" ? "стать чемпионом турнира" : "победить особого противника"}.`,
+        objective, target, progress: 0, rewardGold: Math.round((450 + this.save.hero.level * 55 + index * 130) * rewardMultiplier),
+        rewardExperience: Math.round((90 + this.save.hero.level * 14) * rewardMultiplier), rewardReputation: 5 + index,
+        createdDay: this.save.worldDay, expiresDay: this.save.worldDay + CONTRACT_LIFETIME,
+      };
+    });
+  }
+
+  private advanceContract(objective: ContractObjective): void {
+    const contract = this.save.activeContract;
+    if (!contract || contract.objective !== objective) return;
+    contract.progress = Math.min(contract.target, contract.progress + 1);
+    if (contract.progress < contract.target) {
+      this.event("system", `Контракт «${contract.title}»: ${contract.progress}/${contract.target}.`);
+      return;
+    }
+    const profitMultiplier = contract.approach === "profit" ? 1.35 : 1;
+    const reputationMultiplier = contract.approach === "honor" ? 1.5 : 1;
+    const gold = Math.round(contract.rewardGold * profitMultiplier);
+    const reputation = Math.round(contract.rewardReputation * reputationMultiplier);
+    this.save.hero.gold += gold;
+    this.gainHeroExperience(contract.rewardExperience);
+    this.save.hero.factionReputation[contract.factionId] = (this.save.hero.factionReputation[contract.factionId] ?? 0) + reputation;
+    this.save.completedContracts += 1;
+    this.event("system", `Контракт «${contract.title}» выполнен: +${gold} ¤, репутация +${reputation}.`);
+    this.save.activeContract = undefined;
+    this.refreshContracts(true);
   }
 
   private cleanupVisualTestCatalog(): void {
@@ -1136,6 +1553,8 @@ export class WorldGame {
       losses: newcomer ? randomInt(0, 1) : randomInt(0, 5), arenaIndex,
       arenaWins: newcomer ? 0 : randomInt(0, Math.max(1, arenaIndex)), alive: true,
       equipment, equipped, history: [`Начал путь: ${arena.name}.`],
+      traitIds: [FIGHTER_TRAITS[(classes.indexOf(classId) + level + arenaIndex) % FIGHTER_TRAITS.length].id], scarIds: [], injuries: [], adaptationIds: [],
+      tacticalStyle: DEFAULT_TACTICAL_PROFILES[(classes.indexOf(classId) + arenaIndex) % DEFAULT_TACTICAL_PROFILES.length].style,
     };
     if (newcomer) enemy.history = [`Прибыл на арену «${arena.name}» в день ${this.save.worldDay}.`];
     enemy.rating = this.enemyWorldRating(enemy);
@@ -1383,8 +1802,10 @@ export class WorldGame {
 
   private completeDay(skipTournamentArenaId?: string): void {
     this.simulateDailyWorld(skipTournamentArenaId);
+    this.healDailyInjuries();
     this.save.worldDay += 1;
     this.refreshShopIfNeeded();
+    this.refreshContracts(false);
     this.save.lastSimulatedAt = Date.now();
     this.clearExpiredTournamentRegistrations();
   }

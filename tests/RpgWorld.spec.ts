@@ -45,6 +45,15 @@ describe("постоянный RPG-мир", () => {
     expect(game.save.hero.rating).toBe(rating);
   });
 
+  test("не записывает хранителей данжей и разовых бойцов в список соперников", () => {
+    const game = WorldGame.create("Летописец", "Knight", 1_000);
+    game.save.hero.level = 2;
+    game.save.worldDay = 2;
+    const report = game.play(DUNGEONS[0].id);
+    expect(report.enemyBefore.id).toMatch(/^dungeon-/);
+    expect(game.save.hero.rivalries[report.enemyBefore.id]).toBeUndefined();
+  });
+
   test("не отдаёт первое место за серию обычных побед без высших арен", () => {
     const game = WorldGame.create("Скороход", "Swordsman", 1_000);
     game.save.hero.level = 15;

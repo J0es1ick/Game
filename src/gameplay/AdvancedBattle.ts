@@ -4,6 +4,13 @@ import { PlayerFactory } from "../factories/PlayerFactory";
 import { Player } from "../abstract/Player";
 import { createWeapon } from "../catalogs/WeaponCatalog";
 import {
+  DEFAULT_TACTICAL_PROFILES,
+  ENEMY_ADAPTATIONS,
+  FIGHTER_SCARS,
+  FIGHTER_TRAITS,
+  TOURNAMENT_RULES,
+} from "../catalogs/WorldExpansionCatalog";
+import {
   BattleTurn,
   CombatantSnapshot,
   EnemyProfile,
@@ -13,6 +20,7 @@ import {
   HeroProfile,
   SkillDefinition,
   Stats,
+  TacticalProfile,
 } from "./WorldTypes";
 
 interface RuntimeFighter extends CombatantSnapshot {
@@ -23,6 +31,8 @@ interface RuntimeFighter extends CombatantSnapshot {
   attackCounter: number;
   combo: number;
   setCounts: Record<string, number>;
+  tactics: TacticalProfile;
+  disableHealing: boolean;
 }
 
 export interface CombatResolution {
@@ -95,7 +105,49 @@ function activeSkills(profile: HeroProfile | EnemyProfile, available: SkillDefin
   return (selected.length > 0 ? selected : recommended).slice(0, MAX_ACTIVE_SKILLS);
 }
 
-function toRuntime(profile: HeroProfile | EnemyProfile, levelCap?: number): RuntimeFighter {
+function featureStats(profile: HeroProfile | EnemyProfile): Partial<Stats> {
+  const ids = [
+    ...(profile.traitIds ?? []),
+    ...(profile.scarIds ?? []),
+    ...("adaptationIds" in profile ? profile.adaptationIds ?? [] : []),
+  ];
+  const definitions = [...FIGHTER_TRAITS, ...FIGHTER_SCARS, ...ENEMY_ADAPTATIONS];
+  const result: Partial<Stats> = {};
+  ids.forEach((id) => {
+    const feature = definitions.find((candidate) => candidate.id === id);
+    if (!feature) return;
+    Object.entries(feature.stats).forEach(([stat, value]) => {
+      const key = stat as keyof Stats;
+      result[key] = (result[key] ?? 0) + Number(value);
+    });
+  });
+  (profile.injuries ?? []).filter((injury) => injury.remainingDays > 0).forEach((injury) => {
+    Object.entries(injury.stats).forEach(([stat, value]) => {
+      const key = stat as keyof Stats;
+      result[key] = (result[key] ?? 0) + Number(value);
+    });
+  });
+  return result;
+}
+
+function tacticsFor(profile: HeroProfile | EnemyProfile): TacticalProfile {
+  if ("tacticalProfiles" in profile) {
+    return profile.tacticalProfiles.find((candidate) => candidate.id === profile.activeTacticalProfileId)
+      ?? profile.tacticalProfiles[0]
+      ?? DEFAULT_TACTICAL_PROFILES[0];
+  }
+  return DEFAULT_TACTICAL_PROFILES.find((candidate) => candidate.style === profile.tacticalStyle)
+    ?? DEFAULT_TACTICAL_PROFILES[0];
+}
+
+interface RuntimeOptions {
+  levelCap?: number;
+  ruleIds?: string[];
+  side?: "hero" | "enemy";
+}
+
+function toRuntime(profile: HeroProfile | EnemyProfile, options: RuntimeOptions = {}): RuntimeFighter {
+  const { levelCap, ruleIds = [], side = "enemy" } = options;
   const items = equippedItems("inventory" in profile ? profile.inventory : profile.equipment, profile.equipped);
   const definition = CLASS_DEFINITIONS[profile.classId];
   const effectiveLevel = levelCap ? Math.min(profile.level, levelCap) : profile.level;
@@ -107,8 +159,11 @@ function toRuntime(profile: HeroProfile | EnemyProfile, levelCap?: number): Runt
     crit: Math.floor((effectiveLevel - 1) / 6),
   };
   const counts = setCounts(items);
-  const stats = applySetStats(addStats(addStats(definition.startingStats, levelBonus), itemStats(items, levelCap)), counts);
-  const skills = activeSkills(profile, skillsFor(profile.classId, effectiveLevel, items));
+  let stats = applySetStats(addStats(addStats(addStats(definition.startingStats, levelBonus), itemStats(items, levelCap)), featureStats(profile)), counts);
+  const rules = TOURNAMENT_RULES.filter((rule) => ruleIds.includes(rule.id));
+  rules.forEach((rule) => { stats = addStats(stats, side === "hero" ? rule.heroStats ?? {} : rule.enemyStats ?? {}); });
+  const disableHealing = rules.some((rule) => rule.disableHealing);
+  const skills = activeSkills(profile, skillsFor(profile.classId, effectiveLevel, items)).filter((skill) => !disableHealing || skill.kind !== "heal");
   const model = new PlayerFactory().create({
     className: profile.classId,
     health: Math.round(stats.health),
@@ -124,24 +179,35 @@ function toRuntime(profile: HeroProfile | EnemyProfile, levelCap?: number): Runt
     defense: Math.round(stats.defense), speed: Math.round(stats.speed), crit: Math.round(stats.crit),
     equipmentScore: equipmentScore(items), skills: skills.map((skill) => skill.id),
     model, cooldowns: {}, buff: 0, weakened: 0, attackCounter: 0, combo: 0, setCounts: counts,
+    tactics: tacticsFor(profile), disableHealing,
   };
 }
 
 export function combatantSnapshot(profile: HeroProfile | EnemyProfile, levelCap?: number): CombatantSnapshot {
-  const runtime = toRuntime(profile, levelCap);
+  const runtime = toRuntime(profile, { levelCap, side: profile.id === "hero" ? "hero" : "enemy" });
   return {
     id: runtime.id, name: runtime.name, classId: runtime.classId, level: runtime.level, originalLevel: runtime.originalLevel,
     maxHealth: runtime.maxHealth, health: runtime.health, attack: runtime.attack,
     defense: runtime.defense, speed: runtime.speed, crit: runtime.crit,
-    equipmentScore: runtime.equipmentScore, skills: [...runtime.skills],
+    equipmentScore: runtime.equipmentScore, skills: [...runtime.skills], traitIds: [...(profile.traitIds ?? [])],
+    injuryNames: (profile.injuries ?? []).filter((injury) => injury.remainingDays > 0).map((injury) => injury.name),
+    tacticalStyle: runtime.tactics.style,
   };
 }
 
 function pickSkill(actor: RuntimeFighter, target: RuntimeFighter): SkillDefinition | undefined {
   const ready = SKILLS.filter((skill) => actor.skills.includes(skill.id) && (actor.cooldowns[skill.id] ?? 0) <= 0);
-  const useful = ready.filter((skill) => skill.kind !== "heal" || actor.health / actor.maxHealth < 0.56)
-    .filter((skill) => skill.id !== "execution" || target.health / target.maxHealth < 0.42);
-  return useful.sort((a, b) => actor.skills.indexOf(a.id) - actor.skills.indexOf(b.id))[0];
+  const useful = ready.filter((skill) => skill.kind !== "heal" || actor.health / actor.maxHealth < actor.tactics.healThreshold)
+    .filter((skill) => skill.id !== "execution" || target.health / target.maxHealth < actor.tactics.finisherThreshold);
+  const score = (skill: SkillDefinition): number => {
+    let value = skill.priority;
+    if (actor.tactics.style === "aggressive" && skill.kind === "attack") value += 40;
+    if (actor.tactics.style === "defensive" && (skill.kind === "heal" || skill.kind === "buff")) value += 45;
+    if (actor.tactics.prioritizeControl && skill.kind === "control") value += 55;
+    if (actor.tactics.preserveStrongSkills && target.health / target.maxHealth > 0.7 && skill.power > 1.4) value -= 35;
+    return value;
+  };
+  return useful.sort((a, b) => score(b) - score(a) || actor.skills.indexOf(a.id) - actor.skills.indexOf(b.id))[0];
 }
 
 function cooldownTick(fighter: RuntimeFighter): void {
@@ -237,9 +303,9 @@ function performTurn(turn: number, actor: RuntimeFighter, target: RuntimeFighter
   };
 }
 
-export function resolveCombat(heroProfile: HeroProfile, enemyProfile: EnemyProfile, options: { heroLevelCap?: number } = {}): CombatResolution {
-  const hero = toRuntime(heroProfile, options.heroLevelCap);
-  const enemy = toRuntime(enemyProfile);
+export function resolveCombat(heroProfile: HeroProfile, enemyProfile: EnemyProfile, options: { heroLevelCap?: number; ruleIds?: string[] } = {}): CombatResolution {
+  const hero = toRuntime(heroProfile, { levelCap: options.heroLevelCap, ruleIds: options.ruleIds, side: "hero" });
+  const enemy = toRuntime(enemyProfile, { ruleIds: options.ruleIds, side: "enemy" });
   const heroBefore: CombatantSnapshot = { ...hero };
   const enemyBefore: CombatantSnapshot = { ...enemy };
   const turns: BattleTurn[] = [];

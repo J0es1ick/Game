@@ -74,7 +74,43 @@ export interface EquipmentItem extends IEquipment<Partial<Stats>> {
   grantedSkillId?: string;
   setId?: string;
   enhancement?: number;
+  /** История предмета, которая развивается вместе с владельцем. */
+  relicRenown?: number;
+  relicTier?: 0 | 1 | 2 | 3;
+  relicPath?: "might" | "guard" | "tempo";
+  relicName?: string;
+  relicHistory?: string[];
   isVisualTestItem?: boolean;
+}
+
+export type TacticalStyle = "balanced" | "aggressive" | "defensive" | "control";
+
+export interface TacticalProfile {
+  id: string;
+  name: string;
+  style: TacticalStyle;
+  healThreshold: number;
+  finisherThreshold: number;
+  preserveStrongSkills: boolean;
+  prioritizeControl: boolean;
+}
+
+export interface FighterInjury {
+  id: string;
+  name: string;
+  description: string;
+  remainingDays: number;
+  stats: Partial<Stats>;
+  gainedDay: number;
+}
+
+export interface FighterFeatureChange {
+  fighterId: string;
+  fighterName: string;
+  kind: "Черта" | "Адаптация" | "Шрам" | "Травма" | "Наследие";
+  name: string;
+  description: string;
+  stats: Partial<Stats>;
 }
 
 export interface RivalryRecord {
@@ -85,6 +121,9 @@ export interface RivalryRecord {
   losses: number;
   killed: boolean;
   lastMetDay: number;
+  meetings?: number;
+  intensity?: number;
+  adaptationId?: string;
 }
 
 export interface ItemTemplate {
@@ -148,6 +187,13 @@ export interface HeroProfile {
   autoSelectSkills: boolean;
   selectedSkillIds: string[];
   combatMode: "auto" | "manual";
+  traitIds: string[];
+  scarIds: string[];
+  injuries: FighterInjury[];
+  tacticalProfiles: TacticalProfile[];
+  activeTacticalProfileId: string;
+  relicDust: number;
+  factionReputation: Record<string, number>;
   crownLeaguePoints: number;
   crownLeagueWins: number;
   legendHuntWins: number;
@@ -176,6 +222,57 @@ export interface EnemyProfile {
   equipment: EquipmentItem[];
   equipped: EquipmentSet;
   history: string[];
+  traitIds: string[];
+  scarIds: string[];
+  injuries: FighterInjury[];
+  adaptationIds: string[];
+  tacticalStyle: TacticalStyle;
+}
+
+export type ContractObjective = "training" | "duel" | "dungeon" | "tournament" | "boss";
+
+export interface ContractOffer {
+  id: string;
+  factionId: string;
+  title: string;
+  description: string;
+  objective: ContractObjective;
+  target: number;
+  progress: number;
+  rewardGold: number;
+  rewardExperience: number;
+  rewardReputation: number;
+  createdDay: number;
+  expiresDay: number;
+  approach?: "honor" | "profit";
+}
+
+export interface DungeonExpedition {
+  dungeonId: string;
+  stage: number;
+  maxStages: number;
+  health: number;
+  accumulatedGold: number;
+  accumulatedExperience: number;
+  loot: EquipmentItem[];
+  path: string[];
+}
+
+export interface ExpeditionChoice {
+  id: "safe" | "risk" | "rest";
+  name: string;
+  description: string;
+  danger: string;
+  reward: string;
+}
+
+export interface ExpeditionStepReport {
+  expedition?: DungeonExpedition;
+  battle?: BattleReport;
+  completed: boolean;
+  retreated: boolean;
+  message: string;
+  rewards?: BattleRewards;
 }
 
 export interface ArenaDefinition {
@@ -306,6 +403,11 @@ export interface GameSave {
   crownSetOwnerId?: string;
   tutorialCompleted?: boolean;
   pendingEliteChallengeId?: string;
+  contractOffers: ContractOffer[];
+  activeContract?: ContractOffer;
+  completedContracts: number;
+  activeExpedition?: DungeonExpedition;
+  tournamentRuleSeed: number;
   events: WorldEvent[];
 }
 
@@ -323,6 +425,9 @@ export interface CombatantSnapshot {
   crit: number;
   equipmentScore: number;
   skills: string[];
+  traitIds?: string[];
+  injuryNames?: string[];
+  tacticalStyle?: TacticalStyle;
 }
 
 export interface BattleTurn {
@@ -345,6 +450,7 @@ export interface BattleRewards {
   experience: number;
   gold: number;
   item?: EquipmentItem;
+  items?: EquipmentItem[];
   levelsGained: number;
   unlockedSkills: SkillDefinition[];
   temperingMarks?: number;
@@ -361,6 +467,7 @@ export interface BattleReport {
   turns: BattleTurn[];
   rewards: BattleRewards;
   worldEvents: WorldEvent[];
+  ruleIds?: string[];
 }
 
 export interface TournamentMatch {
@@ -384,6 +491,7 @@ export interface TournamentReport {
   heroPlacement: number;
   rewards: BattleRewards;
   worldEvents: WorldEvent[];
+  ruleIds?: string[];
 }
 
 export interface DailyActivityReport {
