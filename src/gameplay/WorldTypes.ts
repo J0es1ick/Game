@@ -198,6 +198,7 @@ export interface HeroProfile {
   crownLeagueWins: number;
   legendHuntWins: number;
   legendDefenses: number;
+  autoResolveLegendChallenges: boolean;
   classChanges: number;
   appearance: HeroAppearance;
   createdAt: number;

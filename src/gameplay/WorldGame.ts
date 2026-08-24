@@ -102,6 +102,7 @@ function starterEquipment(classId: HeroClass): { inventory: EquipmentItem[]; equ
 export class WorldGame {
   public readonly save: GameSave;
   private featureChanges: FighterFeatureChange[] = [];
+  private automaticLegendDefense?: BattleReport;
 
   private constructor(save: GameSave) {
     this.save = save;
@@ -119,7 +120,8 @@ export class WorldGame {
       traitIds: [FIGHTER_TRAITS[classes.indexOf(classId) % FIGHTER_TRAITS.length].id], scarIds: [], injuries: [],
       tacticalProfiles: DEFAULT_TACTICAL_PROFILES.map((profile) => ({ ...profile })), activeTacticalProfileId: "balanced",
       relicDust: 0, factionReputation: Object.fromEntries(FACTIONS.map((faction) => [faction.id, 0])),
-      crownLeaguePoints: 0, crownLeagueWins: 0, legendHuntWins: 0, legendDefenses: 0, classChanges: 0,
+      crownLeaguePoints: 0, crownLeagueWins: 0, legendHuntWins: 0, legendDefenses: 0,
+      autoResolveLegendChallenges: false, classChanges: 0,
       appearance: { hairStyle: 0, faceStyle: 0 }, createdAt: now,
     };
     const save: GameSave = {
@@ -184,6 +186,7 @@ export class WorldGame {
     hero.crownLeagueWins ??= 0;
     hero.legendHuntWins ??= 0;
     hero.legendDefenses ??= 0;
+    hero.autoResolveLegendChallenges ??= false;
     hero.classChanges ??= 0;
     hero.autoSelectSkills ??= true;
     hero.selectedSkillIds = (hero.selectedSkillIds ?? [])
@@ -263,6 +266,16 @@ export class WorldGame {
     return changes;
   }
 
+  public consumeAutomaticLegendDefense(): BattleReport | undefined {
+    const report = this.automaticLegendDefense;
+    this.automaticLegendDefense = undefined;
+    return report;
+  }
+
+  public setAutoResolveLegendChallenges(enabled: boolean): void {
+    this.save.hero.autoResolveLegendChallenges = enabled;
+  }
+
   public acceptContract(contractId: string, approach: "honor" | "profit"): ContractOffer {
     if (this.save.activeContract) throw new Error("Сначала завершите или отмените действующий контракт.");
     const offer = this.save.contractOffers.find((candidate) => candidate.id === contractId);
@@ -323,19 +336,25 @@ export class WorldGame {
 
   public simulateElapsed(now = Date.now()): number {
     const elapsedDays = Math.min(14, Math.max(0, Math.floor((now - this.save.lastSimulatedAt) / 600_000)));
+    let simulatedDays = 0;
     if (elapsedDays > 0) {
       for (let index = 0; index < elapsedDays; index += 1) {
+        if (this.save.pendingEliteChallengeId) {
+          if (!this.save.hero.autoResolveLegendChallenges) break;
+          this.automaticLegendDefense = this.resolveLegendDefense(false);
+        }
         this.simulateDailyWorld();
         this.healDailyInjuries();
         this.save.worldDay += 1;
+        simulatedDays += 1;
         this.clearExpiredTournamentRegistrations();
         this.refreshContracts(false);
       }
       this.save.lastSimulatedAt = now;
-      this.event("system", `Пока вас не было, мир прожил ${elapsedDays} дн. Все арены, данжи и турниры продолжали работать.`);
+      if (simulatedDays > 0) this.event("system", `Пока вас не было, мир прожил ${simulatedDays} дн. Все арены, данжи и турниры продолжали работать.`);
       this.refreshShopIfNeeded();
     }
-    return elapsedDays;
+    return simulatedDays;
   }
 
   public nextTournamentDay(arenaId: string): number {
@@ -423,6 +442,7 @@ export class WorldGame {
     if (!availability.unlocked) throw new Error(availability.reason);
 
     if (activity.kind === "arena") throw new Error("На арене проводится турнир. Сначала запишитесь через календарь.");
+    this.prepareDayActivity();
     const enemy = this.createDungeonEnemy(activity.enemyLevel, activity.name);
     const activeItemIds = new Set(Object.values(this.save.hero.equipped));
     const activeItemsBefore = this.save.hero.inventory.filter((item) => activeItemIds.has(item.id));
@@ -479,6 +499,7 @@ export class WorldGame {
     if (this.save.hero.level >= levelCap) {
       throw new Error(`Тренировки больше не дают уровень. Сначала продвиньтесь на следующую арену; текущий предел — ${levelCap}.`);
     }
+    this.prepareDayActivity();
     const experience = 34 + this.save.hero.level * 5;
     const levelsGained = this.gainHeroExperience(experience, levelCap);
     this.advanceContract("training");
@@ -497,6 +518,7 @@ export class WorldGame {
     if (!tier) throw new Error("Ступень дуэлей не найдена.");
     const availability = this.duelAvailability(tier);
     if (!availability.unlocked) throw new Error(availability.reason);
+    this.prepareDayActivity();
     const arenaIndex = Math.min(Math.max(tier.requiredArena, this.save.hero.highestArena), ARENAS.length - 1);
     const enemy = this.matchDuelEnemy(tier, arenaIndex);
     const combat = resolveCombat(this.save.hero, enemy);
@@ -525,6 +547,7 @@ export class WorldGame {
     if (!boss) throw new Error("Особый противник не найден.");
     const availability = this.bossAvailability(boss);
     if (!availability.unlocked) throw new Error(availability.reason);
+    this.prepareDayActivity();
     const enemy = this.createBossEnemy(boss);
     const combat = resolveCombat(this.save.hero, enemy);
     const heroWon = combat.winnerId === "hero";
@@ -560,6 +583,7 @@ export class WorldGame {
     if (this.save.tournamentRegistrations[arenaId] !== this.save.worldDay) {
       throw new Error("На этот турнир нет действующей записи или его день ещё не наступил.");
     }
+    this.prepareDayActivity();
 
     const eventsBefore = this.save.events.length;
     const pool = this.save.enemies.filter((enemy) => enemy.alive && enemy.arenaIndex === arenaIndex)
@@ -690,6 +714,7 @@ export class WorldGame {
     if (!dungeon) throw new Error("Данж не найден.");
     const availability = this.availability(dungeon);
     if (!availability.unlocked) throw new Error(availability.reason);
+    this.prepareDayActivity();
     this.save.activeExpedition = {
       dungeonId, stage: 0, maxStages: dungeon.requiredArena >= 4 ? 5 : dungeon.requiredArena >= 2 ? 4 : 3,
       health: 100, accumulatedGold: 0, accumulatedExperience: 0, loot: [], path: [],
@@ -867,6 +892,7 @@ export class WorldGame {
     const activity = ENDGAME_ACTIVITIES.find((candidate) => candidate.id === "crown-league")!;
     const availability = this.crownLeagueAvailability();
     if (!availability.unlocked) throw new Error(availability.reason);
+    this.prepareDayActivity();
     this.ensureEliteLeague();
     const ruleIds = this.tournamentRules("crown-league").map((rule) => rule.id);
     const eventsBefore = this.save.events.length;
@@ -962,6 +988,7 @@ export class WorldGame {
     const activity = ENDGAME_ACTIVITIES.find((candidate) => candidate.id === "legend-hunt")!;
     const availability = this.legendHuntAvailability();
     if (!availability.unlocked) throw new Error(availability.reason);
+    this.prepareDayActivity();
     const enemy = this.currentLegendTarget()!;
     const combat = resolveCombat(this.save.hero, enemy);
     const heroWon = combat.winnerId === "hero";
@@ -994,6 +1021,10 @@ export class WorldGame {
   }
 
   public defendLegendTitle(): BattleReport {
+    return this.resolveLegendDefense(true);
+  }
+
+  private resolveLegendDefense(advanceDay: boolean): BattleReport {
     const activity = ENDGAME_ACTIVITIES.find((candidate) => candidate.id === "legend-hunt")!;
     const enemy = this.pendingLegendChallenge();
     const rank = this.heroEliteRank();
@@ -1007,7 +1038,7 @@ export class WorldGame {
     this.save.lastLegendHuntDay = this.save.worldDay;
     this.syncCrownSet();
     this.event("battle", heroWon ? `${this.save.hero.name} защитил титул легенды.` : `${enemy.name} отобрал у ${this.save.hero.name} место легенды.`);
-    this.completeDay();
+    if (advanceDay) this.completeDay();
     return { activity, heroBefore: combat.hero, enemyBefore: combat.enemy, winnerId: combat.winnerId,
       loserId: heroWon ? enemy.id : "hero", heroWon, enemyDied: false, turns: combat.turns,
       rewards: { experience: 0, gold: 0, levelsGained: 0, unlockedSkills: [] }, worldEvents: [] };
@@ -1844,6 +1875,14 @@ export class WorldGame {
     this.refreshContracts(false);
     this.save.lastSimulatedAt = Date.now();
     this.clearExpiredTournamentRegistrations();
+  }
+
+  private prepareDayActivity(): void {
+    if (!this.save.pendingEliteChallengeId) return;
+    if (!this.save.hero.autoResolveLegendChallenges) {
+      throw new Error("Сначала защитите место легенды или включите автоматический расчёт защиты в разделе эндгейма.");
+    }
+    this.automaticLegendDefense = this.resolveLegendDefense(false);
   }
 
   private clearExpiredTournamentRegistrations(): void {

@@ -172,6 +172,20 @@ function loadGame(): WorldGame | null {
 function persist(): void {
   if (!game) return;
   localStorage.setItem(SAVE_KEY, JSON.stringify(game.save));
+  const defense = game.consumeAutomaticLegendDefense();
+  if (defense) {
+    queueWorldEffect({
+      eyebrow: "АВТОМАТИЧЕСКАЯ ЗАЩИТА ТИТУЛА",
+      title: defense.heroWon ? "Место легенды сохранено" : "Место легенды потеряно",
+      description: defense.heroWon
+        ? `${defense.enemyBefore.name} не смог отобрать вашу позицию.`
+        : `${defense.enemyBefore.name} победил и занял вашу прежнюю позицию в элите.`,
+      symbol: defense.heroWon ? "♛" : "↓",
+      tone: defense.heroWon ? "positive" : "negative",
+      sound: "reputation",
+      duration: 2600,
+    });
+  }
 }
 
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -1628,6 +1642,20 @@ function renderEndgame(animateItems = true): void {
       const ruleDay = registeredDay ?? game!.nextCrownLeagueDay();
       card.append(element("div", "activity-rules", game!.tournamentRules("crown-league", ruleDay).map((rule) => rule.name).join(" · ")));
     }
+    if (!crownLeague && game!.heroEliteRank() && game!.heroEliteRank()! <= 5) {
+      const automatic = element("label", "tactic-toggle elite-auto-defense");
+      const input = element("input") as HTMLInputElement;
+      input.type = "checkbox";
+      input.checked = game!.save.hero.autoResolveLegendChallenges;
+      input.addEventListener("change", () => {
+        game!.setAutoResolveLegendChallenges(input.checked);
+        persist();
+        renderEndgame(false);
+        toast(input.checked ? "Автоматическая защита титула включена." : "Защита титула снова требует личного решения.");
+      });
+      automatic.append(input, document.createTextNode(" Автоматически рассчитывать защиту титула"));
+      card.append(automatic, element("small", "auto-defense-note", "Если начать другое занятие в день вызова, бой пройдёт в фоне до смены дня."));
+    }
     const buttonLabel = crownLeague
       ? availability.unlocked
         ? `Начать турнир на ${30} бойцов`
@@ -1659,6 +1687,9 @@ function renderEndgame(animateItems = true): void {
       element("h3", "", pending.name),
       element("p", "", `Боец элиты пытается занять ваше место. При поражении вы поменяетесь позициями.`),
       element("div", "activity-levels", `${CLASS_DEFINITIONS[pending.classId].name} · уровень ${pending.level}`),
+      element("div", "activity-state", game.save.hero.autoResolveLegendChallenges
+        ? "Можно выбрать другое занятие: защита будет рассчитана автоматически до смены дня."
+        : "Смена дня заблокирована, пока вы не защитите титул или не включите авторасчёт."),
     );
     const defend = element("button", "button activity-button", "Защитить титул");
     defend.addEventListener("click", startLegendDefense); card.append(defend); route.append(card);
