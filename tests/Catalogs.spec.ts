@@ -1,6 +1,7 @@
 import { createSkill } from "../src/catalogs/SkillCatalog";
 import { EQUIPMENT_SETS, ITEM_TEMPLATES } from "../src/catalogs/WorldCatalog";
 import { createRandomWeapon, createWeapon } from "../src/catalogs/WeaponCatalog";
+import { createItem } from "../src/factories/ItemFactory";
 import { EquipmentSlot, HeroClass, Stats } from "../src/gameplay/WorldTypes";
 
 const NEW_CLASS_SETS: Record<string, HeroClass> = {
@@ -17,7 +18,17 @@ const NEW_CLASS_SETS: Record<string, HeroClass> = {
 };
 
 const EQUIPMENT_SLOTS: EquipmentSlot[] = ["weapon", "offhand", "head", "chest", "hands", "feet"];
-const SHARED_SETS = ["free-company", "storm-courier", "duelist-oath", "quiet-scholar", "border-watch", "ashen-circuit"];
+const SHARED_SETS = [
+  "free-company", "storm-courier", "duelist-oath", "quiet-scholar", "border-watch", "ashen-circuit",
+  "marsh-lanterns", "ivory-choir", "coal-dragoons", "black-tide",
+];
+
+const NEW_LOOT_SETS: Record<string, HeroClass[] | "all"> = {
+  "marsh-lanterns": "all",
+  "ivory-choir": ["Wizard", "Monk"],
+  "coal-dragoons": ["Knight", "Gunsmith", "Swordsman"],
+  "black-tide": ["Archer", "Monk", "Swordsman"],
+};
 
 const AUDITED_COAT_SETS: Record<string, {
   name: string;
@@ -55,6 +66,29 @@ describe("Каталоги конфигурации", () => {
   it("не показывает внутренние английские ключи в бонусах комплектов", () => {
     EQUIPMENT_SETS.flatMap((set) => set.bonuses).forEach((bonus) => {
       expect(bonus.description).not.toMatch(/\b(?:health|attack|defense|speed|crit)\b/i);
+    });
+  });
+
+  it("хранит числовые бонусы базовых комплектов в каталоге", () => {
+    const expected: Record<string, Array<{ pieces: number; stats?: Partial<Stats> }>> = {
+      wanderer: [
+        { pieces: 2, stats: { health: 8 } },
+        { pieces: 4, stats: { attack: 3, defense: 3 } },
+        { pieces: 6, stats: { crit: 5 } },
+      ],
+      bastion: [{ pieces: 2, stats: { defense: 6 } }],
+      wind: [{ pieces: 2, stats: { speed: 4 } }, { pieces: 4, stats: { crit: 8 } }],
+      astral: [{ pieces: 2, stats: { attack: 5 } }],
+      crane: [{ pieces: 2, stats: { speed: 5 } }],
+      powder: [{ pieces: 2, stats: { attack: 5 } }],
+      dusk: [{ pieces: 2, stats: { crit: 6 } }],
+    };
+
+    Object.entries(expected).forEach(([setId, bonuses]) => {
+      const actual = EQUIPMENT_SETS.find((set) => set.id === setId)!.bonuses
+        .filter((bonus) => bonus.stats)
+        .map(({ pieces, stats }) => ({ pieces, stats }));
+      expect(actual).toEqual(bonuses);
     });
   });
 
@@ -123,6 +157,25 @@ describe("Каталоги конфигурации", () => {
       expect(templates.every((item) => item.exclusiveToBoss === undefined)).toBe(true);
       expect(set.classes === "all" || set.classes.length > 1).toBe(true);
       expect(set.bonuses.every((bonus) => bonus.stats && Object.values(bonus.stats).some((value) => Number(value) > 0))).toBe(true);
+    });
+  });
+
+  it("создаёт новые комплекты через общую фабрику добычи и лавки", () => {
+    Object.entries(NEW_LOOT_SETS).forEach(([setId, expectedClasses]) => {
+      const set = EQUIPMENT_SETS.find((candidate) => candidate.id === setId)!;
+      const templates = ITEM_TEMPLATES.filter((item) => item.setId === setId);
+      expect(set.classes).toEqual(expectedClasses);
+      expect(templates).toHaveLength(6);
+      expect(templates.every((item) => !item.exclusiveToBoss && !item.exclusiveToElite)).toBe(true);
+
+      const sampleClass: HeroClass = expectedClasses === "all" ? "Knight" : expectedClasses[0];
+      templates.forEach((template) => {
+        const item = createItem(12, { classId: sampleClass, templateId: template.id, rarity: "rare" });
+        expect(item.templateId).toBe(template.id);
+        expect(item.setId).toBe(setId);
+        expect(item.slot).toBe(template.slot);
+        expect(item.allowedClasses).toEqual(expectedClasses);
+      });
     });
   });
 

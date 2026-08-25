@@ -91,16 +91,6 @@ function applySetStats(stats: Stats, counts: Record<string, number>): Stats {
       }
     });
   });
-  if ((counts.wanderer ?? 0) >= 2) result.health += 8;
-  if ((counts.wanderer ?? 0) >= 4) { result.attack += 3; result.defense += 3; }
-  if ((counts.wanderer ?? 0) >= 6) result.crit += 5;
-  if ((counts.bastion ?? 0) >= 2) result.defense += 6;
-  if ((counts.wind ?? 0) >= 2) result.speed += 4;
-  if ((counts.wind ?? 0) >= 4) result.crit += 8;
-  if ((counts.astral ?? 0) >= 2) result.attack += 5;
-  if ((counts.crane ?? 0) >= 2) result.speed += 5;
-  if ((counts.powder ?? 0) >= 2) result.attack += 5;
-  if ((counts.dusk ?? 0) >= 2) result.crit += 6;
   return result;
 }
 

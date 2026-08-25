@@ -364,6 +364,46 @@ const additionalSetSpecs: Array<{
     ],
   },
   {
+    id: "marsh-lanterns", name: "Фонарщики трясины", description: "Промасленный дорожный доспех проводников, знающих безопасные тропы через топи.",
+    purpose: "Универсальный комплект выживания: запас здоровья, защита и точность для затяжных вылазок.", classes: "all", stats: ["health", "defense", "crit"],
+    pieceNames: { weapon: "Орудие болотного дозора", offhand: "Фонарь последней тропы", head: "Капюшон блуждающего огня", chest: "Плащ трясинного дозора", hands: "Перчатки ловца тумана", feet: "Сапоги сухой кочки" },
+    bonuses: [
+      { pieces: 2, description: "Тёплый огонёк: +24 к здоровью", stats: { health: 24 } },
+      { pieces: 4, description: "Шаг по гати: +6 к защите", stats: { defense: 6 } },
+      { pieces: 6, description: "Зрение в тумане: +8 п.п. к критическому шансу", stats: { crit: 8 } },
+    ],
+  },
+  {
+    id: "ivory-choir", name: "Хор белой кости", description: "Светлое ритуальное облачение хранителей погребальных песнопений.",
+    purpose: "Для мага и монаха: усиливает приёмы, выносливость и точность без тяжёлой латной защиты.", classes: ["Wizard", "Monk"], stats: ["attack", "health", "crit"],
+    pieceNames: { weapon: "Реликвия первого голоса", offhand: "Кадило тихого хора", head: "Личина белого кантора", chest: "Облачение костяного хора", hands: "Перчатки последнего стиха", feet: "Башмаки немой процессии" },
+    bonuses: [
+      { pieces: 2, description: "Первый голос: +5 к атаке", stats: { attack: 5 } },
+      { pieces: 4, description: "Долгое песнопение: +28 к здоровью", stats: { health: 28 } },
+      { pieces: 6, description: "Чистая нота: +8 п.п. к критическому шансу", stats: { crit: 8 } },
+    ],
+  },
+  {
+    id: "coal-dragoons", name: "Угольные драгуны", description: "Тёмное бронепальто ударного полка с медной отделкой и усиленными плечами.",
+    purpose: "Для рыцаря, оружейника и мечника: сочетает наступление, защиту и запас сил в турнирной сетке.", classes: ["Knight", "Gunsmith", "Swordsman"], stats: ["attack", "defense", "health"],
+    pieceNames: { weapon: "Оружие угольного строя", offhand: "Знак второго номера", head: "Шлем драгуна", chest: "Бронепальто угольного полка", hands: "Рукавицы медного галуна", feet: "Сапоги тяжёлой рыси" },
+    bonuses: [
+      { pieces: 2, description: "Ударный строй: +6 к атаке", stats: { attack: 6 } },
+      { pieces: 4, description: "Медный кант: +6 к защите", stats: { defense: 6 } },
+      { pieces: 6, description: "Полковой резерв: +36 к здоровью", stats: { health: 36 } },
+    ],
+  },
+  {
+    id: "black-tide", name: "Чёрный прилив", description: "Слоистая морская накидка разведчиков, сходящих на берег до рассвета.",
+    purpose: "Для лучника, монаха и мечника: скорость и точность дополняются защитой от ответного удара.", classes: ["Archer", "Monk", "Swordsman"], stats: ["speed", "crit", "defense"],
+    pieceNames: { weapon: "Оружие глубинной воды", offhand: "Жетон затонувшего дома", head: "Капюшон чёрного прилива", chest: "Накидка ночного десанта", hands: "Перчатки холодного каната", feet: "Сапоги отступающей волны" },
+    bonuses: [
+      { pieces: 2, description: "До рассвета: +5 к скорости", stats: { speed: 5 } },
+      { pieces: 4, description: "Глаз прилива: +7 п.п. к критическому шансу", stats: { crit: 7 } },
+      { pieces: 6, description: "Слоёная парусина: +8 к защите", stats: { defense: 8 } },
+    ],
+  },
+  {
     id: "crown-sovereign", name: "Живая корона", description: "Единственный парадно-боевой комплект первого бойца элиты.",
     purpose: "Символ и реальная сила первого места: комплект переходит к новому владельцу короны после смены лидера.", classes: "all", stats: ["attack", "health", "defense"],
     pieceNames: { weapon: "Регалия первого клинка", offhand: "Знак бесспорной власти", head: "Венец живой короны", chest: "Мантия первого имени", hands: "Рукавицы высшего суда", feet: "Шаги над тридцатью" },
@@ -461,13 +501,13 @@ const statBonusLabels: Record<keyof Stats, string> = {
 };
 
 export const EQUIPMENT_SETS: EquipmentSetDefinition[] = [
-  { id: "wanderer", name: "Путь странника", description: "Универсальный комплект для первых арен.", purpose: "Закрывает слабые места любого класса и помогает понять, какие характеристики полезны герою.", classes: "all", pieces: ITEM_TEMPLATES.filter((item) => item.setId === "wanderer").map((item) => item.id), bonuses: [{ pieces: 2, description: "+8 к здоровью" }, { pieces: 4, description: "+3 к атаке и защите" }, { pieces: 6, description: "+5% к шансу критического удара" }] },
-  { id: "bastion", name: "Последний бастион", description: "Тяжёлый рыцарский комплект.", purpose: "Для долгих боёв: здоровье, защита и усиление блока щитом.", classes: ["Knight"], pieces: ITEM_TEMPLATES.filter((item) => item.setId === "bastion").map((item) => item.id), bonuses: [{ pieces: 2, description: "+6 к защите" }, { pieces: 4, description: "Блок рыцаря усилен до 24%" }, { pieces: 6, description: "Первый смертельный удар оставляет 1 HP" }] },
-  { id: "wind", name: "Встречный ветер", description: "Комплект быстрого лучника.", purpose: "Разгоняет скорость и критический шанс для частых усиленных выстрелов.", classes: ["Archer"], pieces: ITEM_TEMPLATES.filter((item) => item.setId === "wind").map((item) => item.id), bonuses: [{ pieces: 2, description: "+4 к скорости" }, { pieces: 4, description: "+8% к критическому шансу" }, { pieces: 6, description: "Усиленным становится каждый второй выстрел" }] },
-  { id: "astral", name: "Астральный круг", description: "Комплект боевого мага.", purpose: "Повышает силу и частоту навыков, сохраняя магу здоровье.", classes: ["Wizard"], pieces: ITEM_TEMPLATES.filter((item) => item.setId === "astral").map((item) => item.id), bonuses: [{ pieces: 2, description: "+5 к атаке" }, { pieces: 4, description: "Лечение после навыка увеличено вдвое" }, { pieces: 6, description: "Перезарядка навыков сокращена на 1 ход" }] },
-  { id: "crane", name: "Белый журавль", description: "Комплект мобильного монаха.", purpose: "Для уклонения, скорости и длинных серий рукопашных ударов.", classes: ["Monk"], pieces: ITEM_TEMPLATES.filter((item) => item.setId === "crane").map((item) => item.id), bonuses: [{ pieces: 2, description: "+5 к скорости" }, { pieces: 4, description: "+6% к уклонению" }, { pieces: 6, description: "Комбо не сбрасывается после промаха" }] },
-  { id: "powder", name: "Пороховой расчёт", description: "Комплект оружейника.", purpose: "Усиливает обе пистоли и повышает эффективность критических выстрелов.", classes: ["Gunsmith"], pieces: ITEM_TEMPLATES.filter((item) => item.setId === "powder").map((item) => item.id), bonuses: [{ pieces: 2, description: "+5 к атаке" }, { pieces: 4, description: "Второй выстрел наносит 75% урона" }, { pieces: 6, description: "Критический первый выстрел делает второй критическим" }] },
-  { id: "dusk", name: "Парные сумерки", description: "Комплект мечника с двумя клинками.", purpose: "Рискованный стиль через атаку и критический шанс при низком здоровье.", classes: ["Swordsman"], pieces: ITEM_TEMPLATES.filter((item) => item.setId === "dusk").map((item) => item.id), bonuses: [{ pieces: 2, description: "+6% к критическому шансу" }, { pieces: 4, description: "Второй удар активен при HP ниже 70%" }, { pieces: 6, description: "Критические удары восстанавливают 3% HP" }] },
+  { id: "wanderer", name: "Путь странника", description: "Универсальный комплект для первых арен.", purpose: "Закрывает слабые места любого класса и помогает понять, какие характеристики полезны герою.", classes: "all", pieces: ITEM_TEMPLATES.filter((item) => item.setId === "wanderer").map((item) => item.id), bonuses: [{ pieces: 2, description: "+8 к здоровью", stats: { health: 8 } }, { pieces: 4, description: "+3 к атаке и защите", stats: { attack: 3, defense: 3 } }, { pieces: 6, description: "+5% к шансу критического удара", stats: { crit: 5 } }] },
+  { id: "bastion", name: "Последний бастион", description: "Тяжёлый рыцарский комплект.", purpose: "Для долгих боёв: здоровье, защита и усиление блока щитом.", classes: ["Knight"], pieces: ITEM_TEMPLATES.filter((item) => item.setId === "bastion").map((item) => item.id), bonuses: [{ pieces: 2, description: "+6 к защите", stats: { defense: 6 } }, { pieces: 4, description: "Блок рыцаря усилен до 24%" }, { pieces: 6, description: "Первый смертельный удар оставляет 1 HP" }] },
+  { id: "wind", name: "Встречный ветер", description: "Комплект быстрого лучника.", purpose: "Разгоняет скорость и критический шанс для частых усиленных выстрелов.", classes: ["Archer"], pieces: ITEM_TEMPLATES.filter((item) => item.setId === "wind").map((item) => item.id), bonuses: [{ pieces: 2, description: "+4 к скорости", stats: { speed: 4 } }, { pieces: 4, description: "+8% к критическому шансу", stats: { crit: 8 } }, { pieces: 6, description: "Усиленным становится каждый второй выстрел" }] },
+  { id: "astral", name: "Астральный круг", description: "Комплект боевого мага.", purpose: "Повышает силу и частоту навыков, сохраняя магу здоровье.", classes: ["Wizard"], pieces: ITEM_TEMPLATES.filter((item) => item.setId === "astral").map((item) => item.id), bonuses: [{ pieces: 2, description: "+5 к атаке", stats: { attack: 5 } }, { pieces: 4, description: "Лечение после навыка увеличено вдвое" }, { pieces: 6, description: "Перезарядка навыков сокращена на 1 ход" }] },
+  { id: "crane", name: "Белый журавль", description: "Комплект мобильного монаха.", purpose: "Для уклонения, скорости и длинных серий рукопашных ударов.", classes: ["Monk"], pieces: ITEM_TEMPLATES.filter((item) => item.setId === "crane").map((item) => item.id), bonuses: [{ pieces: 2, description: "+5 к скорости", stats: { speed: 5 } }, { pieces: 4, description: "+6% к уклонению" }, { pieces: 6, description: "Комбо не сбрасывается после промаха" }] },
+  { id: "powder", name: "Пороховой расчёт", description: "Комплект оружейника.", purpose: "Усиливает обе пистоли и повышает эффективность критических выстрелов.", classes: ["Gunsmith"], pieces: ITEM_TEMPLATES.filter((item) => item.setId === "powder").map((item) => item.id), bonuses: [{ pieces: 2, description: "+5 к атаке", stats: { attack: 5 } }, { pieces: 4, description: "Второй выстрел наносит 75% урона" }, { pieces: 6, description: "Критический первый выстрел делает второй критическим" }] },
+  { id: "dusk", name: "Парные сумерки", description: "Комплект мечника с двумя клинками.", purpose: "Рискованный стиль через атаку и критический шанс при низком здоровье.", classes: ["Swordsman"], pieces: ITEM_TEMPLATES.filter((item) => item.setId === "dusk").map((item) => item.id), bonuses: [{ pieces: 2, description: "+6% к критическому шансу", stats: { crit: 6 } }, { pieces: 4, description: "Второй удар активен при HP ниже 70%" }, { pieces: 6, description: "Критические удары восстанавливают 3% HP" }] },
   ...additionalSetSpecs.map((set) => ({
     id: set.id, name: set.name, description: set.description, purpose: set.purpose, classes: set.classes,
     pieces: ITEM_TEMPLATES.filter((item) => item.setId === set.id).map((item) => item.id),

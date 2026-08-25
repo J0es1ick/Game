@@ -169,13 +169,14 @@ describe("2D character illustration contracts", () => {
     expect(markup).toContain('transform="translate(420 0) scale(-1 1)"');
   });
 
-  it("gives every equipment set its own palette, including the six new loot sets", () => {
+  it("gives every equipment set its own palette, including the new shared loot sets", () => {
     const setIds = [
       "wanderer", "pilgrim", "ash-hunter", "argent", "sun-guard", "moth", "thorn",
       "comet", "oracle", "stone-bell", "lotus", "brass-storm", "silent-machine",
       "moon-scar", "ronin", "bastion", "wind", "astral", "crane", "powder", "dusk",
       "verdigris", "kingfisher", "prism", "saffron", "cobalt", "jade-viper",
       "blood-regent", "north-ranger", "ink-marshal", "white-squall",
+      "marsh-lanterns", "ivory-choir", "coal-dragoons", "black-tide",
     ];
     const primaryColors = setIds.map((setId) => {
       const markup = render({ chest: equipment("chest", setId, "rare") });
@@ -185,6 +186,44 @@ describe("2D character illustration contracts", () => {
     });
 
     expect(new Set(primaryColors).size).toBe(setIds.length);
+  });
+
+  it("gives the new shared sets distinct silhouettes and class-appropriate weapons", () => {
+    const marsh = render({
+      chest: equipment("chest", "marsh-lanterns", "epic"),
+      head: equipment("head", "marsh-lanterns", "epic"),
+    });
+    expect(marsh).toContain("cape-back");
+    expect(marsh).toContain("layered-shoulders");
+    expect(marsh).toContain("hood-shell");
+
+    const choir = render({
+      chest: equipment("chest", "ivory-choir", "legendary"),
+      head: equipment("head", "ivory-choir", "legendary"),
+    }, "Wizard");
+    expect(choir).toContain("robe-cross");
+    expect(choir).toContain("mask-cowl");
+    expect(choir).toContain("collar-ceremonial");
+
+    const dragoons = render({
+      chest: equipment("chest", "coal-dragoons", "epic"),
+      head: equipment("head", "coal-dragoons", "epic"),
+    });
+    expect(dragoons).toContain("longcoat-back");
+    expect(dragoons).toContain("helmet-shell");
+    expect(dragoons).toContain("86 170");
+
+    const tide = render({
+      chest: equipment("chest", "black-tide", "epic"),
+      head: equipment("head", "black-tide", "epic"),
+    }, "Archer");
+    expect(tide).toContain("cape-back");
+    expect(tide).toContain("hood-shell");
+    expect(tide).toContain("85 170");
+
+    expect(render({ weapon: equipment("weapon", "marsh-lanterns", "rare") }, "Knight")).toContain("blade-ridge");
+    expect(render({ weapon: equipment("weapon", "marsh-lanterns", "rare") }, "Archer")).toContain("bow-limb");
+    expect(render({ weapon: equipment("weapon", "marsh-lanterns", "rare") }, "Gunsmith")).toContain("pistol-barrel");
   });
 
   it("draws selected coats as one long garment with front tails and a back panel", () => {
