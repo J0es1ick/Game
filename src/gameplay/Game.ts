@@ -3,6 +3,7 @@ import { ArenaPool } from "../arenas/ArenaPool";
 import { IArena } from "../arenas/IArena";
 import { PlayerFactory } from "../factories/PlayerFactory";
 import { Logger } from "../utils/output/Logger";
+import { shuffleArray } from "../utils/randomization";
 
 export type TournamentState = "idle" | "battle" | "finished";
 
@@ -29,15 +30,6 @@ export interface GameOptions {
   arenaName?: string;
   arenaPool?: ArenaPool;
   playerFactory?: PlayerFactory;
-}
-
-function shuffled<T>(items: readonly T[]): T[] {
-  const result = [...items];
-  for (let index = result.length - 1; index > 0; index -= 1) {
-    const target = Math.floor(Math.random() * (index + 1));
-    [result[index], result[target]] = [result[target], result[index]];
-  }
-  return result;
 }
 
 export class Game {
@@ -115,7 +107,7 @@ export class Game {
     this.resetTournament();
     this._players = [...players];
     this._players.forEach((hero) => hero.reset());
-    this.roundPlayers = shuffled(this._players);
+    this.roundPlayers = shuffleArray(this._players);
     this.tournamentMode = true;
     this._state = "battle";
     this.logger.messageLog(`Турнир начинается: участников — ${players.length}.`);

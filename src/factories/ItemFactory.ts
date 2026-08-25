@@ -1,5 +1,6 @@
 import { CLASS_DEFINITIONS, ITEM_TEMPLATES, RARITY_ORDER, SKILLS } from "../catalogs/WorldCatalog";
 import { EquipmentItem, EquipmentSlot, HeroClass, ItemAffix, Rarity, Stats } from "../gameplay/WorldTypes";
+import { createRandomId, pickRandom } from "../utils/randomization";
 
 const rarityMultipliers: Record<Rarity, number> = {
   common: 1, rare: 1.35, epic: 1.8, legendary: 2.35, mythic: 3.1,
@@ -22,14 +23,6 @@ const affixes: Array<Omit<ItemAffix, "value"> & { base: number }> = [
   { name: "Проворство", description: "Дополнительная скорость", stat: "speed", base: 3 },
   { name: "Точность", description: "Дополнительный шанс критического удара", stat: "crit", base: 4 },
 ];
-
-function id(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function pick<T>(items: readonly T[]): T {
-  return items[Math.floor(Math.random() * items.length)];
-}
 
 function rollRarity(minimum: Rarity = "common"): Rarity {
   const roll = Math.random();
@@ -54,7 +47,7 @@ export function createItem(level: number, options: {
     && (!template.exclusiveToElite || options.templateId === template.id)
     && (!options.slot || template.slot === options.slot)
     && (!options.templateId || template.id === options.templateId));
-  const template = pick(candidates.length > 0 ? candidates : ITEM_TEMPLATES);
+  const template = pickRandom(candidates.length > 0 ? candidates : ITEM_TEMPLATES);
   const rarity = options.rarity ?? rollRarity(options.minimumRarity);
   const multiplier = rarityMultipliers[rarity];
   const scaledLevel = Math.max(1, level);
@@ -67,24 +60,24 @@ export function createItem(level: number, options: {
     [template.primaryStat]: Math.max(1, Math.round(baseValue * multiplier)),
   };
   if (rarity !== "common") {
-    const secondary = pick((Object.keys(CLASS_DEFINITIONS.Knight.startingStats) as Array<keyof Stats>).filter((stat) => stat !== template.primaryStat));
+    const secondary = pickRandom((Object.keys(CLASS_DEFINITIONS.Knight.startingStats) as Array<keyof Stats>).filter((stat) => stat !== template.primaryStat));
     stats[secondary] = Math.max(1, Math.round((secondary === "health" ? scaledLevel * 1.5 + 5 : scaledLevel * 0.22 + 1) * multiplier));
   }
 
   let affix: ItemAffix | undefined;
   let grantedSkillId: string | undefined;
   if (rarity === "legendary" || rarity === "mythic") {
-    const source = pick(affixes);
+    const source = pickRandom(affixes);
     affix = { ...source, value: Math.round(source.base * (rarity === "mythic" ? 1.8 : 1) + scaledLevel * 0.4) };
     const skills = SKILLS.filter((skill) => skill.equipmentOnly && (skill.classes === "all" || !options.classId || skill.classes.includes(options.classId)));
-    grantedSkillId = pick(skills).id;
+    grantedSkillId = pickRandom(skills).id;
   }
 
   const prefix = rarityPrefixes[rarity];
   const name = prefix ? `${prefix} «${template.name}»` : template.name;
   const price = calculateItemPrice(scaledLevel, rarity);
   return {
-    id: id("item"), templateId: template.id, name, slot: template.slot, rarity, level: scaledLevel,
+    id: createRandomId("item", 6), templateId: template.id, name, slot: template.slot, rarity, level: scaledLevel,
     stats, allowedClasses: template.allowedClasses, price, affix, grantedSkillId, setId: template.setId,
   };
 }

@@ -9,6 +9,8 @@ export type HeroClass =
   | "Swordsman";
 
 export type Rarity = "common" | "rare" | "epic" | "legendary" | "mythic";
+export type LegacyBoonId = "masters-school" | "court-name" | "hunters-notes" | "old-map" | "forge-tradition";
+export type EraLawId = "age-of-steel" | "hungry-lands" | "bloody-arenas" | "mercenary-age" | "ancient-awakening" | "crown-discord";
 export type EquipmentSlot =
   | "weapon"
   | "offhand"
@@ -80,6 +82,8 @@ export interface EquipmentItem extends IEquipment<Partial<Stats>> {
   relicPath?: "might" | "guard" | "tempo";
   relicName?: string;
   relicHistory?: string[];
+  /** Номер завершённой эпохи, из которой предмет был перенесён как наследие. */
+  inheritedFromCycle?: number;
   isVisualTestItem?: boolean;
 }
 
@@ -199,6 +203,7 @@ export interface HeroProfile {
   legendHuntWins: number;
   legendDefenses: number;
   autoResolveLegendChallenges: boolean;
+  legacySkillId?: string;
   classChanges: number;
   appearance: HeroAppearance;
   createdAt: number;
@@ -228,6 +233,70 @@ export interface EnemyProfile {
   injuries: FighterInjury[];
   adaptationIds: string[];
   tacticalStyle: TacticalStyle;
+  carriedFromCycle?: number;
+}
+
+export interface LegacyFighterRecord {
+  name: string;
+  title: string;
+  classId: HeroClass;
+  level: number;
+  rating: number;
+  tournamentWins: number;
+  wins: number;
+  losses: number;
+  kills: number;
+}
+
+export interface LegacyHeroRecord extends LegacyFighterRecord {
+  cycle: number;
+  worldDay: number;
+  eliteRank?: number;
+  crownLeagueWins: number;
+  legendDefenses: number;
+  boonId?: LegacyBoonId;
+  lawIds: EraLawId[];
+  inheritedItemName?: string;
+  appearance: HeroAppearance;
+  equipment: EquipmentItem[];
+  notableFighters: LegacyFighterRecord[];
+  fallenNames: string[];
+  completedAt: number;
+}
+
+export interface LegacyState {
+  cycle: number;
+  seals: number;
+  totalSealsEarned: number;
+  activeBoonId?: LegacyBoonId;
+  activeLawIds: EraLawId[];
+  inheritedItemId?: string;
+  discoveredSkillIds: string[];
+  archives: LegacyHeroRecord[];
+}
+
+export interface NewGamePlusOptions {
+  name: string;
+  classId: HeroClass;
+  boonId: LegacyBoonId;
+  lawIds: EraLawId[];
+  heirloomItemId?: string;
+}
+
+export interface NewGamePlusRequirement {
+  id: string;
+  label: string;
+  met: boolean;
+}
+
+export interface NewGamePlusStatus {
+  unlocked: boolean;
+  targetCycle: number;
+  sealsAwarded: number;
+  availableSeals: number;
+  lawLimit: number;
+  requirements: NewGamePlusRequirement[];
+  reason: string;
 }
 
 export type ContractObjective = "training" | "duel" | "dungeon" | "tournament" | "boss";
@@ -383,7 +452,7 @@ export interface ShopOffer {
 }
 
 export interface GameSave {
-  version: 2;
+  version: 2 | 3;
   migrations?: string[];
   hero: HeroProfile;
   enemies: EnemyProfile[];
@@ -402,6 +471,8 @@ export interface GameSave {
   eliteRatings: Record<string, number>;
   eliteCrownWins: Record<string, number>;
   crownSetOwnerId?: string;
+  legacy: LegacyState;
+  defeatedLegacyCycles: number[];
   tutorialCompleted?: boolean;
   pendingEliteChallengeId?: string;
   contractOffers: ContractOffer[];

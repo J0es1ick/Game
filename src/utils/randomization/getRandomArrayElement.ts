@@ -1,4 +1,4 @@
-export function getRandomArrayElement<T>(arr: T[]): T | undefined {
+export function getRandomArrayElement<T>(arr: readonly T[]): T | undefined {
   if (arr.length === 0) {
     return undefined;
   }

@@ -3,7 +3,7 @@ import { Archer, Gunsmith, Knight, Monk, Swordsman, Wizard } from "../classes";
 import { createSkills } from "../catalogs/SkillCatalog";
 import { createRandomWeapon, WeaponType } from "../catalogs/WeaponCatalog";
 import { ISkill } from "../skills/ISkill";
-import { getRandomArrayElement, getRandomNumber } from "../utils/randomization";
+import { getRandomArrayElement, getRandomNumber, shuffleArray } from "../utils/randomization";
 import { IWeapon } from "../weapon/IWeapon";
 
 export type PlayerClass = "Knight" | "Archer" | "Wizard" | "Monk" | "Gunsmith" | "Swordsman";
@@ -32,17 +32,8 @@ const classDefaults: Record<PlayerClass, { weapon: WeaponType; skills: string[] 
   Swordsman: { weapon: "dual-swords", skills: ["удар возмездия", "заворожение"] },
 };
 
-function shuffled<T>(items: readonly T[]): T[] {
-  const result = [...items];
-  for (let index = result.length - 1; index > 0; index -= 1) {
-    const target = Math.floor(Math.random() * (index + 1));
-    [result[index], result[target]] = [result[target], result[index]];
-  }
-  return result;
-}
-
 export class PlayerFactory {
-  private names = shuffled(playerNames);
+  private names = shuffleArray(playerNames);
   private nameIndex = 0;
 
   public create(blueprint: PlayerBlueprint): Player {
@@ -88,7 +79,7 @@ export class PlayerFactory {
 
   private nextName(): string {
     if (this.nameIndex >= this.names.length) {
-      this.names = shuffled(playerNames);
+      this.names = shuffleArray(playerNames);
       this.nameIndex = 0;
     }
     return this.names[this.nameIndex++];
