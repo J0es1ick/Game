@@ -79,7 +79,7 @@
 }
 .basic-patterns small {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.4;
 }
 .basic-workbench {
@@ -133,7 +133,7 @@
   gap: 5px;
   color: var(--muted);
   font:
-    9px "Courier New",
+    11px "Courier New",
     monospace;
 }
 .basic-random-loader select,
@@ -176,7 +176,7 @@
 .basic-roster-row code {
   grid-column: 1 / -1;
   color: var(--red);
-  font-size: 8px;
+  font-size: 11px;
 }
 .basic-roster-row.active {
   border-left: 4px solid var(--green);
@@ -229,7 +229,7 @@
   min-height: 16px;
   margin: 0;
   color: var(--red);
-  font-size: 9px;
+  font-size: 12px;
 }
 .basic-versus {
   display: grid;
@@ -249,7 +249,7 @@
 .basic-versus article small {
   color: var(--red);
   font:
-    9px "Courier New",
+    11px "Courier New",
     monospace;
 }
 .basic-versus h3 {
@@ -267,7 +267,7 @@
   margin-top: 8px;
   color: var(--muted);
   font:
-    9px "Courier New",
+    11px "Courier New",
     monospace;
 }
 .basic-versus > b {
@@ -322,7 +322,7 @@
   display: block;
 }
 .basic-factory-trace small {
-  font-size: 7px;
+  font-size: 10px;
   letter-spacing: 0.08em;
 }
 .basic-factory-trace strong {
@@ -331,7 +331,7 @@
 }
 .basic-factory-trace p {
   margin: 0;
-  font-size: 8px;
+  font-size: 12px;
   line-height: 1.45;
 }
 #basic-trace {
@@ -363,18 +363,18 @@
 #basic-trace b {
   color: var(--muted);
   font:
-    7px "Courier New",
+    10px "Courier New",
     monospace;
   text-transform: uppercase;
 }
 #basic-trace code {
   margin: 5px 0;
   color: var(--red);
-  font-size: 10px;
+  font-size: 12px;
 }
 #basic-trace span {
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.45;
 }
 .basic-trace-legend {
@@ -385,7 +385,7 @@
   border-top: 1px solid #aaa08d;
   color: var(--muted);
   font:
-    8px "Courier New",
+    11px "Courier New",
     monospace;
 }
 .basic-trace-legend span {
@@ -433,7 +433,7 @@
 #basic-class-manual code {
   color: var(--red);
   font:
-    8px "Courier New",
+    11px "Courier New",
     monospace;
 }
 #basic-class-manual h3 {
@@ -449,7 +449,7 @@
 #basic-class-manual p {
   margin: 9px 0 0;
   color: var(--muted);
-  font-size: 9px;
+  font-size: 12px;
   line-height: 1.5;
 }
 .basic-chronicle .plain-button {

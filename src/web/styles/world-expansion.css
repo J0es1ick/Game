@@ -223,11 +223,13 @@
   border-left: 6px solid #8a5b93;
 }
 .relic-ready-list { grid-column: 1 / -1; display: grid; gap: 8px; }
-.relic-ready-list article { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px; border: 1px solid #aaa08e; background: #e2dacb; }
+.relic-ready-list article { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 16px; padding: 12px; border: 1px solid #aaa08e; background: #e2dacb; }
+.relic-ready-list article > div { min-width: 0; }
+.relic-ready-list article > div:first-child { overflow-wrap: anywhere; }
 .relic-ready-list strong,
 .relic-ready-list small { display: block; }
 .relic-ready-list small { margin-top: 3px; color: var(--muted); }
-.relic-ready-list article > div:last-child { display: flex; flex-wrap: wrap; gap: 6px; }
+.relic-ready-list article > div:last-child { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
 .relic-path-option {
   position: relative;
   display: inline-flex;
@@ -277,7 +279,42 @@
   transform: translate(-50%, 0);
   visibility: visible;
 }
-.forge-card-actions { display: grid; gap: 6px; }
+.relic-path-option:first-child .relic-path-tooltip {
+  right: auto;
+  left: 0;
+  transform: translateY(7px);
+}
+.relic-path-option:first-child:hover .relic-path-tooltip,
+.relic-path-option:first-child:focus-within .relic-path-tooltip {
+  transform: translateY(0);
+}
+.relic-path-option:first-child .relic-path-tooltip::after {
+  right: auto;
+  left: 30px;
+}
+.relic-path-option:last-child .relic-path-tooltip {
+  right: 0;
+  left: auto;
+  transform: translateY(7px);
+}
+.relic-path-option:last-child:hover .relic-path-tooltip,
+.relic-path-option:last-child:focus-within .relic-path-tooltip {
+  transform: translateY(0);
+}
+.relic-path-option:last-child .relic-path-tooltip::after {
+  right: 30px;
+  left: auto;
+}
+.forge-card-actions {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 6px;
+  width: 100%;
+}
+.forge-card-actions button {
+  width: 100%;
+  white-space: normal;
+}
 
 .battle-rules {
   display: flex;

@@ -307,7 +307,7 @@ h3 {
   margin: 4px 0 12px;
   color: var(--class-accent);
   font-family: "Courier New", monospace;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: bold;
   text-transform: uppercase;
 }
@@ -324,7 +324,7 @@ h3 {
   border-top: 1px solid #c9c0af;
   color: #5d584c;
   font-family: "Courier New", monospace;
-  font-size: 10px;
+  font-size: 12px;
 }
 .creation-footer {
   display: flex;

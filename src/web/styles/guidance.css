@@ -135,7 +135,7 @@
 .expedition-reward-item small {
   margin-bottom: 4px;
   color: var(--rarity-color, #6b6254);
-  font: 10px/1.2 "Courier New", monospace;
+  font: 11px/1.2 "Courier New", monospace;
   text-transform: uppercase;
 }
 
@@ -257,7 +257,7 @@
 .tutorial-action small {
   margin-bottom: 3px;
   color: #756c5e;
-  font: 10px "Courier New", monospace;
+  font: 11px "Courier New", monospace;
   letter-spacing: 0.08em;
 }
 

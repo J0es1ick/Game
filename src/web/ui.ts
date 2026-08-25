@@ -24,12 +24,15 @@ import {
   factionReputationTier,
   TOURNAMENT_RULES,
 } from "../catalogs/WorldExpansionCatalog";
+import { ERA_LAWS, LEGACY_BOONS, legacyTitleForCycle } from "../catalogs/NewGamePlusCatalog";
 import { CLASS_CHANGE_GOLD_COST, CLASS_CHANGE_MARK_COST, WorldGame, skillById } from "../gameplay/WorldGame";
 import { createEquipmentIcon, renderCharacterDoll } from "./CharacterDoll";
 import { basicTournamentUi } from "./BasicTournamentUi";
 import { gameAudio } from "./GameAudio";
 import { initializeGlossary, markTerm } from "./Glossary";
 import { queueWorldEffect } from "./WorldEffects";
+import { loadRankingSnapshot, markRankMovement, observeLeaderboardRows, saveRankingSnapshot } from "./LeaderboardView";
+import { createElement as element, query as $, queryAll as $$ } from "./UiDom";
 import {
   ActivityDefinition,
   ArenaDefinition,
@@ -42,6 +45,8 @@ import {
   FighterFeatureChange,
   GameSave,
   HeroClass,
+  EraLawId,
+  LegacyBoonId,
   Rarity,
   TournamentReport,
   Stats,
@@ -51,9 +56,6 @@ const SAVE_KEY = "dust-and-crown-save-v2";
 const MODE_KEY = "dust-and-crown-mode";
 const LEADER_SNAPSHOT_KEY = "dust-and-crown-leader-snapshot-v1";
 const ELITE_SNAPSHOT_KEY = "dust-and-crown-elite-snapshot-v1";
-const $ = <T extends HTMLElement>(selector: string): T => document.querySelector(selector) as T;
-const $$ = <T extends HTMLElement>(selector: string): T[] => Array.from(document.querySelectorAll(selector)) as T[];
-
 const classIcons: Record<HeroClass, string> = {
   Knight: "♜", Archer: "➶", Wizard: "✦", Monk: "◉", Gunsmith: "⚙", Swordsman: "⚔",
 };
@@ -94,9 +96,14 @@ let tutorialTarget: HTMLElement | null = null;
 let tutorialPositionTimer: number | null = null;
 let tutorialReturnPage = "map";
 let tutorialReturnScrollY = 0;
-const leaderboardObservers = new Map<string, IntersectionObserver>();
-
-type RankingSnapshot = Record<string, number>;
+let newChronicleStep = 0;
+let selectedLegacyId: LegacyBoonId | null = null;
+let selectedHeirloomItemId: string | null = null;
+let selectedWorldLawIds: EraLawId[] = [];
+let newChronicleClass: HeroClass = "Knight";
+let newChronicleConfirmed = false;
+let newChronicleName = "";
+let newChronicleReturnFocus: HTMLElement | null = null;
 
 type TutorialStep = {
   page: string;
@@ -162,7 +169,7 @@ function loadGame(): WorldGame | null {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     const save = JSON.parse(raw) as GameSave;
-    if (save.version !== 2 || !save.hero) return null;
+    if ((save.version !== 2 && save.version !== 3) || !save.hero) return null;
     return WorldGame.restore(save);
   } catch {
     return null;
@@ -186,13 +193,6 @@ function persist(): void {
       duration: 2600,
     });
   }
-}
-
-function element<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
-  const node = document.createElement(tag);
-  if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
-  return node;
 }
 
 type EquipmentVisual = Pick<EquipmentItem, "name" | "templateId" | "rarity" | "setId" | "allowedClasses">;
@@ -252,60 +252,6 @@ function featureStatsText(stats: Partial<Stats>): string {
 }
 
 function displayItemName(item: EquipmentItem): string { return item.relicName ?? item.name; }
-
-function loadRankingSnapshot(key: string): RankingSnapshot {
-  try {
-    const value = JSON.parse(localStorage.getItem(key) ?? "{}") as unknown;
-    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-    return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, number] =>
-      typeof entry[1] === "number" && Number.isFinite(entry[1]) && entry[1] > 0));
-  } catch {
-    return {};
-  }
-}
-
-function saveRankingSnapshot(key: string, entries: Array<{ id: string }>): void {
-  const snapshot = Object.fromEntries(entries.map((entry, index) => [entry.id, index + 1]));
-  localStorage.setItem(key, JSON.stringify(snapshot));
-}
-
-function markRankMovement(row: HTMLTableRowElement, nameCell: HTMLTableCellElement, previousRank: number | undefined, currentRank: number, hasSnapshot: boolean): void {
-  if (!hasSnapshot) return;
-  if (previousRank === undefined) {
-    row.classList.add("rank-newcomer");
-    const marker = element("span", "rank-change newcomer", "вошёл");
-    marker.title = "Вошёл в отображаемую сотню с прошлого посещения";
-    nameCell.append(marker);
-    return;
-  }
-  const places = previousRank - currentRank;
-  if (places === 0) return;
-  const movedUp = places > 0;
-  row.classList.add(movedUp ? "rank-moved-up" : "rank-moved-down");
-  row.style.setProperty("--rank-offset", `${Math.max(-72, Math.min(72, places * 11))}px`);
-  const marker = element("span", `rank-change ${movedUp ? "up" : "down"}`, `${movedUp ? "↑" : "↓"}${Math.abs(places)}`);
-  marker.title = `${movedUp ? "Поднялся" : "Опустился"} на ${Math.abs(places)} мест с прошлого посещения`;
-  nameCell.append(marker);
-}
-
-function observeLeaderboardRows(body: HTMLTableSectionElement): void {
-  leaderboardObservers.get(body.id)?.disconnect();
-  const rows = Array.from(body.querySelectorAll("tr"));
-  rows.forEach((row) => row.classList.add("leader-row-awaiting"));
-  if (!("IntersectionObserver" in window)) {
-    rows.forEach((row) => row.classList.add("leader-row-visible"));
-    return;
-  }
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach((entry) => {
-      if (!entry.isIntersecting) return;
-      entry.target.classList.add("leader-row-visible");
-      observer.unobserve(entry.target);
-    });
-  }, { threshold: 0.08, rootMargin: "0px 0px -4% 0px" });
-  rows.forEach((row) => observer.observe(row));
-  leaderboardObservers.set(body.id, observer);
-}
 
 function replayAnimation(node: HTMLElement, className: string): void {
   node.classList.remove(className);
@@ -459,7 +405,12 @@ function createHero(): void {
 }
 
 function showPage(page: string, scrollToTop = true, refresh = true): void {
-  $$(".main-nav button").forEach((button) => button.classList.toggle("active", button.dataset.page === page));
+  $$(".main-nav button").forEach((button) => {
+    const active = button.dataset.page === page;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
   $$(".page").forEach((section) => section.classList.toggle("active", section.id === `page-${page}`));
   if (game && refresh) {
     switch (page) {
@@ -476,6 +427,8 @@ function showPage(page: string, scrollToTop = true, refresh = true): void {
       case "chronicle": renderChronicle(); break;
     }
   }
+  const activeNavigationItem = document.querySelector<HTMLButtonElement>(`.main-nav button[data-page="${page}"]`);
+  activeNavigationItem?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   if (scrollToTop) window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -486,7 +439,11 @@ function renderHeader(): void {
   $("#header-portrait").style.setProperty("--portrait-accent", CLASS_DEFINITIONS[hero.classId].accent);
   $("#header-hero-name").textContent = hero.name;
   const championships = hero.arenaWins.reduce((total, wins) => total + wins, 0);
-  $("#header-hero-meta").textContent = `${CLASS_DEFINITIONS[hero.classId].name} · ${championships} побед в турнирах · победы в дуэлях ${hero.duelWins} · поражения ${hero.duelLosses}`;
+  const lawNames = game.save.legacy.activeLawIds.map((id) => ERA_LAWS.find((law) => law.id === id)?.name).filter((name): name is string => Boolean(name));
+  const lawCount = lawNames.length ? ` · ${lawNames.length} ${lawNames.length === 1 ? "закон" : "закона"}` : "";
+  const heroMeta = $("#header-hero-meta");
+  heroMeta.textContent = `Эпоха ${game.save.legacy.cycle}${lawCount} · ${game.save.legacy.seals} печ. летописи · ${CLASS_DEFINITIONS[hero.classId].name} · турниры ${championships} · дуэли ${hero.duelWins}/${hero.duelLosses}`;
+  heroMeta.title = lawNames.length ? `Законы эпохи: ${lawNames.join(", ")}` : "В этой эпохе нет дополнительных законов.";
   setAnimatedText("#header-level", String(hero.level));
   setAnimatedText("#header-gold", `${hero.gold} ¤`);
   setAnimatedText("#header-marks", String(hero.temperingMarks));
@@ -899,7 +856,10 @@ function renderMap(animateItems = true): void {
   const crownAvailable = game.crownLeagueAvailability().unlocked;
   const crownRegistrationDay = game.registeredCrownLeagueDay();
   const huntAvailable = game.legendHuntAvailability().unlocked;
-  $("#quick-endgame-status").textContent = huntAvailable
+  const newEraAvailable = game.newGamePlusStatus().unlocked;
+  $("#quick-endgame-status").textContent = newEraAvailable
+    ? `Эпоха ${game.save.legacy.cycle + 1} готова`
+    : huntAvailable
     ? "Легенда найдена"
     : crownAvailable
       ? game.crownLeagueTier().name
@@ -1522,7 +1482,7 @@ function renderSkills(animateItems = true): void {
   if (!game) return;
   const hero = game.save.hero;
   const activeItems = equippedItems();
-  const availableSkills = unlockedSkills(hero.classId, hero.level, activeItems);
+  const availableSkills = unlockedSkills(hero.classId, hero.level, activeItems, hero.legacySkillId ? [hero.legacySkillId] : []);
   const available = new Set(availableSkills.map((skill) => skill.id));
   const selected = new Set(hero.selectedSkillIds.filter((id) => available.has(id)));
   const kindNames = { attack: "Атака", heal: "Лечение", buff: "Усиление", control: "Контроль" } as const;
@@ -1609,10 +1569,384 @@ function renderSkills(animateItems = true): void {
   book.replaceChildren(...equipmentSkills.map((skill) => {
     const activeSource = activeItems.find((item) => item.grantedSkillId === skill.id);
     const owned = ownedBySkill.get(skill.id) ?? [];
-    const status = activeSource ? "АКТИВЕН ОТ ЭКИПИРОВКИ" : owned.length ? "ЕСТЬ В ИНВЕНТАРЕ" : "ЕЩЁ НЕ НАЙДЕН";
-    const source = activeSource ? `Источник: ${activeSource.name}.` : owned.length ? `Найден на: ${owned[0].name}. Наденьте предмет, чтобы активировать приём.` : "Ищите на легендарных и мифических предметах.";
+    const remembered = game!.save.legacy.discoveredSkillIds.includes(skill.id);
+    const status = activeSource ? "АКТИВЕН ОТ ЭКИПИРОВКИ" : owned.length ? "ЕСТЬ В ИНВЕНТАРЕ" : remembered ? "ЗАПИСАН В ЛЕТОПИСИ" : "ЕЩЁ НЕ НАЙДЕН";
+    const source = activeSource ? `Источник: ${activeSource.name}.` : owned.length ? `Найден на: ${owned[0].name}. Наденьте предмет, чтобы активировать приём.` : remembered ? "Приём был найден в прежней эпохе. Для применения всё равно требуется подходящий предмет." : "Ищите на легендарных и мифических предметах.";
     return skillCard(skill, status, Boolean(activeSource), source);
   }));
+}
+
+function renderNewChronicleStatus(): void {
+  if (!game) return;
+  const status = game.newGamePlusStatus();
+  const panel = $("#new-chronicle-status");
+  panel.classList.toggle("available", status.unlocked);
+  const completeCount = status.requirements.filter((requirement) => requirement.met).length;
+  const title = element("div");
+  const chronicleTitle = element("h3", "", "Завершение летописи");
+  markTerm(chronicleTitle, "newChronicle");
+  title.append(
+    element("p", "eyebrow", `ЭПОХА ${game.save.legacy.cycle} · ${legacyTitleForCycle(game.save.legacy.cycle + 1).toUpperCase()}`),
+    chronicleTitle,
+    element("p", "", status.unlocked
+      ? `Мир готов отпустить героя. За переход будет получено ${status.sealsAwarded} печатей летописи.`
+      : "Новая эпоха — не удаление сохранения, а продолжение истории другим героем."),
+  );
+  const progress = element("div", "new-chronicle-progress");
+  progress.append(element("strong", "", `${completeCount} из ${status.requirements.length} условий`));
+  const line = element("div", "new-chronicle-progress-line");
+  line.style.setProperty("--chronicle-progress", `${completeCount / status.requirements.length * 100}%`);
+  line.append(element("i"));
+  const list = element("ul", "chronicle-requirements");
+  status.requirements.forEach((requirement) => list.append(element("li", `chronicle-requirement ${requirement.met ? "complete" : "locked"}`, requirement.label)));
+  progress.append(line, list);
+  const actions = element("div", "chronicle-status-actions");
+  const begin = element("button", "button primary", status.unlocked ? `Начать эпоху ${status.targetCycle}` : "Путь ещё не завершён");
+  begin.type = "button";
+  begin.disabled = !status.unlocked;
+  begin.addEventListener("click", openNewChronicleDialog);
+  actions.append(begin);
+  if (game.save.legacy.archives.length > 0) {
+    const archive = element("button", "plain-button", `Архив эпох · ${game.save.legacy.archives.length}`);
+    archive.type = "button";
+    archive.addEventListener("click", () => { showPage("chronicle"); showChronicleView("archive"); });
+    actions.append(archive);
+    const legacyAvailability = game.legacyChampionAvailability();
+    const echo = element("button", "plain-button", legacyAvailability.unlocked ? "Вызвать героя прошлого" : "Герой прошлого закрыт");
+    echo.type = "button";
+    echo.disabled = !legacyAvailability.unlocked;
+    echo.title = legacyAvailability.reason;
+    echo.addEventListener("click", startLegacyChampion);
+    actions.append(echo);
+  }
+  panel.replaceChildren(title, progress, actions);
+}
+
+function openNewChronicleDialog(): void {
+  if (!game) return;
+  const status = game.newGamePlusStatus();
+  if (!status.unlocked) { toast(status.reason, "error"); return; }
+  newChronicleStep = 0;
+  newChronicleClass = game.save.hero.classId;
+  newChronicleName = game.save.hero.name;
+  selectedLegacyId = LEGACY_BOONS.find((boon) => boon.sealCost <= status.availableSeals)?.id ?? null;
+  const candidates = game.heirloomCandidates(newChronicleClass);
+  const equippedIds = new Set(Object.values(game.save.hero.equipped));
+  selectedHeirloomItemId = candidates.find((item) => equippedIds.has(item.id))?.id ?? candidates[0]?.id ?? null;
+  selectedWorldLawIds = ERA_LAWS.slice(0, status.lawLimit).map((law) => law.id);
+  newChronicleConfirmed = false;
+  newChronicleReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  $("#new-chronicle-layer").hidden = false;
+  document.body.classList.add("new-chronicle-open");
+  renderNewChronicleStep();
+  window.requestAnimationFrame(() => $("#new-chronicle-title").focus());
+}
+
+function closeNewChronicleDialog(): void {
+  if ($("#new-chronicle-layer").hidden) return;
+  $("#new-chronicle-layer").hidden = true;
+  document.body.classList.remove("new-chronicle-open");
+  const returnFocus = newChronicleReturnFocus;
+  newChronicleReturnFocus = null;
+  window.requestAnimationFrame(() => returnFocus?.focus());
+}
+
+function newChronicleHeading(eyebrow: string, title: string, copy: string): HTMLElement {
+  const heading = element("header", "new-chronicle-stage-heading");
+  const name = element("div");
+  const titleNode = element("h3", "", title);
+  titleNode.tabIndex = -1;
+  name.append(element("p", "eyebrow", eyebrow), titleNode);
+  heading.append(name, element("p", "", copy));
+  return heading;
+}
+
+function focusNewChronicleStep(): void {
+  window.requestAnimationFrame(() => {
+    $("#new-chronicle-stage h3")?.focus();
+    const activeStep = document.querySelector<HTMLElement>("#new-chronicle-steps li.active");
+    const strip = activeStep?.parentElement;
+    if (activeStep && strip) strip.scrollTo({ left: activeStep.offsetLeft - (strip.clientWidth - activeStep.offsetWidth) / 2, behavior: "smooth" });
+  });
+}
+
+function renderNewChronicleStep(): void {
+  if (!game) return;
+  const status = game.newGamePlusStatus();
+  const stage = $("#new-chronicle-stage");
+  $("#new-chronicle-progress").textContent = `Шаг ${newChronicleStep + 1} из 4`;
+  $$("#new-chronicle-steps li").forEach((item, index) => {
+    item.classList.toggle("active", index === newChronicleStep);
+    item.classList.toggle("complete", index < newChronicleStep);
+    if (index === newChronicleStep) item.setAttribute("aria-current", "step");
+    else item.removeAttribute("aria-current");
+  });
+  const back = $<HTMLButtonElement>("#new-chronicle-back");
+  const next = $<HTMLButtonElement>("#new-chronicle-next");
+  const confirm = $<HTMLButtonElement>("#new-chronicle-confirm");
+  back.disabled = newChronicleStep === 0;
+  next.hidden = newChronicleStep === 3;
+  confirm.hidden = newChronicleStep !== 3;
+
+  if (newChronicleStep === 0) {
+    stage.replaceChildren(newChronicleHeading("ПОСТОЯННЫЙ СЛЕД", "Выберите наследие", `Доступно ${status.availableSeals} печатей. Стоимость будет списана только после подтверждения перехода.`));
+    const grid = element("div", "new-chronicle-choice-grid");
+    grid.setAttribute("role", "group");
+    grid.setAttribute("aria-label", "Варианты наследия");
+    LEGACY_BOONS.forEach((boon) => {
+      const card = element("button", `new-chronicle-choice${selectedLegacyId === boon.id ? " selected" : ""}`);
+      card.type = "button";
+      card.disabled = boon.sealCost > status.availableSeals;
+      card.dataset.choiceId = boon.id;
+      card.setAttribute("aria-pressed", String(selectedLegacyId === boon.id));
+      if (card.disabled) card.title = `Нужно печатей летописи: ${boon.sealCost}. Доступно: ${status.availableSeals}.`;
+      card.style.setProperty("--choice-accent", "#715063");
+      card.append(element("small", "", `${boon.sealCost} ПЕЧ.`), element("strong", "", boon.name), element("p", "", boon.description), element("b", "", boon.effect));
+      card.addEventListener("click", () => {
+        selectedLegacyId = boon.id;
+        grid.querySelectorAll<HTMLButtonElement>(".new-chronicle-choice").forEach((choice) => {
+          const selected = choice.dataset.choiceId === boon.id;
+          choice.classList.toggle("selected", selected);
+          choice.setAttribute("aria-pressed", String(selected));
+        });
+        next.disabled = false;
+      });
+      grid.append(card);
+    });
+    stage.append(grid);
+    next.disabled = !selectedLegacyId;
+    return;
+  }
+
+  if (newChronicleStep === 1) {
+    stage.replaceChildren(newChronicleHeading("ИМЯ И РЕЛИКВИЯ", "Кто продолжит путь", "Выберите класс наследника и одну вещь прошлого. Её характеристики, уровень и закалка будут честно пересчитаны для начала игры."));
+    const identity = element("div", "new-chronicle-identity");
+    const nameLabel = element("label", "new-chronicle-name");
+    nameLabel.append(element("span", "", "Имя нового героя"));
+    const nameInput = element("input") as HTMLInputElement;
+    nameInput.value = newChronicleName;
+    nameInput.maxLength = 28;
+    nameInput.autocomplete = "off";
+    nameInput.addEventListener("input", () => { newChronicleName = nameInput.value; next.disabled = newChronicleName.trim().length < 2; });
+    nameLabel.append(nameInput);
+    const classGrid = element("div", "new-chronicle-class-grid");
+    classGrid.setAttribute("role", "radiogroup");
+    classGrid.setAttribute("aria-label", "Класс нового героя");
+    (Object.values(CLASS_DEFINITIONS)).forEach((definition) => {
+      const button = element("button", `new-chronicle-class${definition.id === newChronicleClass ? " selected" : ""}`, `${classIcons[definition.id]} ${definition.name}`);
+      button.type = "button";
+      button.setAttribute("role", "radio");
+      button.setAttribute("aria-checked", String(definition.id === newChronicleClass));
+      button.style.setProperty("--choice-accent", definition.accent);
+      button.addEventListener("click", () => {
+        newChronicleClass = definition.id;
+        if (selectedHeirloomItemId && !game!.heirloomCandidates(newChronicleClass).some((item) => item.id === selectedHeirloomItemId)) selectedHeirloomItemId = null;
+        renderNewChronicleStep();
+        window.requestAnimationFrame(() => document.querySelector<HTMLElement>(".new-chronicle-class.selected")?.focus());
+      });
+      classGrid.append(button);
+    });
+    identity.append(nameLabel, classGrid);
+    const grid = element("div", "new-chronicle-choice-grid heirloom-grid");
+    grid.setAttribute("role", "group");
+    grid.setAttribute("aria-label", "Предмет-наследие");
+    const noItem = element("button", `new-chronicle-choice${selectedHeirloomItemId === null ? " selected" : ""}`);
+    noItem.type = "button";
+    noItem.dataset.choiceId = "none";
+    noItem.setAttribute("aria-pressed", String(selectedHeirloomItemId === null));
+    noItem.append(element("small", "", "БЕЗ ПРЕДМЕТА"), element("strong", "", "Чистое начало"), element("p", "", "Начать только с обычного классового снаряжения."), element("b", "", "Никаких скрытых штрафов."));
+    noItem.addEventListener("click", () => {
+      selectedHeirloomItemId = null;
+      grid.querySelectorAll<HTMLButtonElement>(".new-chronicle-choice").forEach((choice) => {
+        const selected = choice.dataset.choiceId === "none";
+        choice.classList.toggle("selected", selected);
+        choice.setAttribute("aria-pressed", String(selected));
+      });
+    });
+    grid.append(noItem);
+    game.heirloomCandidates(newChronicleClass).forEach((item) => {
+      const card = element("button", `new-chronicle-choice${selectedHeirloomItemId === item.id ? " selected" : ""}`);
+      card.type = "button";
+      card.dataset.choiceId = item.id;
+      card.setAttribute("aria-pressed", String(selectedHeirloomItemId === item.id));
+      card.style.setProperty("--choice-accent", rarityColors[item.rarity]);
+      card.append(
+        equipmentArtwork(item.slot, newChronicleClass, "new-chronicle-item-art equipment-art", item),
+        element("small", "", `${SLOT_LABELS[item.slot]} · ${RARITY_LABELS[item.rarity]}`),
+        element("strong", "", displayItemName(item)),
+        element("p", "", "В новой эпохе станет редким предметом 1 уровня без прежней закалки."),
+        element("b", "", item.grantedSkillId ? `Сохранит навык: ${skillById(item.grantedSkillId)?.name ?? item.grantedSkillId}` : "Сохранит внешний вид и историю."),
+      );
+      card.addEventListener("click", () => {
+        selectedHeirloomItemId = item.id;
+        grid.querySelectorAll<HTMLButtonElement>(".new-chronicle-choice").forEach((choice) => {
+          const selected = choice.dataset.choiceId === item.id;
+          choice.classList.toggle("selected", selected);
+          choice.setAttribute("aria-pressed", String(selected));
+        });
+      });
+      grid.append(card);
+    });
+    stage.append(identity, grid);
+    next.disabled = newChronicleName.trim().length < 2;
+    return;
+  }
+
+  if (newChronicleStep === 2) {
+    stage.replaceChildren(newChronicleHeading("ПРАВИЛА НОВОГО МИРА", `Выберите ${status.lawLimit} ${status.lawLimit === 1 ? "закон" : "закона"}`, "Законы меняют не уровни врагов, а условия боёв, наград и жизни элиты. Их нельзя заменить внутри эпохи."));
+    const grid = element("div", "new-chronicle-choice-grid");
+    grid.setAttribute("role", "group");
+    grid.setAttribute("aria-label", "Законы новой эпохи");
+    ERA_LAWS.forEach((law) => {
+      const selected = selectedWorldLawIds.includes(law.id);
+      const card = element("button", `new-chronicle-choice${selected ? " selected" : ""}`);
+      card.type = "button";
+      card.dataset.choiceId = law.id;
+      card.setAttribute("aria-pressed", String(selected));
+      card.style.setProperty("--choice-accent", law.accent);
+      card.append(element("small", "", selected ? "ВЫБРАН" : "ЗАКОН ЭПОХИ"), element("strong", "", law.name), element("p", "", law.description), element("b", "", law.effect));
+      card.addEventListener("click", () => {
+        const isSelected = selectedWorldLawIds.includes(law.id);
+        if (isSelected) selectedWorldLawIds = selectedWorldLawIds.filter((id) => id !== law.id);
+        else if (selectedWorldLawIds.length < status.lawLimit) selectedWorldLawIds.push(law.id);
+        else { toast(`Можно выбрать не больше ${status.lawLimit}.`, "error"); return; }
+        const nowSelected = selectedWorldLawIds.includes(law.id);
+        card.classList.toggle("selected", nowSelected);
+        card.setAttribute("aria-pressed", String(nowSelected));
+        card.querySelector("small")!.textContent = nowSelected ? "ВЫБРАН" : "ЗАКОН ЭПОХИ";
+        next.disabled = selectedWorldLawIds.length !== status.lawLimit;
+      });
+      grid.append(card);
+    });
+    stage.append(grid);
+    next.disabled = selectedWorldLawIds.length !== status.lawLimit;
+    return;
+  }
+
+  const selectedBoon = LEGACY_BOONS.find((boon) => boon.id === selectedLegacyId);
+  const selectedItem = selectedHeirloomItemId ? game.save.hero.inventory.find((item) => item.id === selectedHeirloomItemId) : undefined;
+  stage.replaceChildren(newChronicleHeading("ПОСЛЕДНЯЯ ЗАПИСЬ", `Эпоха ${status.targetCycle}: ${newChronicleName.trim()}`, "Проверьте условия. После подтверждения прежний мир попадёт в архив и останется доступен для просмотра."));
+  const summary = element("div", "new-chronicle-summary");
+  const kept = element("article");
+  kept.append(element("h4", "", "Сохранится"));
+  const keptList = element("ul");
+  ["Коллекция найденных предметов", "Архив героев и павших бойцов", "Внешность и настройки боя", `Наследие: ${selectedBoon?.name ?? "—"}`, `Предмет: ${selectedItem ? displayItemName(selectedItem) : "без предмета"}`, `Законы: ${selectedWorldLawIds.map((id) => ERA_LAWS.find((law) => law.id === id)?.name).join(", ")}`].forEach((line) => keptList.append(element("li", "", line)));
+  kept.append(keptList);
+  const reset = element("article");
+  reset.append(element("h4", "", "Начнётся заново"));
+  const resetList = element("ul");
+  ["Уровень, опыт и мировой рейтинг", "Золото, печати закалки и обычный инвентарь", "Арены, данжи, боссы и контракты", "Население мира, элита и соперничества"].forEach((line) => resetList.append(element("li", "", line)));
+  reset.append(resetList);
+  summary.append(kept, reset);
+  const acknowledgement = element("label", "new-chronicle-confirmation");
+  const checkbox = element("input") as HTMLInputElement;
+  checkbox.type = "checkbox";
+  checkbox.checked = newChronicleConfirmed;
+  checkbox.addEventListener("change", () => { newChronicleConfirmed = checkbox.checked; confirm.disabled = !newChronicleConfirmed; });
+  acknowledgement.append(checkbox, document.createTextNode("Я понимаю, что текущая эпоха будет завершена и продолжится новым миром."));
+  stage.append(summary, acknowledgement);
+  confirm.textContent = `Начать эпоху ${status.targetCycle}`;
+  confirm.disabled = !newChronicleConfirmed;
+}
+
+function moveNewChronicleStep(direction: -1 | 1): void {
+  if (direction > 0) {
+    if (newChronicleStep === 0 && !selectedLegacyId) return;
+    if (newChronicleStep === 1 && newChronicleName.trim().length < 2) return;
+    if (newChronicleStep === 2 && game && selectedWorldLawIds.length !== game.newGamePlusStatus().lawLimit) return;
+  }
+  if (newChronicleStep === 3 && direction < 0) newChronicleConfirmed = false;
+  newChronicleStep = Math.max(0, Math.min(3, newChronicleStep + direction));
+  renderNewChronicleStep();
+  replayAnimation($("#new-chronicle-stage"), "is-changing");
+  focusNewChronicleStep();
+}
+
+function confirmNewChronicle(): void {
+  if (!game || !selectedLegacyId || !newChronicleConfirmed) return;
+  try {
+    game = game.beginNewChronicle({
+      name: newChronicleName,
+      classId: newChronicleClass,
+      boonId: selectedLegacyId,
+      lawIds: selectedWorldLawIds,
+      heirloomItemId: selectedHeirloomItemId ?? undefined,
+    });
+    localStorage.removeItem(LEADER_SNAPSHOT_KEY);
+    localStorage.removeItem(ELITE_SNAPSHOT_KEY);
+    persist();
+    closeNewChronicleDialog();
+    renderAll();
+    showPage("map", true, false);
+    queueWorldEffect({
+      eyebrow: "НОВАЯ ЛЕТОПИСЬ",
+      title: `Началась эпоха ${game.save.legacy.cycle}`,
+      description: `${game.save.hero.name} принимает мир с новыми законами и памятью прежнего героя.`,
+      symbol: "Ⅱ", tone: "legendary", sound: "reputation", duration: 3600,
+    });
+    toast("Новая эпоха началась. Прошлый мир сохранён в архиве.");
+  } catch (error) { toast((error as Error).message, "error"); }
+}
+
+function showChronicleView(view: "current" | "archive"): void {
+  const current = view === "current";
+  $("#current-chronicle-view").hidden = !current;
+  $("#epoch-history-view").hidden = current;
+  const currentTab = $<HTMLButtonElement>("#chronicle-current-tab");
+  const archiveTab = $<HTMLButtonElement>("#chronicle-archive-tab");
+  currentTab.classList.toggle("active", current);
+  archiveTab.classList.toggle("active", !current);
+  currentTab.setAttribute("aria-selected", String(current));
+  archiveTab.setAttribute("aria-selected", String(!current));
+  currentTab.tabIndex = current ? 0 : -1;
+  archiveTab.tabIndex = current ? -1 : 0;
+  if (!current) renderEpochHistory();
+}
+
+function renderEpochHistory(): void {
+  if (!game) return;
+  const archives = game.legacyArchives();
+  $("#epoch-count").textContent = String(archives.length);
+  const summary = $("#epoch-history-summary");
+  summary.replaceChildren(
+    statRow("Текущая эпоха", game.save.legacy.cycle),
+    statRow("Завершено эпох", archives.length),
+    statRow("Печатей летописи", game.save.legacy.seals),
+    statRow("Всего заработано", game.save.legacy.totalSealsEarned),
+  );
+  const list = $("#epoch-history-list");
+  list.replaceChildren(...archives.slice().reverse().map((archive) => {
+    const card = element("article", "epoch-card paper-panel");
+    const head = element("header", "epoch-hero-summary");
+    const copy = element("div");
+    copy.append(element("p", "eyebrow", `ЭПОХА ${archive.cycle} · ${archive.worldDay} ДНЕЙ`), element("h3", "", archive.name), element("p", "", `${CLASS_DEFINITIONS[archive.classId].name} · ${archive.title}`));
+    head.append(copy, element("strong", "", `Ур. ${archive.level}`));
+    const stats = element("div", "epoch-stat-grid");
+    [["Рейтинг", archive.rating], ["Турниры", archive.tournamentWins], ["Победы", archive.wins], ["Поражения", archive.losses], ["Убийства", archive.kills], ["Короны", archive.crownLeagueWins], ["Защиты", archive.legendDefenses], ["Элита", archive.eliteRank ? `#${archive.eliteRank}` : "—"]].forEach(([label, value]) => stats.append(statRow(String(label), value)));
+    const details = element("details", "epoch-details");
+    const detailsTitle = element("summary", "", "Соперники, павшие и снаряжение");
+    const rivals = element("div", "epoch-rival-list");
+    archive.notableFighters.forEach((fighter) => rivals.append(element("p", "", `${fighter.name} · ${CLASS_DEFINITIONS[fighter.classId].name} · ${fighter.wins} побед · ${fighter.losses} поражений`)));
+    if (!archive.notableFighters.length) rivals.append(element("p", "empty-copy", "Главные соперники в этой эпохе не записаны."));
+    const gear = element("p", "epoch-gear", `Финальное снаряжение: ${archive.equipment.map(displayItemName).join(", ") || "без предметов"}.`);
+    const legacy = element("p", "epoch-legacy", `Наследие эпохи: ${LEGACY_BOONS.find((boon) => boon.id === archive.boonId)?.name ?? "первый путь"}. Законы: ${(archive.lawIds ?? []).map((id) => ERA_LAWS.find((law) => law.id === id)?.name).filter(Boolean).join(", ") || "без законов"}.${archive.inheritedItemName ? ` Переданный предмет: ${archive.inheritedItemName}.` : ""}`);
+    const fallen = element("p", "epoch-fallen", archive.fallenNames.length ? `Погибли навсегда: ${archive.fallenNames.join(", ")}.` : "Список павших пуст.");
+    details.append(detailsTitle, rivals, legacy, gear, fallen);
+    card.append(head, stats, details);
+    return card;
+  }));
+  if (!archives.length) list.append(element("p", "empty-copy", "Первая эпоха ещё продолжается. Здесь появится её итог после начала новой летописи."));
+}
+
+function startLegacyChampion(): void {
+  if (!game) return;
+  captureBattleEquipment();
+  try {
+    currentTournament = null;
+    currentReport = game.fightLegacyChampion();
+    persist();
+    openBattleReport(currentReport);
+  } catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); }
 }
 
 function renderEndgame(animateItems = true): void {
@@ -1694,6 +2028,8 @@ function renderEndgame(animateItems = true): void {
     const defend = element("button", "button activity-button", "Защитить титул");
     defend.addEventListener("click", startLegendDefense); card.append(defend); route.append(card);
   }
+
+  renderNewChronicleStatus();
 
   const board = $("#elite-board");
   const elite = game.eliteLeaderboard();
@@ -2072,6 +2408,7 @@ function renderChronicle(): void {
     row.append(element("span", "event-day", `ДЕНЬ ${event.day}`), element("p", "", event.message)); list.append(row);
   });
   if (game.save.events.length === 0) list.append(element("p", "empty-copy", "Мир ещё не успел оставить событий в летописи."));
+  renderEpochHistory();
 }
 
 function refreshEquipmentViews(preserveForgeOrder = false): void {
@@ -2634,11 +2971,40 @@ $("#open-tournament-calendar").addEventListener("click", () => {
 $("#close-equipment-picker").addEventListener("click", closeEquipmentPicker);
 $("#close-equipment-comparison").addEventListener("click", closeEquipmentComparison);
 $("#comparison-back").addEventListener("click", closeEquipmentComparison);
+$("#close-new-chronicle").addEventListener("click", closeNewChronicleDialog);
+$("#new-chronicle-back").addEventListener("click", () => moveNewChronicleStep(-1));
+$("#new-chronicle-next").addEventListener("click", () => moveNewChronicleStep(1));
+$("#new-chronicle-confirm").addEventListener("click", confirmNewChronicle);
+$("#new-chronicle-layer").addEventListener("click", (event) => { if (event.target === event.currentTarget) closeNewChronicleDialog(); });
+$("#new-chronicle-layer").addEventListener("keydown", (event) => {
+  if ((event as KeyboardEvent).key !== "Tab") return;
+  const layer = $("#new-chronicle-layer");
+  const focusable = Array.from(layer.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex='-1'])"))
+    .filter((node) => !node.hidden && node.offsetParent !== null);
+  if (!focusable.length) { event.preventDefault(); return; }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  const keyboardEvent = event as KeyboardEvent;
+  if (!focusable.includes(document.activeElement as HTMLElement)) { event.preventDefault(); (keyboardEvent.shiftKey ? last : first).focus(); }
+  else if (keyboardEvent.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+  else if (!keyboardEvent.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+});
+$("#chronicle-current-tab").addEventListener("click", () => showChronicleView("current"));
+$("#chronicle-archive-tab").addEventListener("click", () => showChronicleView("archive"));
+$(".chronicle-tabs").addEventListener("keydown", (event) => {
+  const keyboardEvent = event as KeyboardEvent;
+  if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(keyboardEvent.key)) return;
+  keyboardEvent.preventDefault();
+  const openArchive = keyboardEvent.key === "ArrowRight" || keyboardEvent.key === "End";
+  showChronicleView(openArchive ? "archive" : "current");
+  $<HTMLButtonElement>(openArchive ? "#chronicle-archive-tab" : "#chronicle-current-tab").focus();
+});
 $("#equipment-picker").addEventListener("click", (event) => { if (event.target === event.currentTarget) closeEquipmentPicker(); });
 $("#equipment-comparison").addEventListener("click", (event) => { if (event.target === event.currentTarget) closeEquipmentComparison(); });
 window.addEventListener("keydown", (event) => {
   if (event.key !== "Escape") return;
   if (!$("#tutorial-layer").hidden) finishTutorial();
+  else if (!$("#new-chronicle-layer").hidden) closeNewChronicleDialog();
   else if (!$("#dungeon-layer").hidden) closeDungeonWindow();
   else if (!$("#equipment-comparison").hidden) closeEquipmentComparison();
   else if (!$("#equipment-picker").hidden) closeEquipmentPicker();

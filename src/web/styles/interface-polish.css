@@ -1,0 +1,43 @@
+/* Cross-screen interaction rules. Component geometry remains in its own stylesheet. */
+
+:where(button, a, input, select, [role="button"]):focus-visible {
+  outline: 3px solid #b67931;
+  outline-offset: 2px;
+}
+
+.game-header :where(button, a):focus-visible,
+.battle-window :where(button, select):focus-visible {
+  outline-color: #e0bb6c;
+}
+
+.page-heading h1,
+.activity-card h3,
+.item-card h3,
+.equipment-slot strong,
+.leader-name-cell {
+  overflow-wrap: anywhere;
+}
+
+/* The three-column inventory shell leaves too little room for three item cards
+   on common laptop widths; two cards keep names and actions intact. */
+@media (max-width: 1400px) {
+  .inventory-panel .item-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .main-nav button {
+    min-height: 48px;
+  }
+
+  .map-shortcuts button {
+    min-height: 58px;
+  }
+
+  .activity-card .activity-button,
+  .item-controls button,
+  .gear-actions button {
+    min-height: 42px;
+  }
+}

@@ -199,6 +199,7 @@
             <div class="route-section endgame-section" id="endgame-section">
               <header><span>03</span><div><h2>После последней арены</h2><p>Лига короны и охота на легенд продолжают карьеру после финального чемпионства.</p></div></header>
               <div class="activity-route endgame-route" id="endgame-route"></div>
+              <section class="new-chronicle-status paper-panel" id="new-chronicle-status"></section>
               <section class="elite-board" id="elite-board" aria-labelledby="elite-board-title"></section>
             </div>
           </div>
@@ -292,7 +293,21 @@
 
       <section class="page" id="page-chronicle" aria-labelledby="chronicle-title">
         <header class="page-heading"><div><p class="eyebrow">СОБЫТИЯ БЕЗ УЧАСТИЯ ИГРОКА</p><h1 id="chronicle-title">Летопись мира</h1></div><p>Здесь видно, кто поднялся выше, кто нашёл снаряжение и чья история закончилась на арене.</p></header>
-        <div class="chronicle-layout"><div class="event-list" id="event-list"></div><aside class="world-rules"><h2>Как живёт мир</h2><ol><li>Бойцы сражаются только с противниками своей арены.</li><li>Победители получают опыт и снаряжение.</li><li>Для перехода выше нужны уровень и серия побед.</li><li>Погибший боец больше не создаётся повторно.</li><li>На каждой арене появляются новые бойцы её диапазона силы.</li></ol></aside></div>
+        <nav class="chronicle-tabs" role="tablist" aria-label="Разделы летописи">
+          <button class="active" id="chronicle-current-tab" type="button" role="tab" data-chronicle-view="current" aria-controls="current-chronicle-view" aria-selected="true">Текущая эпоха</button>
+          <button id="chronicle-archive-tab" type="button" role="tab" data-chronicle-view="archive" aria-controls="epoch-history-view" aria-selected="false" tabindex="-1">Архив эпох <span id="epoch-count">0</span></button>
+        </nav>
+        <section class="chronicle-view" id="current-chronicle-view" role="tabpanel" aria-labelledby="chronicle-current-tab">
+          <div class="chronicle-layout"><div class="event-list" id="event-list"></div><aside class="world-rules"><h2>Как живёт мир</h2><ol><li>Бойцы сражаются только с противниками своей арены.</li><li>Победители получают опыт и снаряжение.</li><li>Для перехода выше нужны уровень и серия побед.</li><li>Погибший боец больше не создаётся повторно.</li><li>На каждой арене появляются новые бойцы её диапазона силы.</li></ol></aside></div>
+        </section>
+        <section class="chronicle-view epoch-history-view" id="epoch-history-view" hidden role="tabpanel" aria-labelledby="chronicle-archive-tab">
+          <header class="epoch-history-heading">
+            <div><p class="eyebrow">ЗАВЕРШЁННЫЕ ЛЕТОПИСИ</p><h2 id="epoch-history-title">Герои прошлых эпох</h2></div>
+            <p>Каждая завершённая эпоха сохраняет итоговый путь героя, законы мира, наследие и важнейшие события.</p>
+          </header>
+          <div class="epoch-history-summary" id="epoch-history-summary"></div>
+          <div class="epoch-history-list" id="epoch-history-list"></div>
+        </section>
       </section>
     </main>
 
@@ -380,6 +395,34 @@
         <footer class="comparison-actions">
           <button class="plain-button" id="comparison-back" type="button">Вернуться к выбору</button>
           <button class="button primary" id="comparison-equip" type="button">Надеть выбранное</button>
+        </footer>
+      </div>
+    </section>
+
+    <section class="new-chronicle-layer" id="new-chronicle-layer" hidden role="dialog" aria-modal="true" aria-labelledby="new-chronicle-title" aria-describedby="new-chronicle-copy">
+      <div class="new-chronicle-dialog" id="new-chronicle-dialog">
+        <header class="new-chronicle-heading">
+          <div>
+            <p class="eyebrow" id="new-chronicle-kicker">ЗАВЕРШЕНИЕ ЭПОХИ</p>
+            <h2 id="new-chronicle-title" tabindex="-1">Начать новую летопись</h2>
+            <p id="new-chronicle-copy">Выберите то, что прежний герой оставит следующему миру.</p>
+          </div>
+          <div class="new-chronicle-heading-actions">
+            <span id="new-chronicle-progress" aria-live="polite">Шаг 1 из 4</span>
+            <button class="dialog-close" id="close-new-chronicle" type="button" aria-label="Закрыть окно новой летописи">×</button>
+          </div>
+        </header>
+        <ol class="new-chronicle-steps" id="new-chronicle-steps" aria-label="Этапы подготовки новой летописи">
+          <li class="active" data-new-chronicle-step="0"><span>01</span><b>Наследие</b></li>
+          <li data-new-chronicle-step="1"><span>02</span><b>Предмет</b></li>
+          <li data-new-chronicle-step="2"><span>03</span><b>Закон мира</b></li>
+          <li data-new-chronicle-step="3"><span>04</span><b>Подтверждение</b></li>
+        </ol>
+        <section class="new-chronicle-stage" id="new-chronicle-stage"></section>
+        <footer class="new-chronicle-actions">
+          <button class="plain-button" id="new-chronicle-back" type="button">Назад</button>
+          <button class="button primary" id="new-chronicle-next" type="button">Продолжить</button>
+          <button class="button primary" id="new-chronicle-confirm" type="button" hidden>Начать новую эпоху</button>
         </footer>
       </div>
     </section>

@@ -387,7 +387,7 @@
 .leader-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11px;
+  font-size: 13px;
 }
 .leader-table th {
   position: sticky;
@@ -397,7 +397,7 @@
   color: #eae3d4;
   background: #3a352c;
   font:
-    9px "Courier New",
+    11px "Courier New",
     monospace;
   text-align: left;
   text-transform: uppercase;
