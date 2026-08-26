@@ -128,11 +128,6 @@ export function defaultLegacyState(): LegacyState {
   };
 }
 
-/**
- * Converts data loaded from localStorage into a complete, internally consistent
- * legacy state. Unknown ids are discarded so removed catalogue entries cannot
- * make a save impossible to open.
- */
 export function normalizeLegacyState(value?: Partial<LegacyState> | null): LegacyState {
   const fallback = defaultLegacyState();
   if (!value || typeof value !== "object") return fallback;
@@ -226,8 +221,6 @@ export function newGamePlusStatus(save: GameSave): NewGamePlusStatus {
     unlocked,
     targetCycle: legacy.cycle + 1,
     sealsAwarded,
-    // The seals for closing the current chronicle can immediately pay for the
-    // boon selected on the transition screen.
     availableSeals: legacy.seals + sealsAwarded,
     lawLimit: eraLawLimit(legacy.cycle + 1),
     requirements,
@@ -239,8 +232,6 @@ export function newGamePlusStatus(save: GameSave): NewGamePlusStatus {
 
 function fighterRecord(save: GameSave, fighterId: string): LegacyFighterRecord | undefined {
   const enemy = save.enemies.find((candidate) => candidate.id === fighterId);
-  // Death is permanent across chronicles too: the archive may remember a
-  // fallen rival by name, but it must never recreate them as a veteran.
   if (!enemy?.alive) return undefined;
   return {
     name: enemy.name,
@@ -306,7 +297,6 @@ export function buildLegacyArchive(save: GameSave, completedAt = Date.now()): Le
   };
 }
 
-/** Moderate numerical growth: later worlds gain mechanics from laws, not only HP. */
 export function epochDifficultyModifiers(cycle: number): EpochDifficultyModifiers {
   const completedCycles = Math.min(5, Math.max(0, positiveInteger(cycle) - 1));
   return {
@@ -403,11 +393,6 @@ export function inheritedSkillSupportsClass(item: EquipmentItem, targetClass: He
   return Boolean(skill && (skill.classes === "all" || skill.classes.includes(targetClass)));
 }
 
-/**
- * Recreates an inherited item at level one through ItemFactory. This deliberately
- * avoids carrying late-game stats, forge upgrades and relic growth into a fresh
- * world while preserving the visual template, history and compatible unique skill.
- */
 export function prepareInheritedItem(
   source: EquipmentItem,
   targetClass: HeroClass,

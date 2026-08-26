@@ -1,9 +1,5 @@
 export const MAX_EXPEDITION_STAMINA = 100;
 
-/**
- * The persisted field is still named `health` for save compatibility, but its
- * gameplay meaning is the expedition's remaining stamina in percent.
- */
 export function normalizeExpeditionStamina(value: unknown): number {
   const numeric = typeof value === "number" ? value : Number.NaN;
   if (!Number.isFinite(numeric)) return MAX_EXPEDITION_STAMINA;

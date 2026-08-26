@@ -1,5 +1,3 @@
-/* Cross-screen interaction rules. Component geometry remains in its own stylesheet. */
-
 :where(button, a, input, select, [role="button"]):focus-visible {
   outline: 3px solid #b67931;
   outline-offset: 2px;
@@ -18,8 +16,6 @@
   overflow-wrap: anywhere;
 }
 
-/* The three-column inventory shell leaves too little room for three item cards
-   on common laptop widths; two cards keep names and actions intact. */
 @media (max-width: 1400px) {
   .inventory-panel .item-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

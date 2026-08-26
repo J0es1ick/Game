@@ -22,10 +22,6 @@ function hashSeed(seed: number | string): number {
   return hash >>> 0 || 0x6d2b79f5;
 }
 
-/**
- * Small deterministic generator for world simulation and reproducible battles.
- * Its snapshot is deliberately serializable so a bug report can replay the same run.
- */
 export class SeededRandom implements RandomSource {
   private readonly initialSeed: number;
   private state: number;
@@ -83,7 +79,6 @@ export class SeededRandom implements RandomSource {
   }
 }
 
-/** Persists every consumed value, suitable for RNG streams stored inside a save. */
 export class PersistentSeededRandom implements RandomSource {
   private readonly source: SeededRandom;
 

@@ -460,40 +460,9 @@
   to { box-shadow: 0 0 0 4px rgba(213, 181, 104, 0.22); }
 }
 
-.toast-region {
-  position: fixed;
-  z-index: 120;
-  top: calc(var(--game-header-height, 76px) + 68px);
-  left: 20px;
-  display: grid;
-  width: min(360px, calc(100vw - 40px));
-  gap: 8px;
-}
-.toast {
-  padding: 13px 15px;
-  border: 1px solid #8a806e;
-  color: #f0e8d8;
-  background: #38332b;
-  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3);
-  font-size: 13px;
-  animation: toast-in 180ms ease-out;
-}
-.toast.error {
-  border-left: 5px solid var(--red);
-}
-.toast.ok {
-  border-left: 5px solid var(--green);
-}
-
 @keyframes page-in {
   from {
     opacity: 0;
     transform: translateY(6px);
-  }
-}
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateX(14px);
   }
 }

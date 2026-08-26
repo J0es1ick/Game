@@ -14,7 +14,6 @@ export interface TournamentRuleDefinition {
   heroStats?: Partial<Stats>;
   enemyStats?: Partial<Stats>;
   disableHealing?: boolean;
-  /** Flat health granted only to the lower-level fighter. */
   lowerLevelHealthBonus?: number;
 }
 

@@ -101,11 +101,6 @@ export interface BattleFighterState extends CombatantSnapshot {
   nextActionAt: number;
 }
 
-/**
- * Complete mutable fighter state required to continue a battle after reload.
- * Unlike CombatantSnapshot this also contains cooldowns, timeline initiative
- * and one-use mechanics that have already fired.
- */
 export interface BattleRuntimeSnapshot extends CombatantSnapshot {
   cooldowns: Record<string, number>;
   buff: number;
@@ -122,7 +117,6 @@ export interface BattleRuntimeSnapshot extends CombatantSnapshot {
   mutationState: EnemyMutationState;
 }
 
-/** JSON-safe state of an unfinished or completed BattleSession. */
 export interface BattleSessionSnapshot {
   version: 1;
   heroBefore: CombatantSnapshot;
@@ -240,9 +234,6 @@ function toRuntime(profile: HeroProfile | EnemyProfile, options: RuntimeOptions 
   const effectiveLevel = levelCap ? Math.min(profile.level, levelCap) : profile.level;
   const completedLevels = effectiveLevel - 1;
   const levelBonus: Partial<Stats> = {
-    // Health still grows enough to prevent first-hit kills, while attack gains
-    // a modest quadratic component. The previous curves made equal endgame
-    // builds take 40-120 actions because health outpaced damage every level.
     health: completedLevels * 16 + completedLevels ** 2 * 0.27,
     attack: completedLevels * 1.75 + completedLevels ** 2 * 0.075,
     defense: completedLevels * 0.85,
@@ -299,7 +290,6 @@ function isCombatantSnapshot(profile: HeroProfile | EnemyProfile | CombatantSnap
   return "maxHealth" in profile && "attack" in profile && "skills" in profile;
 }
 
-/** Rehydrates the exact public combat state shown to the player. */
 function runtimeFromSnapshot(snapshot: CombatantSnapshot): RuntimeFighter {
   const definition = CLASS_DEFINITIONS[snapshot.classId];
   const tactics = DEFAULT_TACTICAL_PROFILES.find((profile) => profile.style === snapshot.tacticalStyle)
@@ -485,9 +475,6 @@ function attackDamage(
   let mutationDamageMultiplier = 1;
   let mutationBonusDamageRatio = 0;
   if (actor.mutation) {
-    // A skill that deals weapon damage is both an attack and a used skill.
-    // Resolving both events keeps class attack mutations and spell mutations
-    // mechanically active without double-counting either reducer's counter.
     const eventTypes: Array<"attack" | "skill-used"> = ["attack", ...(skillId ? ["skill-used" as const] : [])];
     eventTypes.forEach((type) => {
       const mutation = resolveEnemyMutation(actor.mutation!, actor.mutationState, {
@@ -623,10 +610,6 @@ function performTurn(
   let healing = 0;
   let critical = false;
 
-  // Long defensive match-ups used to reach the hard 120-action timeout with
-  // both fighters repeatedly undoing all incoming damage. Pressure grows only
-  // after a full tactical exchange, so ordinary fights are untouched while
-  // late-game stalemates reach a visible conclusion instead of a hidden coin flip.
   const pressureTurns = Math.max(0, turn - 7);
   const damagePressure = 1 + Math.min(2, pressureTurns * 0.08);
   const healingPressure = Math.max(0, 1 - pressureTurns * 0.1);
@@ -683,9 +666,6 @@ function performTurn(
     damage = Math.max(damage, Math.round(target.maxHealth * minimumDamageShare));
     if (damagePressure >= 1.25) detail += "; усталость боя усилила натиск";
   }
-  // One action may contain a class combo or a critical skill, but never erases
-  // a healthy late-game combatant outright. Gear still reduces the number of
-  // required actions; this ceiling only preserves room for a response.
   damage = Math.min(damage, Math.max(1, Math.round(target.maxHealth * 0.48)));
 
   if (damage >= target.health && target.health > 1 && (target.setCounts.bastion ?? 0) >= 6
@@ -742,10 +722,6 @@ function runtimeSnapshot(runtime: RuntimeFighter): CombatantSnapshot {
   };
 }
 
-/**
- * A real step-by-step combat state machine. Automatic combat is only a thin
- * loop over this session, so manual and automatic modes now obey identical rules.
- */
 export class BattleSession {
   private readonly hero: RuntimeFighter;
   private readonly enemy: RuntimeFighter;
@@ -794,8 +770,6 @@ export class BattleSession {
     if (!enemyProfile) throw new TypeError("BattleSession requires an enemy profile.");
     this.random = options.randomSource ?? nativeRandom;
     if (isCombatantSnapshot(heroProfile) && isCombatantSnapshot(enemyProfile)) {
-      // Reports already contain level caps, rule modifiers and final stats, so
-      // applying CombatOptions again would double those modifiers.
       this.hero = runtimeFromSnapshot(heroProfile);
       this.enemy = runtimeFromSnapshot(enemyProfile);
     } else if (!isCombatantSnapshot(heroProfile) && !isCombatantSnapshot(enemyProfile)) {
@@ -845,11 +819,6 @@ export class BattleSession {
     return this.turnLog;
   }
 
-  /**
-   * Captures an exact JSON-safe continuation point. Persisted world battles
-   * deliberately use SeededRandom; an arbitrary random provider cannot be
-   * recovered faithfully and is rejected instead of silently diverging.
-   */
   public snapshot(): BattleSessionSnapshot {
     const random = this.random as RandomSource & { snapshot?: () => RandomSnapshot };
     if (typeof random.snapshot !== "function") {
@@ -917,7 +886,6 @@ export class BattleSession {
     return this.resolution();
   }
 
-  /** Records a real loss instead of allowing an in-progress fight to reroll. */
   public forfeit(fighterId = this.hero.id): CombatResolution {
     if (this.isFinished) return this.resolution();
     const loser = fighterId === this.hero.id ? this.hero : fighterId === this.enemy.id ? this.enemy : undefined;
@@ -953,8 +921,6 @@ export class BattleSession {
   }
 
   private actionInterval(fighter: RuntimeFighter): number {
-    // Initiative is a timeline, not a one-off first-turn coin flip. A faster
-    // fighter can act several times before a slow opponent during a long duel.
     return 100 / Math.max(8, 12 + fighter.speed);
   }
 

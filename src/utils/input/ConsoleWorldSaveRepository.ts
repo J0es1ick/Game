@@ -15,13 +15,6 @@ export interface LoadedConsoleWorldSave {
   source: ConsoleSaveSource;
 }
 
-/**
- * File-backed save storage for the Node.js client.
- *
- * A verified temporary envelope is deliberately kept until the primary file
- * has been replaced. If the process stops during the copy, the next launch
- * recovers the complete temporary save before looking at the older primary.
- */
 export class ConsoleWorldSaveRepository {
   public readonly backupPath: string;
   public readonly temporaryPath: string;

@@ -19,7 +19,6 @@ export interface CombatContext {
   combo: number;
   healthRatio: number;
   setCounts: Readonly<Record<string, number>>;
-  /** Injected battle RNG; legacy callers may omit it. */
   random?: () => number;
 }
 
@@ -192,11 +191,6 @@ export abstract class Player {
     return damage;
   }
 
-  /**
-   * Общая точка расширения для числового симулятора живого мира.
-   * Старый пошаговый Game использует attack/takeDamage, а расширенный режим
-   * вызывает те же полиморфные правила без дублирования switch по классам.
-   */
   public modifyCombatAttack(damage: number, context: CombatContext): CombatModifier {
     return { damage };
   }

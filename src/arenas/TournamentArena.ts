@@ -2,7 +2,6 @@ import type { Player } from "../abstract/Player";
 import type { ArenaDefinition } from "../gameplay/WorldTypes";
 import type { IArena } from "./IArena";
 
-/** Календарная арена расширенного режима, использующая тот же контракт, что и базовый Game. */
 export class TournamentArena implements IArena, ArenaDefinition {
   public readonly kind = "arena" as const;
   public readonly damageMultiplier: number;

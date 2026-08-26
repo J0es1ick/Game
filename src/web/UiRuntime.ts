@@ -1,10 +1,5 @@
 export type UiPageRenderer<Page extends string> = (animate: boolean) => void;
 
-/**
- * Keeps expensive pages lazy and makes invalidation explicit. A mutation can
- * invalidate several views without rebuilding any of them until they become
- * visible.
- */
 export class DirtyPageRegistry<Page extends string> {
   private readonly dirty = new Set<Page>();
 
@@ -45,7 +40,6 @@ export function pageFromHash<Page extends string>(hash: string, pages: readonly 
 
 type TimerHandle = ReturnType<typeof setTimeout>;
 
-/** A timeout whose remaining time survives hover/focus pauses. */
 export class PausableTimeout {
   private handle: TimerHandle | null = null;
   private startedAt = 0;
@@ -119,7 +113,6 @@ const focusableSelector = [
   "[tabindex]:not([tabindex='-1'])",
 ].join(",");
 
-/** Shared focus, Escape and background-lock behaviour for blocking dialogs. */
 export class ModalController {
   private readonly stack: OpenModal[] = [];
   private readonly backgroundSelector = ".game-header, .main-nav, .game-shell, .basic-shell";
@@ -137,9 +130,6 @@ export class ModalController {
       options,
       returnFocus: this.document.activeElement instanceof HTMLElement ? this.document.activeElement : null,
     });
-    // Older screens used the utility class while newer dialogs use the
-    // native hidden attribute. Clear both representations so a migrated
-    // screen cannot remain visually hidden after the controller opens it.
     layer.classList.remove("hidden");
     layer.hidden = false;
     layer.setAttribute("aria-modal", "true");

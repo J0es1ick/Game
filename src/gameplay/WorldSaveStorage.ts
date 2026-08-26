@@ -94,11 +94,6 @@ export function exportWorldSave(save: GameSave, now = Date.now()): string {
   return JSON.stringify(envelope, null, 2);
 }
 
-/**
- * Local-storage compatible repository with a last-known-good backup and a
- * temporary write. It intentionally has no browser dependency and is therefore
- * reusable by tests, the SPA and future desktop builds.
- */
 export class WorldSaveRepository {
   public readonly backupKey: string;
   public readonly temporaryKey: string;
@@ -112,9 +107,6 @@ export class WorldSaveRepository {
   }
 
   public load(): LoadedWorldSave | null {
-    // A temporary copy only survives when the previous two-phase save was
-    // interrupted after its verified write. Prefer and promote it before the
-    // older primary, otherwise a browser crash silently loses recent progress.
     const interrupted = this.storage.getItem(this.temporaryKey);
     if (interrupted) {
       const parsed = safeParseWorldSave(interrupted);
@@ -125,7 +117,6 @@ export class WorldSaveRepository {
         this.storage.removeItem(this.temporaryKey);
         return { save: parsed.save, source: "temporary" };
       }
-      // A damaged interrupted write must not shadow a valid primary forever.
       this.storage.removeItem(this.temporaryKey);
     }
     const candidates: Array<[LoadedWorldSave["source"], string]> = [
@@ -147,7 +138,6 @@ export class WorldSaveRepository {
     if (current && safeParseWorldSave(current).save) this.storage.setItem(this.backupKey, current);
 
     this.storage.setItem(this.temporaryKey, serialized);
-    // Verify what the adapter actually persisted before replacing the primary.
     const temporary = this.storage.getItem(this.temporaryKey);
     if (!temporary || !safeParseWorldSave(temporary).save) {
       throw new Error("Не удалось проверить временную копию сохранения.");

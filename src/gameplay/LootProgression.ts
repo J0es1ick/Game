@@ -112,7 +112,6 @@ function rolledStatValue(item: EquipmentItem, stat: keyof Stats, random: RandomS
   return Math.max(1, Math.round(base * rarity * enhancement * quality));
 }
 
-/** Reforges exactly one base property and never mutates the source item. */
 export function reforgeProperty(item: EquipmentItem, request: ReforgeRequest, random: RandomSource): ReforgeResult {
   const previous = item.stats[request.sourceStat];
   if (previous === undefined) throw new RangeError(`У предмета нет свойства ${request.sourceStat}.`);
@@ -145,7 +144,6 @@ function matchesTarget(item: EquipmentItem, target: LootTarget): boolean {
   return (!target.slot || item.slot === target.slot) && (!target.setId || item.setId === target.setId);
 }
 
-/** Rolls from a prepared loot pool and guarantees the selected target at hard pity. */
 export function rollTargetedLoot(
   pool: readonly EquipmentItem[],
   target: LootTarget,
@@ -185,10 +183,6 @@ function classAllows(item: EquipmentItem, classId?: HeroClass): boolean {
   return !classId || item.allowedClasses === "all" || item.allowedClasses.includes(classId);
 }
 
-/**
- * Beam-searches a six-slot loadout. Keeping the best individual pieces plus
- * every set representative prevents a full set from being discarded too early.
- */
 export function evaluateBestEquipment(
   inventory: readonly EquipmentItem[],
   options: { classId?: HeroClass; beamWidth?: number; candidatesPerSlot?: number } = {},

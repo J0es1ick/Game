@@ -36,6 +36,7 @@ import {
 import { ERA_LAWS, LEGACY_BOONS, legacyTitleForCycle } from "../catalogs/NewGamePlusCatalog";
 import { countermeasureDefinition, memoryStageDefinition, type EnemyMemoryCombatRead } from "../gameplay/EnemyMemory";
 import { CLASS_CHANGE_GOLD_COST, CLASS_CHANGE_MARK_COST, WorldGame, skillById } from "../gameplay/WorldGame";
+import { buildLegacySalvageEntries, sortLegacyPathCandidates } from "../gameplay/EquipmentLegacy";
 import { createEquipmentIcon, renderCharacterDoll } from "./CharacterDoll";
 import { basicTournamentUi } from "./BasicTournamentUi";
 import { gameAudio } from "./GameAudio";
@@ -157,7 +158,6 @@ let newChronicleClass: HeroClass = "Knight";
 let newChronicleConfirmed = false;
 let newChronicleName = "";
 let newChronicleReturnFocus: HTMLElement | null = null;
-const activeToasts = new Map<string, { node: HTMLElement; count: number; timer: number }>();
 const modalController = new ModalController(document);
 const lootReminderTimeout = new PausableTimeout();
 const saveRepository = new WorldSaveRepository(localStorage, SAVE_KEY);
@@ -195,16 +195,13 @@ function renderGearActions(): void {
     checkbox.dataset.focusKey = `${container.id}:auto`;
     auto.append(checkbox, document.createTextNode(" Автоматически надевать лучшее"));
     best.addEventListener("click", () => {
-      const equipped = game!.equipBest(); persist(); refreshEquipmentViews(true);
-      toast(equipped.length ? "Выбрано лучшее доступное снаряжение." : "Подходящего снаряжения пока нет.");
+      game!.equipBest(); persist(); refreshEquipmentViews(true);
     });
     set.addEventListener("click", () => {
-      const equipped = game!.equipBest("set"); persist(); refreshEquipmentViews(true);
-      toast(equipped.length ? "Собран наиболее полный доступный комплект." : "Частей комплектов пока нет.");
+      game!.equipBest("set"); persist(); refreshEquipmentViews(true);
     });
     checkbox.addEventListener("change", () => {
       game!.setAutoEquipBest(checkbox.checked); persist(); refreshEquipmentViews(true);
-      toast(checkbox.checked ? "Автоэкипировка включена." : "Автоэкипировка выключена.");
     });
     container.append(best, set, auto);
   };
@@ -267,7 +264,7 @@ function persist(options: { deferFeatureUnlocks?: boolean } = {}): void {
   try {
     saveRepository.save(game.save);
   } catch (error) {
-    toast((error as Error).message, "error");
+    notifyError((error as Error).message);
     return;
   }
   pageRegistry.invalidateAll();
@@ -317,38 +314,15 @@ function classForTemplate(classes: HeroClass[] | "all"): HeroClass {
   return classes[0] ?? "Knight";
 }
 
-function toast(message: string, kind: "ok" | "error" = "ok"): void {
-  const key = `${kind}:${message}`;
-  const current = activeToasts.get(key);
-  if (current) {
-    window.clearTimeout(current.timer);
-    current.count += 1;
-    current.node.textContent = current.count > 1 ? `${message} · ×${current.count}` : message;
-    current.timer = window.setTimeout(() => {
-      current.node.remove();
-      activeToasts.delete(key);
-    }, 3200);
-    return;
-  }
-  const node = element("div", `toast ${kind}`, message);
-  const region = $("#toast-region");
-  while (region.childElementCount >= 4) {
-    const oldest = region.firstElementChild as HTMLElement | null;
-    if (!oldest) break;
-    const oldestEntry = [...activeToasts.entries()].find(([, value]) => value.node === oldest);
-    if (oldestEntry) {
-      window.clearTimeout(oldestEntry[1].timer);
-      activeToasts.delete(oldestEntry[0]);
-    }
-    oldest.remove();
-  }
-  region.append(node);
-  const record = { node, count: 1, timer: 0 };
-  record.timer = window.setTimeout(() => {
-    node.remove();
-    activeToasts.delete(key);
-  }, 3200);
-  activeToasts.set(key, record);
+function notifyError(message: string): void {
+  queueWorldEffect({
+    eyebrow: "ДЕЙСТВИЕ НЕ ВЫПОЛНЕНО",
+    title: "Проверьте условие",
+    description: message,
+    symbol: "!",
+    tone: "negative",
+    duration: 3200,
+  });
 }
 
 function updateSoundControls(): void {
@@ -378,9 +352,8 @@ function initializeStickyOffsets(): void {
 }
 
 function toggleSound(): void {
-  const muted = gameAudio.toggle();
+  gameAudio.toggle();
   updateSoundControls();
-  toast(muted ? "Звуки отключены." : "Звуки включены.");
 }
 
 function featureStatsText(stats: Partial<Stats>): string {
@@ -685,7 +658,6 @@ function createHero(): void {
   modalController.close($("#creation-screen"), false);
   renderAll();
   openTutorial(true);
-  toast(`${name}: путь начался.`);
   queueWorldEffect({ eyebrow: "НОВАЯ ЛЕТОПИСЬ", title: name, description: `${CLASS_DEFINITIONS[selectedClass].name} выходит на первую арену.`, symbol: classIcons[selectedClass], tone: "legendary", sound: "reputation", duration: 2600 });
 }
 
@@ -860,7 +832,7 @@ function renderHeroVisual(animateHistory = true): void {
     row.append(swatch, copy);
     if (item) {
       const remove = element("button", "small-button unequip-inline", "Снять");
-      remove.addEventListener("click", (event) => { event.stopPropagation(); game!.unequip(slot); persist(); refreshEquipmentViews(true); toast(`${item.name} снят.`); });
+      remove.addEventListener("click", (event) => { event.stopPropagation(); game!.unequip(slot); persist(); refreshEquipmentViews(true); });
       row.append(remove);
     }
     designs.append(row);
@@ -922,9 +894,8 @@ function renderClassChangePanel(): void {
       game!.changeHeroClass(nextClass); persist();
       renderHeader();
       preserveUiFocus(() => renderActivePage(false));
-      toast(`Новый класс: ${nextName}. Подходящее снаряжение надето автоматически.`);
       queueWorldEffect({ eyebrow: "НОВАЯ СПЕЦИАЛИЗАЦИЯ", title: nextName, description: "Класс изменён. Навыки и подходящее снаряжение собраны заново.", symbol: "✦", tone: "legendary", sound: "reputation" });
-    } catch (error) { toast((error as Error).message, "error"); }
+    } catch (error) { notifyError((error as Error).message); }
   });
   controls.append(select, button, element("small", "", `Смен класса: ${hero.classChanges}`));
   panel.append(copy, controls);
@@ -1090,9 +1061,8 @@ function registerForTournament(arenaId: string): void {
   if (!game) return;
   try {
     const day = game.registerTournament(arenaId); persist(); refreshMapViews(false);
-    toast(`Место зарезервировано. Турнир начнётся в день ${day}.`);
     queueWorldEffect({ eyebrow: "КАЛЕНДАРЬ ТУРНИРОВ", title: `Запись на день ${day}`, description: "Место в сетке закреплено за героем. В день события появится напоминание.", symbol: "◇", sound: "choice" });
-  } catch (error) { toast((error as Error).message, "error"); }
+  } catch (error) { notifyError((error as Error).message); }
 }
 
 function registerForCrownLeague(): void {
@@ -1101,9 +1071,8 @@ function registerForCrownLeague(): void {
     const day = game.registerCrownLeague();
     persist();
     refreshMapViews(false);
-    toast(`Место в Лиге короны зарезервировано на день ${day}.`);
     queueWorldEffect({ eyebrow: "ЭЛИТНЫЙ ОТБОР", title: `Лига короны · день ${day}`, description: "Победа в редком турнире откроет дорогу в элитную тридцатку.", symbol: "♛", tone: "legendary", sound: "reputation" });
-  } catch (error) { toast((error as Error).message, "error"); }
+  } catch (error) { notifyError((error as Error).message); }
 }
 
 interface ScheduledTournament {
@@ -1308,7 +1277,7 @@ function closeDungeonWindow(): void {
     return;
   }
   if (game?.save.activeExpedition) {
-    toast("Сначала завершите поход или отступите, чтобы вернуться к карте.");
+    notifyError("Сначала завершите поход или отступите, чтобы вернуться к карте.");
     return;
   }
   modalController.close($("#dungeon-layer"));
@@ -1408,9 +1377,8 @@ function equipFromDialog(item: EquipmentItem): void {
     closeEquipmentComparison();
     closeEquipmentPicker();
     refreshEquipmentViews(true);
-    toast(`${item.name} экипирован.`);
   } catch (error) {
-    toast((error as Error).message, "error");
+    notifyError((error as Error).message);
   }
 }
 
@@ -1459,9 +1427,9 @@ function renderEquipmentComparison(): void {
     equip.onclick = () => {
       try {
         const bought = game!.buy(comparisonShopIndex!);
-        persist(); closeEquipmentComparison(); refreshEquipmentViews(true); toast(`${bought.name} добавлен в инвентарь.`);
+        persist(); closeEquipmentComparison(); refreshEquipmentViews(true);
         queueWorldEffect({ eyebrow: "НОВАЯ ПОКУПКА", title: bought.name, description: `${RARITY_LABELS[bought.rarity]} снаряжение добавлено в инвентарь.`, symbol: "◆", tone: rarityAtLeastUi(bought.rarity, "legendary") ? "legendary" : "positive", sound: "loot" });
-      } catch (error) { toast((error as Error).message, "error"); }
+      } catch (error) { notifyError((error as Error).message); }
     };
   } else {
     equip.disabled = alreadyEquipped || !canHeroEquip(candidate);
@@ -1549,8 +1517,8 @@ function renderLootReminder(): void {
   equip.textContent = alreadyEquipped ? "Уже надето автоматически" : canHeroEquip(item) ? "Надеть" : "Не подходит классу";
   equip.onclick = () => {
     try {
-      game!.equip(item.id); persist(); refreshEquipmentViews(true); advanceLootReminder(); toast(`${item.name} экипирован.`);
-    } catch (error) { toast((error as Error).message, "error"); }
+      game!.equip(item.id); persist(); refreshEquipmentViews(true); advanceLootReminder();
+    } catch (error) { notifyError((error as Error).message); }
   };
 
   const reminder = $("#loot-reminder");
@@ -1716,7 +1684,7 @@ function presentPendingNarrativeEvent(): boolean {
           duration: 2800,
         });
         window.setTimeout(resumeDeferredUi, 80);
-      } catch (error) { toast((error as Error).message, "error"); }
+      } catch (error) { notifyError((error as Error).message); }
     });
     return card;
   }));
@@ -1771,7 +1739,7 @@ function renderEquipmentPicker(): void {
     const remove = element("button", "small-button muted", "Снять");
     remove.type = "button";
     remove.addEventListener("click", () => {
-      game!.unequip(slot); persist(); refreshEquipmentViews(true); renderEquipmentPicker(); toast(`${equipped.name} снят.`);
+      game!.unequip(slot); persist(); refreshEquipmentViews(true); renderEquipmentPicker();
     });
     line.append(copy, remove); current.append(line);
   } else {
@@ -1830,8 +1798,8 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
       try {
         if (equipped) game!.unequip(item.slot);
         else game!.equip(item.id);
-        persist(); refreshEquipmentViews(true); toast(equipped ? `${item.name} снят.` : `${item.name} экипирован.`);
-      } catch (error) { toast((error as Error).message, "error"); }
+        persist(); refreshEquipmentViews(true);
+      } catch (error) { notifyError((error as Error).message); }
     });
     const sellable = game!.canSell(item.id);
     const sell = element("button", "small-button muted sell-button", sellable ? `Продать · ${Math.round(item.price * 0.45)} ¤` : "Регалия короны");
@@ -1844,7 +1812,7 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
       const previousHeight = inventoryGrid.offsetHeight;
       sell.blur();
       try {
-        const value = game!.sell(item.id);
+        game!.sell(item.id);
         persist();
         inventoryGrid.style.minHeight = `${previousHeight}px`;
         renderHeader();
@@ -1854,8 +1822,7 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
           inventoryGrid.style.minHeight = "";
           window.scrollTo(0, scrollTop);
         });
-        toast(`Получено ${value} монет.`);
-      } catch (error) { toast((error as Error).message, "error"); }
+      } catch (error) { notifyError((error as Error).message); }
     });
     controls.append(compare, equip, sell);
   } else {
@@ -1871,9 +1838,8 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
         const bought = game!.buy(shopIndex);
         persist();
         refreshEquipmentViews(true);
-        toast(`${bought.name} добавлен в инвентарь.`);
         queueWorldEffect({ eyebrow: "НОВАЯ ПОКУПКА", title: bought.name, description: `${RARITY_LABELS[bought.rarity]} снаряжение добавлено в инвентарь.`, symbol: "◆", tone: rarityAtLeastUi(bought.rarity, "legendary") ? "legendary" : "positive", sound: "loot" });
-      } catch (error) { toast((error as Error).message, "error"); }
+      } catch (error) { notifyError((error as Error).message); }
     });
     controls.append(compare, buy);
   }
@@ -2017,7 +1983,7 @@ function renderSkills(animateItems = true): void {
     const next = new Set(hero.selectedSkillIds.filter((id) => available.has(id)));
     if (next.has(skillId)) next.delete(skillId);
     else if (next.size < MAX_ACTIVE_SKILLS) next.add(skillId);
-    else { toast(`Можно выбрать не больше ${MAX_ACTIVE_SKILLS} навыков.`, "error"); return; }
+    else { notifyError(`Можно выбрать не больше ${MAX_ACTIVE_SKILLS} навыков.`); return; }
     game!.setAutoSelectSkills(false);
     game!.setSelectedSkills([...next]);
     persist(); preserveUiFocus(() => renderSkills(false));
@@ -2124,7 +2090,7 @@ function renderEraChallengePanel(): HTMLElement | null {
 function openNewChronicleDialog(): void {
   if (!game) return;
   const status = game.newGamePlusStatus();
-  if (!status.unlocked) { toast(status.reason, "error"); return; }
+  if (!status.unlocked) { notifyError(status.reason); return; }
   newChronicleStep = 0;
   newChronicleClass = game.save.hero.classId;
   newChronicleName = game.save.hero.name;
@@ -2310,7 +2276,7 @@ function renderNewChronicleStep(): void {
         if (isSelected) selectedWorldLawIds = selectedWorldLawIds.filter((id) => id !== law.id);
         else if (status.lawLimit === 1) selectedWorldLawIds = [law.id];
         else if (selectedWorldLawIds.length < status.lawLimit) selectedWorldLawIds.push(law.id);
-        else { toast(`Можно выбрать не больше ${status.lawLimit}.`, "error"); return; }
+        else { notifyError(`Можно выбрать не больше ${status.lawLimit}.`); return; }
         grid.querySelectorAll<HTMLButtonElement>(".new-chronicle-choice").forEach((choice) => {
           const nowSelected = selectedWorldLawIds.includes(choice.dataset.choiceId as EraLawId);
           choice.classList.toggle("selected", nowSelected);
@@ -2388,8 +2354,7 @@ function confirmNewChronicle(): void {
       description: `${game.save.hero.name} принимает мир с новыми законами и памятью прежнего героя.`,
       symbol: "Ⅱ", tone: "legendary", sound: "reputation", duration: 3600,
     });
-    toast("Новая эпоха началась. Прошлый мир сохранён в архиве.");
-  } catch (error) { toast((error as Error).message, "error"); }
+  } catch (error) { notifyError((error as Error).message); }
 }
 
 function showChronicleView(view: "current" | "archive"): void {
@@ -2456,7 +2421,7 @@ function startLegacyChampion(): void {
     currentReport = game.fightLegacyChampion();
     persist();
     openBattleReport(currentReport);
-  } catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); }
+  } catch (error) { battleEquipmentBefore = null; notifyError((error as Error).message); }
 }
 
 function renderEndgame(animateItems = true): void {
@@ -2495,7 +2460,6 @@ function renderEndgame(animateItems = true): void {
         game!.setAutoResolveLegendChallenges(input.checked);
         persist();
         renderEndgame(false);
-        toast(input.checked ? "Автоматическая защита титула включена." : "Защита титула снова требует личного решения.");
       });
       automatic.append(input, document.createTextNode(" Автоматически рассчитывать защиту титула"));
       card.append(automatic, element("small", "auto-defense-note", "Если начать другое занятие в день вызова, бой пройдёт в фоне до смены дня."));
@@ -2710,10 +2674,10 @@ function renderContracts(): void {
 function acceptContract(id: string, approach: "honor" | "profit"): void {
   if (!game) return;
   try {
-    const contract = game.acceptContract(id, approach); persist(); renderContracts(); renderHeader(); toast(`Принят контракт «${contract.title}».`);
+    const contract = game.acceptContract(id, approach); persist(); renderContracts(); renderHeader();
     queueWorldEffect({ eyebrow: approach === "honor" ? "КЛЯТВА ЧЕСТИ" : "УСЛОВИЯ СДЕЛКИ", title: contract.title, description: approach === "honor" ? "Репутация фракции важнее быстрой прибыли." : "Награда монетами важнее признания фракции.", symbol: "§", tone: "neutral", sound: "reputation" });
   }
-  catch (error) { toast((error as Error).message, "error"); }
+  catch (error) { notifyError((error as Error).message); }
 }
 
 function renderCollections(): void {
@@ -2798,10 +2762,10 @@ function renderForge(animateItems = true, preserveOrder = false): void {
     button.disabled = enhancement >= 5 || hero.temperingMarks < game!.upgradeCost(item.id);
     button.addEventListener("click", () => {
       try {
-        game!.upgradeItem(item.id); persist(); refreshEquipmentViews(true); toast(`${item.name} усилен.`);
+        game!.upgradeItem(item.id); persist(); refreshEquipmentViews(true);
         queueWorldEffect({ eyebrow: "КУЗНИЦА", title: `${item.name} · закалка +${enhancement + 1}`, description: "Характеристики предмета повышены навсегда.", symbol: "⚒", tone: "positive", sound: "forge" });
       }
-      catch (error) { toast((error as Error).message, "error"); }
+      catch (error) { notifyError((error as Error).message); }
     });
     const actions = element("div", "forge-card-actions");
     actions.append(button);
@@ -2869,7 +2833,6 @@ function renderLootTargetWorkshop(): void {
     game!.setLootTarget(undefined);
     persist();
     preserveUiFocus(() => pageRegistry.render("legacy", { force: true, animate: false }));
-    toast("Целевая охота отменена.");
   });
   actions.append(save, clear);
   controls.append(slotLabel, setLabel, actions);
@@ -2889,8 +2852,7 @@ function renderLootTargetWorkshop(): void {
       game!.setLootTarget(nextTarget);
       persist();
       preserveUiFocus(() => pageRegistry.render("legacy", { force: true, animate: false }));
-      toast("Цель добычи сохранена.");
-    } catch (error) { toast((error as Error).message, "error"); }
+    } catch (error) { notifyError((error as Error).message); }
   });
 
   const status = element("aside", "loot-target-status");
@@ -2963,7 +2925,6 @@ function renderReforgeControl(item: EquipmentItem): HTMLElement {
       pageRegistry.invalidate("hero", "arsenal", "collections", "shop");
       preserveUiFocus(() => renderForge(false, true));
       const direction = result.powerDelta >= 0 ? `+${result.powerDelta}` : String(result.powerDelta);
-      toast(`${item.name}: ${comparisonStatLabels[result.sourceStat as ComparisonStat]} заменено на ${comparisonStatLabels[result.targetStat as ComparisonStat]}. Сила ${direction}.`);
       queueWorldEffect({
         eyebrow: "ПЕРЕКОВКА",
         title: item.name,
@@ -2973,7 +2934,7 @@ function renderReforgeControl(item: EquipmentItem): HTMLElement {
         tone: result.powerDelta >= 0 ? "positive" : "neutral",
         sound: "forge",
       });
-    } catch (error) { toast((error as Error).message, "error"); }
+    } catch (error) { notifyError((error as Error).message); }
   });
   body.append(sourceLabel, targetLabel, price, submit);
   details.append(summary, body);
@@ -3026,7 +2987,10 @@ function renderRelicWorkshop(): void {
   const hero = game.save.hero;
   const equippedIds = new Set(Object.values(hero.equipped));
   const relics = hero.inventory.filter((item) => rarityAtLeastUi(item.rarity, "legendary"));
-  const ready = relics.filter((item) => (item.relicTier ?? 0) >= 1 && !item.relicPath);
+  const ready = sortLegacyPathCandidates(
+    relics.filter((item) => (item.relicTier ?? 0) >= 1 && !item.relicPath),
+    equippedIds,
+  );
   const head = element("div", "relic-workshop-head");
   const title = element("h2", "", "Предметы помнят победы");
   title.id = "relic-workshop-title";
@@ -3035,8 +2999,22 @@ function renderRelicWorkshop(): void {
   markTerm(resource.querySelector<HTMLElement>("span")!, "relicDust");
   const list = element("div", "relic-ready-list");
   ready.forEach((item) => {
-    const row = element("article");
-    const copy = element("div"); copy.append(element("strong", "", item.relicName ?? item.name), element("small", "", `Наследие ${item.relicTier}/3 · известность ${item.relicRenown ?? 0} · следующий порог ${RELIC_TIER_THRESHOLDS[Math.min(3, (item.relicTier ?? 0) + 1)]}`));
+    const isEquipped = equippedIds.has(item.id);
+    const row = element("article", `relic-ready-card rarity-${item.rarity}${isEquipped ? " equipped" : ""}`);
+    row.style.setProperty("--rarity-accent", rarityColors[item.rarity]);
+    const copy = element("div", "relic-ready-copy");
+    const identity = element("div", "relic-ready-identity");
+    const names = element("div");
+    names.append(
+      element("small", "relic-item-kicker", `${SLOT_LABELS[item.slot]} · ${RARITY_LABELS[item.rarity]} · ${item.level} ур.`),
+      element("strong", "", item.relicName ?? item.name),
+    );
+    identity.append(equipmentArtwork(item.slot, hero.classId, "equipment-art relic-ready-art", item), names);
+    if (isEquipped) identity.append(element("span", "relic-item-status equipped", "Надето"));
+    copy.append(
+      identity,
+      element("small", "relic-progress-copy", `Наследие ${item.relicTier}/3 · известность ${item.relicRenown ?? 0} · следующий порог ${RELIC_TIER_THRESHOLDS[Math.min(3, (item.relicTier ?? 0) + 1)]}`),
+    );
     const actions = element("div");
     RELIC_PATHS.forEach((path) => {
       const option = element("div", "relic-path-option");
@@ -3049,9 +3027,8 @@ function renderRelicWorkshop(): void {
         game!.awakenRelic(item.id, path.id);
         persist();
         preserveUiFocus(() => pageRegistry.render("legacy", { force: true, animate: false }));
-        toast(`${item.name} обрёл собственный путь.`);
         queueWorldEffect({ eyebrow: "ПРОБУЖДЕНИЕ РЕЛИКВИИ", title: path.name, description: path.description, stats: featureStatsText(path.stats).split(" · ").filter(Boolean), symbol: "✦", tone: "legendary", sound: "loot", duration: 2800 });
-      } catch (error) { toast((error as Error).message, "error"); } });
+      } catch (error) { notifyError((error as Error).message); } });
       const tooltip = element("aside", "relic-path-tooltip");
       tooltip.id = tooltipId;
       tooltip.setAttribute("role", "tooltip");
@@ -3068,40 +3045,68 @@ function renderRelicWorkshop(): void {
   });
   if (ready.length === 0) list.append(element("p", "empty-copy", relics.length ? "Продолжайте побеждать с легендарными предметами: путь откроется на первой ступени наследия." : "Легендарных предметов пока нет."));
 
-  const salvageable = hero.inventory.filter((item) => !equippedIds.has(item.id) && game!.canSell(item.id));
-  const salvage = element("details", "relic-salvage");
-  const salvageSummary = element("summary", "", "Разобрать ненужный предмет в пыль");
-  const salvageForm = element("form", "relic-salvage-form") as HTMLFormElement;
-  const salvageLabel = element("label");
-  salvageLabel.append(document.createTextNode("Предмет для разбора"));
-  const salvageSelect = element("select") as HTMLSelectElement;
-  salvageSelect.dataset.focusKey = "legacy:salvage:item";
-  const dustByRarity: Record<Rarity, number> = { common: 1, rare: 2, epic: 4, legendary: 8, mythic: 14 };
-  salvageable.forEach((item) => {
-    const dust = dustByRarity[item.rarity] + (item.enhancement ?? 0);
-    salvageSelect.append(new Option(`${displayItemName(item)} · ${RARITY_LABELS[item.rarity]} · ${dust} пыли`, item.id));
+  const salvageEntries = buildLegacySalvageEntries(hero.inventory, equippedIds, (itemId) => game!.canSell(itemId));
+  const availableCount = salvageEntries.filter((entry) => entry.status === "available").length;
+  const salvage = element("section", "relic-salvage");
+  const salvageHeading = element("div", "relic-salvage-heading");
+  salvageHeading.append(
+    element("div", "", "Разобрать предмет в пыль"),
+    element("small", "", `Доступно для разбора: ${availableCount} из ${salvageEntries.length}`),
+  );
+  const salvageList = element("div", "relic-salvage-list");
+  salvageEntries.forEach((entry, index) => {
+    const item = entry.item;
+    const card = element("article", `relic-salvage-card rarity-${item.rarity} status-${entry.status}`);
+    card.style.setProperty("--rarity-accent", rarityColors[item.rarity]);
+    const art = equipmentArtwork(item.slot, hero.classId, "equipment-art relic-salvage-art", item);
+    const copy = element("div", "relic-salvage-copy");
+    copy.append(
+      element("small", "relic-item-kicker", `${SLOT_LABELS[item.slot]} · ${RARITY_LABELS[item.rarity]} · ${item.level} ур.${item.enhancement ? ` · закалка +${item.enhancement}` : ""}`),
+      element("strong", "", displayItemName(item)),
+      element("span", "relic-salvage-stats", itemStatsText(item) || "Без базовых характеристик"),
+    );
+    const state = element("div", "relic-salvage-state");
+    if (entry.status === "equipped") {
+      state.append(
+        element("span", "relic-item-status equipped", "Надето"),
+        element("small", "", `После снятия: ${entry.dust} пыли`),
+      );
+    } else if (entry.status === "protected") {
+      state.append(
+        element("span", "relic-item-status protected", "Не разбирается"),
+        element("small", "", "Регалия элиты защищена"),
+      );
+    } else {
+      const salvageButton = element("button", "plain-button relic-salvage-button", `Разобрать · +${entry.dust} пыли`);
+      salvageButton.type = "button";
+      salvageButton.dataset.focusKey = `legacy:salvage:${item.id}`;
+      salvageButton.addEventListener("click", () => {
+        const description = `${SLOT_LABELS[item.slot]} · ${RARITY_LABELS[item.rarity]} · ${item.level} уровень${item.enhancement ? ` · закалка +${item.enhancement}` : ""}`;
+        if (!window.confirm(`Разобрать «${displayItemName(item)}» без возможности восстановления?\n${description}\nБудет получено: ${entry.dust} пыли.`)) return;
+        try {
+          const dust = game!.salvageItem(item.id);
+          persist();
+          renderHeader();
+          preserveUiFocus(() => pageRegistry.render("legacy", { force: true, animate: false }));
+          queueWorldEffect({
+            eyebrow: "НАСЛЕДИЕ СНАРЯЖЕНИЯ",
+            title: "Предмет разобран",
+            description: `${displayItemName(item)} превращён в реликтовую пыль.`,
+            stats: [`+${dust} пыли`],
+            symbol: "✦",
+            tone: "neutral",
+            sound: "forge",
+          });
+        } catch (error) { notifyError((error as Error).message); }
+      });
+      state.append(salvageButton);
+    }
+    card.dataset.itemIndex = String(index);
+    card.append(art, copy, state);
+    salvageList.append(card);
   });
-  salvageSelect.disabled = salvageable.length === 0;
-  salvageLabel.append(salvageSelect);
-  const salvageButton = element("button", "plain-button", "Разобрать без возврата");
-  salvageButton.type = "submit";
-  salvageButton.dataset.focusKey = "legacy:salvage:submit";
-  salvageButton.disabled = salvageable.length === 0;
-  salvageForm.append(salvageLabel, salvageButton);
-  if (salvageable.length === 0) salvageForm.append(element("p", "empty-copy", "Нет ненадетых предметов, доступных для разбора."));
-  salvageForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const item = game!.save.hero.inventory.find((candidate) => candidate.id === salvageSelect.value);
-    if (!item || !window.confirm(`Разобрать «${displayItemName(item)}» без возможности восстановления?`)) return;
-    try {
-      const dust = game!.salvageItem(item.id);
-      persist();
-      renderHeader();
-      preserveUiFocus(() => pageRegistry.render("legacy", { force: true, animate: false }));
-      toast(`Получено реликтовой пыли: ${dust}.`);
-    } catch (error) { toast((error as Error).message, "error"); }
-  });
-  salvage.append(salvageSummary, salvageForm);
+  if (salvageEntries.length === 0) salvageList.append(element("p", "empty-copy", "В инвентаре пока нет предметов."));
+  salvage.append(salvageHeading, salvageList);
   panel.replaceChildren(head, resource, list, salvage);
 }
 
@@ -3303,7 +3308,6 @@ function openPendingBattle(pending: PendingBattle, resumed = false): void {
   renderTournamentBracket();
   openBattleReport(currentReport, pending);
   if (resumed) {
-    toast("Незавершённый бой восстановлен с последнего хода.");
     queueWorldEffect({
       eyebrow: "БОЙ ПРОДОЛЖАЕТСЯ", title: "Ход сохранён",
       description: "Здоровье, ресурсы, перезарядки и состояния восстановлены без повторного расчёта.",
@@ -3317,10 +3321,9 @@ function startActivity(activityId: string): void {
   try {
     game.startExpedition(activityId);
     persist(); renderMap(false); openDungeonWindow();
-    toast("Поход начат. Выберите первый маршрут.");
     queueWorldEffect({ eyebrow: "ЭКСПЕДИЦИЯ", title: "Отряд покинул лагерь", description: "Выбирайте путь после каждого этапа: риск меняет опасность и возможную добычу.", symbol: "↟", sound: "choice" });
   } catch (error) {
-    toast((error as Error).message, "error");
+    notifyError((error as Error).message);
   }
 }
 
@@ -3353,7 +3356,7 @@ function beginManualExpeditionStep(action: () => PendingBattle | ExpeditionStepR
     persist({ deferFeatureUnlocks: true });
   } catch (error) {
     battleEquipmentBefore = null; battleInventoryBefore = null;
-    toast((error as Error).message, "error");
+    notifyError((error as Error).message);
     return;
   }
   if ("version" in started) {
@@ -3386,7 +3389,6 @@ function handleExpeditionStepResult(result: ExpeditionStepReport): void {
     showLootReminders(acquired, equipmentBefore);
     openDungeonWindow();
   }
-  toast(result.message);
 }
 
 function runExpeditionStep(action: () => ExpeditionStepReport): void {
@@ -3394,7 +3396,7 @@ function runExpeditionStep(action: () => ExpeditionStepReport): void {
   captureBattleEquipment();
   let result: ExpeditionStepReport;
   try { result = action(); persist(); }
-  catch (error) { battleEquipmentBefore = null; battleInventoryBefore = null; toast((error as Error).message, "error"); return; }
+  catch (error) { battleEquipmentBefore = null; battleInventoryBefore = null; notifyError((error as Error).message); return; }
   handleExpeditionStepResult(result);
 }
 
@@ -3409,8 +3411,7 @@ function retreatExpedition(): void {
     const equipmentBefore = battleEquipmentBefore;
     battleEquipmentBefore = null; battleInventoryBefore = null;
     openExpeditionRewards(result, acquired, equipmentBefore);
-    toast(result.message);
-  } catch (error) { battleEquipmentBefore = null; battleInventoryBefore = null; toast((error as Error).message, "error"); }
+  } catch (error) { battleEquipmentBefore = null; battleInventoryBefore = null; notifyError((error as Error).message); }
 }
 
 function trainHero(): void {
@@ -3432,7 +3433,7 @@ function trainHero(): void {
         }),
       },
     });
-  } catch (error) { toast((error as Error).message, "error"); }
+  } catch (error) { notifyError((error as Error).message); }
 }
 
 function startEndgame(activityId: "crown-league" | "legend-hunt"): void {
@@ -3461,9 +3462,9 @@ function startEndgame(activityId: "crown-league" | "legend-hunt"): void {
       currentReport = game.huntLegend();
     }
     persist();
-  } catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); return; }
+  } catch (error) { battleEquipmentBefore = null; notifyError((error as Error).message); return; }
   if (currentTournament) renderTournamentBracket();
-  if (!currentReport) { battleEquipmentBefore = null; toast("В турнирной сетке не найден бой героя.", "error"); return; }
+  if (!currentReport) { battleEquipmentBefore = null; notifyError("В турнирной сетке не найден бой героя."); return; }
   openBattleReport(currentReport);
 }
 
@@ -3475,11 +3476,11 @@ function startLegendDefense(): void {
       const pending = game.beginLegendDefense(true);
       persist({ deferFeatureUnlocks: true });
       openPendingBattle(pending);
-    } catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); }
+    } catch (error) { battleEquipmentBefore = null; notifyError((error as Error).message); }
     return;
   }
   try { currentTournament = null; currentReport = game.defendLegendTitle(); persist(); }
-  catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); return; }
+  catch (error) { battleEquipmentBefore = null; notifyError((error as Error).message); return; }
   openBattleReport(currentReport);
 }
 
@@ -3502,12 +3503,12 @@ function startDuel(tierId?: string): void {
       persist({ deferFeatureUnlocks: true });
       refreshCurrentWorldView();
       openPendingBattle(pending);
-    } catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); }
+    } catch (error) { battleEquipmentBefore = null; notifyError((error as Error).message); }
     return;
   }
   let result;
   try { result = game.duel(tierId); persist(); refreshCurrentWorldView(); }
-  catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); return; }
+  catch (error) { battleEquipmentBefore = null; notifyError((error as Error).message); return; }
   if (!result.battle) { battleEquipmentBefore = null; return; }
   currentTournament = null; currentReport = result.battle; openBattleReport(result.battle);
 }
@@ -3521,12 +3522,12 @@ function startBossFight(bossId: string): void {
       persist({ deferFeatureUnlocks: true });
       refreshCurrentWorldView();
       openPendingBattle(pending);
-    } catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); }
+    } catch (error) { battleEquipmentBefore = null; notifyError((error as Error).message); }
     return;
   }
   let result;
   try { result = game.fightBoss(bossId); persist(); refreshCurrentWorldView(); }
-  catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); return; }
+  catch (error) { battleEquipmentBefore = null; notifyError((error as Error).message); return; }
   if (!result.battle) { battleEquipmentBefore = null; return; }
   currentTournament = null; currentReport = result.battle; openBattleReport(result.battle);
 }
@@ -3540,21 +3541,19 @@ function startTournament(arenaId: string): void {
       persist({ deferFeatureUnlocks: true });
       renderTournamentReminder();
       openPendingBattle(pending);
-    } catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); }
+    } catch (error) { battleEquipmentBefore = null; notifyError((error as Error).message); }
     return;
   }
   try {
     currentTournament = game.playTournament(arenaId);
-    // The tournament is calculated synchronously, but its unlocks should only
-    // be announced after the player has actually watched the final result.
     persist({ deferFeatureUnlocks: true });
   }
-  catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); return; }
+  catch (error) { battleEquipmentBefore = null; notifyError((error as Error).message); return; }
   renderTournamentReminder();
   tournamentBattleIndex = 0;
   renderTournamentBracket();
   currentReport = currentTournament.heroBattles[0] ?? null;
-  if (!currentReport) { battleEquipmentBefore = null; toast("Герой не попал в турнирную сетку.", "error"); return; }
+  if (!currentReport) { battleEquipmentBefore = null; notifyError("Герой не попал в турнирную сетку."); return; }
   openBattleReport(currentReport);
 }
 
@@ -3709,7 +3708,7 @@ function finalizePendingBattleForUi(): void {
     finalized = pendingBattleUi.finalize();
     persist({ deferFeatureUnlocks: true });
   } catch (error) {
-    toast((error as Error).message, "error");
+    notifyError((error as Error).message);
     return;
   }
   currentReport = finalized.battle;
@@ -3741,7 +3740,7 @@ function playManualBattleTurn(action?: BattleAction): void {
       stepped = pendingBattleUi!.step(action);
       persist({ deferFeatureUnlocks: true });
     } catch (error) {
-      toast((error as Error).message, "error");
+      notifyError((error as Error).message);
       return;
     }
     manualBattleSession = pendingBattleUi!.session(stepped.pendingBattle);
@@ -3889,7 +3888,7 @@ function skipBattle(): void {
       }
       persist({ deferFeatureUnlocks: true });
       finalizePendingBattleForUi();
-    } catch (error) { toast((error as Error).message, "error"); }
+    } catch (error) { notifyError((error as Error).message); }
     return;
   }
   if (manualBattleSession && !manualBattleSession.isFinished) {
@@ -3908,7 +3907,7 @@ function closeBattle(): void {
   if (pendingTournamentContinuation) {
     pendingTournamentContinuation = false;
     const pending = game?.currentPendingBattle();
-    if (!pending) { toast("Следующий бой турнирной сетки не найден.", "error"); return; }
+    if (!pending) { notifyError("Следующий бой турнирной сетки не найден."); return; }
     renderTournamentBracket();
     openPendingBattle(pending);
     return;
@@ -4001,8 +4000,7 @@ function exportSaveFile(): void {
     link.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
     closeSaveMenu();
-    toast("Сохранение скачано.");
-  } catch (error) { toast((error as Error).message, "error"); }
+  } catch (error) { notifyError((error as Error).message); }
 }
 
 async function importSaveFile(file: File): Promise<void> {
@@ -4012,18 +4010,18 @@ async function importSaveFile(file: File): Promise<void> {
     closeSaveMenu();
     location.reload();
   } catch (error) {
-    toast(`Файл не загружен: ${(error as Error).message}`, "error");
+    notifyError(`Файл не загружен: ${(error as Error).message}`);
   }
 }
 
 function restorePreviousSave(): void {
-  if (!saveTransferController.canRestoreBackup()) { toast("Предыдущая исправная копия ещё не создана.", "error"); return; }
+  if (!saveTransferController.canRestoreBackup()) { notifyError("Предыдущая исправная копия ещё не создана."); return; }
   if (!window.confirm("Вернуть предыдущее исправное состояние летописи? Текущее состояние останется резервной копией.")) return;
   try {
     saveTransferController.restoreBackup();
     closeSaveMenu();
     location.reload();
-  } catch (error) { toast(`Копия не восстановлена: ${(error as Error).message}`, "error"); }
+  } catch (error) { notifyError(`Копия не восстановлена: ${(error as Error).message}`); }
 }
 
 function showSaveLoadFailure(message: string): void {
@@ -4085,7 +4083,6 @@ function bootstrapWorld(): void {
   }
   persist(); renderAll();
   if (saveRecoveredFromBackup) {
-    toast("Основное сохранение было повреждено. Мир восстановлен из резервной копии.");
     queueWorldEffect({ eyebrow: "ВОССТАНОВЛЕНИЕ", title: "Летопись спасена", description: "Загружена последняя исправная резервная копия.", symbol: "↺", tone: "positive", duration: 3000 });
   }
   queueUnseenContextualTutorials();
@@ -4153,9 +4150,8 @@ $("#inventory-sell-unequipped").addEventListener("click", () => {
   if (count === 0) return;
   if (!window.confirm(`Продать все неиспользуемые предметы (${count})? Регалии короны и надетые вещи останутся у героя.`)) return;
   const scrollTop = window.scrollY;
-  const result = game.sellUnequipped();
+  game.sellUnequipped();
   persist(); renderHeader(); pageRegistry.render("arsenal", { force: true, animate: false }); window.scrollTo(0, scrollTop);
-  toast(`Продано предметов: ${result.count}. Получено ${result.value} монет.`);
 });
 $("#open-tutorial-btn").addEventListener("click", () => openTutorial(false));
 $("#tutorial-skip").addEventListener("click", finishTutorial);

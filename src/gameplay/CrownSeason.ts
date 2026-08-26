@@ -60,7 +60,6 @@ export function awardCrownSeasonPoints(
   return { ...state, points, defenses };
 }
 
-/** Standard fair 30-player single-elimination opening: seeds #1 and #2 receive the only byes. */
 export function seedThirtyFighterOpeningRound(rankedIds: readonly string[]): SeededOpeningRound {
   if (rankedIds.length !== 30) throw new RangeError("Crown League requires exactly 30 ranked fighters.");
   const byes = rankedIds.slice(0, 2);

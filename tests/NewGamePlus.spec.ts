@@ -260,8 +260,6 @@ describe("Новая летопись", () => {
     const equippedId = Object.values(next.save.hero.equipped).find(Boolean)!;
     const equipped = next.save.hero.inventory.find((item) => item.id === equippedId)!;
     equipped.stats = { health: 1_000_000, attack: 1_000_000, defense: 1_000_000, speed: 1_000, crit: 60 };
-    // Контракты новой эпохи появляются только после первого чемпионства.
-    // Этот тест проверяет связь исторического босса с уже открытым контрактом.
     next.save.unlockedFeatureIds.push("contracts");
     next.save.activeContract = {
       id: "legacy-boss-contract",

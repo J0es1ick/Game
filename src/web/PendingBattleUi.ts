@@ -84,7 +84,6 @@ function fallbackActivity(pending: PendingBattle): ActivityDefinition {
   };
 }
 
-/** Resolves a persisted transaction to the same catalog card used by normal reports. */
 export function pendingBattleActivity(pending: PendingBattle): ActivityDefinition {
   if (pending.kind === "arena-tournament") {
     return ARENAS.find((activity) => activity.id === pending.activityId) ?? fallbackActivity(pending);
@@ -107,7 +106,6 @@ export function pendingBattleActivity(pending: PendingBattle): ActivityDefinitio
   return fallbackActivity(pending);
 }
 
-/** Builds a display-only report. Campaign effects are deliberately absent until finalize. */
 export function pendingBattleReport(pending: PendingBattle): BattleReport {
   const { session } = pending;
   const winnerId = session.winnerId ?? "";
@@ -127,10 +125,6 @@ export function pendingBattleReport(pending: PendingBattle): BattleReport {
   };
 }
 
-/**
- * Small adapter between DOM code and the persisted battle transaction.
- * It never mutates a local BattleSession: every turn goes through WorldGame.
- */
 export class PendingBattleUiController {
   public constructor(private readonly game: PendingBattleGamePort) {}
 

@@ -8,10 +8,6 @@ interface StoredNotification<T> extends NotificationEnvelope<T> {
   order: number;
 }
 
-/**
- * Small deterministic priority queue shared by transient UI feedback. Equal
- * priorities retain arrival order, while duplicate ids update in place.
- */
 export class PriorityNotificationQueue<T> {
   private entries: StoredNotification<T>[] = [];
   private order = 0;

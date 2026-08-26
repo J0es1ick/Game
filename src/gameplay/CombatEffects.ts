@@ -64,7 +64,6 @@ export function createClassResource(classId: HeroClass): ClassResourceState {
   return { ...RESOURCE_BY_CLASS[classId], current: 0 };
 }
 
-/** Extensible status/effect pipeline used by both automatic and step-by-step combat. */
 export class BattleEffectPipeline {
   public addStatus(target: EffectFighter, id: BattleStatusId, duration: number, sourceId?: string): void {
     const existing = target.statuses.find((status) => status.id === id);
@@ -164,4 +163,3 @@ export class BattleEffectPipeline {
     return { healing, detail };
   }
 }
-

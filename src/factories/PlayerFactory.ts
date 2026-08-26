@@ -33,8 +33,6 @@ const classDefaults: Record<PlayerClass, { weapon: WeaponType; skills: string[] 
 };
 
 export class PlayerFactory {
-  // Names are shuffled lazily. Advanced combat supplies explicit names, so
-  // constructing its class model must not consume unrelated world RNG.
   private names: string[] = [];
   private nameIndex = 0;
 

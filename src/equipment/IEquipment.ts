@@ -1,4 +1,3 @@
-/** Общий контракт экипировки для базового и расширенного режимов. */
 export interface IEquipment<TStats = Record<string, number>> {
   id?: string;
   name: string;

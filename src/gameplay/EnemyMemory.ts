@@ -131,7 +131,6 @@ export function createEnemyStyleMemory(day = 0): EnemyStyleMemory {
   };
 }
 
-/** Converts both current and pre-memory saves without retaining old flat stat bonuses. */
 export function normalizeEnemyStyleMemory(
   source: EnemyStyleMemory | undefined,
   legacyAdaptationIds: string[] = [],
@@ -173,11 +172,6 @@ function decayMap<T extends string>(source: Partial<Record<T, number>>, factor: 
   })) as Partial<Record<T, number>>;
 }
 
-/**
- * Applies lazy forgetting. Four quiet days are free; afterwards active
- * familiarity fades faster than broad class recognition. Tiny knowledge
- * traces remain so returning to an old style is recognised sooner.
- */
 export function decayEnemyStyleMemory(memory: EnemyStyleMemory, currentDay: number): EnemyStyleMemory {
   const normalized = normalizeEnemyStyleMemory(memory, [], currentDay);
   if (currentDay <= normalized.lastDecayDay) return normalized;
@@ -206,7 +200,6 @@ function normalizedBehavior(values: Partial<Record<HeroBehaviorPattern, number>>
   return Object.fromEntries(BEHAVIORS.map((id) => [id, Math.round(clamp(values[id] ?? 0, 0, 1) * 100) / 100]));
 }
 
-/** Signature available before combat; used only to decide which remembered counters are relevant now. */
 export function heroLoadoutSignature(hero: HeroProfile, skillIds: string[], day = 0): HeroStyleSignature {
   const definitions = skillIds.map((id) => SKILLS.find((skill) => skill.id === id)).filter((skill): skill is NonNullable<typeof skill> => Boolean(skill));
   const total = Math.max(1, definitions.length);
@@ -227,7 +220,6 @@ export function heroLoadoutSignature(hero: HeroProfile, skillIds: string[], day 
   };
 }
 
-/** Builds the permanent memory from the actions that actually appeared in the battle log. */
 export function heroBattleSignature(hero: HeroProfile, turns: BattleTurn[], day: number): HeroStyleSignature {
   const heroTurns = turns.filter((turn) => turn.actorId === hero.id);
   const useCounts: Record<string, number> = {};

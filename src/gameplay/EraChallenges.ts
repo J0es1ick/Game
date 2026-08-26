@@ -86,7 +86,6 @@ function rounded(value: number): number {
   return Math.max(0, Math.round(value));
 }
 
-/** Pure reducer: the caller owns battle state and applies the returned mechanical effects. */
 export function resolveEnemyMutation(
   mutation: SelectedEnemyMutation,
   state: EnemyMutationState,
@@ -223,7 +222,6 @@ export interface EraObjectiveDefinition {
   name: string;
   description: string;
   requirements: EraObjectiveRequirement[];
-  /** Objectives reward exploration and never hard-gate the next chronicle. */
   optional: true;
   rewardDescription: string;
 }
@@ -313,7 +311,6 @@ export const ERA_OBJECTIVES: readonly EraObjectiveDefinition[] = [
 const ERA_NAMES = ["Эпоха ответных клятв", "Эпоха охотников", "Эпоха расколотых печатей", "Эпоха живого железа", "Эпоха долгой памяти"];
 const CLASSES: HeroClass[] = ["Knight", "Archer", "Wizard", "Monk", "Gunsmith", "Swordsman"];
 
-/** Same cycle always produces the same enemy mutations and non-crown objectives. */
 export function eraChallengeFor(cycle: number): EraChallenge {
   const safeCycle = Number.isFinite(cycle) ? Math.max(2, Math.floor(cycle)) : 2;
   const objectiveRandom = new SeededRandom(`era-objectives:${safeCycle}`);

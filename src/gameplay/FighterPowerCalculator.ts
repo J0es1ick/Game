@@ -1,11 +1,6 @@
 import { EQUIPMENT_SETS, SKILLS } from "../catalogs/WorldCatalog";
 import { EquipmentItem, Stats } from "./WorldTypes";
 
-/**
- * One source of truth for comparing equipment and combatants.
- * Item stats are already scaled by rarity when an item is created, therefore
- * rarity must not multiply them a second time here.
- */
 export class FighterPowerCalculator {
   private static readonly statWeights: Readonly<Record<keyof Stats, number>> = {
     health: 0.25,
@@ -48,7 +43,6 @@ export class FighterPowerCalculator {
       return sum + set.bonuses.reduce((bonusSum, bonus) => {
         if (pieces < bonus.pieces) return bonusSum;
         if (bonus.stats) return bonusSum + this.stats(bonus.stats);
-        // Mechanical thresholds are valuable, but no longer dwarf the actual item stats.
         return bonusSum + bonus.pieces * 2.5;
       }, 0);
     }, 0);

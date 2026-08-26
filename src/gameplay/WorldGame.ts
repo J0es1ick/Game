@@ -118,6 +118,7 @@ import { availableNarrativeEvents, NARRATIVE_EVENTS, NarrativeChoice, NarrativeE
 import { awardCrownSeasonPoints, createCrownSeason, CrownSeasonResult, CrownSeasonState } from "./CrownSeason";
 import { factionModifier, unlockedFactionPerks } from "./FactionSystem";
 import { expeditionBattleExertion, expeditionStaminaAfterBattle } from "./ExpeditionStamina";
+import { relicDustYield } from "./EquipmentLegacy";
 import {
   BestEquipmentEvaluation,
   evaluateBestEquipment,
@@ -188,9 +189,6 @@ const CROWN_SET_ID = "crown-sovereign";
 const ARENA_POPULATION_TARGET = 16;
 const ARENA_POPULATION_BASE_FLOOR = 12;
 const ARENA_POPULATION_RESERVE = 4;
-// Background fights happen dozens of times per simulated day. Their lethality
-// must therefore be far below a player-visible arena fight, otherwise long
-// careers disappear between visits to the leaderboard.
 const BACKGROUND_LETHALITY_SCALE = 0.08;
 const CONTRACT_LIFETIME = 7;
 const ACTIVE_INJURY_CHANCE = 0.24;
@@ -211,7 +209,6 @@ function pendingOpeningRound(seedIds: string[]): Array<[string, string?]> {
   for (let index = 0; index < playing.length / 2; index += 1) {
     matches.push([playing[index], playing[playing.length - 1 - index]]);
   }
-  // Keep the two best seeds in opposite halves of the 30-fighter bracket.
   if (byes.length === 2) return [byes[0], ...matches, byes[1]];
   return [...byes, ...matches];
 }
@@ -480,8 +477,6 @@ export class WorldGame {
       throw new Error("Этот предмет нельзя передать герою выбранного класса.");
     }
 
-    // Everything above is validation. From this point on the old save is read
-    // only and the transition is assembled in a fresh world atomically.
     const archive = buildLegacyArchive(this.save, now);
     const previousLegacy = normalizeLegacyState(this.save.legacy);
     const next = WorldGame.create(name, options.classId, now);
@@ -530,8 +525,6 @@ export class WorldGame {
       nextSave.legacy.inheritedItemId = inherited.id;
     }
 
-    // A few memorable rivals survive the change of epoch. They enter the new
-    // world as veterans, while the archived hero never joins ordinary pools.
     archive.notableFighters.slice(0, 3).forEach((record) => {
       const veteran = next.createEnemy(Math.max(0, ARENAS.length - 2));
       veteran.name = record.name;
@@ -562,7 +555,6 @@ export class WorldGame {
     return next;
   }
 
-  /** Alias retained for UI/tests that use the shorter NG+ wording. */
   public beginNewEra(options: NewGamePlusOptions, now = Date.now()): WorldGame {
     return this.beginNewChronicle(options, now);
   }
@@ -621,7 +613,6 @@ export class WorldGame {
     return profile;
   }
 
-  /** Предпросмотр того, насколько конкретный соперник узнает выбранную сейчас сборку. */
   public enemyMemoryPreview(enemyId: string): EnemyMemoryCombatRead | undefined {
     const enemy = this.enemyById(enemyId);
     if (!enemy) return undefined;
@@ -711,8 +702,7 @@ export class WorldGame {
     if (!item) throw new Error("Предмет не найден.");
     if (Object.values(this.save.hero.equipped).includes(itemId)) throw new Error("Надетый предмет нельзя разобрать.");
     if (!this.canSell(itemId)) throw new Error("Регалии короны нельзя разобрать.");
-    const dustByRarity: Record<Rarity, number> = { common: 1, rare: 2, epic: 4, legendary: 8, mythic: 14 };
-    const dust = dustByRarity[item.rarity] + (item.enhancement ?? 0);
+    const dust = relicDustYield(item);
     this.save.hero.inventory = this.save.hero.inventory.filter((candidate) => candidate.id !== itemId);
     this.save.hero.relicDust += dust;
     this.event("loot", `${item.name} разобран: получено ${dust} ед. реликтовой пыли.`);
@@ -744,8 +734,6 @@ export class WorldGame {
   }
 
   public simulateElapsed(now = Date.now()): number {
-    // A suspended combat/expedition owns the campaign clock. Advancing the
-    // world behind it would invalidate its opponents, rewards and calendar.
     if (this.save.pendingBattle || this.save.activeExpedition) return 0;
     const elapsedDays = Math.min(14, Math.max(0, Math.floor((now - this.save.lastSimulatedAt) / 600_000)));
     let simulatedDays = 0;
@@ -916,7 +904,6 @@ export class WorldGame {
     return result;
   }
 
-  /** Starts a real duel without applying rewards, rating or injuries. */
   public beginDuel(tierId = DUEL_TIERS[0].id): PendingBattle {
     this.assertNoPendingBattle();
     const tier = DUEL_TIERS.find((candidate) => candidate.id === tierId);
@@ -962,7 +949,6 @@ export class WorldGame {
     throw new Error(`Финализация ${pending.kind} ещё не поддержана.`);
   }
 
-  /** Drops an unfinished transaction without applying its campaign outcome. */
   public abortPendingBattle(): PendingBattleFinalization | undefined {
     const pending = this.save.pendingBattle;
     if (!pending) return undefined;
@@ -3570,10 +3556,6 @@ export class WorldGame {
       const retainedIds = new Set(encountered.map((enemy) => enemy.id));
       const population = this.save.enemies
         .filter((enemy) => !retainedIds.has(enemy.id) && (enemy.alive || enemy.history.some((line) => line.includes(this.save.hero.name))))
-        // The old newest-first slice regularly erased established top-100
-        // careers once routine recruitment crossed the cap. Preserve living,
-        // accomplished fighters first; newcomers still replace dead or weak
-        // records without turning every fortnight into a new leaderboard.
         .sort((first, second) => Number(second.alive) - Number(first.alive)
           || second.rating - first.rating
           || second.tournamentWins - first.tournamentWins

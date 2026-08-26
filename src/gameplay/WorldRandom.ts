@@ -28,7 +28,6 @@ export function normalizeWorldRandomSnapshots(
   };
 }
 
-/** Three independent, continuously persisted streams owned by one campaign. */
 export class WorldRandomStreams {
   public readonly world: PersistentSeededRandom;
   public readonly combat: PersistentSeededRandom;

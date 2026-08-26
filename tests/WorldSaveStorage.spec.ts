@@ -172,7 +172,6 @@ describe("world save safety", () => {
       "daysSpent",
     ].forEach((field) => { delete expedition[field]; });
 
-    // localStorage contains the raw save rather than the export envelope.
     const serialized = JSON.stringify(legacy);
     const parsed = parseWorldSave(serialized);
     const restored = WorldGame.restore(JSON.parse(serialized) as unknown);

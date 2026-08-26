@@ -13,10 +13,6 @@ function isEliteEquipment(item: EquipmentItem): boolean {
   return Boolean(ITEM_TEMPLATES.find((candidate) => candidate.id === item.templateId)?.exclusiveToElite);
 }
 
-/**
- * A stable NPC-facing score. Elite exclusivity is compared as a separate tier
- * by the selection functions before this numeric score is considered.
- */
 export function npcItemScore(item: EquipmentItem): number {
   const template = ITEM_TEMPLATES.find((candidate) => candidate.id === item.templateId);
   const elitePriority = template?.exclusiveToElite ? ELITE_ITEM_PRIORITY : 0;
@@ -39,10 +35,6 @@ function preferredItem(
   return current.id === equippedId ? current : candidate;
 }
 
-/**
- * Keeps at most one useful item per slot and rebuilds dangling equipped links.
- * This also repairs inventories from older saves that accumulated every drop.
- */
 export function compactNpcEquipment(enemy: EnemyProfile): void {
   const bestBySlot = new Map<EquipmentSlot, EquipmentItem>();
   enemy.equipment.forEach((item) => {
@@ -60,10 +52,6 @@ export function compactNpcEquipment(enemy: EnemyProfile): void {
   enemy.equipped = equipped;
 }
 
-/**
- * Evaluates a drop before storing it. A rejected item is discarded, while an
- * upgrade atomically replaces the previous item in that slot.
- */
 export function considerNpcLoot(enemy: EnemyProfile, item: EquipmentItem): boolean {
   if (!isCompatible(enemy, item)) return false;
   compactNpcEquipment(enemy);

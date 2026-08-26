@@ -49,11 +49,6 @@ function defaultTraitId(classId: HeroClass, offset = 0): string {
   return FIGHTER_TRAITS[(classIndex + offset) % FIGHTER_TRAITS.length].id;
 }
 
-/**
- * Приводит сохранение прошлых версий к текущему формату.
- * Функция намеренно изменяет переданный объект: restore исторически сохранял
- * ту же ссылку, и смена этого поведения могла бы сломать вызывающий код.
- */
 export function normalizeWorldSave(save: GameSave): GameSave {
   const sourceVersion = save.version;
   const hadContractsBeforeMigration = Boolean(
@@ -78,9 +73,6 @@ export function normalizeWorldSave(save: GameSave): GameSave {
   save.discoveredItems ??= save.hero.inventory.map((item) => item.templateId);
   save.migrations ??= [];
   if (!save.migrations.includes(PENDING_BATTLE_MIGRATION)) {
-    // Older clients resolved combat synchronously and therefore cannot have a
-    // trustworthy continuation point. New saves carry the marker before a
-    // pending battle can ever be created.
     save.pendingBattle = undefined;
     save.migrations.push(PENDING_BATTLE_MIGRATION);
   }
@@ -162,8 +154,6 @@ export function normalizeWorldSave(save: GameSave): GameSave {
     save.activeExpedition.currentNodeId = undefined;
     save.activeExpedition.pendingShrineNodeId = undefined;
   }
-  // Only version 2 predates the first-run tutorial. Explicit values from
-  // current saves, including `false`, must survive a reload.
   if (save.tutorialCompleted === undefined) save.tutorialCompleted = sourceVersion === 2;
 
   const hero = save.hero;
@@ -245,9 +235,6 @@ export function normalizeWorldSave(save: GameSave): GameSave {
   ));
 
   if (!save.migrations.includes(STAGED_WORLD_FEATURES_MIGRATION)) {
-    // Saves created before staged progression already exposed these systems.
-    // Preserve access when the player used them, while untouched campaigns
-    // adopt the new milestones instead of being granted everything silently.
     const preserved = new Set(save.unlockedFeatureIds);
     if (hadContractsBeforeMigration) preserved.add("contracts");
     if (hadEquipmentLegacyBeforeMigration) preserved.add("equipment-legacy");
@@ -268,8 +255,6 @@ export function normalizeWorldSave(save: GameSave): GameSave {
       ? enemy.arenaTournamentWins.map((count) => Math.max(0, Math.floor(Number(count) || 0)))
       : [];
     if (!hadArenaTournamentWins && enemy.tournamentWins > 0) {
-      // Old saves only stored an aggregate. Progression proves the previous
-      // arena, but not the arena a fighter has only just entered.
       const inferredArena = Math.max(0, Math.min(ARENAS.length - 1, enemy.arenaIndex - 1));
       recordedArenaWins[inferredArena] = enemy.tournamentWins;
     }

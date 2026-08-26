@@ -448,13 +448,23 @@
 }
 .legacy-layout .relic-workshop { margin: 0; }
 .relic-ready-list { grid-column: 1 / -1; display: grid; gap: 8px; }
-.relic-ready-list article { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 16px; padding: 12px; border: 1px solid #aaa08e; background: #e2dacb; }
+.relic-ready-list article { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 16px; padding: 12px; border: 1px solid #aaa08e; border-left: 5px solid var(--rarity-accent, #8a8172); background: #e2dacb; }
+.relic-ready-list article.equipped { border-color: #748975; background: #dce3d6; box-shadow: inset 0 0 0 1px rgba(83, 108, 86, .22); }
 .relic-ready-list article > div { min-width: 0; }
 .relic-ready-list article > div:first-child { overflow-wrap: anywhere; }
 .relic-ready-list strong,
 .relic-ready-list small { display: block; }
 .relic-ready-list small { margin-top: 3px; color: var(--muted); }
 .relic-ready-list article > div:last-child { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.relic-ready-identity { display: flex; align-items: center; gap: 12px; }
+.relic-ready-art { flex: 0 0 48px; width: 48px; height: 60px; }
+.relic-ready-identity > div { min-width: 0; }
+.relic-ready-identity strong { font-size: 15px; line-height: 1.25; }
+.relic-item-kicker { color: #6d6457; font: 11px/1.35 "Courier New", monospace; letter-spacing: .035em; text-transform: uppercase; }
+.relic-progress-copy { padding-left: 60px; font-size: 12px; }
+.relic-item-status { display: inline-flex; min-height: 25px; align-items: center; justify-content: center; padding: 4px 8px; border: 1px solid currentColor; font: 700 11px/1 "Courier New", monospace; text-transform: uppercase; white-space: nowrap; }
+.relic-item-status.equipped { margin-left: auto; color: #435e49; background: #edf1e8; }
+.relic-item-status.protected { color: #77564f; background: #eee0db; }
 .relic-path-option {
   position: relative;
   display: inline-flex;
@@ -532,33 +542,56 @@
 }
 .relic-salvage {
   grid-column: 1 / -1;
+  padding-top: 18px;
   border-top: 1px solid #a99e8b;
 }
-.relic-salvage > summary {
-  padding: 13px 2px 4px;
-  color: #6b5841;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 750;
-}
-.relic-salvage-form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
+.relic-salvage-heading {
+  display: flex;
   align-items: end;
-  padding-top: 10px;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  color: #453c31;
 }
-.relic-salvage-form label {
+.relic-salvage-heading > div { font-size: 19px; font-weight: 800; }
+.relic-salvage-heading small { color: #716858; font: 12px/1.4 "Courier New", monospace; }
+.relic-salvage-list {
   display: grid;
-  min-width: 0;
-  gap: 5px;
-  color: #756b5b;
-  font: 11px/1.35 "Courier New", monospace;
-  text-transform: uppercase;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
 }
-.relic-salvage-form select { min-width: 0; min-height: 40px; width: 100%; }
-.relic-salvage-form button { min-height: 40px; }
-.relic-salvage-form .empty-copy { grid-column: 1 / -1; }
+.relic-salvage-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 108px;
+  align-items: center;
+  gap: 11px;
+  padding: 12px;
+  border: 1px solid #a79d8a;
+  border-left: 5px solid var(--rarity-accent, #898478);
+  color: #332f29;
+  background: #eee8dc;
+  content-visibility: auto;
+  contain-intrinsic-size: 108px;
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+.relic-salvage-card:hover { border-color: #766d5e; background: #f3ede2; transform: translateY(-1px); }
+.relic-salvage-card.status-equipped { border-color: #748975; border-left-color: #536f59; background: #dce3d6; cursor: default; }
+.relic-salvage-card.status-protected { border-color: #a89089; background: #e8ddd8; cursor: default; }
+.relic-salvage-card.status-equipped:hover,
+.relic-salvage-card.status-protected:hover { transform: none; }
+.relic-salvage-art { width: 54px; height: 68px; }
+.relic-salvage-copy { display: grid; min-width: 0; gap: 5px; }
+.relic-salvage-copy strong { overflow-wrap: anywhere; font-size: 14px; line-height: 1.25; }
+.relic-salvage-stats { color: #5e574d; font: 12px/1.35 "Courier New", monospace; }
+.relic-salvage-state { display: grid; min-width: 116px; justify-items: end; gap: 7px; text-align: right; }
+.relic-salvage-state small { color: #6f6657; font-size: 11px; line-height: 1.3; }
+.relic-dust-yield { color: #715a28; font: 800 14px/1.2 "Courier New", monospace; }
+.relic-salvage-button { min-width: 148px; min-height: 40px; color: #3b342a; background: #e9e2d5; white-space: normal; }
+.relic-salvage-button:hover { color: #f4eddf; background: #4b4439; }
+.relic-salvage-list .empty-copy { grid-column: 1 / -1; margin: 0; padding: 16px; border: 1px solid #aaa08e; }
 .forge-card-actions {
   display: grid;
   grid-column: 1 / -1;
@@ -593,6 +626,7 @@
   .faction-grid,
   .contract-grid { grid-template-columns: 1fr; }
   .relic-ready-list { grid-column: 1; }
+  .relic-salvage-list { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 620px) {
@@ -601,7 +635,11 @@
   .reforge-control-body,
   .crown-season-summary { grid-template-columns: 1fr; }
   .loot-target-actions { grid-column: auto; grid-template-columns: 1fr; }
-  .relic-salvage-form { grid-template-columns: 1fr; }
+  .relic-salvage-heading { align-items: stretch; flex-direction: column; }
+  .relic-salvage-card { grid-template-columns: 50px minmax(0, 1fr); }
+  .relic-salvage-art { width: 48px; height: 62px; }
+  .relic-salvage-state { grid-column: 1 / -1; justify-items: stretch; text-align: left; }
+  .relic-salvage-button { width: 100%; }
   .loot-target-workshop,
   .crown-season-overview { padding: 15px; }
   .expedition-route-map { grid-auto-columns: minmax(240px, 82vw); }
@@ -609,6 +647,8 @@
   .reputation-tier-list article:nth-child(3) { border-left: 0; }
   .active-contract,
   .relic-ready-list article { align-items: stretch; flex-direction: column; }
+  .relic-progress-copy { padding-left: 0; }
+  .relic-ready-list article > div:last-child { justify-content: flex-start; }
   .contract-actions { grid-template-columns: 1fr; }
   .expedition-condition { grid-template-columns: 1fr; }
 }

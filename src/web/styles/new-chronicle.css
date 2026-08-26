@@ -1,5 +1,3 @@
-/* New Game+ keeps the language of an old arena ledger: firm rules, paper and ink. */
-
 .new-chronicle-status:empty {
   display: none;
 }
@@ -749,7 +747,6 @@ body.new-chronicle-open {
   animation: ui-section-in 220ms var(--motion-ease, ease) both;
 }
 
-/* The status lives in the narrow map column even on a wide viewport. */
 @container route-board (max-width: 760px) {
   .new-chronicle-status {
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -45,7 +45,6 @@ describe("SeededRandom", () => {
     const snapshotBefore = saved;
     const expected = first.next();
     const restored = new PersistentSeededRandom("ignored", snapshotBefore, () => undefined);
-    // The saved snapshot was taken before expected consumed the following value.
     expect(restored.next()).toBe(expected);
   });
 });

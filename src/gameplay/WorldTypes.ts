@@ -58,7 +58,6 @@ export interface SkillDefinition {
   power: number;
   cooldown: number;
   priority: number;
-  /** Навык существует только как свойство легендарной или мифической экипировки. */
   equipmentOnly?: boolean;
 }
 
@@ -83,13 +82,11 @@ export interface EquipmentItem extends IEquipment<Partial<Stats>> {
   grantedSkillId?: string;
   setId?: string;
   enhancement?: number;
-  /** История предмета, которая развивается вместе с владельцем. */
   relicRenown?: number;
   relicTier?: 0 | 1 | 2 | 3;
   relicPath?: "might" | "guard" | "tempo";
   relicName?: string;
   relicHistory?: string[];
-  /** Номер завершённой эпохи, из которой предмет был перенесён как наследие. */
   inheritedFromCycle?: number;
   isVisualTestItem?: boolean;
 }
@@ -115,23 +112,15 @@ export interface TacticalProfile {
   prioritizeControl: boolean;
 }
 
-/** Краткий отпечаток одного реально сыгранного стиля героя. */
 export interface HeroStyleSignature {
   day: number;
   classId: HeroClass;
   tacticalStyle: TacticalStyle;
-  /** Только действительно применённые в бою навыки. */
   skillIds: string[];
   dominantSkillId?: string;
-  /** Нормализованные доли наблюдённых действий от 0 до 1. */
   behavior: Partial<Record<HeroBehaviorPattern, number>>;
 }
 
-/**
- * Память конкретного врага о стиле главного героя.
- * Знания разных классов и тактик не заменяют друг друга: старые стили
- * постепенно уходят в фон, но ускоряют повторное узнавание при возвращении.
- */
 export interface EnemyStyleMemory {
   familiarity: number;
   stage: EnemyMemoryStage;
@@ -143,7 +132,6 @@ export interface EnemyStyleMemory {
   countermeasureIds: EnemyCountermeasureId[];
   lastEncounterDay: number;
   lastDecayDay: number;
-  /** Сходство текущего стиля с самым узнаваемым сохранённым отпечатком, 0..1. */
   currentSimilarity: number;
 }
 
@@ -273,7 +261,6 @@ export interface EnemyProfile {
   wins: number;
   losses: number;
   tournamentWins: number;
-  /** Победы в турнирах по индексам арен. Нужны для честного расчёта мирового рейтинга. */
   arenaTournamentWins: number[];
   kills: number;
   arenaIndex: number;
@@ -378,7 +365,6 @@ export interface DungeonExpedition {
   dungeonId: string;
   stage: number;
   maxStages: number;
-  /** Оставшийся запас сил похода, 0–100%. Имя сохранено ради совместимости старых сохранений. */
   health: number;
   accumulatedGold: number;
   accumulatedExperience: number;
@@ -521,7 +507,6 @@ export interface WorldEvent {
     | "loot"
     | "system";
   message: string;
-  /** Машиночитаемые ссылки позволяют безопасно обновлять и очищать летопись. */
   payload?: StructuredWorldEventPayload;
 }
 
@@ -539,11 +524,6 @@ export interface ShopOffer {
 export type WorldFeatureId = "contracts" | "equipment-legacy";
 export type ContextualTutorialId = "contracts" | "equipment-legacy" | "adaptation";
 
-/**
- * Persistent notification produced when a campaign system becomes available.
- * It deliberately lives in the save so closing the page cannot lose the
- * explanation that accompanies a newly opened system.
- */
 export interface WorldFeatureUnlock {
   id: WorldFeatureId;
   day: number;
@@ -591,7 +571,6 @@ export interface GameSave {
   lootPity?: LootPityState;
   reforgeAttempts: Record<string, number>;
   eraChallengeProgress: EraChallengeProgressState;
-  /** Exact resumable combat transaction. No rewards are applied while present. */
   pendingBattle?: PendingBattle;
   tournamentRuleSeed: number;
   randomSnapshots: WorldRandomSnapshots;
@@ -615,7 +594,6 @@ export interface CombatantSnapshot {
   traitIds?: string[];
   injuryNames?: string[];
   tacticalStyle?: TacticalStyle;
-  /** Runtime-only equipment set counts used to resume an interactive battle faithfully. */
   setCounts?: Record<string, number>;
   mutationId?: string;
   mutationPotency?: number;
@@ -738,7 +716,6 @@ export interface PendingTournamentMatchState {
   bye: boolean;
 }
 
-/** Serializable bracket cursor. It pauses immediately before every hero match. */
 export interface PendingTournamentState {
   kind: "arena" | "crown";
   activityId: string;
@@ -756,17 +733,12 @@ export interface PendingTournamentState {
   eventCursor?: string;
 }
 
-/**
- * A persisted battle transaction. Session state may be stepped freely, while
- * campaign rewards, ratings and injuries are only committed by finalize.
- */
 export interface PendingBattle {
   version: 1;
   id: string;
   kind: PendingBattleKind;
   activityId: string;
   enemyId: string;
-  /** Detached opponent data also supports bosses and dungeon guardians. */
   enemy: EnemyProfile;
   startedDay: number;
   session: BattleSessionSnapshot;

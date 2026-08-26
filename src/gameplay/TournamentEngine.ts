@@ -24,7 +24,6 @@ export interface TournamentEngineReport<T extends TournamentEntrant, D = unknown
 
 export interface TournamentEngineOptions {
   random?: RandomSource;
-  /** Keep the supplied ranking. Highest seeds receive byes for non-power-of-two brackets. */
   seeded?: boolean;
 }
 
@@ -45,9 +44,6 @@ function openingRound<T extends TournamentEntrant>(entrants: T[]): Array<[T, T?]
   for (let index = 0; index < playing.length / 2; index += 1) {
     matches.push([playing[index], playing[playing.length - 1 - index]]);
   }
-  // In a 30-fighter bracket the two highest seeds receive the only byes and
-  // must enter opposite halves. Putting both byes first made seeds #1 and #2
-  // meet immediately in round two, defeating the point of seeding.
   if (byes.length === 2) return [byes[0], ...matches, byes[1]];
   return [...byes, ...matches];
 }

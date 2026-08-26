@@ -102,12 +102,12 @@ describe("2D character illustration contracts", () => {
 
   it("keeps the same anatomical fitted sleeve outline for every chest cut", () => {
     const representativeSets = [
-      "wanderer", // coat
-      "argent", // plate
-      "ash-hunter", // tunic
-      "comet", // robe
-      "lotus", // haori
-      "pilgrim", // brigandine
+      "wanderer",
+      "argent",
+      "ash-hunter",
+      "comet",
+      "lotus",
+      "pilgrim",
     ];
     const pathsBySet = representativeSets.map((setId) =>
       fittedSleevePaths(render({ chest: equipment("chest", setId) })),
