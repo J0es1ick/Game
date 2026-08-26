@@ -1,4 +1,11 @@
 import type { IEquipment } from "../equipment/IEquipment";
+import type { RandomSnapshot } from "./RandomSource";
+import type { StructuredWorldEventPayload } from "./WorldEvents";
+import type { DungeonRoute } from "./DungeonRoute";
+import type { CrownSeasonResult, CrownSeasonState } from "./CrownSeason";
+import type { LootPityState, LootTarget } from "./LootProgression";
+import type { EraChallengeProgressState } from "./EraChallenges";
+import type { BattleSessionSnapshot } from "./AdvancedBattle";
 
 export type HeroClass =
   | "Knight"
@@ -266,6 +273,8 @@ export interface EnemyProfile {
   wins: number;
   losses: number;
   tournamentWins: number;
+  /** Победы в турнирах по индексам арен. Нужны для честного расчёта мирового рейтинга. */
+  arenaTournamentWins: number[];
   kills: number;
   arenaIndex: number;
   arenaWins: number;
@@ -280,6 +289,8 @@ export interface EnemyProfile {
   heroMemory: EnemyStyleMemory;
   tacticalStyle: TacticalStyle;
   carriedFromCycle?: number;
+  eraMutationId?: string;
+  eraMutationPotency?: number;
 }
 
 export interface LegacyFighterRecord {
@@ -372,6 +383,24 @@ export interface DungeonExpedition {
   accumulatedExperience: number;
   loot: EquipmentItem[];
   path: string[];
+  route?: DungeonRoute;
+  visitedNodeIds?: string[];
+  currentNodeId?: string;
+  pendingShrineNodeId?: string;
+  attackMultiplier?: number;
+  defenseMultiplier?: number;
+  lootChanceBonus?: number;
+  daysSpent?: number;
+}
+
+export type ExpeditionShrineChoiceId = "blood-oath" | "guardian-vow";
+
+export interface ExpeditionShrineChoice {
+  id: ExpeditionShrineChoiceId;
+  name: string;
+  description: string;
+  cost: string;
+  benefit: string;
 }
 
 export interface ExpeditionChoice {
@@ -389,6 +418,7 @@ export interface ExpeditionStepReport {
   retreated: boolean;
   message: string;
   rewards?: BattleRewards;
+  requiresChoice?: boolean;
 }
 
 export interface ArenaDefinition {
@@ -490,6 +520,14 @@ export interface WorldEvent {
     | "loot"
     | "system";
   message: string;
+  /** Машиночитаемые ссылки позволяют безопасно обновлять и очищать летопись. */
+  payload?: StructuredWorldEventPayload;
+}
+
+export interface WorldRandomSnapshots {
+  world: RandomSnapshot;
+  combat: RandomSnapshot;
+  loot: RandomSnapshot;
 }
 
 export interface ShopOffer {
@@ -544,7 +582,18 @@ export interface GameSave {
   activeContract?: ContractOffer;
   completedContracts: number;
   activeExpedition?: DungeonExpedition;
+  pendingNarrativeEventId?: string;
+  seenNarrativeEventIds: string[];
+  crownSeason: CrownSeasonState;
+  lastCrownSeasonResult?: CrownSeasonResult;
+  lootTarget?: LootTarget;
+  lootPity?: LootPityState;
+  reforgeAttempts: Record<string, number>;
+  eraChallengeProgress: EraChallengeProgressState;
+  /** Exact resumable combat transaction. No rewards are applied while present. */
+  pendingBattle?: PendingBattle;
   tournamentRuleSeed: number;
+  randomSnapshots: WorldRandomSnapshots;
   events: WorldEvent[];
 }
 
@@ -565,6 +614,10 @@ export interface CombatantSnapshot {
   traitIds?: string[];
   injuryNames?: string[];
   tacticalStyle?: TacticalStyle;
+  /** Runtime-only equipment set counts used to resume an interactive battle faithfully. */
+  setCounts?: Record<string, number>;
+  mutationId?: string;
+  mutationPotency?: number;
 }
 
 export interface BattleTurn {
@@ -615,6 +668,7 @@ export interface TournamentMatch {
   winnerName: string;
   heroInvolved: boolean;
   battle?: BattleReport;
+  bye?: boolean;
 }
 
 export interface TournamentReport {
@@ -659,4 +713,69 @@ export interface LeaderboardEntry {
   kills: number;
   isHero: boolean;
   carriedFromCycle?: number;
+}
+
+export type PendingBattleKind =
+  | "dungeon"
+  | "expedition"
+  | "duel"
+  | "boss"
+  | "legacy-champion"
+  | "legend-hunt"
+  | "legend-defense"
+  | "arena-tournament"
+  | "crown-league";
+
+export interface PendingTournamentMatchState {
+  round: number;
+  match: number;
+  firstId: string;
+  secondId?: string;
+  winnerId: string;
+  heroInvolved: boolean;
+  battle?: BattleReport;
+  bye: boolean;
+}
+
+/** Serializable bracket cursor. It pauses immediately before every hero match. */
+export interface PendingTournamentState {
+  kind: "arena" | "crown";
+  activityId: string;
+  participantIds: string[];
+  initialSeeds: string[];
+  round: number;
+  pairs: Array<[string, string?]>;
+  pairIndex: number;
+  roundWinners: string[];
+  matches: PendingTournamentMatchState[];
+  heroBattles: BattleReport[];
+  heroPlacement: number;
+  ruleIds: string[];
+  wasElite?: boolean;
+  eventCursor?: string;
+}
+
+/**
+ * A persisted battle transaction. Session state may be stepped freely, while
+ * campaign rewards, ratings and injuries are only committed by finalize.
+ */
+export interface PendingBattle {
+  version: 1;
+  id: string;
+  kind: PendingBattleKind;
+  activityId: string;
+  enemyId: string;
+  /** Detached opponent data also supports bosses and dungeon guardians. */
+  enemy: EnemyProfile;
+  startedDay: number;
+  session: BattleSessionSnapshot;
+  tournament?: PendingTournamentState;
+  context?: Record<string, string | number | boolean | string[] | number[] | undefined>;
+}
+
+export interface PendingBattleFinalization {
+  status: "complete" | "next-battle";
+  battle: BattleReport;
+  result?: BattleReport | DailyActivityReport | TournamentReport | ExpeditionStepReport;
+  pendingBattle?: PendingBattle;
 }

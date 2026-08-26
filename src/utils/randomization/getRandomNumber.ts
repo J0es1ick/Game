@@ -1,4 +1,6 @@
-export function getRandomNumber(min: number, max: number): number {
+import { nativeRandom, RandomSource } from "../../gameplay/RandomSource";
+
+export function getRandomNumber(min: number, max: number, random: RandomSource = nativeRandom): number {
   if (min > max) {
     return -1;
   }
@@ -7,7 +9,7 @@ export function getRandomNumber(min: number, max: number): number {
   }
 
   const range: number = max - min + 1;
-  const randomNumber: number = Math.floor(Math.random() * range) + min;
+  const randomNumber: number = Math.floor(random.next() * range) + min;
 
   return randomNumber;
 }

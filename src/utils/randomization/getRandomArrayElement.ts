@@ -1,7 +1,9 @@
-export function getRandomArrayElement<T>(arr: readonly T[]): T | undefined {
+import { nativeRandom, RandomSource } from "../../gameplay/RandomSource";
+
+export function getRandomArrayElement<T>(arr: readonly T[], random: RandomSource = nativeRandom): T | undefined {
   if (arr.length === 0) {
     return undefined;
   }
-  const randomIndex: number = Math.floor(Math.random() * arr.length);
+  const randomIndex: number = Math.floor(random.next() * arr.length);
   return arr[randomIndex];
 }
