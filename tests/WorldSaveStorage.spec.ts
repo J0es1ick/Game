@@ -85,4 +85,129 @@ describe("world save safety", () => {
     expect(safeParseWorldSave(storage.getItem(repository.primaryKey)!).save?.worldDay).toBe(oldDay + 7);
     expect(safeParseWorldSave(storage.getItem(repository.backupKey)!).save?.worldDay).toBe(oldDay);
   });
+
+  it("repairs expedition stamina without discarding a resumable trip", () => {
+    const game = WorldGame.create("Походник", "Knight", 404);
+    game.save.hero.level = 40;
+    game.save.hero.highestArena = 5;
+    game.save.worldDay = 100;
+    const expedition = game.startExpedition("cellar");
+    expedition.accumulatedGold = 321;
+    const dungeonId = expedition.dungeonId;
+
+    delete (expedition as unknown as Record<string, unknown>).health;
+    const missing = safeParseWorldSave(JSON.stringify(game.save)).save;
+    expect(missing?.activeExpedition).toMatchObject({ dungeonId, accumulatedGold: 321, health: 100 });
+
+    const valid = copy(missing!);
+    valid.activeExpedition!.health = 37;
+    expect(safeParseWorldSave(JSON.stringify(valid)).save?.activeExpedition?.health).toBe(37);
+
+    const damaged = copy(missing!);
+    (damaged.activeExpedition as unknown as Record<string, unknown>).health = "damaged";
+    expect(safeParseWorldSave(JSON.stringify(damaged)).save?.activeExpedition).toMatchObject({
+      dungeonId,
+      accumulatedGold: 321,
+      health: 100,
+    });
+
+    const outOfRange = copy(missing!);
+    outOfRange.activeExpedition!.health = -15;
+    expect(safeParseWorldSave(JSON.stringify(outOfRange)).save?.activeExpedition?.health).toBe(0);
+  });
+
+  it("restores a second-era localStorage save that predates current campaign fields", () => {
+    const source = WorldGame.create("Хранитель эпохи", "Knight", 81_002);
+    source.save.legacy.cycle = 2;
+    source.save.worldDay = 100;
+    source.save.hero.level = 40;
+    source.save.hero.highestArena = 5;
+    const current = WorldGame.restore(copy(source.save));
+    current.startExpedition("cellar");
+
+    const expected = {
+      heroId: current.save.hero.id,
+      heroName: current.save.hero.name,
+      classId: current.save.hero.classId,
+      cycle: current.save.legacy.cycle,
+      rating: current.save.hero.rating,
+      inventory: current.save.hero.inventory.map((item) => ({ id: item.id, templateId: item.templateId })),
+      expedition: {
+        dungeonId: current.save.activeExpedition!.dungeonId,
+        health: current.save.activeExpedition!.health,
+      },
+    };
+    const legacy = copy(current.save) as unknown as Record<string, unknown>;
+    [
+      "migrations",
+      "seenContextualTutorialIds",
+      "unlockedFeatureIds",
+      "pendingFeatureUnlocks",
+      "pendingNarrativeEventId",
+      "seenNarrativeEventIds",
+      "crownSeason",
+      "lastCrownSeasonResult",
+      "lootTarget",
+      "lootPity",
+      "reforgeAttempts",
+      "eraChallengeProgress",
+      "pendingBattle",
+      "randomSnapshots",
+    ].forEach((field) => { delete legacy[field]; });
+    ((legacy.enemies as Array<Record<string, unknown>>) ?? []).forEach((enemy) => {
+      delete enemy.arenaTournamentWins;
+      delete enemy.heroMemory;
+      delete enemy.eraMutationId;
+      delete enemy.eraMutationPotency;
+    });
+    const expedition = legacy.activeExpedition as Record<string, unknown>;
+    [
+      "route",
+      "visitedNodeIds",
+      "currentNodeId",
+      "pendingShrineNodeId",
+      "attackMultiplier",
+      "defenseMultiplier",
+      "lootChanceBonus",
+      "daysSpent",
+    ].forEach((field) => { delete expedition[field]; });
+
+    // localStorage contains the raw save rather than the export envelope.
+    const serialized = JSON.stringify(legacy);
+    const parsed = parseWorldSave(serialized);
+    const restored = WorldGame.restore(JSON.parse(serialized) as unknown);
+
+    [parsed, restored.save].forEach((save) => {
+      expect(save.hero).toMatchObject({
+        id: expected.heroId,
+        name: expected.heroName,
+        classId: expected.classId,
+        rating: expected.rating,
+      });
+      expect(save.hero.inventory.map((item) => ({ id: item.id, templateId: item.templateId })))
+        .toEqual(expected.inventory);
+      expect(save.legacy.cycle).toBe(expected.cycle);
+      expect(save.activeExpedition).toMatchObject(expected.expedition);
+      expect(save.activeExpedition).toMatchObject({
+        visitedNodeIds: [],
+        attackMultiplier: 1,
+        defenseMultiplier: 1,
+        lootChanceBonus: 0,
+        daysSpent: 0,
+      });
+      expect(save.seenContextualTutorialIds).toEqual([]);
+      expect(save.unlockedFeatureIds).toEqual(expect.any(Array));
+      expect(save.pendingFeatureUnlocks).toEqual(expect.any(Array));
+      expect(save.seenNarrativeEventIds).toEqual([]);
+      expect(save.crownSeason).toMatchObject({ number: 1, points: {}, defenses: {} });
+      expect(save.reforgeAttempts).toEqual({});
+      expect(save.eraChallengeProgress.cycle).toBe(2);
+      expect(save.pendingBattle).toBeUndefined();
+      expect(save.randomSnapshots).toMatchObject({
+        world: { seed: expect.any(Number), state: expect.any(Number), calls: expect.any(Number) },
+        combat: { seed: expect.any(Number), state: expect.any(Number), calls: expect.any(Number) },
+        loot: { seed: expect.any(Number), state: expect.any(Number), calls: expect.any(Number) },
+      });
+    });
+  });
 });

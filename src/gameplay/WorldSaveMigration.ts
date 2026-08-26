@@ -26,6 +26,7 @@ import { createCrownSeason } from "./CrownSeason";
 import { SeededRandom } from "./RandomSource";
 import { NARRATIVE_EVENTS } from "./NarrativeEvents";
 import { eraChallengeFor, normalizeEraChallengeProgress } from "./EraChallenges";
+import { normalizeExpeditionStamina } from "./ExpeditionStamina";
 import {
   hasReachedWorldFeatureMilestone,
   WORLD_FEATURE_IDS,
@@ -138,6 +139,7 @@ export function normalizeWorldSave(save: GameSave): GameSave {
   save.eraChallengeProgress = normalizeEraChallengeProgress(save.eraChallengeProgress, save.legacy.cycle);
   save.activeExpedition &&= {
     ...save.activeExpedition,
+    health: normalizeExpeditionStamina(save.activeExpedition.health),
     visitedNodeIds: [...new Set(save.activeExpedition.visitedNodeIds ?? [])]
       .filter((id) => save.activeExpedition?.route?.nodes.some((node) => node.id === id) ?? false),
     attackMultiplier: Math.max(1, Number(save.activeExpedition.attackMultiplier) || 1),

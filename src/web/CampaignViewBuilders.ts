@@ -3,6 +3,7 @@ import type { CrownSeasonState } from "../gameplay/CrownSeason";
 import type { DungeonRouteNode } from "../gameplay/DungeonRoute";
 import type { EraChallenge, EraObjectiveProgress } from "../gameplay/EraChallenges";
 import type { NarrativeEffect } from "../gameplay/NarrativeEvents";
+import { normalizeExpeditionStamina } from "../gameplay/ExpeditionStamina";
 import type { DungeonExpedition } from "../gameplay/WorldTypes";
 import { createElement as element } from "./UiDom";
 
@@ -10,6 +11,31 @@ function statRow(label: string, value: string | number): HTMLElement {
   const row = element("div", "stat-row");
   row.append(element("span", "", label), element("strong", "", String(value)));
   return row;
+}
+
+export function createExpeditionConditionView(expedition: DungeonExpedition): HTMLElement {
+  const stamina = Math.round(normalizeExpeditionStamina(expedition.health));
+  const condition = element("div", "expedition-condition");
+  const staminaRow = element("div", `expedition-stamina ${stamina <= 25 ? "critical" : stamina <= 50 ? "low" : ""}`.trim());
+  staminaRow.append(element("span", "", "Запас сил"), element("strong", "", `${stamina}%`));
+  const meter = element("div", "expedition-stamina-meter");
+  meter.setAttribute("role", "progressbar");
+  meter.setAttribute("aria-label", "Оставшийся запас сил");
+  meter.setAttribute("aria-valuemin", "0");
+  meter.setAttribute("aria-valuemax", "100");
+  meter.setAttribute("aria-valuenow", String(stamina));
+  const fill = element("i");
+  fill.style.width = `${stamina}%`;
+  meter.append(fill);
+  staminaRow.append(meter);
+  condition.append(
+    staminaRow,
+    statRow("Монеты", expedition.accumulatedGold),
+    statRow("Опыт", expedition.accumulatedExperience),
+    statRow("Трофеи", expedition.loot.length),
+    statRow("Пройдено этапов", `${Math.min(expedition.stage, expedition.maxStages)}/${expedition.maxStages}`),
+  );
+  return condition;
 }
 
 export function narrativeEffectLines(effect: NarrativeEffect): string[] {

@@ -1,6 +1,7 @@
 import { WorldGame } from "../src/gameplay/WorldGame";
 import { ARENAS, DUNGEONS } from "../src/catalogs/WorldCatalog";
 import { createEraChallengeProgress, eraChallengeFor } from "../src/gameplay/EraChallenges";
+import type { DungeonRoute } from "../src/gameplay/DungeonRoute";
 
 function finishPending(game: WorldGame, firstHeroSkill?: string) {
   let chosen = false;
@@ -141,6 +142,52 @@ describe("persisted battle transaction", () => {
     expect(restored.currentPendingBattle()).toBeUndefined();
     expect(result && "completed" in result).toBe(true);
     expect(result && "expedition" in result ? result.expedition?.path : []).toContain(`node:battle:${node!.id}`);
+  });
+
+  test("expedition stamina starts full, only falls across battles, survives reload and is restored by camp", () => {
+    const game = WorldGame.create("Stamina", "Knight", 10_060);
+    game.save.hero.level = 40;
+    game.save.hero.highestArena = ARENAS.length - 1;
+    game.save.worldDay = 100;
+    game.save.hero.inventory.forEach((item) => {
+      item.stats = { ...item.stats, health: 10_000, attack: 10_000, defense: 10_000, speed: 1_000 };
+    });
+    const dungeonId = DUNGEONS[0].id;
+    const route: DungeonRoute = {
+      dungeonId,
+      entryNodeIds: ["battle-1"],
+      bossNodeId: "boss",
+      nodes: [
+        { id: "battle-1", depth: 0, lane: 0, kind: "battle", title: "Первый бой", description: "", danger: 2, rewardMultiplier: 1, connections: ["battle-2"] },
+        { id: "battle-2", depth: 1, lane: 0, kind: "battle", title: "Второй бой", description: "", danger: 2, rewardMultiplier: 1, connections: ["camp"] },
+        { id: "camp", depth: 2, lane: 0, kind: "camp", title: "Лагерь", description: "", danger: 0, rewardMultiplier: 0, connections: ["battle-3"] },
+        { id: "battle-3", depth: 3, lane: 0, kind: "battle", title: "Последний бой", description: "", danger: 2, rewardMultiplier: 1, connections: ["boss"] },
+        { id: "boss", depth: 4, lane: 0, kind: "boss", title: "Хранитель", description: "", danger: 4, rewardMultiplier: 2.4, connections: [] },
+      ],
+    };
+    const expedition = game.startExpedition(dungeonId);
+    expedition.route = route;
+    expedition.maxStages = 5;
+
+    expect(expedition.health).toBe(100);
+    const first = game.advanceExpeditionNode("battle-1");
+    const afterFirst = first.expedition!.health;
+    expect(afterFirst).toBeLessThan(100);
+
+    const restored = WorldGame.restore(JSON.parse(JSON.stringify(game.save)));
+    const second = restored.advanceExpeditionNode("battle-2");
+    const afterSecond = second.expedition!.health;
+    expect(afterSecond).toBeLessThan(afterFirst);
+
+    restored.save.activeExpedition!.health = 40;
+    const camp = restored.advanceExpeditionNode("camp");
+    expect(camp.expedition!.health).toBeGreaterThan(40);
+
+    restored.save.activeExpedition!.health = 1;
+    const exhausted = restored.advanceExpeditionNode("battle-3");
+    expect(exhausted.retreated).toBe(true);
+    expect(exhausted.message).toMatch(/исчерпал запас сил/i);
+    expect(restored.save.activeExpedition).toBeUndefined();
   });
 
   test("a finalized win against a mutated world enemy advances the era objective once", () => {

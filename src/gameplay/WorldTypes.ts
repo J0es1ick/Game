@@ -378,6 +378,7 @@ export interface DungeonExpedition {
   dungeonId: string;
   stage: number;
   maxStages: number;
+  /** Оставшийся запас сил похода, 0–100%. Имя сохранено ради совместимости старых сохранений. */
   health: number;
   accumulatedGold: number;
   accumulatedExperience: number;

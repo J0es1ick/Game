@@ -890,7 +890,9 @@ export function validateWorldSave(value: unknown): WorldSaveValidationResult {
       issues.push({ path: "$.activeExpedition", message: "Активный поход повреждён." });
     } else {
       const expedition = value.activeExpedition;
-      ["stage", "maxStages", "health", "accumulatedGold", "accumulatedExperience"].forEach((field) => {
+      // `health` is normalized after structural validation. Older builds could
+      // omit it, and a bad scalar must not discard an otherwise resumable trip.
+      ["stage", "maxStages", "accumulatedGold", "accumulatedExperience"].forEach((field) => {
         if (!isFiniteNumber(expedition[field])) {
           issues.push({ path: `$.activeExpedition.${field}`, message: "Ожидалось конечное число." });
         }

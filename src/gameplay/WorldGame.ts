@@ -117,6 +117,7 @@ import { DungeonRouteNode, generateDungeonRoute, reachableDungeonNodes } from ".
 import { availableNarrativeEvents, NARRATIVE_EVENTS, NarrativeChoice, NarrativeEventDefinition } from "./NarrativeEvents";
 import { awardCrownSeasonPoints, createCrownSeason, CrownSeasonResult, CrownSeasonState } from "./CrownSeason";
 import { factionModifier, unlockedFactionPerks } from "./FactionSystem";
+import { expeditionBattleExertion, expeditionStaminaAfterBattle } from "./ExpeditionStamina";
 import {
   BestEquipmentEvaluation,
   evaluateBestEquipment,
@@ -170,7 +171,7 @@ const EXPEDITION_SHRINE_CHOICES: readonly ExpeditionShrineChoice[] = [
     id: "blood-oath",
     name: "Клятва крови",
     description: "Оставить часть жизненной силы алтарю и наносить больше урона до конца похода.",
-    cost: "-14% здоровья похода",
+    cost: "-14% запаса сил",
     benefit: "+18% к атаке в оставшихся боях",
   },
   {
@@ -1292,16 +1293,32 @@ export class WorldGame {
     const remainingHealth = heroWon
       ? (lastTurn?.actorId === "hero" ? lastTurn.actorHealth : lastTurn?.targetHealth ?? combat.hero.maxHealth)
       : 0;
-    expedition.health = Math.max(0, Math.round(remainingHealth / combat.hero.maxHealth * 100));
     const mode = pending.context?.expeditionMode;
+    const routeNode = mode === "route-node"
+      ? expedition.route?.nodes.find((candidate) => candidate.id === pending.context?.nodeId)
+      : undefined;
+    const rawChoiceId = mode === "choice" ? pending.context?.choiceId : undefined;
+    const choiceId = rawChoiceId === "safe" || rawChoiceId === "risk" ? rawChoiceId : undefined;
+    if (mode === "route-node" && !routeNode) throw new Error("Узел сохранённого похода больше не существует.");
+    if (mode === "choice" && choiceId !== "safe" && choiceId !== "risk") {
+      throw new Error("Выбор сохранённого похода больше не существует.");
+    }
+    if (mode !== "route-node" && mode !== "choice") throw new Error("Неизвестный этап сохранённого похода.");
+    const combatKind = routeNode?.kind === "boss" || routeNode?.kind === "elite"
+      ? routeNode.kind
+      : choiceId === "risk" ? "elite" : "battle";
+    expedition.health = expeditionStaminaAfterBattle(
+      expedition.health,
+      combat.hero.maxHealth,
+      remainingHealth,
+      expeditionBattleExertion(combatKind),
+    );
     let item: EquipmentItem | undefined;
     let completedByBoss = false;
     let successMessage = "Этап похода пройден.";
 
     if (mode === "route-node") {
-      const nodeId = typeof pending.context?.nodeId === "string" ? pending.context.nodeId : "";
-      const node = expedition.route?.nodes.find((candidate) => candidate.id === nodeId);
-      if (!node) throw new Error("Узел сохранённого похода больше не существует.");
+      const node = routeNode!;
       expedition.visitedNodeIds = [...(expedition.visitedNodeIds ?? []), node.id];
       expedition.currentNodeId = node.id;
       expedition.stage = expedition.visitedNodeIds.length;
@@ -1328,9 +1345,7 @@ export class WorldGame {
       successMessage = boss
         ? `Хранитель «${dungeon.name}» повержен. Маршрут завершён, все трофеи сохранены.`
         : `${elite ? "Элитный страж" : "Патруль"} повержен. Выберите следующий связанный узел маршрута.`;
-    } else if (mode === "choice") {
-      const choiceId = pending.context?.choiceId;
-      if (choiceId !== "safe" && choiceId !== "risk") throw new Error("Выбор сохранённого похода больше не существует.");
+    } else if (mode === "choice" && choiceId) {
       expedition.path.push(choiceId);
       if (heroWon) {
         expedition.accumulatedExperience += Math.round(dungeon.rewardExperience / expedition.maxStages * (choiceId === "risk" ? 1.55 : 1));
@@ -1347,8 +1362,6 @@ export class WorldGame {
       successMessage = expedition.stage >= expedition.maxStages
         ? `Поход «${dungeon.name}» завершён. Все накопленные трофеи сохранены.`
         : `Этап ${expedition.stage}/${expedition.maxStages} пройден. Можно углубиться или отступить.`;
-    } else {
-      throw new Error("Неизвестный этап сохранённого похода.");
     }
 
     const battle: BattleReport = {
@@ -1364,6 +1377,8 @@ export class WorldGame {
       result = this.finishExpedition(true, "Раненый герой отступил. Часть найденного удалось вынести.", battle);
     } else if (completedByBoss || expedition.stage >= expedition.maxStages && mode === "choice") {
       result = this.finishExpedition(false, successMessage, battle);
+    } else if (expedition.health <= 0) {
+      result = this.finishExpedition(true, "Герой исчерпал запас сил и вынужден отступить. Часть найденного удалось вынести.", battle);
     } else {
       result = { expedition, battle, completed: false, retreated: false, message: successMessage };
     }
@@ -1900,10 +1915,10 @@ export class WorldGame {
     if (this.random.world.chance(0.18)) {
       const loss = this.random.world.int(6, 11);
       expedition.health = Math.max(1, expedition.health - loss);
-      incident = ` Ночью патруль потревожил лагерь: потеряно ${loss}% здоровья.`;
+      incident = ` Ночью патруль потревожил лагерь: потеряно ${loss}% запаса сил.`;
     }
     const recovered = Math.max(0, expedition.health - before);
-    this.event("dungeon", `${this.save.hero.name} устроил лагерь в походе и восстановил ${recovered}% здоровья.${incident}`, {
+    this.event("dungeon", `${this.save.hero.name} устроил лагерь в походе и восстановил ${recovered}% запаса сил.${incident}`, {
       kind: "dungeon", fighterId: "hero", fighterName: this.save.hero.name,
       dungeonId: expedition.dungeonId, outcome: "progressed",
     });
@@ -1912,7 +1927,7 @@ export class WorldGame {
       expedition,
       completed: false,
       retreated: false,
-      message: `Лагерь восстановил ${recovered}% здоровья и занял один день.${incident}`,
+      message: `Лагерь восстановил ${recovered}% запаса сил и занял один день.${incident}`,
     };
   }
 
@@ -1958,7 +1973,12 @@ export class WorldGame {
     const remainingHealth = heroWon
       ? (lastTurn?.actorId === "hero" ? lastTurn.actorHealth : lastTurn?.targetHealth ?? combat.hero.maxHealth)
       : 0;
-    expedition.health = Math.max(0, Math.round(remainingHealth / combat.hero.maxHealth * 100));
+    expedition.health = expeditionStaminaAfterBattle(
+      expedition.health,
+      combat.hero.maxHealth,
+      remainingHealth,
+      expeditionBattleExertion(boss ? "boss" : elite ? "elite" : "battle"),
+    );
     const multiplier = node.rewardMultiplier || 1;
     const stageExperience = Math.round(dungeon.rewardExperience / expedition.maxStages * multiplier);
     const stageGold = Math.round(dungeon.rewardGold / expedition.maxStages * multiplier);
@@ -1986,6 +2006,9 @@ export class WorldGame {
     this.recordHeroEncounter(enemy, heroWon, combat.turns);
     if (!heroWon) return this.finishExpedition(true, "Раненый герой отступил. Часть найденного удалось вынести.", battle);
     if (boss) return this.finishExpedition(false, `Хранитель «${dungeon.name}» повержен. Маршрут завершён, все трофеи сохранены.`, battle);
+    if (expedition.health <= 0) {
+      return this.finishExpedition(true, "Герой исчерпал запас сил и вынужден отступить. Часть найденного удалось вынести.", battle);
+    }
     return {
       expedition,
       battle,

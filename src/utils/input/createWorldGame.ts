@@ -170,7 +170,7 @@ async function playDungeon(game: WorldGame, persist: () => void): Promise<void> 
   while (game.save.activeExpedition) {
     const expedition = game.save.activeExpedition;
     const dungeon = DUNGEONS.find((candidate) => candidate.id === expedition.dungeonId)!;
-    console.log(`\n${dungeon.name} · здоровье ${expedition.health}% · найдено ${expedition.accumulatedGold} монет · трофеи ${expedition.loot.length}`);
+    console.log(`\n${dungeon.name} · запас сил ${expedition.health}% · найдено ${expedition.accumulatedGold} монет · трофеи ${expedition.loot.length}`);
     const shrineChoices = game.expeditionShrineChoices();
     if (shrineChoices.length > 0) {
       shrineChoices.forEach((choice, index) => console.log(`${index + 1}. ${choice.name} — ${choice.benefit}; цена: ${choice.cost}`));
