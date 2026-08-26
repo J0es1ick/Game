@@ -173,6 +173,8 @@ h3 {
 
 .creation-paper {
   width: min(1060px, 100%);
+  min-height: min-content;
+  overflow: visible;
   padding: clamp(24px, 5vw, 58px);
   border: 1px solid #b1a58e;
   background: var(--paper);

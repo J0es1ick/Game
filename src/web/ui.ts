@@ -1,4 +1,14 @@
-import { MAX_ACTIVE_SKILLS, combatantSnapshot, describeSetProgress, nextSkills, unlockedSkills } from "../gameplay/AdvancedBattle";
+import {
+  BattleSession,
+  MAX_ACTIVE_SKILLS,
+  combatantSnapshot,
+  describeSetProgress,
+  nextSkills,
+  unlockedSkills,
+  type BattleAction,
+  type BattleActionOption,
+  type BattleFighterState,
+} from "../gameplay/AdvancedBattle";
 import {
   ARENAS,
   CLASS_DEFINITIONS,
@@ -33,10 +43,27 @@ import { initializeGlossary, markTerm } from "./Glossary";
 import { queueWorldEffect } from "./WorldEffects";
 import { appendEraVeteranBadge, loadRankingSnapshot, markRankMovement, observeLeaderboardRows, saveRankingSnapshot } from "./LeaderboardView";
 import { createElement as element, query as $, queryAll as $$ } from "./UiDom";
+import { DirtyPageRegistry, ModalController, PausableTimeout, pageFromHash, pageHash } from "./UiRuntime";
+import { WorldSaveRepository } from "../gameplay/WorldSaveStorage";
+import {
+  createCrownSeasonOverview,
+  createEraChallengePanel,
+  createExpeditionRouteView,
+  narrativeEffectLines,
+} from "./CampaignViewBuilders";
+import { baseTutorialSteps, contextualTutorialSteps, type TutorialStep } from "./TutorialCatalog";
+import { SaveTransferController } from "./SaveTransferController";
+import { PendingBattleUiController, pendingBattleReport } from "./PendingBattleUi";
+import { buildRivalScoutingReport, rivalryStatus } from "../gameplay/RivalrySystem";
+import { FACTION_PERKS, factionModifier, unlockedFactionPerks } from "../gameplay/FactionSystem";
+import { crownSeasonRemainingDays } from "../gameplay/CrownSeason";
+import { reforgeCost } from "../gameplay/LootProgression";
+import type { DungeonRouteNode } from "../gameplay/DungeonRoute";
 import {
   ActivityDefinition,
   ArenaDefinition,
   BattleReport,
+  BattleTurn,
   CombatantSnapshot,
   DungeonDefinition,
   EquipmentItem,
@@ -54,13 +81,31 @@ import {
   Stats,
   TacticalStyle,
   ContextualTutorialId,
-  WorldFeatureId,
+  PendingBattle,
+  PendingBattleFinalization,
 } from "../gameplay/WorldTypes";
 
 const SAVE_KEY = "dust-and-crown-save-v2";
 const MODE_KEY = "dust-and-crown-mode";
 const LEADER_SNAPSHOT_KEY = "dust-and-crown-leader-snapshot-v1";
 const ELITE_SNAPSHOT_KEY = "dust-and-crown-elite-snapshot-v1";
+const PAGE_IDS = ["map", "hero", "arsenal", "forge", "skills", "contracts", "collections", "shop", "leaders", "elite", "chronicle"] as const;
+type PageId = typeof PAGE_IDS[number];
+const NAV_GROUPS = ["map", "hero", "equipment", "ratings", "world"] as const;
+type NavGroup = typeof NAV_GROUPS[number];
+const PAGE_NAV_GROUP: Record<PageId, NavGroup> = {
+  map: "map",
+  hero: "hero",
+  skills: "hero",
+  arsenal: "equipment",
+  forge: "equipment",
+  collections: "equipment",
+  shop: "equipment",
+  leaders: "ratings",
+  elite: "ratings",
+  chronicle: "world",
+  contracts: "world",
+};
 const classIcons: Record<HeroClass, string> = {
   Knight: "♜", Archer: "➶", Wizard: "✦", Monk: "◉", Gunsmith: "⚙", Swordsman: "⚔",
 };
@@ -81,11 +126,16 @@ let equipmentPickerSlot: EquipmentSlot | null = null;
 let comparisonItemId: string | null = null;
 let comparisonShopIndex: number | null = null;
 let dismissedTournamentReminderKey: string | null = null;
-let lootReminderTimer: number | null = null;
 let lootReminderQueue: Array<{ itemId: string; equippedItemId: string | null }> = [];
 let lootReminderIndex = 0;
+let deferredBattleLoot: { items: EquipmentItem[]; equipmentBefore: Partial<Record<EquipmentSlot, string>> | null } | null = null;
 let battleTimer: number | null = null;
 let currentReport: BattleReport | null = null;
+let manualBattleSession: BattleSession | null = null;
+let pendingBattleUi: PendingBattleUiController | null = null;
+let pendingTournamentContinuation = false;
+let pendingBattleCompletedForPersist = false;
+let selectedManualActionId = "basic";
 let currentTournament: TournamentReport | null = null;
 let tournamentBattleIndex = 0;
 let battleTurnIndex = 0;
@@ -95,6 +145,7 @@ let battleReturnPage = "map";
 let battleEquipmentBefore: Partial<Record<EquipmentSlot, string>> | null = null;
 let battleInventoryBefore: Set<string> | null = null;
 let pendingExpeditionResult: ExpeditionStepReport | null = null;
+let resumeExpeditionAfterBattle = false;
 let pendingExpeditionLoot: { items: EquipmentItem[]; equipmentBefore: Partial<Record<EquipmentSlot, string>> | null } | null = null;
 let expeditionRewardFollowup: { items: EquipmentItem[]; equipmentBefore: Partial<Record<EquipmentSlot, string>> | null } | null = null;
 let tutorialStepIndex = 0;
@@ -115,53 +166,26 @@ let newChronicleConfirmed = false;
 let newChronicleName = "";
 let newChronicleReturnFocus: HTMLElement | null = null;
 const activeToasts = new Map<string, { node: HTMLElement; count: number; timer: number }>();
+const modalController = new ModalController(document);
+const lootReminderTimeout = new PausableTimeout();
+const saveRepository = new WorldSaveRepository(localStorage, SAVE_KEY);
+const saveTransferController = new SaveTransferController(saveRepository, localStorage);
+let saveLoadError: string | null = null;
+let saveRecoveredFromBackup = false;
 
-type TutorialStep = {
-  page: string;
-  target: string;
-  title: string;
-  copy: string;
-  action: string;
-  feature?: WorldFeatureId;
-};
-
-const baseTutorialSteps: TutorialStep[] = [
-  { page: "map", target: ".game-header .hero-summary", title: "Это ваш герой", copy: "Кампания хранится в браузере и продолжается день за днём. В шапке всегда видны имя, класс и краткий итог карьеры.", action: "Начните с имени героя: рядом находятся все главные ресурсы кампании." },
-  { page: "map", target: ".game-header .resources", title: "Следите за ресурсами", copy: "Уровень открывает активности, монеты нужны для лавки и смены класса, а редкие печати — для постоянной закалки хорошего снаряжения.", action: "Проверяйте место в рейтинге и день мира перед записью на события." },
-  { page: "map", target: ".main-nav", title: "Разделы всегда под рукой", copy: "Закреплённая навигация ведёт к герою, инвентарю, кузнице, навыкам, коллекциям, лавке и рейтингам. Более сложные системы появятся здесь только после нужных этапов карьеры.", action: "Нажимайте вкладки в этой строке; кнопка «Как играть» запустит этот маршрут снова." },
-  { page: "map", target: ".map-shortcuts", title: "Быстрый переход по карте", copy: "Карта длинная, поэтому этот ряд сразу переносит к тренировкам, дуэлям, боссам, турнирам, данжам и эндгейму.", action: "Нажмите нужную карточку перехода — страница сама прокрутится к активности." },
-  { page: "map", target: "#daily-actions-section", title: "Тренировка двигает день", copy: "Тренировка безопасно даёт опыт, но её потолок зависит от уже открытых арен. Каждый подход продвигает календарь и весь живой мир.", action: "Нажмите «Тренироваться», когда хотите развиться без риска и приблизить события." },
-  { page: "map", target: "#duels-section", title: "Дуэли строят отдельную карьеру", copy: "Здесь герой встречает обычных бойцов мира подходящей силы. Дуэльные победы не поднимают мировой рейтинг, но открывают новые ступени.", action: "Выберите доступную ступень и нажмите «Начать дуэль»." },
-  { page: "map", target: "#bosses-section", title: "Особые противники", copy: "Боссы — одноразовые испытания с условиями доступа и уникальной наградой под класс героя. Побеждённый босс больше не возвращается.", action: "Изучите условия на карточке; вступайте в бой, когда все требования отмечены." },
-  { page: "map", target: "#tournaments-section", title: "На турнир записываются заранее", copy: "Турнир состоит минимум из восьми участников и проходит в назначенный день. Более престижные события реже, опаснее и щедрее.", action: "Нажмите «Записаться», а в день турнира запустите сетку из появившегося напоминания." },
-  { page: "map", target: "#dungeons-section", title: "Данж — это экспедиция", copy: "Поход состоит из нескольких этапов. Безопасный путь бережёт здоровье, рискованный повышает шанс добычи, а отдых лечит ценой продвижения к финалу.", action: "Откройте данж, начните поход и выбирайте маршрут на доске экспедиции после каждого этапа." },
-  { page: "hero", target: ".hero-visual-layout", title: "Герой показывает всю экипировку", copy: "На этом экране видны внешний вид, итоговые характеристики, история боёв, соперники и некролог. Любой слот снаряжения можно открыть напрямую.", action: "Нажмите на надетый предмет, чтобы выбрать замену, сравнить её или снять вещь." },
-  { page: "arsenal", target: ".inventory-panel", title: "Инвентарь — центр сборки", copy: "Фильтруйте добычу по слоту, комплекту, редкости и новизне. Сравнение показывает точную прибавку или потерю каждой характеристики.", action: "Используйте «Сравнить» перед экипировкой; массовая продажа не трогает надетые вещи и регалии." },
-  { page: "forge", target: ".forge-summary", title: "Закаляйте только важные вещи", copy: "Печати добываются редко, а каждый следующий уровень закалки дороже. Надетое снаряжение всегда вынесено вверх списка.", action: "Выберите предмет и нажмите улучшение, если готовы потратить указанное число печатей." },
-  { page: "skills", target: "#skill-tactics", title: "Сборка ограничена четырьмя навыками", copy: "Автоматический режим подбирает сильные доступные приёмы. Для билдостроения отключите автоподбор и соберите набор вручную; здесь же включается ручной бой.", action: "Добавляйте и убирайте навыки карточками ниже, затем выберите автоматический бой или подтверждение ходов." },
-  { page: "contracts", target: "#reputation-guide", title: "Репутация улучшает будущие контракты", copy: "Каждая фракция отдельно запоминает вашу помощь. Новые статусы повышают награды монетами и опытом в следующих поручениях именно этой фракции.", action: "Подход «честь» быстрее поднимает репутацию, а «выгода» приносит больше денег сразу.", feature: "contracts" },
-  { page: "collections", target: "#collection-overview", title: "Коллекция помнит каждую находку", copy: "Однажды найденный предмет остаётся в каталоге даже после продажи. Здесь видны недостающие части комплектов и их бонусы.", action: "Найдите желаемый комплект и ориентируйтесь на его подсказку при выборе активностей." },
-  { page: "shop", target: ".shopkeeper", title: "Лавка обновляется по календарю", copy: "Ассортимент подстраивается под класс и уровень героя. Цена зависит от силы и редкости, а сравнение работает до покупки.", action: "Сначала нажмите «Сравнить», затем покупайте только полезное для текущей сборки." },
-  { page: "leaders", target: ".leader-summary", title: "Мировой рейтинг дают турниры", copy: "Сотня лучших учитывает турнирные результаты. Дуэли и данжи вынесены в отдельную статистику, а место меняется только после реальных выступлений.", action: "Откройте таблицу после нескольких дней, чтобы увидеть анимированное изменение позиций." },
-  { page: "elite", target: "#page-elite .leader-summary", title: "Элита — поздняя игра", copy: "Чемпион последней арены может пройти Лигу короны и войти в элитную тридцатку. Первые пять — легенды; до лидера нужно последовательно победить стоящих выше.", action: "Вернитесь к эндгейму на карте после чемпионства и запишитесь в Лигу короны." },
-  { page: "chronicle", target: ".chronicle-layout", title: "Мир живёт без героя", copy: "Соперники тренируются, меняют арены, находят вещи и могут погибнуть навсегда. Летопись объясняет, что происходило, пока вы занимались своей карьерой.", action: "Обучение закончено. Нажмите «Начать игру», чтобы вернуться туда, откуда вы его открыли." },
-];
-
-const contextualTutorialSteps: Record<ContextualTutorialId, TutorialStep[]> = {
-  contracts: [
-    { page: "contracts", target: '.main-nav button[data-page="contracts"]', title: "Открыта доска контрактов", copy: "После первого чемпионства фракции начали доверять герою поручения. Контракт не заменяет активность: он задаёт дополнительную цель тренировкам, дуэлям, турнирам или данжам.", action: "Откройте новую вкладку «Контракты». Одновременно можно принять только одно поручение." },
-    { page: "contracts", target: "#reputation-guide", title: "Репутация меняет будущие награды", copy: "У каждой фракции своя шкала доверия. Повышение статуса усиливает монеты и опыт только в новых контрактах этой фракции.", action: "Изучите пороги статусов, затем выберите фракцию, чьи награды полезнее вашему пути." },
-    { page: "contracts", target: "#contract-grid", title: "Честь или выгода", copy: "Оба подхода выполняют одну задачу, но распределяют награду по-разному: честь быстрее растит репутацию, выгода увеличивает немедленную выплату.", action: "Наведите на вариант подхода, прочитайте точные изменения и примите подходящий контракт." },
-  ],
-  "equipment-legacy": [
-    { page: "forge", target: "#relic-workshop", title: "Открыто наследие снаряжения", copy: "Победы на второй половине арен пробуждают историю легендарных и мифических вещей. Надетые предметы получают известность и открывают ступени наследия.", action: "В кузнице следите за известностью ценных вещей и выбирайте постоянный путь только для снаряжения, которым действительно пользуетесь." },
-    { page: "forge", target: ".forge-grid", title: "Реликтовая пыль требует выбора", copy: "Ненужную ценную вещь можно разобрать в редкий ресурс. Выбранный путь реликвии постоянен, поэтому сравнивайте его с текущей сборкой.", action: "Сначала накопите известность предмета, затем изучите подсказки путей и подтвердите один из них." },
-  ],
-  adaptation: [
-    { page: "hero", target: "#hero-rivalries", title: "Соперник начал адаптацию", copy: "Знакомые противники запоминают ваш класс, тактику и часто используемые навыки. Повторение одного стиля постепенно усиливает их контрмеры.", action: "Раскройте досье соперника: там видны изученные привычки, сходство текущей сборки и подготовленные ответы." },
-    { page: "skills", target: "#skill-tactics", title: "Меняйте рисунок боя", copy: "Память врага не исчезает полностью, но смена навыков или тактического профиля снижает точность старых контрмер и даёт эффект неожиданности. Смена класса меняет стиль ещё сильнее.", action: "Соберите альтернативный набор из четырёх приёмов и чередуйте тактики перед повторными встречами." },
-  ],
-};
+const pageRegistry = new DirtyPageRegistry<PageId>({
+  map: (animate) => renderMap(animate),
+  hero: (animate) => { renderHeroVisual(animate); renderGearActions(); },
+  arsenal: (animate) => { renderGearActions(); renderArsenal(animate); },
+  forge: (animate) => renderForge(animate),
+  skills: (animate) => renderSkills(animate),
+  contracts: () => renderContracts(),
+  collections: () => renderCollections(),
+  shop: () => renderShop(),
+  leaders: (animate) => renderLeaders(animate),
+  elite: (animate) => renderEliteLeaders(animate),
+  chronicle: () => renderChronicle(),
+});
 
 function renderGearActions(): void {
   if (!game) return;
@@ -173,6 +197,9 @@ function renderGearActions(): void {
     const checkbox = element("input") as HTMLInputElement;
     checkbox.type = "checkbox";
     checkbox.checked = game!.save.hero.autoEquipBest;
+    best.dataset.focusKey = `${container.id}:best`;
+    set.dataset.focusKey = `${container.id}:set`;
+    checkbox.dataset.focusKey = `${container.id}:auto`;
     auto.append(checkbox, document.createTextNode(" Автоматически надевать лучшее"));
     best.addEventListener("click", () => {
       const equipped = game!.equipBest(); persist(); refreshEquipmentViews(true);
@@ -193,20 +220,22 @@ function renderGearActions(): void {
 }
 
 function loadGame(): WorldGame | null {
-  try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return null;
-    const save = JSON.parse(raw) as GameSave;
-    if ((save.version !== 2 && save.version !== 3) || !save.hero) return null;
-    return WorldGame.restore(save);
-  } catch {
+  saveLoadError = null;
+  saveRecoveredFromBackup = false;
+  const loaded = saveRepository.load();
+  if (!loaded) {
+    const hasUnreadableData = [saveRepository.primaryKey, saveRepository.temporaryKey, saveRepository.backupKey]
+      .some((key) => localStorage.getItem(key) !== null);
+    if (hasUnreadableData) saveLoadError = "Ни основное сохранение, ни временная или резервная копия не прошли проверку целостности.";
     return null;
   }
+  saveRecoveredFromBackup = loaded.source !== "primary";
+  return WorldGame.restore(loaded.save);
 }
 
 function contextualTutorialCanOpen(): boolean {
   if (!game || !$("#tutorial-layer").hidden) return false;
-  return ["#battle-overlay", "#dungeon-layer", "#equipment-picker", "#equipment-comparison", "#new-chronicle-layer"]
+  return ["#battle-overlay", "#dungeon-layer", "#equipment-picker", "#equipment-comparison", "#new-chronicle-layer", "#narrative-layer"]
     .every((selector) => $(selector).hidden);
 }
 
@@ -242,7 +271,13 @@ function queueUnseenContextualTutorials(): void {
 function persist(options: { deferFeatureUnlocks?: boolean } = {}): void {
   if (!game) return;
   const featureUnlocks = options.deferFeatureUnlocks ? [] : game.consumeFeatureUnlocks();
-  localStorage.setItem(SAVE_KEY, JSON.stringify(game.save));
+  try {
+    saveRepository.save(game.save);
+  } catch (error) {
+    toast((error as Error).message, "error");
+    return;
+  }
+  pageRegistry.invalidateAll();
   featureUnlocks.forEach((unlock) => {
     queueWorldEffect({
       eyebrow: `НОВАЯ ВОЗМОЖНОСТЬ · ДЕНЬ ${unlock.day}`,
@@ -335,10 +370,18 @@ function updateSoundControls(): void {
 
 function initializeStickyOffsets(): void {
   const header = document.querySelector<HTMLElement>(".game-header");
-  if (!header) return;
-  const sync = () => document.documentElement.style.setProperty("--game-header-height", `${Math.ceil(header.getBoundingClientRect().height)}px`);
+  const navigation = document.querySelector<HTMLElement>(".main-nav");
+  if (!header || !navigation) return;
+  const sync = () => {
+    document.documentElement.style.setProperty("--game-header-height", `${Math.ceil(header.getBoundingClientRect().height)}px`);
+    document.documentElement.style.setProperty("--main-nav-height", `${Math.ceil(navigation.getBoundingClientRect().height)}px`);
+  };
   sync();
-  if ("ResizeObserver" in window) new ResizeObserver(sync).observe(header);
+  if ("ResizeObserver" in window) {
+    const observer = new ResizeObserver(sync);
+    observer.observe(header);
+    observer.observe(navigation);
+  }
 }
 
 function toggleSound(): void {
@@ -462,6 +505,15 @@ function renderRivalryMemory(enemyId: string, memory: EnemyStyleMemory, preview?
   if (!counterList.childElementCount) counterList.append(element("span", "rivalry-memory-empty", "Контрмеры появятся, если продолжать сражаться одинаково."));
   counters.append(counterList);
   body.append(counters);
+  if (preview) {
+    const scouting = buildRivalScoutingReport(memory, preview);
+    const advice = element("section", "rivalry-scouting-advice");
+    advice.append(
+      element("strong", "", "Совет перед следующей встречей"),
+      element("p", "", scouting.recommendation),
+    );
+    body.append(advice);
+  }
   details.append(body);
   return details;
 }
@@ -479,6 +531,22 @@ function setAnimatedText(selector: string, text: string): void {
   if (node.textContent === text) return;
   node.textContent = text;
   replayAnimation(node, "value-updated");
+}
+
+function preserveUiFocus(render: () => void): void {
+  const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  const id = active?.id;
+  const key = active?.dataset.focusKey;
+  const scrollX = window.scrollX;
+  const scrollY = window.scrollY;
+  render();
+  const replacement = id
+    ? document.getElementById(id)
+    : key
+      ? document.querySelector<HTMLElement>(`[data-focus-key="${CSS.escape(key)}"]`)
+      : null;
+  if (replacement && replacement !== active) replacement.focus({ preventScroll: true });
+  window.scrollTo({ left: scrollX, top: scrollY, behavior: "auto" });
 }
 
 function tutorialStepsFor(id: ContextualTutorialId | "base"): TutorialStep[] {
@@ -507,13 +575,26 @@ function renderTutorial(animate = true): void {
   next.textContent = tutorialStepIndex === activeTutorialSteps.length - 1
     ? (activeTutorialId === "base" ? "Начать игру" : "Понятно")
     : "Далее";
-  showPage(step.page, false, false, false);
+  showPage(step.page, false, true, false, false);
   window.requestAnimationFrame(() => {
     tutorialTarget = document.querySelector<HTMLElement>(step.target);
-    if (!tutorialTarget) tutorialTarget = $(".game-header");
-    const targetIsFixed = tutorialTarget.closest(".game-header, .main-nav");
-    if (!targetIsFixed) tutorialTarget.scrollIntoView({ behavior: "auto", block: "center", inline: "nearest" });
-    scheduleTutorialPosition();
+    const targetIsVisible = tutorialTarget && !tutorialTarget.hidden
+      && tutorialTarget.getAttribute("aria-hidden") !== "true"
+      && getComputedStyle(tutorialTarget).display !== "none"
+      && tutorialTarget.getBoundingClientRect().width > 0;
+    if (!targetIsVisible) {
+      tutorialTarget = step.target.includes(".resources")
+        ? document.querySelector<HTMLElement>(".hero-summary")
+        : document.querySelector<HTMLElement>(`.main-nav button[data-page="${step.page}"]`) ?? $(".game-header");
+    }
+    const positionedTarget = tutorialTarget ?? $(".game-header");
+    tutorialTarget = positionedTarget;
+    if (positionedTarget.closest(".main-nav")) {
+      positionedTarget.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    } else if (!positionedTarget.closest(".game-header")) {
+      positionedTarget.scrollIntoView({ behavior: "auto", block: "center", inline: "nearest" });
+    }
+    window.requestAnimationFrame(scheduleTutorialPosition);
   });
   if (animate) {
     replayAnimation($(".tutorial-dialog"), "step-changing");
@@ -563,7 +644,7 @@ function finishTutorial(): void {
   tutorialPositionFrame = null;
   tutorialTarget = null;
   activeTutorialSteps = [];
-  showPage(tutorialReturnPage, false, false, false);
+  showPage(tutorialReturnPage, false, true, false, false);
   window.requestAnimationFrame(() => window.scrollTo({ top: tutorialReturnScrollY, behavior: "auto" }));
   scheduleContextualTutorials();
 }
@@ -600,6 +681,7 @@ function createHero(): void {
     return;
   }
   game = WorldGame.create(name, selectedClass);
+  pendingBattleUi = new PendingBattleUiController(game);
   localStorage.removeItem(LEADER_SNAPSHOT_KEY);
   localStorage.removeItem(ELITE_SNAPSHOT_KEY);
   game.save.hero.appearance = {
@@ -607,49 +689,64 @@ function createHero(): void {
     faceStyle: 0,
   };
   persist();
-  $("#creation-screen").classList.add("hidden");
+  modalController.close($("#creation-screen"), false);
   renderAll();
   openTutorial(true);
   toast(`${name}: путь начался.`);
   queueWorldEffect({ eyebrow: "НОВАЯ ЛЕТОПИСЬ", title: name, description: `${CLASS_DEFINITIONS[selectedClass].name} выходит на первую арену.`, symbol: classIcons[selectedClass], tone: "legendary", sound: "reputation", duration: 2600 });
 }
 
-function showPage(page: string, scrollToTop = true, refresh = true, scrollNavigation = true): void {
-  $$(".main-nav button").forEach((button) => {
-    const active = button.dataset.page === page;
+function currentPage(): PageId {
+  const page = document.querySelector<HTMLElement>(".page.active")?.id.replace("page-", "") as PageId | undefined;
+  return PAGE_IDS.includes(page as PageId) ? page as PageId : "map";
+}
+
+function pageIsAvailable(page: PageId): boolean {
+  return page !== "contracts" || Boolean(game?.isFeatureUnlocked("contracts"));
+}
+
+function syncNavigation(page: PageId): void {
+  const group = PAGE_NAV_GROUP[page];
+  $$<HTMLButtonElement>(".nav-primary button[data-nav-group]").forEach((button) => {
+    const active = button.dataset.navGroup === group;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-expanded", String(active));
+    button.setAttribute("aria-controls", "nav-secondary");
+  });
+  $$<HTMLButtonElement>(".nav-secondary button[data-page]").forEach((button) => {
+    const buttonPage = button.dataset.page as PageId;
+    const active = buttonPage === page;
+    const visible = button.dataset.navGroup === group && pageIsAvailable(buttonPage);
+    button.hidden = !visible;
+    button.setAttribute("aria-hidden", String(!visible));
     button.classList.toggle("active", active);
     if (active) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
-  $$(".page").forEach((section) => section.classList.toggle("active", section.id === `page-${page}`));
-  if (game && refresh) {
-    switch (page) {
-      case "map": renderMap(); break;
-      case "hero": renderHeroVisual(); renderGearActions(); break;
-      case "arsenal": renderGearActions(); renderArsenal(); break;
-      case "forge": renderForge(); break;
-      case "skills": renderSkills(); break;
-      case "contracts": renderContracts(); break;
-      case "collections": renderCollections(); break;
-      case "shop": renderShop(); break;
-      case "leaders": renderLeaders(true); break;
-      case "elite": renderEliteLeaders(true); break;
-      case "chronicle": renderChronicle(); break;
-    }
-  }
-  const activeNavigationItem = document.querySelector<HTMLButtonElement>(`.main-nav button[data-page="${page}"]`);
+  $("#nav-secondary").dataset.group = group;
+}
+
+function renderActivePage(animate = false, force = false): void {
+  if (!game) return;
+  const page = currentPage();
+  pageRegistry.render(page, { animate, force });
+}
+
+function showPage(page: string, scrollToTop = true, refresh = true, scrollNavigation = true, updateRoute = true): void {
+  const requested = PAGE_IDS.includes(page as PageId) ? page as PageId : "map";
+  const targetPage = pageIsAvailable(requested) ? requested : "map";
+  syncNavigation(targetPage);
+  $$(".page").forEach((section) => section.classList.toggle("active", section.id === `page-${targetPage}`));
+  if (game && refresh) pageRegistry.render(targetPage, { animate: true });
+  const activeNavigationItem = document.querySelector<HTMLButtonElement>(`.main-nav button[data-page="${targetPage}"]`);
   if (scrollNavigation) activeNavigationItem?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   if (scrollToTop) window.scrollTo({ top: 0, behavior: "smooth" });
+  if (updateRoute && location.hash !== pageHash(targetPage)) history.pushState(null, "", pageHash(targetPage));
 }
 
 function renderFeatureNavigation(): void {
   if (!game) return;
-  const contracts = document.querySelector<HTMLButtonElement>('.main-nav button[data-page="contracts"]');
-  if (contracts) {
-    const unlocked = game.isFeatureUnlocked("contracts");
-    contracts.hidden = !unlocked;
-    contracts.setAttribute("aria-hidden", String(!unlocked));
-  }
+  syncNavigation(currentPage());
 }
 
 function renderHeader(): void {
@@ -676,6 +773,8 @@ function renderHeader(): void {
   setAnimatedText("#contract-count", game.isFeatureUnlocked("contracts")
     ? (game.save.activeContract ? `${game.save.activeContract.progress}/${game.save.activeContract.target}` : String(game.save.contractOffers.length))
     : "0");
+  const restoreBackup = $("#restore-backup-btn") as HTMLButtonElement;
+  restoreBackup.disabled = !saveTransferController.canRestoreBackup();
 }
 
 function statRow(label: string, value: string | number): HTMLElement {
@@ -813,7 +912,9 @@ function renderClassChangePanel(): void {
     const nextName = CLASS_DEFINITIONS[nextClass].name;
     if (!window.confirm(`Сменить класс на «${nextName}» за ${CLASS_CHANGE_GOLD_COST.toLocaleString("ru-RU")} ¤ и ${CLASS_CHANGE_MARK_COST} печатей?`)) return;
     try {
-      game!.changeHeroClass(nextClass); persist(); renderAll();
+      game!.changeHeroClass(nextClass); persist();
+      renderHeader();
+      preserveUiFocus(() => renderActivePage(false));
       toast(`Новый класс: ${nextName}. Подходящее снаряжение надето автоматически.`);
       queueWorldEffect({ eyebrow: "НОВАЯ СПЕЦИАЛИЗАЦИЯ", title: nextName, description: "Класс изменён. Навыки и подходящее снаряжение собраны заново.", symbol: "✦", tone: "legendary", sound: "reputation" });
     } catch (error) { toast((error as Error).message, "error"); }
@@ -891,6 +992,7 @@ function renderHeroHistory(animateItems = true): void {
     const ranked = topHundred.get(record.enemyId);
     const eliteFighter = elite.get(record.enemyId);
     const worldFighter = livingWorldFighters.get(record.enemyId);
+    const rivalry = rivalryStatus(record);
     const worldStatus = eliteFighter
       ? `Элита №${eliteFighter.rank} · ${game!.legendTitle(eliteFighter.rank) ?? "участник Лиги короны"} · рейтинг ${eliteFighter.entry.rating}`
       : ranked
@@ -903,6 +1005,7 @@ function renderHeroHistory(animateItems = true): void {
     copy.append(
       element("strong", "", record.name),
       element("small", "", `${CLASS_DEFINITIONS[record.classId].name} · последняя встреча: день ${record.lastMetDay}`),
+      element("span", `rivalry-disposition ${rivalry.id}`, `${rivalry.name} · ${rivalry.description}`),
       element("span", `rivalry-world-rank${eliteFighter ? " elite" : ranked ? " ranked" : ""}`, worldStatus),
     );
     if (worldFighter) {
@@ -1031,6 +1134,10 @@ function tournamentReminderKey(arenas: ScheduledTournament[]): string {
 function renderTournamentReminder(): void {
   const reminder = $("#tournament-reminder");
   if (!game) { reminder.hidden = true; return; }
+  if (lootReminderQueue[lootReminderIndex] || !$("#loot-reminder").hidden || !$("#narrative-layer").hidden) {
+    reminder.hidden = true;
+    return;
+  }
   const arenas = tournamentsScheduledToday();
   const key = tournamentReminderKey(arenas);
   if (arenas.length === 0 || dismissedTournamentReminderKey === key) { reminder.hidden = true; return; }
@@ -1121,18 +1228,56 @@ function renderExpedition(): void {
   const condition = element("div", "expedition-condition");
   condition.append(statRow("Силы", `${expedition.health}%`), statRow("Монеты", expedition.accumulatedGold), statRow("Опыт", expedition.accumulatedExperience), statRow("Трофеи", expedition.loot.length));
   heading.append(copy, condition);
-  const choices = element("div", "expedition-choices");
-  game.expeditionChoices().forEach((choice) => {
-    const card = element("article", `expedition-choice ${choice.id}`);
-    card.append(element("small", "", `РИСК: ${choice.danger.toUpperCase()}`), element("h4", "", choice.name), element("p", "", choice.description), element("span", "", `Награда: ${choice.reward}`));
-    const button = element("button", "button", "Выбрать путь");
-    button.addEventListener("click", () => advanceExpedition(choice.id));
-    card.append(button); choices.append(card);
-  });
+  const route = game.expeditionRoute();
+  const routeMap = route ? renderExpeditionRoute(route.nodes) : element("div", "expedition-choices");
+  const shrineChoices = game.expeditionShrineChoices();
+  const choices = shrineChoices.length ? element("div", "expedition-route-shell") : routeMap;
+  if (shrineChoices.length) {
+    const shrine = element("section", "expedition-shrine-choice");
+    shrine.append(
+      element("p", "eyebrow", "КЛЯТВА У СВЯТИЛИЩА"),
+      element("h4", "", "Сила всегда требует цены"),
+      element("p", "", "Решение действует до конца текущего похода и не может быть отменено."),
+    );
+    const shrineGrid = element("div");
+    shrineChoices.forEach((choice) => {
+      const button = element("button", "expedition-shrine-option");
+      button.type = "button";
+      button.append(
+        element("strong", "", choice.name),
+        element("p", "", choice.description),
+        element("span", "positive", choice.benefit),
+        element("span", "negative", `Цена: ${choice.cost}`),
+      );
+      button.addEventListener("click", () => resolveExpeditionShrine(choice.id));
+      shrineGrid.append(button);
+    });
+    shrine.append(shrineGrid);
+    choices.append(shrine, routeMap);
+  }
+  if (!route) game.expeditionChoices().forEach((choice) => {
+      const card = element("article", `expedition-choice ${choice.id}`);
+      card.append(element("small", "", `РИСК: ${choice.danger.toUpperCase()}`), element("h4", "", choice.name), element("p", "", choice.description), element("span", "", `Награда: ${choice.reward}`));
+      const button = element("button", "button", "Выбрать путь");
+      button.addEventListener("click", () => advanceExpedition(choice.id));
+      card.append(button); choices.append(card);
+    });
   const retreat = element("button", "plain-button expedition-retreat", "Отступить и сохранить часть найденного");
   retreat.addEventListener("click", retreatExpedition);
-  const path = element("p", "expedition-path", expedition.path.length ? `Пройденный путь: ${expedition.path.map((id) => id === "risk" ? "риск" : id === "rest" ? "лагерь" : "проход").join(" → ")}` : "Поход только начался.");
+  const visitedTitles = route
+    ? (expedition.visitedNodeIds ?? []).map((id) => route.nodes.find((node) => node.id === id)?.title).filter((title): title is string => Boolean(title))
+    : expedition.path.map((id) => id === "risk" ? "риск" : id === "rest" ? "лагерь" : "проход");
+  const path = element("p", "expedition-path", visitedTitles.length ? `Пройденный путь: ${visitedTitles.join(" → ")}` : "Поход только начался.");
   board.replaceChildren(heading, choices, path, retreat);
+}
+
+function renderExpeditionRoute(nodes: DungeonRouteNode[]): HTMLElement {
+  return createExpeditionRouteView({
+    nodes,
+    expedition: game!.save.activeExpedition!,
+    reachableIds: new Set(game!.reachableExpeditionNodes().map((node) => node.id)),
+    onAdvance: advanceExpeditionNode,
+  });
 }
 
 function openDungeonWindow(): void {
@@ -1142,8 +1287,13 @@ function openDungeonWindow(): void {
   $("#dungeon-window-title").textContent = dungeon?.name ?? "Путь в глубину";
   $("#dungeon-reward-view").hidden = true;
   $("#dungeon-expedition-view").hidden = false;
+  $("#close-dungeon-window").hidden = true;
   renderExpedition();
-  $("#dungeon-layer").hidden = false;
+  modalController.open($("#dungeon-layer"), {
+    initialFocus: ".expedition-route-node.reachable button, .expedition-shrine-option, .expedition-choice button, .expedition-retreat",
+    dismissOnBackdrop: false,
+    dismissOnEscape: false,
+  });
 }
 
 function closeDungeonWindow(): void {
@@ -1151,7 +1301,12 @@ function closeDungeonWindow(): void {
     closeExpeditionRewards();
     return;
   }
-  $("#dungeon-layer").hidden = true;
+  if (game?.save.activeExpedition) {
+    toast("Сначала завершите поход или отступите, чтобы вернуться к карте.");
+    return;
+  }
+  modalController.close($("#dungeon-layer"));
+  resumeDeferredUi();
 }
 
 function renderDuels(animateItems = true): void {
@@ -1226,15 +1381,17 @@ function canHeroEquip(item: EquipmentItem): boolean {
 
 function closeEquipmentPicker(): void {
   equipmentPickerSlot = null;
-  $("#equipment-picker").hidden = true;
+  modalController.close($("#equipment-picker"));
   if ($("#equipment-comparison").hidden) document.body.classList.remove("equipment-dialog-open");
+  resumeDeferredUi();
 }
 
 function closeEquipmentComparison(): void {
   comparisonItemId = null;
   comparisonShopIndex = null;
-  $("#equipment-comparison").hidden = true;
+  modalController.close($("#equipment-comparison"));
   if ($("#equipment-picker").hidden) document.body.classList.remove("equipment-dialog-open");
+  resumeDeferredUi();
 }
 
 function equipFromDialog(item: EquipmentItem): void {
@@ -1296,7 +1453,7 @@ function renderEquipmentComparison(): void {
     equip.onclick = () => {
       try {
         const bought = game!.buy(comparisonShopIndex!);
-        persist(); closeEquipmentComparison(); renderShop(); renderCollections(); refreshEquipmentViews(true); toast(`${bought.name} добавлен в инвентарь.`);
+        persist(); closeEquipmentComparison(); refreshEquipmentViews(true); toast(`${bought.name} добавлен в инвентарь.`);
         queueWorldEffect({ eyebrow: "НОВАЯ ПОКУПКА", title: bought.name, description: `${RARITY_LABELS[bought.rarity]} снаряжение добавлено в инвентарь.`, symbol: "◆", tone: rarityAtLeastUi(bought.rarity, "legendary") ? "legendary" : "positive", sound: "loot" });
       } catch (error) { toast((error as Error).message, "error"); }
     };
@@ -1313,14 +1470,16 @@ function openEquipmentComparison(itemId: string, shopIndex: number | null = null
   comparisonShopIndex = shopIndex;
   renderEquipmentComparison();
   const layer = $("#equipment-comparison");
-  layer.hidden = false;
+  modalController.open(layer, {
+    initialFocus: "#close-equipment-comparison",
+    dismissOnBackdrop: true,
+    onRequestClose: closeEquipmentComparison,
+  });
   document.body.classList.add("equipment-dialog-open");
-  window.setTimeout(() => ($("#close-equipment-comparison") as HTMLButtonElement).focus(), 0);
 }
 
 function concealLootReminder(): void {
-  if (lootReminderTimer !== null) window.clearTimeout(lootReminderTimer);
-  lootReminderTimer = null;
+  lootReminderTimeout.cancel();
   const reminder = $("#loot-reminder");
   reminder.hidden = true;
   reminder.classList.remove("is-visible");
@@ -1328,8 +1487,10 @@ function concealLootReminder(): void {
 
 function hideLootReminder(): void {
   concealLootReminder();
+  document.body.classList.remove("loot-notification-open");
   lootReminderQueue = [];
   lootReminderIndex = 0;
+  window.setTimeout(renderTournamentReminder, 60);
 }
 
 function lootReminderItemContent(container: HTMLElement, item: EquipmentItem | undefined, heading: string): void {
@@ -1349,6 +1510,7 @@ function lootReminderItemContent(container: HTMLElement, item: EquipmentItem | u
 
 function renderLootReminder(): void {
   if (!game) return;
+  if (document.body.classList.contains("ui-modal-open")) return;
   concealLootReminder();
   const queued = lootReminderQueue[lootReminderIndex];
   if (!queued) {
@@ -1386,10 +1548,13 @@ function renderLootReminder(): void {
   };
 
   const reminder = $("#loot-reminder");
+  $("#tournament-reminder").hidden = true;
   reminder.hidden = false;
+  document.body.classList.add("loot-notification-open");
   void reminder.offsetWidth;
   reminder.classList.add("is-visible");
-  lootReminderTimer = window.setTimeout(advanceLootReminder, 5_000);
+  reminder.classList.remove("timer-paused");
+  lootReminderTimeout.start(advanceLootReminder, 5_000);
 }
 
 function advanceLootReminder(): void {
@@ -1403,11 +1568,32 @@ function advanceLootReminder(): void {
 }
 
 function showLootReminders(items: EquipmentItem[], equipmentBefore: Partial<Record<EquipmentSlot, string>> | null): void {
-  hideLootReminder();
   if (items.length === 0) return;
-  lootReminderQueue = items.map((item) => ({ itemId: item.id, equippedItemId: equipmentBefore?.[item.slot] ?? null }));
-  lootReminderIndex = 0;
+  const additions = items
+    .filter((item) => !lootReminderQueue.some((queued) => queued.itemId === item.id))
+    .map((item) => ({ itemId: item.id, equippedItemId: equipmentBefore?.[item.slot] ?? null }));
+  if (additions.length === 0) return;
+  const wasEmpty = lootReminderQueue.length === 0 || lootReminderIndex >= lootReminderQueue.length;
+  lootReminderQueue.push(...additions);
+  if (wasEmpty) {
+    lootReminderIndex = 0;
+    resumeDeferredUi();
+  } else {
+    $("#loot-reminder-progress").textContent = `ПОЛУЧЕНА ДОБЫЧА · ${lootReminderIndex + 1} ИЗ ${lootReminderQueue.length}`;
+  }
+}
+
+function resumeLootReminder(): void {
+  if (document.body.classList.contains("ui-modal-open") || !lootReminderQueue[lootReminderIndex]) return;
   renderLootReminder();
+}
+
+function setLootReminderPaused(paused: boolean): void {
+  const reminder = $("#loot-reminder");
+  if (reminder.hidden) return;
+  reminder.classList.toggle("timer-paused", paused);
+  if (paused) lootReminderTimeout.pause();
+  else lootReminderTimeout.resume();
 }
 
 function itemCountLabel(count: number): string {
@@ -1462,7 +1648,12 @@ function openExpeditionRewards(
       : "При отступлении найденные предметы сохранить не удалось.")]));
   $("#dungeon-expedition-view").hidden = true;
   $("#dungeon-reward-view").hidden = false;
-  $("#dungeon-layer").hidden = false;
+  $("#close-dungeon-window").hidden = true;
+  modalController.open($("#dungeon-layer"), {
+    initialFocus: "#continue-expedition-rewards",
+    dismissOnBackdrop: false,
+    dismissOnEscape: false,
+  });
 }
 
 function rewardStat(label: string, value: string): HTMLElement {
@@ -1472,12 +1663,70 @@ function rewardStat(label: string, value: string): HTMLElement {
 }
 
 function closeExpeditionRewards(): void {
-  $("#dungeon-layer").hidden = true;
+  modalController.close($("#dungeon-layer"));
   $("#dungeon-reward-view").hidden = true;
   $("#dungeon-expedition-view").hidden = false;
   const followup = expeditionRewardFollowup;
   expeditionRewardFollowup = null;
   if (followup?.items.length) window.setTimeout(() => showLootReminders(followup.items, followup.equipmentBefore), 120);
+  else resumeDeferredUi();
+}
+
+function presentPendingNarrativeEvent(): boolean {
+  if (!game || !$("#narrative-layer").hidden || !$("#tutorial-layer").hidden || document.body.classList.contains("ui-modal-open")) return false;
+  const story = game.pendingNarrativeEvent();
+  if (!story) return false;
+  concealLootReminder();
+  $("#tournament-reminder").hidden = true;
+  $("#narrative-title").textContent = story.title;
+  $("#narrative-copy").textContent = story.description;
+  const choices = $("#narrative-choices");
+  choices.replaceChildren(...story.choices.map((choice, index) => {
+    const card = element("button", "narrative-choice");
+    card.type = "button";
+    card.style.setProperty("--choice-index", String(index));
+    const lines = narrativeEffectLines(choice.effect);
+    const unaffordable = (choice.effect.gold ?? 0) < 0 && game!.save.hero.gold + (choice.effect.gold ?? 0) < 0;
+    card.disabled = unaffordable;
+    card.append(
+      element("small", "", `РЕШЕНИЕ ${String(index + 1).padStart(2, "0")}`),
+      element("strong", "", choice.label),
+      element("p", "", choice.description),
+      element("span", "narrative-consequence", unaffordable ? "Недостаточно монет" : lines.join(" · ")),
+    );
+    card.addEventListener("click", () => {
+      try {
+        const resolved = game!.resolveNarrativeChoice(choice.id);
+        persist();
+        modalController.close($("#narrative-layer"));
+        refreshCurrentWorldView();
+        queueWorldEffect({
+          eyebrow: "РЕШЕНИЕ ПРИНЯТО",
+          title: resolved.choice.label,
+          description: narrativeEffectLines(resolved.choice.effect).join(" · "),
+          symbol: "◆",
+          tone: "neutral",
+          sound: "choice",
+          duration: 2800,
+        });
+        window.setTimeout(resumeDeferredUi, 80);
+      } catch (error) { toast((error as Error).message, "error"); }
+    });
+    return card;
+  }));
+  modalController.open($("#narrative-layer"), {
+    initialFocus: ".narrative-choice:not(:disabled)",
+    dismissOnBackdrop: false,
+    dismissOnEscape: false,
+    restoreFocus: true,
+  });
+  return true;
+}
+
+function resumeDeferredUi(): void {
+  if (document.body.classList.contains("ui-modal-open") || !$("#tutorial-layer").hidden) return;
+  if (presentPendingNarrativeEvent()) return;
+  resumeLootReminder();
 }
 
 function pickerItemCard(item: EquipmentItem, equippedId?: string): HTMLElement {
@@ -1535,12 +1784,15 @@ function openEquipmentPicker(slot: EquipmentSlot): void {
   equipmentPickerSlot = slot;
   comparisonItemId = null;
   comparisonShopIndex = null;
-  $("#equipment-comparison").hidden = true;
+  if (!$("#equipment-comparison").hidden) modalController.close($("#equipment-comparison"), false);
   renderEquipmentPicker();
   const layer = $("#equipment-picker");
-  layer.hidden = false;
+  modalController.open(layer, {
+    initialFocus: "#close-equipment-picker",
+    dismissOnBackdrop: true,
+    onRequestClose: closeEquipmentPicker,
+  });
   document.body.classList.add("equipment-dialog-open");
-  window.setTimeout(() => ($("#close-equipment-picker") as HTMLButtonElement).focus(), 0);
 }
 
 function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopIndex = -1, sold = false): HTMLElement {
@@ -1563,9 +1815,11 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
     const equipped = game.save.hero.equipped[item.slot] === item.id;
     const compare = element("button", "small-button muted", "Сравнить");
     compare.type = "button";
+    compare.dataset.focusKey = `inventory:${item.id}:compare`;
     compare.disabled = equipped;
     compare.addEventListener("click", () => openEquipmentComparison(item.id));
     const equip = element("button", "small-button", equipped ? "Снять" : "Надеть");
+    equip.dataset.focusKey = `inventory:${item.id}:equip`;
     equip.addEventListener("click", () => {
       try {
         if (equipped) game!.unequip(item.slot);
@@ -1575,6 +1829,7 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
     });
     const sellable = game!.canSell(item.id);
     const sell = element("button", "small-button muted sell-button", sellable ? `Продать · ${Math.round(item.price * 0.45)} ¤` : "Регалия короны");
+    sell.dataset.focusKey = `inventory:${item.id}:sell`;
     sell.disabled = equipped || !sellable;
     if (!sellable) sell.title = "Этот уникальный комплект принадлежит первой легенде и не продаётся.";
     sell.addEventListener("click", () => {
@@ -1587,7 +1842,7 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
         persist();
         inventoryGrid.style.minHeight = `${previousHeight}px`;
         renderHeader();
-        renderArsenal(false);
+        pageRegistry.render("arsenal", { force: true, animate: false });
         window.scrollTo(0, scrollTop);
         window.requestAnimationFrame(() => {
           inventoryGrid.style.minHeight = "";
@@ -1600,15 +1855,15 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
   } else {
     const compare = element("button", "small-button muted", "Сравнить");
     compare.type = "button";
+    compare.dataset.focusKey = `shop:${shopIndex}:compare`;
     compare.disabled = sold;
     compare.addEventListener("click", () => openEquipmentComparison(item.id, shopIndex));
     const buy = element("button", "button", sold ? "Продано" : `Купить · ${item.price} ¤`); buy.disabled = sold || game.save.hero.gold < item.price;
+    buy.dataset.focusKey = `shop:${shopIndex}:buy`;
     buy.addEventListener("click", () => {
       try {
         const bought = game!.buy(shopIndex);
         persist();
-        renderShop();
-        renderCollections();
         refreshEquipmentViews(true);
         toast(`${bought.name} добавлен в инвентарь.`);
         queueWorldEffect({ eyebrow: "НОВАЯ ПОКУПКА", title: bought.name, description: `${RARITY_LABELS[bought.rarity]} снаряжение добавлено в инвентарь.`, symbol: "◆", tone: rarityAtLeastUi(bought.rarity, "legendary") ? "legendary" : "positive", sound: "loot" });
@@ -1653,7 +1908,7 @@ function renderArsenal(animateItems = true): void {
   const filters = $("#inventory-filters"); filters.replaceChildren();
   (["all", ...slots] as Array<EquipmentSlot | "all">).forEach((slot) => {
     const button = element("button", inventoryFilter === slot ? "active" : "", slot === "all" ? "Все" : SLOT_LABELS[slot]);
-    button.addEventListener("click", () => { inventoryFilter = slot; inventoryVisibleLimit = 60; renderArsenal(); }); filters.append(button);
+    button.addEventListener("click", () => { inventoryFilter = slot; inventoryVisibleLimit = 60; pageRegistry.render("arsenal", { force: true, animate: false }); }); filters.append(button);
   });
   const setFilter = $("#inventory-set-filter") as HTMLSelectElement;
   if (setFilter.options.length === 0) {
@@ -1725,21 +1980,24 @@ function renderSkills(animateItems = true): void {
   const autoBuild = element("label", "tactic-toggle");
   const autoBuildInput = element("input") as HTMLInputElement;
   autoBuildInput.type = "checkbox"; autoBuildInput.checked = hero.autoSelectSkills;
+  autoBuildInput.dataset.focusKey = "skills:auto-build";
   autoBuild.append(autoBuildInput, document.createTextNode(" Автоматически выбирать лучшие навыки"));
-  autoBuildInput.addEventListener("change", () => { game!.setAutoSelectSkills(autoBuildInput.checked); persist(); renderSkills(false); });
+  autoBuildInput.addEventListener("change", () => { game!.setAutoSelectSkills(autoBuildInput.checked); persist(); preserveUiFocus(() => renderSkills(false)); });
   const modeLabel = element("span", "tactic-label", "Ведение боя");
   const modeButtons = element("div", "tactic-mode-buttons");
   (["auto", "manual"] as const).forEach((mode) => {
     const button = element("button", hero.combatMode === mode ? "active" : "", mode === "auto" ? "Автоматически" : "Подтверждать ходы");
     button.type = "button";
-    button.addEventListener("click", () => { game!.setCombatMode(mode); persist(); renderSkills(false); });
+    button.dataset.focusKey = `skills:mode:${mode}`;
+    button.addEventListener("click", () => { game!.setCombatMode(mode); persist(); preserveUiFocus(() => renderSkills(false)); });
     modeButtons.append(button);
   });
   const profileLabel = element("label", "tactical-profile-picker");
   profileLabel.append(element("span", "tactic-label", "Тактический профиль"));
   const profileSelect = document.createElement("select");
+  profileSelect.dataset.focusKey = "skills:profile";
   hero.tacticalProfiles.forEach((profile) => profileSelect.append(new Option(profile.name, profile.id, false, profile.id === hero.activeTacticalProfileId)));
-  profileSelect.addEventListener("change", () => { game!.setTacticalProfile(profileSelect.value); persist(); renderSkills(false); });
+  profileSelect.addEventListener("change", () => { game!.setTacticalProfile(profileSelect.value); persist(); preserveUiFocus(() => renderSkills(false)); });
   const activeProfile = game.activeTacticalProfile();
   const profileDescription = activeProfile.style === "aggressive" ? "Раньше использует добивающие атаки и реже лечится."
     : activeProfile.style === "defensive" ? "Сохраняет сильные навыки и раньше восстанавливается."
@@ -1756,7 +2014,7 @@ function renderSkills(animateItems = true): void {
     else { toast(`Можно выбрать не больше ${MAX_ACTIVE_SKILLS} навыков.`, "error"); return; }
     game!.setAutoSelectSkills(false);
     game!.setSelectedSkills([...next]);
-    persist(); renderSkills(false);
+    persist(); preserveUiFocus(() => renderSkills(false));
   };
   const skillCard = (skill: typeof SKILLS[number], status: string, unlocked: boolean, source?: string) => {
     const active = selected.has(skill.id) && !hero.autoSelectSkills;
@@ -1770,6 +2028,7 @@ function renderSkills(animateItems = true): void {
     if (unlocked) {
       const button = element("button", `skill-select${active ? " active" : ""}`, hero.autoSelectSkills ? "Добавить в ручную сборку" : active ? "Убрать из сборки" : "Добавить в сборку");
       button.type = "button";
+      button.dataset.focusKey = `skills:skill:${skill.id}`;
       button.addEventListener("click", () => toggleSkill(skill.id));
       node.append(button);
     }
@@ -1825,6 +2084,8 @@ function renderNewChronicleStatus(): void {
   const list = element("ul", "chronicle-requirements");
   status.requirements.forEach((requirement) => list.append(element("li", `chronicle-requirement ${requirement.met ? "complete" : "locked"}`, requirement.label)));
   progress.append(line, list);
+  const eraChallenge = renderEraChallengePanel();
+  if (eraChallenge) progress.append(eraChallenge);
   const actions = element("div", "chronicle-status-actions");
   const begin = element("button", "button primary", status.unlocked ? `Начать эпоху ${status.targetCycle}` : "Путь ещё не завершён");
   begin.type = "button";
@@ -1847,6 +2108,13 @@ function renderNewChronicleStatus(): void {
   panel.replaceChildren(title, progress, actions);
 }
 
+function renderEraChallengePanel(): HTMLElement | null {
+  if (!game) return null;
+  const challenge = game.currentEraChallenge();
+  if (!challenge) return null;
+  return createEraChallengePanel(challenge, game.eraObjectiveProgress());
+}
+
 function openNewChronicleDialog(): void {
   if (!game) return;
   const status = game.newGamePlusStatus();
@@ -1861,19 +2129,20 @@ function openNewChronicleDialog(): void {
   selectedWorldLawIds = ERA_LAWS.slice(0, status.lawLimit).map((law) => law.id);
   newChronicleConfirmed = false;
   newChronicleReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  $("#new-chronicle-layer").hidden = false;
   document.body.classList.add("new-chronicle-open");
   renderNewChronicleStep();
-  window.requestAnimationFrame(() => $("#new-chronicle-title").focus());
+  modalController.open($("#new-chronicle-layer"), {
+    initialFocus: "#new-chronicle-title",
+    dismissOnBackdrop: true,
+    onRequestClose: closeNewChronicleDialog,
+  });
 }
 
 function closeNewChronicleDialog(): void {
   if ($("#new-chronicle-layer").hidden) return;
-  $("#new-chronicle-layer").hidden = true;
+  modalController.close($("#new-chronicle-layer"));
   document.body.classList.remove("new-chronicle-open");
-  const returnFocus = newChronicleReturnFocus;
   newChronicleReturnFocus = null;
-  window.requestAnimationFrame(() => returnFocus?.focus());
 }
 
 function newChronicleHeading(eyebrow: string, title: string, copy: string): HTMLElement {
@@ -2100,6 +2369,7 @@ function confirmNewChronicle(): void {
       lawIds: selectedWorldLawIds,
       heirloomItemId: selectedHeirloomItemId ?? undefined,
     });
+    pendingBattleUi = new PendingBattleUiController(game);
     localStorage.removeItem(LEADER_SNAPSHOT_KEY);
     localStorage.removeItem(ELITE_SNAPSHOT_KEY);
     persist();
@@ -2170,6 +2440,12 @@ function startLegacyChampion(): void {
   if (!game) return;
   captureBattleEquipment();
   try {
+    if (game.save.hero.combatMode === "manual") {
+      const pending = game.beginLegacyChampion();
+      persist({ deferFeatureUnlocks: true });
+      openPendingBattle(pending);
+      return;
+    }
     currentTournament = null;
     currentReport = game.fightLegacyChampion();
     persist();
@@ -2238,6 +2514,7 @@ function renderEndgame(animateItems = true): void {
     card.append(button);
     return card;
   }));
+  route.prepend(renderCrownSeasonOverview());
 
   const pending = game.pendingLegendChallenge();
   if (pending) {
@@ -2290,6 +2567,20 @@ function renderEndgame(animateItems = true): void {
   table.append(thead, tbody); wrap.append(table); board.replaceChildren(header, wrap);
 }
 
+function renderCrownSeasonOverview(): HTMLElement {
+  const season = game!.currentCrownSeason();
+  const standings = game!.crownSeasonStandings();
+  const heroIndex = standings.findIndex((entry) => entry.fighterId === game!.save.hero.id);
+  const heroStanding = heroIndex >= 0 ? standings[heroIndex] : undefined;
+  return createCrownSeasonOverview({
+    season,
+    remainingDays: crownSeasonRemainingDays(season, game!.save.worldDay),
+    heroPoints: heroStanding?.points ?? 0,
+    heroRank: heroIndex >= 0 ? heroIndex + 1 : undefined,
+    heroDefenses: heroStanding?.defenses ?? 0,
+  });
+}
+
 function renderContracts(): void {
   if (!game) return;
   const activePanel = $("#active-contract");
@@ -2333,6 +2624,8 @@ function renderContracts(): void {
     const reputation = game!.save.hero.factionReputation[faction.id] ?? 0;
     const tier = factionReputationTier(reputation);
     const nextTier = FACTION_REPUTATION_TIERS.find((candidate) => candidate.threshold > reputation);
+    const activePerks = new Set(unlockedFactionPerks(faction.id, reputation).map((perk) => perk.name));
+    const factionPerks = FACTION_PERKS.filter((perk) => perk.factionId === faction.id);
     const card = element("article", "faction-card paper-panel"); card.style.setProperty("--faction-accent", faction.accent);
     card.append(
       element("p", "eyebrow", tier.name.toUpperCase()),
@@ -2344,6 +2637,19 @@ function renderContracts(): void {
         ? `Новые контракты: +${Math.round(tier.contractRewardBonus * 100)}% к монетам и опыту.`
         : `Следующий статус откроет +${Math.round((nextTier?.contractRewardBonus ?? 0) * 100)}% к наградам новых контрактов.`),
     );
+    const perkList = element("div", "faction-perk-list");
+    perkList.append(element("strong", "", "Постоянные привилегии"));
+    factionPerks.forEach((perk) => {
+      const unlocked = activePerks.has(perk.name);
+      const perkRow = element("div", `faction-perk ${unlocked ? "unlocked" : "locked"}`);
+      perkRow.append(
+        element("small", "", unlocked ? "ДЕЙСТВУЕТ" : `ОТ ${perk.threshold} РЕПУТАЦИИ`),
+        element("b", "", perk.name),
+        element("span", "", perk.description),
+      );
+      perkList.append(perkRow);
+    });
+    card.append(perkList);
     return card;
   }));
 
@@ -2450,6 +2756,7 @@ function renderForge(animateItems = true, preserveOrder = false): void {
   const hero = game.save.hero;
   const legacyUnlocked = game.isFeatureUnlocked("equipment-legacy");
   $("#forge-marks").textContent = `${hero.temperingMarks} ${hero.temperingMarks === 1 ? "печать" : hero.temperingMarks >= 2 && hero.temperingMarks <= 4 ? "печати" : "печатей"}`;
+  renderLootTargetWorkshop();
   $("#relic-workshop").hidden = !legacyUnlocked;
   if (legacyUnlocked) renderRelicWorkshop();
   const grid = $("#forge-grid");
@@ -2485,6 +2792,7 @@ function renderForge(animateItems = true, preserveOrder = false): void {
     if (equippedIds.has(item.id)) card.classList.add("equipped");
     const button = element("button", "button", enhancement >= 5 ? "Максимальная закалка" : `Улучшить · ${game!.upgradeCost(item.id)} печ.`);
     button.type = "button";
+    button.dataset.focusKey = `forge:${item.id}:upgrade`;
     button.disabled = enhancement >= 5 || hero.temperingMarks < game!.upgradeCost(item.id);
     button.addEventListener("click", () => {
       try {
@@ -2497,17 +2805,186 @@ function renderForge(animateItems = true, preserveOrder = false): void {
     actions.append(button);
     if (legacyUnlocked && !equippedIds.has(item.id) && game!.canSell(item.id)) {
       const salvage = element("button", "plain-button", "Разобрать в пыль");
+      salvage.dataset.focusKey = `forge:${item.id}:salvage`;
       salvage.addEventListener("click", () => {
         if (!window.confirm(`Разобрать «${item.name}» без возможности восстановления?`)) return;
-        try { const dust = game!.salvageItem(item.id); persist(); renderForge(false); renderHeader(); toast(`Получено реликтовой пыли: ${dust}.`); }
+        try {
+          const dust = game!.salvageItem(item.id);
+          persist();
+          renderHeader();
+          preserveUiFocus(() => pageRegistry.render("forge", { force: true, animate: false }));
+          toast(`Получено реликтовой пыли: ${dust}.`);
+        }
         catch (error) { toast((error as Error).message, "error"); }
       });
       actions.append(salvage);
     }
-    card.append(art, copy, actions);
+    card.append(art, copy, actions, renderReforgeControl(item));
     return card;
   }));
   if (order.length === 0) grid.append(element("p", "empty-copy", "В инвентаре нет предметов для закалки."));
+}
+
+function renderLootTargetWorkshop(): void {
+  if (!game) return;
+  const panel = $("#loot-target-workshop");
+  const hero = game.save.hero;
+  const target = game.save.lootTarget;
+  const misses = game.save.lootPity?.misses ?? 0;
+  const chance = Math.min(95, 18 + misses * 9);
+  const guaranteedIn = Math.max(1, 7 - misses);
+  const best = game.bestEquipmentEvaluation();
+
+  const copy = element("div", "loot-target-copy");
+  const targetTitle = element("h2", "", "Назначьте желанную добычу");
+  targetTitle.id = "loot-target-title";
+  copy.append(
+    element("p", "eyebrow", "ЦЕЛЕВАЯ ОХОТА"),
+    targetTitle,
+    element("p", "", "Выбор не запрещает другую добычу. Каждая неудача повышает шанс выбранного слота или комплекта, а седьмая попытка гарантирует совпадение."),
+  );
+
+  const controls = element("form", "loot-target-controls") as HTMLFormElement;
+  const slotLabel = element("label");
+  slotLabel.append(document.createTextNode("Слот"));
+  const slotSelect = element("select") as HTMLSelectElement;
+  slotSelect.dataset.focusKey = "forge:loot-target:slot";
+  slotSelect.append(new Option("Любой слот", ""));
+  (["weapon", "offhand", "head", "chest", "hands", "feet"] as EquipmentSlot[]).forEach((slot) => {
+    slotSelect.append(new Option(SLOT_LABELS[slot], slot, false, target?.slot === slot));
+  });
+  slotLabel.append(slotSelect);
+
+  const setLabel = element("label");
+  setLabel.append(document.createTextNode("Комплект"));
+  const setSelect = element("select") as HTMLSelectElement;
+  setSelect.dataset.focusKey = "forge:loot-target:set";
+  setSelect.append(new Option("Любой комплект", ""));
+  EQUIPMENT_SETS
+    .filter((set) => set.classes === "all" || set.classes.includes(hero.classId))
+    .forEach((set) => setSelect.append(new Option(set.name, set.id, false, target?.setId === set.id)));
+  setLabel.append(setSelect);
+
+  const actions = element("div", "loot-target-actions");
+  const save = element("button", "button primary", target ? "Изменить цель" : "Начать охоту");
+  save.type = "submit";
+  save.dataset.focusKey = "forge:loot-target:save";
+  const clear = element("button", "plain-button", "Сбросить цель");
+  clear.type = "button";
+  clear.disabled = !target;
+  clear.addEventListener("click", () => {
+    game!.setLootTarget(undefined);
+    persist();
+    preserveUiFocus(() => renderForge(false, true));
+    toast("Целевая охота отменена.");
+  });
+  actions.append(save, clear);
+  controls.append(slotLabel, setLabel, actions);
+  const syncTargetAction = () => {
+    save.disabled = !slotSelect.value && !setSelect.value;
+  };
+  slotSelect.addEventListener("change", syncTargetAction);
+  setSelect.addEventListener("change", syncTargetAction);
+  syncTargetAction();
+  controls.addEventListener("submit", (event) => {
+    event.preventDefault();
+    try {
+      const nextTarget = {
+        slot: (slotSelect.value || undefined) as EquipmentSlot | undefined,
+        setId: setSelect.value || undefined,
+      };
+      game!.setLootTarget(nextTarget);
+      persist();
+      preserveUiFocus(() => renderForge(false, true));
+      toast("Цель добычи сохранена.");
+    } catch (error) { toast((error as Error).message, "error"); }
+  });
+
+  const status = element("aside", "loot-target-status");
+  const targetSet = EQUIPMENT_SETS.find((set) => set.id === target?.setId);
+  const targetDescription = target
+    ? [target.slot ? SLOT_LABELS[target.slot] : "любой слот", targetSet?.name].filter(Boolean).join(" · ")
+    : "Цель не выбрана";
+  status.append(
+    statRow("Текущая цель", targetDescription),
+    statRow("Базовый шанс", target ? `${chance}%` : "—"),
+    statRow("Гарантия", target ? `через ${guaranteedIn} находок` : "—"),
+    statRow("Лучшая сборка", `${best.completeSlots}/6 слотов · сила ${Math.round(best.score)}`),
+  );
+  if (best.activeSetBonuses.length) status.append(element("p", "loot-target-best-set", best.activeSetBonuses.join(" · ")));
+  panel.replaceChildren(copy, controls, status);
+}
+
+function renderReforgeControl(item: EquipmentItem): HTMLElement {
+  const details = element("details", "reforge-control");
+  const summary = element("summary", "", "Перековать одно свойство");
+  const body = element("div", "reforge-control-body");
+  const sourceLabel = element("label");
+  sourceLabel.append(document.createTextNode("Что заменить"));
+  const source = element("select") as HTMLSelectElement;
+  const availableSources = comparisonStats.filter((stat) => item.stats[stat] !== undefined);
+  availableSources.forEach((stat) => source.append(new Option(`${comparisonStatLabels[stat]} +${item.stats[stat]}`, stat)));
+  sourceLabel.append(source);
+
+  const targetLabel = element("label");
+  targetLabel.append(document.createTextNode("Во что перековать"));
+  const target = element("select") as HTMLSelectElement;
+  targetLabel.append(target);
+
+  const price = element("p", "reforge-price");
+  const submit = element("button", "plain-button", "Перековать");
+  submit.type = "button";
+  submit.dataset.focusKey = `forge:${item.id}:reforge`;
+
+  const refreshTargetOptions = () => {
+    const sourceStat = source.value as ComparisonStat;
+    const previousTarget = target.value;
+    const options = comparisonStats.filter((stat) => stat === sourceStat || item.stats[stat] === undefined);
+    const selectedTarget = options.includes(previousTarget as ComparisonStat) ? previousTarget : sourceStat;
+    target.replaceChildren(...options.map((stat) => new Option(
+      stat === sourceStat ? `${comparisonStatLabels[stat]} — перебросить значение` : comparisonStatLabels[stat],
+      stat,
+      false,
+      stat === selectedTarget,
+    )));
+  };
+  const refreshCost = () => {
+    const attempts = game!.save.reforgeAttempts[item.id] ?? 0;
+    const base = reforgeCost(item, attempts);
+    const discount = Math.min(.75, factionModifier(game!.save.hero.factionReputation, "forgeDiscount"));
+    const gold = Math.max(0, Math.round(base.gold * (1 - discount)));
+    price.textContent = `${gold} ¤ · ${base.temperingMarks} печ. · попытка ${attempts + 1}`;
+    submit.disabled = game!.save.hero.gold < gold || game!.save.hero.temperingMarks < base.temperingMarks;
+  };
+  source.addEventListener("change", refreshTargetOptions);
+  refreshTargetOptions();
+  refreshCost();
+  submit.addEventListener("click", () => {
+    try {
+      const result = game!.reforgeItem(item.id, {
+        sourceStat: source.value as ComparisonStat,
+        targetStat: target.value as ComparisonStat,
+      });
+      persist();
+      renderHeader();
+      pageRegistry.invalidate("hero", "arsenal", "collections", "shop");
+      preserveUiFocus(() => renderForge(false, true));
+      const direction = result.powerDelta >= 0 ? `+${result.powerDelta}` : String(result.powerDelta);
+      toast(`${item.name}: ${comparisonStatLabels[result.sourceStat as ComparisonStat]} заменено на ${comparisonStatLabels[result.targetStat as ComparisonStat]}. Сила ${direction}.`);
+      queueWorldEffect({
+        eyebrow: "ПЕРЕКОВКА",
+        title: item.name,
+        description: `${comparisonStatLabels[result.sourceStat as ComparisonStat]} ${result.previousValue} → ${comparisonStatLabels[result.targetStat as ComparisonStat]} ${result.nextValue}.`,
+        stats: [`Сила предмета ${direction}`],
+        symbol: "⚒",
+        tone: result.powerDelta >= 0 ? "positive" : "neutral",
+        sound: "forge",
+      });
+    } catch (error) { toast((error as Error).message, "error"); }
+  });
+  body.append(sourceLabel, targetLabel, price, submit);
+  details.append(summary, body);
+  return details;
 }
 
 function renderLeaders(trackMovement = false): void {
@@ -2572,7 +3049,10 @@ function renderRelicWorkshop(): void {
       button.setAttribute("aria-describedby", tooltipId);
       button.disabled = hero.relicDust < 8;
       button.addEventListener("click", () => { try {
-        game!.awakenRelic(item.id, path.id); persist(); renderForge(false); toast(`${item.name} обрёл собственный путь.`);
+        game!.awakenRelic(item.id, path.id);
+        persist();
+        preserveUiFocus(() => pageRegistry.render("forge", { force: true, animate: false }));
+        toast(`${item.name} обрёл собственный путь.`);
         queueWorldEffect({ eyebrow: "ПРОБУЖДЕНИЕ РЕЛИКВИИ", title: path.name, description: path.description, stats: featureStatsText(path.stats).split(" · ").filter(Boolean), symbol: "✦", tone: "legendary", sound: "loot", duration: 2800 });
       } catch (error) { toast((error as Error).message, "error"); } });
       const tooltip = element("aside", "relic-path-tooltip");
@@ -2647,24 +3127,44 @@ function renderChronicle(): void {
 
 function refreshEquipmentViews(preserveForgeOrder = false): void {
   if (!game) return;
-  renderHeader();
-  renderHeroVisual(false);
-  renderGearActions();
-  renderArsenal(false);
-  renderForge(false, preserveForgeOrder);
-  renderSkills(false);
+  preserveUiFocus(() => {
+    renderHeader();
+    pageRegistry.invalidate("hero", "arsenal", "forge", "skills", "collections", "shop");
+    const page = currentPage();
+    if (page === "forge" && preserveForgeOrder) {
+      renderForge(false, true);
+      return;
+    }
+    renderActivePage(false);
+  });
 }
 
 function refreshMapViews(animateItems = false): void {
   if (!game) return;
   renderHeader();
-  renderMap(animateItems);
+  pageRegistry.invalidate("map", "hero", "leaders", "elite", "chronicle", "contracts");
+  if (currentPage() === "map") pageRegistry.render("map", { animate: animateItems });
   renderTournamentReminder();
+  window.setTimeout(resumeDeferredUi, 0);
 }
 
 function renderAll(): void {
   if (!game) return;
-  renderHeader(); renderMap(); renderHeroVisual(); renderGearActions(); renderArsenal(); renderForge(); renderSkills(); renderContracts(); renderCollections(); renderShop(); renderLeaders(); renderEliteLeaders(); renderChronicle(); renderTournamentReminder();
+  renderHeader();
+  pageRegistry.invalidateAll();
+  const requested = pageFromHash(location.hash, PAGE_IDS, currentPage());
+  showPage(requested, false, true, true, false);
+  renderTournamentReminder();
+  window.setTimeout(resumeDeferredUi, 0);
+}
+
+function refreshCurrentWorldView(): void {
+  if (!game) return;
+  renderHeader();
+  pageRegistry.invalidateAll();
+  preserveUiFocus(() => renderActivePage(false));
+  renderTournamentReminder();
+  window.setTimeout(resumeDeferredUi, 0);
 }
 
 function setCombatant(container: HTMLElement, fighter: CombatantSnapshot, health: number): void {
@@ -2677,30 +3177,61 @@ function setCombatant(container: HTMLElement, fighter: CombatantSnapshot, health
   fill.style.width = `${Math.max(0, health / fighter.maxHealth * 100)}%`;
 }
 
+function updateBattleRuntime(container: HTMLElement, state?: BattleFighterState): void {
+  const runtime = container.querySelector<HTMLElement>(".battle-runtime")!;
+  runtime.hidden = !state;
+  if (!state) return;
+  const resource = runtime.querySelector<HTMLElement>("[data-battle-resource]")!;
+  const statuses = runtime.querySelector<HTMLElement>("[data-battle-statuses]")!;
+  resource.textContent = `${state.resource.name}: ${state.resource.current}/${state.resource.maximum}`;
+  resource.title = `Классовый ресурс накапливается в бою и срабатывает при заполнении шкалы.`;
+  statuses.textContent = state.statuses.length
+    ? state.statuses.map((status) => `${status.name}${status.stacks > 1 ? ` ×${status.stacks}` : ""} · ${status.duration} х.`).join(" · ")
+    : "Состояния: нет";
+  statuses.title = state.statuses.length
+    ? state.statuses.map((status) => `${status.name}: ${status.description}`).join("\n")
+    : "На бойца сейчас не действуют временные состояния.";
+}
+
 function renderBattleSkills(report: BattleReport): void {
   const panel = $("#battle-skills");
   (["hero", "enemy"] as const).forEach((side) => {
     const fighter = side === "hero" ? report.heroBefore : report.enemyBefore;
     const list = panel.querySelector<HTMLElement>(`[data-fighter="${side}"] > div`)!;
-    const interactive = side === "hero" && game?.save.hero.combatMode === "manual";
-    const makeChip = (label: string, id: string, className: string): HTMLElement => {
+    const heroTurn = side === "hero" && manualBattleSession?.currentActorId === "hero";
+    const interactive = side === "hero" && Boolean(manualBattleSession);
+    const available = heroTurn
+      ? (hasLivePendingBattle() ? pendingBattleUi!.actions() : manualBattleSession!.availableActions())
+      : [];
+    const byId = new Map<string, BattleActionOption>(available.map((action) => [action.id, action]));
+    const makeChip = (label: string, id: string, className: string, option?: BattleActionOption): HTMLElement => {
       const chip = interactive ? element("button", className, label) : element("span", className, label);
       if (chip instanceof HTMLButtonElement) {
         chip.type = "button";
-        chip.addEventListener("click", () => { if (chip.classList.contains("awaiting-input")) confirmManualBattleTurn(); });
+        chip.disabled = !heroTurn || option?.available === false;
+        if (option && option.cooldown > 0) chip.textContent = `${label} · ${option.cooldown} х.`;
+        chip.addEventListener("click", () => confirmManualBattleTurn(id));
       }
       chip.dataset.skillId = id;
       return chip;
     };
-    const regular = makeChip("Обычная атака", "basic", "battle-skill ready basic");
+    const regular = makeChip("Обычная атака", "basic", `battle-skill ready basic${heroTurn && selectedManualActionId === "basic" ? " awaiting-input" : ""}`, byId.get("basic"));
     const skills = fighter.skills.map((id) => {
       const skill = skillById(id);
-      const chip = makeChip(skill?.name ?? id, id, `battle-skill ready ${skill?.kind ?? "attack"}`);
+      const option = byId.get(id);
+      const chip = makeChip(skill?.name ?? id, id, `battle-skill ready ${skill?.kind ?? "attack"}${heroTurn && selectedManualActionId === id ? " awaiting-input" : ""}`, option);
       if (skill) chip.title = `${skill.description} Перезарядка: ${skill.cooldown} х.`;
       return chip;
     });
     list.replaceChildren(regular, ...skills);
   });
+  if (manualBattleSession) {
+    updateBattleRuntime($("#battle-hero"), manualBattleSession.fighterState("hero"));
+    updateBattleRuntime($("#battle-enemy"), manualBattleSession.fighterState(report.enemyBefore.id));
+  } else {
+    updateBattleRuntime($("#battle-hero"));
+    updateBattleRuntime($("#battle-enemy"));
+  }
 }
 
 function markUsedBattleSkill(actorId: string, skillId?: string): void {
@@ -2713,8 +3244,40 @@ function markUsedBattleSkill(actorId: string, skillId?: string): void {
 
 function captureBattleEquipment(): void {
   hideLootReminder();
+  deferredBattleLoot = null;
   battleEquipmentBefore = game ? { ...game.save.hero.equipped } : null;
   battleInventoryBefore = game ? new Set(game.save.hero.inventory.map((item) => item.id)) : null;
+}
+
+function hasLivePendingBattle(): boolean {
+  return Boolean(game?.currentPendingBattle() && pendingBattleUi && manualBattleSession);
+}
+
+function pendingFighterName(id?: string): string {
+  if (!id) return "—";
+  if (id === "hero") return game?.save.hero.name ?? "Герой";
+  const savedEnemy = game?.save.enemies.find((enemy) => enemy.id === id);
+  if (savedEnemy) return savedEnemy.name;
+  const current = game?.currentPendingBattle();
+  return current?.enemy.id === id ? current.enemy.name : id;
+}
+
+function openPendingBattle(pending: PendingBattle, resumed = false): void {
+  if (!game) return;
+  pendingBattleUi ??= new PendingBattleUiController(game);
+  currentTournament = null;
+  currentReport = pendingBattleReport(pending);
+  pendingTournamentContinuation = false;
+  renderTournamentBracket();
+  openBattleReport(currentReport, pending);
+  if (resumed) {
+    toast("Незавершённый бой восстановлен с последнего хода.");
+    queueWorldEffect({
+      eyebrow: "БОЙ ПРОДОЛЖАЕТСЯ", title: "Ход сохранён",
+      description: "Здоровье, ресурсы, перезарядки и состояния восстановлены без повторного расчёта.",
+      symbol: "↺", tone: "positive", duration: 2200,
+    });
+  }
 }
 
 function startActivity(activityId: string): void {
@@ -2730,12 +3293,49 @@ function startActivity(activityId: string): void {
 }
 
 function advanceExpedition(choiceId: "safe" | "risk" | "rest"): void {
+  if (game?.save.hero.combatMode === "manual") {
+    beginManualExpeditionStep(() => game!.beginExpeditionChoice(choiceId));
+    return;
+  }
+  runExpeditionStep(() => game!.advanceExpedition(choiceId));
+}
+
+function advanceExpeditionNode(nodeId: string): void {
+  if (game?.save.hero.combatMode === "manual") {
+    beginManualExpeditionStep(() => game!.beginExpeditionNode(nodeId));
+    return;
+  }
+  runExpeditionStep(() => game!.advanceExpeditionNode(nodeId));
+}
+
+function resolveExpeditionShrine(choiceId: "blood-oath" | "guardian-vow"): void {
+  runExpeditionStep(() => game!.resolveExpeditionShrine(choiceId));
+}
+
+function beginManualExpeditionStep(action: () => PendingBattle | ExpeditionStepReport): void {
   if (!game) return;
   captureBattleEquipment();
-  let result: ExpeditionStepReport;
-  try { result = game.advanceExpedition(choiceId); persist(); }
-  catch (error) { battleEquipmentBefore = null; battleInventoryBefore = null; toast((error as Error).message, "error"); return; }
+  let started: PendingBattle | ExpeditionStepReport;
+  try {
+    started = action();
+    persist({ deferFeatureUnlocks: true });
+  } catch (error) {
+    battleEquipmentBefore = null; battleInventoryBefore = null;
+    toast((error as Error).message, "error");
+    return;
+  }
+  if ("version" in started) {
+    resumeExpeditionAfterBattle = false;
+    openPendingBattle(started);
+    return;
+  }
+  handleExpeditionStepResult(started);
+}
+
+function handleExpeditionStepResult(result: ExpeditionStepReport): void {
+  if (!game) return;
   pendingExpeditionResult = result.completed || result.retreated ? result : null;
+  resumeExpeditionAfterBattle = Boolean(result.battle && !result.completed && !result.retreated);
   currentTournament = null;
   if (result.battle) {
     currentReport = result.battle;
@@ -2752,8 +3352,18 @@ function advanceExpedition(choiceId: "safe" | "risk" | "rest"): void {
     pendingExpeditionResult = null;
   } else {
     showLootReminders(acquired, equipmentBefore);
+    openDungeonWindow();
   }
   toast(result.message);
+}
+
+function runExpeditionStep(action: () => ExpeditionStepReport): void {
+  if (!game) return;
+  captureBattleEquipment();
+  let result: ExpeditionStepReport;
+  try { result = action(); persist(); }
+  catch (error) { battleEquipmentBefore = null; battleInventoryBefore = null; toast((error as Error).message, "error"); return; }
+  handleExpeditionStepResult(result);
 }
 
 function retreatExpedition(): void {
@@ -2798,10 +3408,23 @@ function startEndgame(activityId: "crown-league" | "legend-hunt"): void {
   captureBattleEquipment();
   try {
     if (activityId === "crown-league") {
+      if (game.save.hero.combatMode === "manual") {
+        const pending = game.beginCrownLeague();
+        persist({ deferFeatureUnlocks: true });
+        renderTournamentReminder();
+        openPendingBattle(pending);
+        return;
+      }
       currentTournament = game.playCrownLeague();
       tournamentBattleIndex = 0;
       currentReport = currentTournament.heroBattles[0] ?? null;
     } else {
+      if (game.save.hero.combatMode === "manual") {
+        const pending = game.beginLegendHunt();
+        persist({ deferFeatureUnlocks: true });
+        openPendingBattle(pending);
+        return;
+      }
       currentTournament = null;
       currentReport = game.huntLegend();
     }
@@ -2815,23 +3438,43 @@ function startEndgame(activityId: "crown-league" | "legend-hunt"): void {
 function startLegendDefense(): void {
   if (!game) return;
   captureBattleEquipment();
+  if (game.save.hero.combatMode === "manual") {
+    try {
+      const pending = game.beginLegendDefense(true);
+      persist({ deferFeatureUnlocks: true });
+      openPendingBattle(pending);
+    } catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); }
+    return;
+  }
   try { currentTournament = null; currentReport = game.defendLegendTitle(); persist(); }
   catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); return; }
   openBattleReport(currentReport);
 }
 
-function confirmManualBattleTurn(): void {
-  if (!currentReport || game?.save.hero.combatMode !== "manual") return;
-  const next = currentReport.turns[battleTurnIndex];
-  if (!next || next.actorId !== "hero") return;
-  playBattleTurn();
+function confirmManualBattleTurn(actionId = selectedManualActionId): void {
+  if (!currentReport || !manualBattleSession || manualBattleSession.currentActorId !== "hero") return;
+  const option = (hasLivePendingBattle() ? pendingBattleUi!.actions() : manualBattleSession.availableActions())
+    .find((candidate) => candidate.id === actionId);
+  if (!option?.available) return;
+  selectedManualActionId = actionId;
+  const action: BattleAction = actionId === "basic" ? { type: "basic" } : { type: "skill", skillId: actionId };
+  playManualBattleTurn(action);
 }
 
 function startDuel(tierId?: string): void {
   if (!game) return;
   captureBattleEquipment();
+  if (game.save.hero.combatMode === "manual") {
+    try {
+      const pending = game.beginDuel(tierId);
+      persist({ deferFeatureUnlocks: true });
+      refreshCurrentWorldView();
+      openPendingBattle(pending);
+    } catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); }
+    return;
+  }
   let result;
-  try { result = game.duel(tierId); persist(); renderAll(); }
+  try { result = game.duel(tierId); persist(); refreshCurrentWorldView(); }
   catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); return; }
   if (!result.battle) { battleEquipmentBefore = null; return; }
   currentTournament = null; currentReport = result.battle; openBattleReport(result.battle);
@@ -2840,8 +3483,17 @@ function startDuel(tierId?: string): void {
 function startBossFight(bossId: string): void {
   if (!game) return;
   captureBattleEquipment();
+  if (game.save.hero.combatMode === "manual") {
+    try {
+      const pending = game.beginBoss(bossId);
+      persist({ deferFeatureUnlocks: true });
+      refreshCurrentWorldView();
+      openPendingBattle(pending);
+    } catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); }
+    return;
+  }
   let result;
-  try { result = game.fightBoss(bossId); persist(); renderAll(); }
+  try { result = game.fightBoss(bossId); persist(); refreshCurrentWorldView(); }
   catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); return; }
   if (!result.battle) { battleEquipmentBefore = null; return; }
   currentTournament = null; currentReport = result.battle; openBattleReport(result.battle);
@@ -2850,6 +3502,15 @@ function startBossFight(bossId: string): void {
 function startTournament(arenaId: string): void {
   if (!game) return;
   captureBattleEquipment();
+  if (game.save.hero.combatMode === "manual") {
+    try {
+      const pending = game.beginTournament(arenaId);
+      persist({ deferFeatureUnlocks: true });
+      renderTournamentReminder();
+      openPendingBattle(pending);
+    } catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); }
+    return;
+  }
   try {
     currentTournament = game.playTournament(arenaId);
     // The tournament is calculated synchronously, but its unlocks should only
@@ -2867,27 +3528,60 @@ function startTournament(arenaId: string): void {
 
 function renderTournamentBracket(): void {
   const panel = $("#tournament-panel");
-  if (!currentTournament) { panel.hidden = true; return; }
+  const pending = game?.currentPendingBattle()?.tournament;
+  if (!currentTournament && !pending) { panel.hidden = true; return; }
   panel.hidden = false;
-  $("#tournament-round-label").textContent = `${currentTournament.participantCount} УЧАСТНИКОВ · ${currentTournament.matches.length} БОЁВ`;
-  $("#tournament-progress").textContent = `БОЙ ГЕРОЯ ${Math.min(tournamentBattleIndex + 1, currentTournament.heroBattles.length)} / ${currentTournament.heroBattles.length}`;
+  const participantCount = currentTournament?.participantCount ?? pending!.participantIds.length;
+  const matches = currentTournament?.matches ?? pending!.matches.map((match) => ({
+    round: match.round,
+    match: match.match,
+    firstName: pendingFighterName(match.firstId),
+    secondName: pendingFighterName(match.secondId),
+    winnerName: pendingFighterName(match.winnerId),
+    heroInvolved: match.heroInvolved,
+  }));
+  const completedHeroBattles = currentTournament?.heroBattles.length ?? pending!.heroBattles.length;
+  $("#tournament-round-label").textContent = `${participantCount} УЧАСТНИКОВ · ${matches.length} ЗАВЕРШЕНО`;
+  $("#tournament-progress").textContent = currentTournament
+    ? `БОЙ ГЕРОЯ ${Math.min(tournamentBattleIndex + 1, currentTournament.heroBattles.length)} / ${currentTournament.heroBattles.length}`
+    : `РАУНД ${pending!.round} · БОЙ ГЕРОЯ ${completedHeroBattles + 1}`;
   const strip = $("#bracket-strip"); strip.replaceChildren();
-  currentTournament.matches.forEach((match) => {
+  matches.forEach((match) => {
     const cell = element("article", match.heroInvolved ? "hero-match" : "");
     cell.append(element("small", "", `РАУНД ${match.round} · БОЙ ${match.match}`), element("span", "", `${match.firstName} × ${match.secondName}`), element("strong", "", `→ ${match.winnerName}`));
     strip.append(cell);
   });
+  if (!currentTournament && pending) {
+    const [firstId, secondId] = pending.pairs[pending.pairIndex] ?? ["hero", game?.currentPendingBattle()?.enemyId];
+    const live = element("article", "hero-match live-match");
+    live.append(
+      element("small", "", `РАУНД ${pending.round} · ИДЁТ СЕЙЧАС`),
+      element("span", "", `${pendingFighterName(firstId)} × ${pendingFighterName(secondId)}`),
+      element("strong", "", "исход ещё не записан"),
+    );
+    strip.append(live);
+  }
 }
 
-function openBattleReport(report: BattleReport): void {
+function openBattleReport(report: BattleReport, pending?: PendingBattle): void {
   hideLootReminder();
   if ($("#battle-overlay").hidden) {
     battleReturnScrollY = window.scrollY;
     battleReturnPage = document.querySelector<HTMLElement>(".page.active")?.id.replace("page-", "") ?? "map";
   }
   currentReport = report;
-  battleTurnIndex = 0;
-  battleHealth = { hero: currentReport.heroBefore.maxHealth, enemy: currentReport.enemyBefore.maxHealth };
+  battleTurnIndex = pending?.session.turns.length ?? 0;
+  manualBattleSession = pending
+    ? new BattleSession(pending.session)
+    : game?.save.hero.combatMode === "manual" ? new BattleSession(currentReport.heroBefore, currentReport.enemyBefore)
+    : null;
+  selectedManualActionId = "basic";
+  const manualHero = manualBattleSession?.fighterState("hero");
+  const manualEnemy = manualBattleSession?.fighterState(currentReport.enemyBefore.id);
+  battleHealth = {
+    hero: manualHero?.health ?? currentReport.heroBefore.maxHealth,
+    enemy: manualEnemy?.health ?? currentReport.enemyBefore.maxHealth,
+  };
   $("#battle-place").textContent = currentReport.activity.place.toUpperCase();
   $("#battle-name").textContent = currentReport.activity.name;
   const rulesPanel = $("#battle-rules");
@@ -2896,46 +3590,68 @@ function openBattleReport(report: BattleReport): void {
   rulesPanel.replaceChildren(...activeRules.map((rule) => {
     const chip = element("span"); chip.append(element("b", "", rule.name), document.createTextNode(rule.description)); return chip;
   }));
-  $("#battle-turn").textContent = "ХОД 0"; $("#battle-action").textContent = "Бойцы выходят на площадку"; $("#battle-detail").textContent = "";
-  $("#battle-log").replaceChildren(); $("#battle-result").hidden = true;
+  const previousTurns = pending?.session.turns ?? [];
+  const lastTurn = previousTurns[previousTurns.length - 1];
+  $("#battle-turn").textContent = lastTurn ? `ХОД ${lastTurn.turn}` : "ХОД 0";
+  $("#battle-action").textContent = lastTurn ? `${lastTurn.actorName}: ${lastTurn.action}` : "Бойцы выходят на площадку";
+  $("#battle-detail").textContent = lastTurn?.detail ?? "";
+  $("#battle-log").replaceChildren(...previousTurns.slice().reverse().map((turn) => element(
+    "p", turn.critical ? "critical" : "",
+    `${turn.turn}. ${turn.actorName} — ${turn.action}: ${turn.damage} урона${turn.healing ? `, +${turn.healing} HP` : ""}.`,
+  )));
+  $("#battle-result").hidden = true;
   $("#skip-battle").hidden = false;
   $("#close-battle").textContent = "Вернуться на карту";
-  if (!currentTournament) $("#tournament-panel").hidden = true;
+  if (!currentTournament && !pending?.tournament) $("#tournament-panel").hidden = true;
   setCombatant($("#battle-hero"), currentReport.heroBefore, battleHealth.hero);
   setCombatant($("#battle-enemy"), currentReport.enemyBefore, battleHealth.enemy);
   renderBattleSkills(currentReport);
-  $("#battle-overlay").hidden = false;
+  modalController.open($("#battle-overlay"), { initialFocus: "#skip-battle", dismissOnEscape: false, restoreFocus: false });
   document.body.classList.add("battle-open");
   gameAudio.battleStart(currentReport.activity.kind === "boss" || currentReport.activity.kind === "dungeon");
   scheduleBattleTurn();
 }
 
 function scheduleBattleTurn(): void {
-  if (!currentReport || battleTurnIndex >= currentReport.turns.length) { finishBattlePlayback(); return; }
-  const next = currentReport.turns[battleTurnIndex];
-  const manual = game?.save.hero.combatMode === "manual" && next.actorId === "hero";
-  const manualButton = $("#manual-battle-step") as HTMLButtonElement;
-  $$("#battle-skills .battle-skill").forEach((chip) => chip.classList.remove("awaiting-input"));
-  if (manual) {
-    const skillId = next.skillId ?? "basic";
-    const chip = $<HTMLElement>(`#battle-skills [data-fighter="hero"] [data-skill-id="${skillId}"]`);
-    chip?.classList.add("awaiting-input");
-    manualButton.hidden = false;
-    manualButton.textContent = `Применить: ${next.action}`;
-    $("#battle-action").textContent = "Ваш ход — подтвердите выбранный приём";
+  if (!currentReport) return;
+  if (manualBattleSession) {
+    if (manualBattleSession.isFinished) {
+      if (hasLivePendingBattle()) finalizePendingBattleForUi();
+      else finishBattlePlayback();
+      return;
+    }
+    const manualButton = $("#manual-battle-step") as HTMLButtonElement;
+    const heroTurn = manualBattleSession.currentActorId === "hero";
+    if (heroTurn) {
+      const available = hasLivePendingBattle() ? pendingBattleUi!.actions() : manualBattleSession.availableActions();
+      if (!available.some((action) => action.id === selectedManualActionId && action.available)) selectedManualActionId = "basic";
+      const selected = available.find((action) => action.id === selectedManualActionId) ?? available[0];
+      manualButton.hidden = false;
+      manualButton.disabled = !selected?.available;
+      manualButton.textContent = selected ? `Применить: ${selected.name}` : "Выберите приём";
+      $("#battle-action").textContent = "Ваш ход — выберите доступный приём";
+      renderBattleSkills(currentReport);
+      return;
+    }
+    manualButton.hidden = true;
+    renderBattleSkills(currentReport);
+    const delay = Number(($("#battle-speed") as HTMLSelectElement).value);
+    battleTimer = window.setTimeout(() => playManualBattleTurn(), delay);
     return;
   }
+  if (battleTurnIndex >= currentReport.turns.length) { finishBattlePlayback(); return; }
+  const next = currentReport.turns[battleTurnIndex];
+  const manualButton = $("#manual-battle-step") as HTMLButtonElement;
+  $$("#battle-skills .battle-skill").forEach((chip) => chip.classList.remove("awaiting-input"));
   manualButton.hidden = true;
   const delay = Number(($("#battle-speed") as HTMLSelectElement).value);
   battleTimer = window.setTimeout(playBattleTurn, delay);
 }
 
-function playBattleTurn(): void {
+function presentBattleTurn(turn: BattleTurn): void {
   if (!currentReport) return;
   $("#manual-battle-step").hidden = true;
   $$("#battle-skills .battle-skill").forEach((chip) => chip.classList.remove("awaiting-input"));
-  const turn = currentReport.turns[battleTurnIndex++];
-  if (!turn) { finishBattlePlayback(); return; }
   if (turn.actorId === "hero") { battleHealth.hero = turn.actorHealth; battleHealth.enemy = turn.targetHealth; }
   else { battleHealth.enemy = turn.actorHealth; battleHealth.hero = turn.targetHealth; }
   setCombatant($("#battle-hero"), currentReport.heroBefore, battleHealth.hero);
@@ -2952,6 +3668,71 @@ function playBattleTurn(): void {
   gameAudio.battleTurn(turn, actorClass);
   const log = element("p", turn.critical ? "critical" : "", `${turn.turn}. ${turn.actorName} — ${turn.action}: ${turn.damage} урона${turn.healing ? `, +${turn.healing} HP` : ""}.`);
   $("#battle-log").prepend(log);
+}
+
+function finalizePendingBattleForUi(): void {
+  if (!game || !pendingBattleUi || !game.currentPendingBattle()) return;
+  let finalized: PendingBattleFinalization;
+  try {
+    finalized = pendingBattleUi.finalize();
+    persist({ deferFeatureUnlocks: true });
+  } catch (error) {
+    toast((error as Error).message, "error");
+    return;
+  }
+  currentReport = finalized.battle;
+  manualBattleSession = null;
+  pendingTournamentContinuation = finalized.status === "next-battle";
+  if (finalized.status === "next-battle") {
+    currentTournament = null;
+  } else if (finalized.result && "matches" in finalized.result) {
+    currentTournament = finalized.result;
+    tournamentBattleIndex = Math.max(0, currentTournament.heroBattles.length - 1);
+    pendingBattleCompletedForPersist = true;
+  } else {
+    currentTournament = null;
+    if (finalized.result && "completed" in finalized.result) {
+      pendingExpeditionResult = finalized.result.completed || finalized.result.retreated ? finalized.result : null;
+      resumeExpeditionAfterBattle = !finalized.result.completed && !finalized.result.retreated;
+    }
+    pendingBattleCompletedForPersist = true;
+  }
+  renderTournamentBracket();
+  finishBattlePlayback();
+}
+
+function playManualBattleTurn(action?: BattleAction): void {
+  if (!currentReport || !manualBattleSession || manualBattleSession.isFinished) return;
+  if (hasLivePendingBattle()) {
+    let stepped;
+    try {
+      stepped = pendingBattleUi!.step(action);
+      persist({ deferFeatureUnlocks: true });
+    } catch (error) {
+      toast((error as Error).message, "error");
+      return;
+    }
+    manualBattleSession = pendingBattleUi!.session(stepped.pendingBattle);
+    currentReport = pendingBattleUi!.report(stepped.pendingBattle);
+    battleTurnIndex = stepped.pendingBattle.session.turns.length;
+    presentBattleTurn(stepped.turn);
+    renderBattleSkills(currentReport);
+    if (stepped.finished) finalizePendingBattleForUi();
+    else scheduleBattleTurn();
+    return;
+  }
+  const turn = manualBattleSession.step(action);
+  battleTurnIndex = manualBattleSession.turns.length;
+  presentBattleTurn(turn);
+  renderBattleSkills(currentReport);
+  scheduleBattleTurn();
+}
+
+function playBattleTurn(): void {
+  if (!currentReport) return;
+  const turn = currentReport.turns[battleTurnIndex++];
+  if (!turn) { finishBattlePlayback(); return; }
+  presentBattleTurn(turn);
   scheduleBattleTurn();
 }
 
@@ -2986,7 +3767,8 @@ function finishBattlePlayback(): void {
   setCombatant($("#battle-enemy"), currentReport.enemyBefore, finalEnemyHealth);
   const result = $("#battle-result"); result.hidden = false;
   const copy = result.querySelector("div")!; copy.replaceChildren();
-  const hasNextTournamentBattle = Boolean(currentTournament && tournamentBattleIndex < currentTournament.heroBattles.length - 1);
+  const hasNextTournamentBattle = pendingTournamentContinuation
+    || Boolean(currentTournament && tournamentBattleIndex < currentTournament.heroBattles.length - 1);
   const finalTournamentBattle = Boolean(currentTournament && !hasNextTournamentBattle);
   const finalRewards = finalTournamentBattle ? currentTournament!.rewards : currentReport.rewards;
   const title = finalTournamentBattle
@@ -3039,22 +3821,51 @@ function finishBattlePlayback(): void {
   }
   $("#close-battle").textContent = hasNextTournamentBattle
     ? "Следующий бой"
-    : pendingExpeditionResult ? "Посмотреть итоги похода" : "Вернуться на карту";
+    : pendingExpeditionResult ? "Посмотреть итоги похода"
+      : resumeExpeditionAfterBattle ? "Продолжить поход" : "Вернуться на карту";
   const inventoryBefore = battleInventoryBefore;
   const newlyAcquiredItems = !hasNextTournamentBattle && game && inventoryBefore
     ? game.save.hero.inventory.filter((item) => !inventoryBefore.has(item.id))
     : [];
   if (newlyAcquiredItems.length === 0 && !hasNextTournamentBattle && finalRewards.item) newlyAcquiredItems.push(finalRewards.item);
-  renderAll();
+  if (!hasNextTournamentBattle) refreshCurrentWorldView();
   if (pendingExpeditionResult && !hasNextTournamentBattle) {
     pendingExpeditionLoot = { items: newlyAcquiredItems, equipmentBefore: battleEquipmentBefore };
-  } else {
-    showLootReminders(newlyAcquiredItems, battleEquipmentBefore);
+  } else if (!hasNextTournamentBattle && newlyAcquiredItems.length) {
+    deferredBattleLoot = { items: newlyAcquiredItems, equipmentBefore: battleEquipmentBefore };
   }
 }
 
 function skipBattle(): void {
   if (!currentReport) return;
+  if (hasLivePendingBattle()) {
+    try {
+      let pending = game!.currentPendingBattle();
+      let safety = 0;
+      while (pending && !pending.session.winnerId && safety < 4_000) {
+        const stepped = pendingBattleUi!.step();
+        pending = stepped.pendingBattle;
+        safety += 1;
+      }
+      if (pending && !pending.session.winnerId) throw new Error("Бой не завершился в допустимое число ходов.");
+      if (pending) {
+        manualBattleSession = pendingBattleUi!.session(pending);
+        const hero = manualBattleSession.fighterState("hero");
+        const enemy = manualBattleSession.fighterState(pending.enemyId);
+        battleHealth = { hero: hero.health, enemy: enemy.health };
+        currentReport = pendingBattleUi!.report(pending);
+      }
+      persist({ deferFeatureUnlocks: true });
+      finalizePendingBattleForUi();
+    } catch (error) { toast((error as Error).message, "error"); }
+    return;
+  }
+  if (manualBattleSession && !manualBattleSession.isFinished) {
+    manualBattleSession.runAutomatic();
+    const hero = manualBattleSession.fighterState("hero");
+    const enemy = manualBattleSession.fighterState(currentReport.enemyBefore.id);
+    battleHealth = { hero: hero.health, enemy: enemy.health };
+  }
   battleTurnIndex = currentReport.turns.length;
   finishBattlePlayback();
 }
@@ -3062,6 +3873,14 @@ function skipBattle(): void {
 function closeBattle(): void {
   if (battleTimer !== null) window.clearTimeout(battleTimer);
   battleTimer = null;
+  if (pendingTournamentContinuation) {
+    pendingTournamentContinuation = false;
+    const pending = game?.currentPendingBattle();
+    if (!pending) { toast("Следующий бой турнирной сетки не найден.", "error"); return; }
+    renderTournamentBracket();
+    openPendingBattle(pending);
+    return;
+  }
   if (currentTournament && tournamentBattleIndex < currentTournament.heroBattles.length - 1) {
     tournamentBattleIndex += 1;
     renderTournamentBracket();
@@ -3071,14 +3890,22 @@ function closeBattle(): void {
   const completedTournament = Boolean(currentTournament);
   const expeditionResult = pendingExpeditionResult;
   const expeditionLoot = pendingExpeditionLoot;
+  const continueExpedition = resumeExpeditionAfterBattle;
+  const battleLoot = deferredBattleLoot;
   pendingExpeditionResult = null;
   pendingExpeditionLoot = null;
-  currentReport = null; currentTournament = null; battleEquipmentBefore = null; battleInventoryBefore = null; $("#battle-overlay").hidden = true; $("#tournament-panel").hidden = true; document.body.classList.remove("battle-open");
-  if (completedTournament) persist();
+  resumeExpeditionAfterBattle = false;
+  deferredBattleLoot = null;
+  if (battleLoot?.items.length) document.body.classList.add("loot-notification-open");
+  currentReport = null; currentTournament = null; manualBattleSession = null; battleEquipmentBefore = null; battleInventoryBefore = null; modalController.close($("#battle-overlay")); $("#tournament-panel").hidden = true; document.body.classList.remove("battle-open");
+  if (completedTournament || pendingBattleCompletedForPersist) persist();
+  pendingBattleCompletedForPersist = false;
   showPage(battleReturnPage, false, false);
   window.requestAnimationFrame(() => {
     window.scrollTo({ top: battleReturnScrollY, behavior: "auto" });
     if (expeditionResult) openExpeditionRewards(expeditionResult, expeditionLoot?.items ?? expeditionResult.rewards?.items ?? [], expeditionLoot?.equipmentBefore ?? null);
+    else if (continueExpedition) openDungeonWindow();
+    else if (battleLoot?.items.length) window.setTimeout(() => showLootReminders(battleLoot.items, battleLoot.equipmentBefore), 120);
   });
 }
 
@@ -3116,28 +3943,123 @@ function activateWorldMode(): void {
 
 function newGame(): void {
   if (!window.confirm("Удалить героя, предметы и историю мира? Это действие нельзя отменить.")) return;
-  localStorage.removeItem(SAVE_KEY);
+  [saveRepository.primaryKey, saveRepository.temporaryKey, saveRepository.backupKey].forEach((key) => localStorage.removeItem(key));
   localStorage.removeItem(LEADER_SNAPSHOT_KEY);
   localStorage.removeItem(ELITE_SNAPSHOT_KEY);
-  game = null; location.reload();
+  game = null; pendingBattleUi = null; location.reload();
+}
+
+function closeSaveMenu(): void {
+  const menu = document.querySelector<HTMLDetailsElement>(".header-save-menu");
+  if (menu) menu.open = false;
+}
+
+function exportSaveFile(): void {
+  if (!game) return;
+  try {
+    persist({ deferFeatureUnlocks: true });
+    const download = saveTransferController.export(game.save.hero.name, game.save.worldDay);
+    const blob = new Blob([download.content], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = download.fileName;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    closeSaveMenu();
+    toast("Сохранение скачано.");
+  } catch (error) { toast((error as Error).message, "error"); }
+}
+
+async function importSaveFile(file: File): Promise<void> {
+  if (!window.confirm("Заменить текущую летопись сохранением из выбранного файла? Перед заменой будет сохранена резервная копия.")) return;
+  try {
+    saveTransferController.import(await file.text());
+    closeSaveMenu();
+    location.reload();
+  } catch (error) {
+    toast(`Файл не загружен: ${(error as Error).message}`, "error");
+  }
+}
+
+function restorePreviousSave(): void {
+  if (!saveTransferController.canRestoreBackup()) { toast("Предыдущая исправная копия ещё не создана.", "error"); return; }
+  if (!window.confirm("Вернуть предыдущее исправное состояние летописи? Текущее состояние останется резервной копией.")) return;
+  try {
+    saveTransferController.restoreBackup();
+    closeSaveMenu();
+    location.reload();
+  } catch (error) { toast(`Копия не восстановлена: ${(error as Error).message}`, "error"); }
+}
+
+function showSaveLoadFailure(message: string): void {
+  $("#creation-screen").classList.add("hidden");
+  $(".game-header").hidden = true;
+  $(".main-nav").hidden = true;
+  $(".game-shell").hidden = true;
+  $("#basic-shell").hidden = true;
+  document.querySelector(".save-recovery-screen")?.remove();
+  const screen = element("section", "save-recovery-screen");
+  const card = element("div", "save-recovery-card");
+  card.append(
+    element("p", "eyebrow", "СОХРАНЕНИЕ НЕ ПРОЧИТАНО"),
+    element("h1", "", "Летопись требует восстановления"),
+    element("p", "", message),
+    element("p", "save-recovery-note", "Игра не создаёт нового героя поверх повреждённых данных. Можно повторить чтение или осознанно начать заново."),
+  );
+  const actions = element("div", "save-recovery-actions");
+  const retry = element("button", "button primary", "Попробовать снова");
+  retry.type = "button";
+  retry.addEventListener("click", () => location.reload());
+  const clear = element("button", "plain-button", "Удалить повреждённую летопись");
+  clear.type = "button";
+  clear.addEventListener("click", () => {
+    if (!window.confirm("Удалить повреждённое сохранение и его резервную копию? Отменить это действие нельзя.")) return;
+    [saveRepository.primaryKey, saveRepository.temporaryKey, saveRepository.backupKey].forEach((key) => localStorage.removeItem(key));
+    location.reload();
+  });
+  actions.append(retry, clear);
+  card.append(actions);
+  screen.append(card);
+  document.body.append(screen);
+  retry.focus();
 }
 
 function bootstrapWorld(): void {
   renderCreation();
   game = loadGame();
   if (!game) {
-    $("#creation-screen").classList.remove("hidden");
+    if (saveLoadError) {
+      showSaveLoadFailure(saveLoadError);
+      return;
+    }
+    modalController.open($("#creation-screen"), {
+      initialFocus: "#hero-name-input",
+      dismissOnBackdrop: false,
+      dismissOnEscape: false,
+      restoreFocus: false,
+    });
     return;
   }
-  $("#creation-screen").classList.add("hidden");
-  const cycles = game.simulateElapsed();
+  pendingBattleUi = new PendingBattleUiController(game);
+  modalController.close($("#creation-screen"), false);
+  const resumedPendingBattle = game.currentPendingBattle();
+  const cycles = resumedPendingBattle ? 0 : game.simulateElapsed();
   if (cycles > 0) {
     const notice = $("#world-notice"); notice.hidden = false;
     notice.textContent = `Мир продолжал жить без вас: прошло ${cycles} дн. фоновых турниров, дуэлей и вылазок.`;
   }
   persist(); renderAll();
+  if (saveRecoveredFromBackup) {
+    toast("Основное сохранение было повреждено. Мир восстановлен из резервной копии.");
+    queueWorldEffect({ eyebrow: "ВОССТАНОВЛЕНИЕ", title: "Летопись спасена", description: "Загружена последняя исправная резервная копия.", symbol: "↺", tone: "positive", duration: 3000 });
+  }
   queueUnseenContextualTutorials();
-  if (!game.save.tutorialCompleted) openTutorial(true);
+  if (resumedPendingBattle) openPendingBattle(resumedPendingBattle, true);
+  else if (game.save.activeExpedition) openDungeonWindow();
+  else if (!game.save.tutorialCompleted) openTutorial(true);
 }
 
 function bootstrap(): void {
@@ -3158,12 +4080,22 @@ function bootstrap(): void {
 
 $("#create-hero-btn").addEventListener("click", createHero);
 $("#hero-name-input").addEventListener("keydown", (event) => { if ((event as KeyboardEvent).key === "Enter") createHero(); });
-$$(".main-nav button").forEach((button) => button.addEventListener("click", () => showPage(button.dataset.page!)));
+$$<HTMLButtonElement>(".nav-primary button[data-nav-default]").forEach((button) => button.addEventListener("click", () => showPage(button.dataset.navDefault!)));
+$$<HTMLButtonElement>(".nav-secondary button[data-page]").forEach((button) => button.addEventListener("click", () => showPage(button.dataset.page!)));
 $$<HTMLElement>("[data-page-link]").forEach((link) => link.addEventListener("click", (event) => { event.preventDefault(); showPage(link.dataset.pageLink!); }));
 $$<HTMLButtonElement>("[data-scroll-target]").forEach((button) => button.addEventListener("click", () => {
   document.getElementById(button.dataset.scrollTarget!)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }));
 $("#new-game-btn").addEventListener("click", newGame);
+$("#export-save-btn").addEventListener("click", exportSaveFile);
+$("#import-save-btn").addEventListener("click", () => ($("#import-save-input") as HTMLInputElement).click());
+$("#import-save-input").addEventListener("change", (event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (file) void importSaveFile(file);
+});
+$("#restore-backup-btn").addEventListener("click", restorePreviousSave);
 $("#sound-toggle").addEventListener("click", toggleSound);
 $("#basic-sound-toggle").addEventListener("click", toggleSound);
 $("#switch-mode-btn").addEventListener("click", switchMode);
@@ -3178,10 +4110,10 @@ $("#basic-clear-log").addEventListener("click", basicTournamentUi.clearLog);
 $("#basic-step").addEventListener("click", basicTournamentUi.step);
 $("#basic-auto").addEventListener("click", basicTournamentUi.toggleAuto);
 $("#training-btn").addEventListener("click", trainHero);
-$("#inventory-set-filter").addEventListener("change", (event) => { inventorySetFilter = (event.target as HTMLSelectElement).value; inventoryVisibleLimit = 60; renderArsenal(); });
-$("#inventory-rarity-filter").addEventListener("change", (event) => { inventoryRarityFilter = (event.target as HTMLSelectElement).value as Rarity | "all"; inventoryVisibleLimit = 60; renderArsenal(); });
-$("#inventory-sort").addEventListener("change", (event) => { inventorySort = (event.target as HTMLSelectElement).value as "newest" | "oldest"; inventoryVisibleLimit = 60; renderArsenal(); });
-$("#inventory-more").addEventListener("click", () => { inventoryVisibleLimit += 60; renderArsenal(); });
+$("#inventory-set-filter").addEventListener("change", (event) => { inventorySetFilter = (event.target as HTMLSelectElement).value; inventoryVisibleLimit = 60; pageRegistry.render("arsenal", { force: true, animate: false }); });
+$("#inventory-rarity-filter").addEventListener("change", (event) => { inventoryRarityFilter = (event.target as HTMLSelectElement).value as Rarity | "all"; inventoryVisibleLimit = 60; pageRegistry.render("arsenal", { force: true, animate: false }); });
+$("#inventory-sort").addEventListener("change", (event) => { inventorySort = (event.target as HTMLSelectElement).value as "newest" | "oldest"; inventoryVisibleLimit = 60; pageRegistry.render("arsenal", { force: true, animate: false }); });
+$("#inventory-more").addEventListener("click", () => { inventoryVisibleLimit += 60; pageRegistry.render("arsenal", { force: true, animate: false }); });
 $("#inventory-sell-unequipped").addEventListener("click", () => {
   if (!game) return;
   const equippedIds = new Set(Object.values(game.save.hero.equipped));
@@ -3190,7 +4122,7 @@ $("#inventory-sell-unequipped").addEventListener("click", () => {
   if (!window.confirm(`Продать все неиспользуемые предметы (${count})? Регалии короны и надетые вещи останутся у героя.`)) return;
   const scrollTop = window.scrollY;
   const result = game.sellUnequipped();
-  persist(); renderHeader(); renderArsenal(false); window.scrollTo(0, scrollTop);
+  persist(); renderHeader(); pageRegistry.render("arsenal", { force: true, animate: false }); window.scrollTo(0, scrollTop);
   toast(`Продано предметов: ${result.count}. Получено ${result.value} монет.`);
 });
 $("#open-tutorial-btn").addEventListener("click", () => openTutorial(false));
@@ -3206,12 +4138,20 @@ $("#tutorial-next").addEventListener("click", () => {
 });
 $("#close-dungeon-window").addEventListener("click", closeDungeonWindow);
 $("#continue-expedition-rewards").addEventListener("click", closeExpeditionRewards);
-$("#dungeon-layer").addEventListener("click", (event) => { if (event.target === event.currentTarget) closeDungeonWindow(); });
 $("#dismiss-tournament-reminder").addEventListener("click", () => {
   dismissedTournamentReminderKey = tournamentReminderKey(tournamentsScheduledToday());
   $("#tournament-reminder").hidden = true;
 });
 $("#dismiss-loot-reminder").addEventListener("click", advanceLootReminder);
+$("#loot-reminder").addEventListener("pointerenter", () => setLootReminderPaused(true));
+$("#loot-reminder").addEventListener("pointerleave", () => {
+  if (!$("#loot-reminder").contains(document.activeElement)) setLootReminderPaused(false);
+});
+$("#loot-reminder").addEventListener("focusin", () => setLootReminderPaused(true));
+$("#loot-reminder").addEventListener("focusout", (event) => {
+  const next = (event as FocusEvent).relatedTarget;
+  if (!(next instanceof Node) || !$("#loot-reminder").contains(next)) setLootReminderPaused(false);
+});
 $("#open-tournament-calendar").addEventListener("click", () => {
   const scheduled = tournamentsScheduledToday();
   dismissedTournamentReminderKey = tournamentReminderKey(scheduled);
@@ -3227,20 +4167,6 @@ $("#close-new-chronicle").addEventListener("click", closeNewChronicleDialog);
 $("#new-chronicle-back").addEventListener("click", () => moveNewChronicleStep(-1));
 $("#new-chronicle-next").addEventListener("click", () => moveNewChronicleStep(1));
 $("#new-chronicle-confirm").addEventListener("click", confirmNewChronicle);
-$("#new-chronicle-layer").addEventListener("click", (event) => { if (event.target === event.currentTarget) closeNewChronicleDialog(); });
-$("#new-chronicle-layer").addEventListener("keydown", (event) => {
-  if ((event as KeyboardEvent).key !== "Tab") return;
-  const layer = $("#new-chronicle-layer");
-  const focusable = Array.from(layer.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex='-1'])"))
-    .filter((node) => !node.hidden && node.offsetParent !== null);
-  if (!focusable.length) { event.preventDefault(); return; }
-  const first = focusable[0];
-  const last = focusable[focusable.length - 1];
-  const keyboardEvent = event as KeyboardEvent;
-  if (!focusable.includes(document.activeElement as HTMLElement)) { event.preventDefault(); (keyboardEvent.shiftKey ? last : first).focus(); }
-  else if (keyboardEvent.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-  else if (!keyboardEvent.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-});
 $("#chronicle-current-tab").addEventListener("click", () => showChronicleView("current"));
 $("#chronicle-archive-tab").addEventListener("click", () => showChronicleView("archive"));
 $(".chronicle-tabs").addEventListener("keydown", (event) => {
@@ -3251,20 +4177,19 @@ $(".chronicle-tabs").addEventListener("keydown", (event) => {
   showChronicleView(openArchive ? "archive" : "current");
   $<HTMLButtonElement>(openArchive ? "#chronicle-archive-tab" : "#chronicle-current-tab").focus();
 });
-$("#equipment-picker").addEventListener("click", (event) => { if (event.target === event.currentTarget) closeEquipmentPicker(); });
-$("#equipment-comparison").addEventListener("click", (event) => { if (event.target === event.currentTarget) closeEquipmentComparison(); });
 window.addEventListener("keydown", (event) => {
-  if (event.key !== "Escape") return;
-  if (!$("#tutorial-layer").hidden) finishTutorial();
-  else if (!$("#new-chronicle-layer").hidden) closeNewChronicleDialog();
-  else if (!$("#dungeon-layer").hidden) closeDungeonWindow();
-  else if (!$("#equipment-comparison").hidden) closeEquipmentComparison();
-  else if (!$("#equipment-picker").hidden) closeEquipmentPicker();
+  if (event.key === "Escape" && !$("#tutorial-layer").hidden) finishTutorial();
 });
 window.addEventListener("resize", scheduleTutorialPosition);
 window.addEventListener("scroll", scheduleTutorialPosition, { passive: true });
+const navigateFromHash = () => {
+  if (!game) return;
+  showPage(pageFromHash(location.hash, PAGE_IDS, "map"), true, true, true, false);
+};
+window.addEventListener("hashchange", navigateFromHash);
+window.addEventListener("popstate", navigateFromHash);
 $("#skip-battle").addEventListener("click", skipBattle);
-$("#manual-battle-step").addEventListener("click", confirmManualBattleTurn);
+$("#manual-battle-step").addEventListener("click", () => confirmManualBattleTurn());
 $("#close-battle").addEventListener("click", closeBattle);
 window.addEventListener("beforeunload", () => persist());
 

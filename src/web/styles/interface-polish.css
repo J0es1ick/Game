@@ -41,3 +41,18 @@
     min-height: 42px;
   }
 }
+
+@media (max-width: 820px) {
+  .main-nav button {
+    min-height: 44px;
+  }
+
+  .game-shell small,
+  .game-shell dt,
+  .game-shell label,
+  .game-shell .activity-head,
+  .game-shell .leader-table th {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+}

@@ -171,12 +171,14 @@ button:not(:disabled):active,
 .equipment-dialog-layer:not([hidden]),
 .battle-overlay:not([hidden]),
 .dungeon-layer:not([hidden]),
+.narrative-layer:not([hidden]),
 .tutorial-layer:not([hidden]) {
   animation: ui-veil-in 180ms ease-out both;
 }
 .equipment-dialog-layer:not([hidden]) > .equipment-dialog,
 .battle-overlay:not([hidden]) > .battle-window,
-.dungeon-layer:not([hidden]) > .dungeon-dialog {
+.dungeon-layer:not([hidden]) > .dungeon-dialog,
+.narrative-layer:not([hidden]) > .narrative-dialog {
   animation: ui-dialog-in 280ms var(--motion-ease) both;
 }
 .mode-screen:not(.hidden) .mode-paper,

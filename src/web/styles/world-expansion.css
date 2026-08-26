@@ -71,7 +71,128 @@
 .expedition-choice > span { align-self: end; margin: 14px 0 10px; font-size: 12px; }
 .expedition-choice .button { width: 100%; }
 .expedition-path { margin: 16px 0 8px; color: var(--muted); font: 12px "Courier New", monospace; }
+
+.expedition-route-shell { display: grid; gap: 16px; }
+.expedition-route-map {
+  display: grid;
+  grid-auto-columns: minmax(190px, 1fr);
+  grid-auto-flow: column;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 3px 12px;
+  scroll-snap-type: x proximity;
+}
+.expedition-route-column {
+  display: grid;
+  min-width: 190px;
+  align-content: start;
+  gap: 8px;
+  scroll-snap-align: start;
+}
+.expedition-route-column > small { color: #746b5c; font: 11px/1.3 "Courier New", monospace; letter-spacing: .08em; }
+.expedition-route-node {
+  display: grid;
+  min-height: 176px;
+  align-content: start;
+  gap: 7px;
+  padding: 14px;
+  border: 1px solid #9d927f;
+  border-top: 4px solid #817765;
+  background: #e9e2d4;
+}
+.expedition-route-node.reachable { border-top-color: #55705d; background: #f4eee2; box-shadow: 4px 4px 0 rgba(66, 60, 48, .13); }
+.expedition-route-node.visited { border-top-color: #b78a3e; background: #ddd5c5; }
+.expedition-route-node.current { outline: 2px solid #9d7140; outline-offset: -5px; }
+.expedition-route-node.locked { opacity: .64; }
+.expedition-route-node.elite,
+.expedition-route-node.boss { border-top-color: #9c4c42; }
+.expedition-route-node.shrine { border-top-color: #745b84; }
+.expedition-route-node.cache { border-top-color: #b78a3e; }
+.expedition-route-node small { color: #756b5c; font: 10px/1.35 "Courier New", monospace; text-transform: uppercase; }
+.expedition-route-node strong { font-size: 18px; line-height: 1.12; }
+.expedition-route-node p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
+.expedition-route-node > span { margin-top: auto; color: #6c5d3d; font-size: 12px; }
+.expedition-route-node .button { width: 100%; margin-top: 3px; }
+.expedition-node-state { margin-top: auto; color: #716858; font: 11px/1.3 "Courier New", monospace; text-transform: uppercase; }
+.expedition-shrine-choice {
+  padding: 18px;
+  border: 1px solid #76657d;
+  border-left: 5px solid #745b84;
+  background: #ded6df;
+}
+.expedition-shrine-choice h4 { margin: 5px 0 7px; font-size: 22px; }
+.expedition-shrine-choice > p:not(.eyebrow) { color: var(--muted); }
+.expedition-shrine-choice > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.expedition-shrine-option { display: grid; gap: 6px; padding: 15px; border: 1px solid #8d8174; text-align: left; background: #f0e8db; }
+.expedition-shrine-option strong { font-size: 17px; }
+.expedition-shrine-option p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.4; }
+.expedition-shrine-option span { font: 11px/1.4 "Courier New", monospace; }
+.expedition-shrine-option span.positive { color: #47664f; }
+.expedition-shrine-option span.negative { color: #994c42; }
 .expedition-retreat { margin-top: 5px; }
+
+.loot-target-workshop {
+  display: grid;
+  grid-template-columns: minmax(250px, 1fr) minmax(360px, 1.25fr) minmax(250px, .85fr);
+  gap: 22px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 20px 22px;
+  border-left: 6px solid #9b7343;
+  background: #e8dfcf;
+}
+.loot-target-copy h2 { margin: 5px 0 8px; font-size: 25px; }
+.loot-target-copy > p:last-child { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.loot-target-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.loot-target-controls label { display: grid; gap: 6px; color: #6c6354; font: 11px/1.3 "Courier New", monospace; text-transform: uppercase; }
+.loot-target-controls select { width: 100%; min-height: 43px; }
+.loot-target-actions { display: grid; grid-column: 1 / -1; grid-template-columns: 1fr auto; gap: 8px; }
+.loot-target-actions button { min-height: 43px; }
+.loot-target-status { display: grid; border: 1px solid #b2a791; background: #ded5c4; }
+.loot-target-status .stat-row { padding: 8px 10px; }
+.loot-target-best-set { margin: 0; padding: 10px; border-top: 1px dotted #aaa08d; color: #526a58; font-size: 11px; line-height: 1.45; }
+
+.reforge-control {
+  grid-column: 1 / -1;
+  border-top: 1px solid #b7ad9b;
+}
+.reforge-control > summary {
+  padding: 9px 2px 3px;
+  color: #6b5841;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+}
+.reforge-control-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 9px;
+}
+.reforge-control-body label { display: grid; gap: 4px; color: #756b5b; font-size: 11px; }
+.reforge-control-body select { min-width: 0; min-height: 38px; width: 100%; }
+.reforge-price { align-self: center; margin: 0; color: #695d4a; font: 11px/1.35 "Courier New", monospace; }
+.reforge-control-body button { width: 100%; min-height: 38px; }
+
+.crown-season-overview {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(260px, 1fr) minmax(260px, .8fr) minmax(300px, 1.1fr);
+  gap: 20px;
+  align-items: center;
+  padding: 20px;
+  border-left: 6px solid #a77c36;
+  background: #eee3cc;
+}
+.crown-season-copy h3 { margin: 5px 0 7px; font-size: 27px; }
+.crown-season-copy > p:last-child { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+.crown-season-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid #b2a58d; background: #dfd3bc; }
+.crown-season-summary .stat-row { padding: 8px 10px; }
+.crown-season-rules { display: grid; gap: 6px; }
+.crown-season-rules > strong { margin-bottom: 2px; font-size: 14px; }
+.crown-season-rules article { display: grid; gap: 2px; padding: 8px 10px; border-left: 3px solid #a77c36; background: #e1d6c1; }
+.crown-season-rules b { font-size: 12px; }
+.crown-season-rules span { color: var(--muted); font-size: 11px; line-height: 1.4; }
 
 .fighter-feature-list {
   display: grid;
@@ -136,6 +257,86 @@
 .reputation-tier-list strong { font-size: 14px; }
 .reputation-tier-list span { color: #526b58; font: 700 10px/1.4 "Courier New", monospace; }
 .faction-contract-benefit { min-height: 0 !important; margin: 10px 0 0; padding-top: 9px; border-top: 1px dotted #aaa08d; color: #526b58 !important; font-size: 11px; }
+.faction-perk-list { display: grid; gap: 6px; margin-top: 13px; padding-top: 11px; border-top: 1px solid #c1b6a3; }
+.faction-perk-list > strong { font-size: 13px; }
+.faction-perk { display: grid; grid-template-columns: 85px minmax(0, 1fr); gap: 2px 8px; padding: 8px; background: #e5ddce; }
+.faction-perk small { grid-row: 1 / span 2; color: #756b5c; font: 10px/1.3 "Courier New", monospace; }
+.faction-perk b { font-size: 12px; }
+.faction-perk span { color: var(--muted); font-size: 12px; line-height: 1.35; }
+.faction-perk.unlocked { border-left: 3px solid #58715d; background: #dce4d7; }
+.faction-perk.locked { opacity: 0.72; }
+
+.narrative-layer {
+  position: fixed;
+  z-index: 230;
+  inset: 0;
+  display: grid;
+  overflow-y: auto;
+  padding: clamp(18px, 5vw, 72px);
+  background: rgba(27, 24, 20, 0.78);
+  place-items: center;
+}
+.narrative-dialog {
+  width: min(920px, 100%);
+  overflow: hidden;
+  border: 1px solid #665d4e;
+  border-top: 7px solid #8c4f42;
+  background: #e9e1d1;
+  box-shadow: 14px 16px 0 rgba(20, 17, 13, 0.34);
+}
+.narrative-dialog > header {
+  padding: clamp(24px, 5vw, 48px);
+  border-bottom: 1px solid #aaa08d;
+  text-align: center;
+}
+.narrative-dialog h2 {
+  margin: 7px 0 12px;
+  font-size: clamp(34px, 6vw, 58px);
+  line-height: 0.98;
+}
+.narrative-dialog header > p:last-child {
+  max-width: 650px;
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.narrative-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1px;
+  background: #958b79;
+}
+.narrative-choice {
+  display: grid;
+  min-height: 260px;
+  align-content: start;
+  gap: 10px;
+  padding: 28px;
+  border: 0;
+  text-align: left;
+  background: #f1eadc;
+  transform-origin: 50% 110%;
+}
+.narrative-choice:not(:disabled):hover,
+.narrative-choice:not(:disabled):focus-visible {
+  z-index: 1;
+  background: #fff6e5;
+  box-shadow: inset 0 -5px 0 #9e5949;
+  transform: translateY(-5px) rotate(calc((var(--choice-index) - 1) * 0.45deg));
+}
+.narrative-choice small { color: #9a5144; font: 11px/1.3 "Courier New", monospace; letter-spacing: 0.1em; }
+.narrative-choice strong { font-size: 24px; line-height: 1.08; }
+.narrative-choice p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.narrative-consequence {
+  align-self: end;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid #bcb19e;
+  color: #536b59;
+  font: 12px/1.45 "Courier New", monospace;
+}
+.narrative-choice:disabled .narrative-consequence { color: #9c4c42; }
 
 .faction-card,
 .contract-card {
@@ -332,7 +533,9 @@
 @media (max-width: 980px) {
   .expedition-heading,
   .reputation-guide,
-  .relic-workshop { grid-template-columns: 1fr; }
+  .relic-workshop,
+  .loot-target-workshop,
+  .crown-season-overview { grid-template-columns: 1fr; }
   .expedition-choices,
   .faction-grid,
   .contract-grid { grid-template-columns: 1fr; }
@@ -340,6 +543,14 @@
 }
 
 @media (max-width: 620px) {
+  .expedition-shrine-choice > div,
+  .loot-target-controls,
+  .reforge-control-body,
+  .crown-season-summary { grid-template-columns: 1fr; }
+  .loot-target-actions { grid-column: auto; grid-template-columns: 1fr; }
+  .loot-target-workshop,
+  .crown-season-overview { padding: 15px; }
+  .expedition-route-map { grid-auto-columns: minmax(240px, 82vw); }
   .reputation-tier-list { grid-template-columns: 1fr 1fr; }
   .reputation-tier-list article:nth-child(3) { border-left: 0; }
   .active-contract,

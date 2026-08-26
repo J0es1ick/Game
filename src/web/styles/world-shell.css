@@ -4,7 +4,7 @@
   top: 0;
   display: grid;
   min-height: 76px;
-  grid-template-columns: auto minmax(190px, 0.7fr) 1fr auto auto auto auto;
+  grid-template-columns: auto minmax(190px, 0.7fr) 1fr auto;
   align-items: center;
   gap: 24px;
   padding: 10px clamp(16px, 4vw, 54px);
@@ -36,6 +36,70 @@
   padding-left: 20px;
   border-left: 1px solid #4e483d;
 }
+.header-actions {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: end;
+  gap: 8px;
+}
+.header-actions .plain-button {
+  min-height: 38px;
+  white-space: nowrap;
+}
+.header-save-menu {
+  position: relative;
+}
+.header-save-menu > summary {
+  display: grid;
+  min-height: 38px;
+  list-style: none;
+  cursor: pointer;
+  place-items: center;
+}
+.header-save-menu > summary::-webkit-details-marker { display: none; }
+.header-save-menu[open] > summary {
+  border-color: #b8ad99;
+  color: #fff;
+  background: #39342c;
+}
+.header-save-popover {
+  position: absolute;
+  z-index: 45;
+  top: calc(100% + 10px);
+  right: 0;
+  display: grid;
+  width: min(290px, calc(100vw - 24px));
+  gap: 7px;
+  padding: 16px;
+  border: 1px solid #756b59;
+  color: #312d26;
+  background: #e9e2d3;
+  box-shadow: 8px 9px 0 rgba(12, 10, 8, 0.35);
+}
+.header-save-popover > strong {
+  font: 700 18px/1.1 "Inter Tight", sans-serif;
+}
+.header-save-popover > p {
+  margin: 0 0 5px;
+  color: #655e52;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.game-header .header-save-popover .plain-button {
+  width: 100%;
+  color: #332f28;
+  background: #ded5c5;
+}
+.game-header .header-save-popover .plain-button:hover {
+  color: #fff;
+  background: #514a3f;
+}
+.game-header .header-save-popover .plain-button.danger {
+  border-color: #8d4b40;
+  color: #8d3f34;
+  background: #e6d7ca;
+}
 .hero-summary > div:last-child {
   min-width: 0;
 }
@@ -65,7 +129,7 @@
   overflow: hidden;
   margin-top: 3px;
   color: #aaa18f;
-  font-size: 11px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -334,6 +398,25 @@
   font-size: 12px;
   font-style: italic;
 }
+.rivalry-disposition {
+  display: block;
+  margin-top: 5px;
+  color: #6e6558;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.rivalry-disposition.nemesis,
+.rivalry-disposition.hatred { color: #914c40; }
+.rivalry-disposition.respect { color: #51705d; }
+.rivalry-scouting-advice {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-left: 3px solid #9a754b;
+  background: #e5ddce;
+}
+.rivalry-scouting-advice strong,
+.rivalry-scouting-advice p { display: block; margin: 0; }
+.rivalry-scouting-advice p { margin-top: 4px; font-size: 12px; line-height: 1.45; }
 .career-results {
   display: grid;
 }
@@ -486,23 +569,40 @@
   position: sticky;
   z-index: 29;
   top: var(--game-header-height, 76px);
+  display: block;
+  border-bottom: 1px solid #8f8675;
+  background: #c9c0ae;
+  box-shadow: 0 4px 12px rgba(51, 44, 34, 0.1);
+}
+.nav-primary,
+.nav-secondary {
   display: flex;
   overflow-x: auto;
   gap: 2px;
-  padding: 0 clamp(16px, 4vw, 54px);
-  border-bottom: 1px solid #8f8675;
-  background: #c9c0ae;
+  padding: 0 max(clamp(16px, 4vw, 54px), env(safe-area-inset-right)) 0 max(clamp(16px, 4vw, 54px), env(safe-area-inset-left));
+  scroll-padding-inline: max(clamp(16px, 4vw, 54px), env(safe-area-inset-left));
   scrollbar-color: #817765 #c9c0ae;
   scrollbar-width: thin;
   scroll-snap-type: x proximity;
 }
-.main-nav::-webkit-scrollbar {
-  height: 5px;
-}
-.main-nav::-webkit-scrollbar-track {
+.nav-primary {
   background: #c9c0ae;
 }
-.main-nav::-webkit-scrollbar-thumb {
+.nav-secondary {
+  min-height: 38px;
+  border-top: 1px solid #b1a692;
+  background: #e5ddcd;
+}
+.nav-primary::-webkit-scrollbar,
+.nav-secondary::-webkit-scrollbar {
+  height: 5px;
+}
+.nav-primary::-webkit-scrollbar-track,
+.nav-secondary::-webkit-scrollbar-track {
+  background: #c9c0ae;
+}
+.nav-primary::-webkit-scrollbar-thumb,
+.nav-secondary::-webkit-scrollbar-thumb {
   background: #817765;
 }
 .main-nav button {
@@ -513,7 +613,7 @@
   border-right: 1px solid #a99f8c;
   background: transparent;
   font:
-    700 12px/1 "Inter Tight",
+    700 14px/1 "Inter Tight",
     sans-serif;
   scroll-snap-align: start;
 }
@@ -524,16 +624,32 @@
   color: #fff;
   background: var(--red);
 }
+.nav-primary button {
+  min-height: 43px;
+  padding-inline: 22px;
+}
+.nav-secondary button {
+  min-height: 38px;
+  padding-inline: 15px;
+  color: #645d51;
+  font-size: 13px;
+  font-weight: 650;
+}
+.nav-secondary button.active {
+  color: #332f28;
+  background: #f0e9db;
+  box-shadow: inset 0 -3px 0 var(--red);
+}
 .main-nav button span {
   margin-left: 5px;
   color: inherit;
   opacity: 0.7;
   font-family: "Courier New", monospace;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .game-shell {
-  min-height: calc(100vh - 122px);
+  min-height: calc(100vh - var(--game-header-height, 76px) - var(--main-nav-height, 82px));
   padding: clamp(22px, 4vw, 52px);
   background: var(--paper);
 }
@@ -579,7 +695,7 @@
 .map-shortcuts {
   position: sticky;
   z-index: 22;
-  top: 133px;
+  top: calc(var(--game-header-height, 76px) + var(--main-nav-height, 82px) + 8px);
   display: flex;
   width: 100%;
   align-items: stretch;
@@ -597,7 +713,7 @@
   padding: 0 10px;
   color: var(--muted);
   font:
-    10px "Courier New",
+    12px "Courier New",
     monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -640,13 +756,13 @@
 }
 .map-shortcuts b {
   font:
-    700 13px "Inter Tight",
+    700 14px "Inter Tight",
     sans-serif;
 }
 .map-shortcuts small {
   color: var(--muted);
   font:
-    11px "Courier New",
+    12px "Courier New",
     monospace;
 }
 .map-shortcuts button:hover small,

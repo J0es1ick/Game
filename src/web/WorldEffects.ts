@@ -1,4 +1,5 @@
 import { InterfaceSound, gameAudio } from "./GameAudio";
+import { PriorityNotificationQueue } from "./NotificationCenter";
 
 export type WorldEffectTone = "positive" | "negative" | "neutral" | "legendary";
 
@@ -21,8 +22,9 @@ export interface WorldEffectPresentation {
   aggregation?: WorldEffectAggregation;
 }
 
-const queue: WorldEffectPresentation[] = [];
+const queue = new PriorityNotificationQueue<WorldEffectPresentation>();
 let playing = false;
+let sequence = 0;
 
 export function queueWorldEffect(effect: WorldEffectPresentation): void {
   if (typeof document === "undefined") return;
@@ -37,13 +39,20 @@ export function queueWorldEffect(effect: WorldEffectPresentation): void {
       return;
     }
   }
-  queue.push(effect);
+  const priority = effect.tone === "negative" ? 30 : effect.tone === "legendary" ? 20 : 10;
+  queue.enqueue({ id: `${effect.aggregation?.key ?? effect.title}:${sequence++}`, payload: effect, priority });
   if (!playing) playNext();
 }
 
 function playNext(): void {
   const host = document.querySelector<HTMLElement>("#world-effect-stage");
-  const effect = queue.shift();
+  if (queue.size === 0) { playing = false; return; }
+  if (document.body.classList.contains("ui-modal-open") || document.body.classList.contains("loot-notification-open")) {
+    playing = true;
+    window.setTimeout(playNext, 180);
+    return;
+  }
+  const effect = queue.take()?.payload;
   if (!host || !effect) { playing = false; return; }
   playing = true;
   if (effect.sound) gameAudio.event(effect.sound);

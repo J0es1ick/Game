@@ -60,26 +60,48 @@
         <div><dt data-term="rank">Место</dt><dd id="header-rank">—</dd></div>
         <div><dt data-term="day">День мира</dt><dd id="header-day">—</dd></div>
       </dl>
-      <button class="plain-button sound-toggle" id="sound-toggle" type="button" aria-pressed="false" aria-label="Отключить звуки" title="Отключить звуки">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h4l5-4v12l-5-4H4z"/><g class="sound-waves"><path d="M16 9c1.5 1.7 1.5 4.3 0 6"/><path d="M19 6c3 3.3 3 8.7 0 12"/></g><path class="sound-off-line" d="M5 4l14 16"/></svg>
-      </button>
-      <button class="plain-button" id="open-tutorial-btn" title="Открыть краткое обучение">Как играть</button>
-      <button class="plain-button" id="new-game-btn" title="Удалить локальное сохранение и создать нового героя">Новая игра</button>
-      <button class="plain-button" id="switch-mode-btn">Сменить режим</button>
+      <div class="header-actions" aria-label="Настройки игры">
+        <button class="plain-button sound-toggle" id="sound-toggle" type="button" aria-pressed="false" aria-label="Отключить звуки" title="Отключить звуки">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h4l5-4v12l-5-4H4z"/><g class="sound-waves"><path d="M16 9c1.5 1.7 1.5 4.3 0 6"/><path d="M19 6c3 3.3 3 8.7 0 12"/></g><path class="sound-off-line" d="M5 4l14 16"/></svg>
+        </button>
+        <button class="plain-button" id="open-tutorial-btn" title="Открыть краткое обучение">Как играть</button>
+        <button class="plain-button" id="switch-mode-btn">Сменить режим</button>
+        <details class="header-save-menu">
+          <summary class="plain-button">Летопись</summary>
+          <div class="header-save-popover">
+            <strong>Сохранение героя</strong>
+            <p>Временная и резервная копии проверяются автоматически при запуске.</p>
+            <button class="plain-button" id="export-save-btn" type="button">Скачать сохранение</button>
+            <button class="plain-button" id="import-save-btn" type="button">Загрузить из файла</button>
+            <button class="plain-button" id="restore-backup-btn" type="button">Вернуть предыдущую копию</button>
+            <button class="plain-button danger" id="new-game-btn" type="button" title="Удалить локальное сохранение и создать нового героя">Начать новую игру</button>
+            <input id="import-save-input" type="file" accept="application/json,.json" hidden />
+          </div>
+        </details>
+      </div>
     </header>
 
     <nav class="main-nav" aria-label="Разделы игры">
-      <button class="active" data-page="map">Карта</button>
-      <button data-page="hero">Герой</button>
-      <button data-page="arsenal">Инвентарь <span id="inventory-count">0</span></button>
-      <button data-page="forge">Кузница</button>
-      <button data-page="skills">Навыки</button>
-      <button data-page="contracts">Контракты <span id="contract-count">0</span></button>
-      <button data-page="collections">Коллекции <span id="collection-count">0</span></button>
-      <button data-page="shop">Лавка</button>
-      <button data-page="leaders">Сотня лучших</button>
-      <button data-page="elite" data-term="legend">Элита <span>30</span></button>
-      <button data-page="chronicle">Мир</button>
+      <div class="nav-primary" role="toolbar" aria-label="Основные разделы">
+        <button class="active" type="button" data-nav-group="map" data-nav-default="map">Карта</button>
+        <button type="button" data-nav-group="hero" data-nav-default="hero">Герой</button>
+        <button type="button" data-nav-group="equipment" data-nav-default="arsenal">Снаряжение</button>
+        <button type="button" data-nav-group="ratings" data-nav-default="leaders">Рейтинги</button>
+        <button type="button" data-nav-group="world" data-nav-default="chronicle">Мир</button>
+      </div>
+      <div class="nav-secondary" id="nav-secondary" role="toolbar" aria-label="Страницы выбранного раздела">
+        <button class="active" type="button" data-page="map" data-nav-group="map">Карта окрестностей</button>
+        <button type="button" data-page="hero" data-nav-group="hero">Облик и история</button>
+        <button type="button" data-page="skills" data-nav-group="hero">Навыки</button>
+        <button type="button" data-page="arsenal" data-nav-group="equipment">Инвентарь <span id="inventory-count">0</span></button>
+        <button type="button" data-page="forge" data-nav-group="equipment">Кузница</button>
+        <button type="button" data-page="collections" data-nav-group="equipment">Коллекции <span id="collection-count">0</span></button>
+        <button type="button" data-page="shop" data-nav-group="equipment">Лавка</button>
+        <button type="button" data-page="leaders" data-nav-group="ratings">Сотня лучших</button>
+        <button type="button" data-page="elite" data-nav-group="ratings" data-term="legend">Элита <span>30</span></button>
+        <button type="button" data-page="chronicle" data-nav-group="world">Летопись</button>
+        <button type="button" data-page="contracts" data-nav-group="world">Контракты <span id="contract-count">0</span></button>
+      </div>
     </nav>
 
     <main class="basic-shell" id="basic-shell" hidden>
@@ -245,6 +267,7 @@
       <section class="page" id="page-forge" aria-labelledby="forge-title">
         <header class="page-heading"><div><p class="eyebrow">ПОСТОЯННОЕ УСИЛЕНИЕ ПРЕДМЕТОВ</p><h1 id="forge-title">Кузница</h1></div><p>Печати закалки добываются в поздних турнирах, у особых противников и изредка в сложных данжах. Золотом их купить нельзя.</p></header>
         <div class="forge-summary paper-panel"><div><small>ДОСТУПНЫЙ РЕСУРС</small><strong id="forge-marks" data-term="marks">0 печатей</strong></div><p data-term="enhancement">Каждый следующий уровень закалки дороже. Максимум — +5; характеристики предмета растут при каждом улучшении.</p></div>
+        <section class="loot-target-workshop paper-panel" id="loot-target-workshop" aria-labelledby="loot-target-title"></section>
         <section class="relic-workshop paper-panel" id="relic-workshop"></section>
         <div class="forge-grid" id="forge-grid"></div>
       </section>
@@ -311,7 +334,7 @@
       </section>
     </main>
 
-    <aside class="tournament-reminder" id="tournament-reminder" hidden aria-live="assertive" aria-labelledby="tournament-reminder-title">
+    <aside class="tournament-reminder" id="tournament-reminder" hidden role="status" aria-live="polite" aria-labelledby="tournament-reminder-title">
       <header>
         <div><p class="eyebrow">СОБЫТИЕ СЕГОДНЯ</p><h2 id="tournament-reminder-title">Пора на турнир</h2></div>
         <button class="dialog-close" id="dismiss-tournament-reminder" type="button" aria-label="Напомнить позже">×</button>
@@ -321,7 +344,7 @@
       <button class="plain-button tournament-reminder-map" id="open-tournament-calendar" type="button">Открыть календарь турниров</button>
     </aside>
 
-    <aside class="loot-reminder" id="loot-reminder" hidden aria-live="assertive" aria-labelledby="loot-reminder-title">
+    <aside class="loot-reminder" id="loot-reminder" hidden role="status" aria-live="polite" aria-labelledby="loot-reminder-title">
       <header>
         <div><p class="eyebrow" id="loot-reminder-progress">ПОЛУЧЕНА ДОБЫЧА</p><h2 id="loot-reminder-title">Сравнить предмет</h2></div>
         <button class="dialog-close" id="dismiss-loot-reminder" type="button" aria-label="Закрыть уведомление">×</button>
@@ -348,6 +371,13 @@
           <section class="expedition-reward-loot"><header><div><p class="eyebrow">СОХРАНЁННАЯ ДОБЫЧА</p><h3>Находки из похода</h3></div><span id="expedition-reward-loot-count">0 предметов</span></header><div id="expedition-reward-items"></div></section>
           <footer><p>После закрытия можно сразу сравнить каждую находку с надетым предметом.</p><button class="button primary" id="continue-expedition-rewards" type="button">Забрать награды</button></footer>
         </div>
+      </div>
+    </section>
+
+    <section class="narrative-layer" id="narrative-layer" hidden role="dialog" aria-modal="true" aria-labelledby="narrative-title" aria-describedby="narrative-copy">
+      <div class="narrative-dialog">
+        <header><p class="eyebrow">СОБЫТИЕ ЛЕТОПИСИ</p><h2 id="narrative-title">Решение героя</h2><p id="narrative-copy"></p></header>
+        <div class="narrative-choices" id="narrative-choices"></div>
       </div>
     </section>
 
@@ -427,14 +457,14 @@
       </div>
     </section>
 
-    <section class="battle-overlay" id="battle-overlay" hidden aria-live="polite">
+    <section class="battle-overlay" id="battle-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="battle-name">
       <div class="battle-window">
         <header class="battle-title"><div><p id="battle-place">АРЕНА</p><h2 id="battle-name">Бой</h2></div></header>
         <div class="tournament-panel" id="tournament-panel" hidden><header><span id="tournament-round-label">СЕТКА</span><strong id="tournament-progress">0 / 0</strong></header><div class="bracket-strip" id="bracket-strip"></div></div>
         <div class="battle-stage">
-          <article class="combatant hero-combatant" id="battle-hero"><span class="combatant-role">ВАШ ГЕРОЙ</span><h3>—</h3><p>—</p><div class="battle-health"><i></i></div><strong>0 / 0 HP</strong></article>
-          <div class="battle-action"><span id="battle-turn">ХОД 0</span><b id="battle-action">Подготовка...</b><p id="battle-detail"></p></div>
-          <article class="combatant enemy-combatant" id="battle-enemy"><span class="combatant-role">ПРОТИВНИК</span><h3>—</h3><p>—</p><div class="battle-health"><i></i></div><strong>0 / 0 HP</strong></article>
+          <article class="combatant hero-combatant" id="battle-hero"><span class="combatant-role">ВАШ ГЕРОЙ</span><h3>—</h3><p>—</p><div class="battle-health"><i></i></div><strong>0 / 0 HP</strong><div class="battle-runtime" hidden><span data-battle-resource></span><span data-battle-statuses></span></div></article>
+          <div class="battle-action" role="status" aria-live="polite" aria-atomic="true"><span id="battle-turn">ХОД 0</span><b id="battle-action">Подготовка...</b><p id="battle-detail"></p></div>
+          <article class="combatant enemy-combatant" id="battle-enemy"><span class="combatant-role">ПРОТИВНИК</span><h3>—</h3><p>—</p><div class="battle-health"><i></i></div><strong>0 / 0 HP</strong><div class="battle-runtime" hidden><span data-battle-resource></span><span data-battle-statuses></span></div></article>
         </div>
         <div class="battle-skills" id="battle-skills"><div data-fighter="hero"><strong>Навыки героя</strong><div></div></div><div data-fighter="enemy"><strong>Навыки противника</strong><div></div></div></div>
         <div class="battle-log" id="battle-log"></div>
