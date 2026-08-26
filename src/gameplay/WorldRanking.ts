@@ -22,9 +22,23 @@ export function calculateHeroWorldRating(hero: HeroProfile): number {
 }
 
 export function calculateEnemyWorldRating(enemy: EnemyProfile): number {
-  const provenArena = Math.max(0, enemy.arenaIndex - (enemy.tournamentWins > 0 ? 0 : 1));
+  const arenaTournamentWins = enemy.arenaTournamentWins ?? [];
+  const highestProvenArena = arenaTournamentWins.reduce(
+    (highest, wins, index) => wins > 0 ? Math.max(highest, index) : highest,
+    -1,
+  );
+  const provenArena = highestProvenArena >= 0
+    ? highestProvenArena
+    : Math.max(0, enemy.arenaIndex - 1);
+  const championships = arenaTournamentWins.reduce(
+    (sum, count, index) => sum + count * (7 + index * 3),
+    0,
+  );
+  const recordedChampionships = arenaTournamentWins.reduce((sum, count) => sum + count, 0);
+  const otherTournamentWins = Math.max(0, enemy.tournamentWins - recordedChampionships);
   return 1000 + provenArena * WORLD_RATING_ARENA_BAND
-    + Math.min(300, enemy.tournamentWins * 7)
+    + Math.min(300, championships)
+    + Math.min(80, otherTournamentWins * 5)
     + Math.min(160, enemy.wins * 2)
     + Math.min(100, enemy.level * 3)
     - Math.min(140, enemy.losses * 2);

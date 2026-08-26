@@ -14,6 +14,8 @@ export interface TournamentRuleDefinition {
   heroStats?: Partial<Stats>;
   enemyStats?: Partial<Stats>;
   disableHealing?: boolean;
+  /** Flat health granted only to the lower-level fighter. */
+  lowerLevelHealthBonus?: number;
 }
 
 export interface FactionDefinition {
@@ -69,7 +71,7 @@ export const TOURNAMENT_RULES: TournamentRuleDefinition[] = [
   { id: "iron-oath", name: "Железная клятва", description: "Доспехи проверяют на прочность: защита всех бойцов выше.", heroStats: { defense: 8 }, enemyStats: { defense: 8 } },
   { id: "first-blood-rule", name: "Право первой крови", description: "Удары опаснее: повышен критический шанс.", heroStats: { crit: 8 }, enemyStats: { crit: 8 } },
   { id: "dry-ring", name: "Сухой круг", description: "Лечебные приёмы запрещены правилами турнира.", disableHealing: true },
-  { id: "challenger-favor", name: "Фора претендента", description: "Боец с меньшим уровнем получает дополнительную стойкость.", heroStats: { health: 14 }, enemyStats: { health: 14 } },
+  { id: "challenger-favor", name: "Фора претендента", description: "Боец с меньшим уровнем получает дополнительную стойкость.", lowerLevelHealthBonus: 14 },
   { id: "heavy-sand", name: "Тяжёлый песок", description: "Темп ниже, зато каждый точный удар весомее.", heroStats: { speed: -2, attack: 4 }, enemyStats: { speed: -2, attack: 4 } },
 ];
 

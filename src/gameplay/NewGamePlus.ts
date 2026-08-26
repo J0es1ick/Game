@@ -11,6 +11,7 @@ import {
   SKILLS,
 } from "../catalogs/WorldCatalog";
 import { createItem } from "../factories/ItemFactory";
+import type { RandomSource } from "./RandomSource";
 import {
   EquipmentItem,
   EraLawId,
@@ -412,6 +413,7 @@ export function prepareInheritedItem(
   targetClass: HeroClass,
   completedCycle: number,
   formerOwner: string,
+  randomSource?: RandomSource,
 ): EquipmentItem {
   const template = ITEM_TEMPLATES.find((candidate) => candidate.id === source.templateId);
   if (!template) throw new Error("Этот предмет больше не существует в каталоге и не может стать наследием.");
@@ -430,6 +432,7 @@ export function prepareInheritedItem(
     classId: targetClass,
     templateId: template.id,
     rarity: "rare",
+    randomSource,
   });
   inherited.name = source.relicName ?? `Наследие «${template.name}»`;
   inherited.grantedSkillId = source.grantedSkillId;

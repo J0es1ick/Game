@@ -4,6 +4,7 @@ import { calculateItemPrice, createItem } from "../src/factories/ItemFactory";
 import { WorldGame } from "../src/gameplay/WorldGame";
 import { enemyExperienceRequirement, heroExperienceRequirement } from "../src/gameplay/ProgressionBalance";
 import { TournamentArena } from "../src/arenas/TournamentArena";
+import { SeededRandom } from "../src/gameplay/RandomSource";
 
 describe("постоянный RPG-мир", () => {
   test("содержит шесть игровых классов и десятки навыков", () => {
@@ -244,22 +245,27 @@ describe("постоянный RPG-мир", () => {
   test("поздние сборки выдерживают серию ударов вместо обмена ваншотами", () => {
     const game = WorldGame.create("Чемпион", "Swordsman", 1_000);
     const hero = game.save.hero;
+    const itemRandom = new SeededRandom("late-build-items");
     hero.level = 30;
-    hero.inventory = (["weapon", "offhand", "head", "chest", "hands", "feet"] as const).map((slot) =>
-      createItem(30, { classId: hero.classId, slot, rarity: "mythic" }));
+    hero.inventory = (["weapon", "offhand", "head", "chest", "hands", "feet"] as const).map((slot) => ({
+      ...createItem(30, { classId: hero.classId, slot, rarity: "mythic", randomSource: itemRandom }),
+      stats: slot === "weapon" || slot === "offhand" ? { attack: 34 } : slot === "chest" || slot === "feet" ? { health: 210 } : { defense: 28 },
+      affix: undefined,
+    }));
     hero.equipped = Object.fromEntries(hero.inventory.map((item) => [item.slot, item.id]));
 
     const enemy = game.save.enemies.find((candidate) => candidate.arenaIndex === ARENAS.length - 1)!;
     enemy.level = 40;
-    enemy.equipment = (["weapon", "offhand", "head", "chest", "hands", "feet"] as const).map((slot) =>
-      createItem(40, { classId: enemy.classId, slot, rarity: "mythic" }));
+    enemy.equipment = (["weapon", "offhand", "head", "chest", "hands", "feet"] as const).map((slot) => ({
+      ...createItem(40, { classId: enemy.classId, slot, rarity: "mythic", randomSource: itemRandom }),
+      stats: slot === "weapon" || slot === "offhand" ? { attack: 44 } : slot === "chest" || slot === "feet" ? { health: 270 } : { defense: 36 },
+      affix: undefined,
+    }));
     enemy.equipped = Object.fromEntries(enemy.equipment.map((item) => [item.slot, item.id]));
 
     const heroSnapshot = combatantSnapshot(hero);
     const enemySnapshot = combatantSnapshot(enemy);
-    const random = jest.spyOn(Math, "random").mockReturnValue(0.1);
-    const combat = resolveCombat(hero, enemy);
-    random.mockRestore();
+    const combat = resolveCombat(hero, enemy, { randomSource: new SeededRandom("late-build-combat") });
     const largestHitRatio = Math.max(...combat.turns.map((turn) => turn.damage / (turn.targetId === "hero" ? heroSnapshot.maxHealth : enemySnapshot.maxHealth)));
 
     expect(heroSnapshot.maxHealth).toBeGreaterThan(heroSnapshot.attack * 3);
@@ -322,6 +328,29 @@ describe("постоянный RPG-мир", () => {
     ].slice(0, 30);
     game.save.lastLegendHuntDay = undefined;
     expect(game.legendHuntAvailability().reason).toContain("Следующая ступень: #5");
+  });
+
+  test("однократно подводит итог просроченного сезона короны до сброса таблицы", () => {
+    const game = WorldGame.create("Сезонник", "Knight", 1_001);
+    const rivalId = game.save.eliteLeagueMemberIds[0];
+    game.save.crownSeason = {
+      number: 3, startsDay: 1, endsDay: 5, ruleIds: [],
+      points: { hero: 18, [rivalId]: 25 }, defenses: { hero: 2, [rivalId]: 1 },
+    };
+    game.save.worldDay = 6;
+    const goldBefore = game.save.hero.gold;
+    const marksBefore = game.save.hero.temperingMarks;
+
+    const restored = WorldGame.restore(JSON.parse(JSON.stringify(game.save)));
+
+    expect(restored.currentCrownSeason().number).toBe(4);
+    expect(restored.lastCompletedCrownSeason()).toMatchObject({ season: 3, heroRank: 2, heroPoints: 18 });
+    expect(restored.save.hero.gold).toBe(goldBefore + 2_500);
+    expect(restored.save.hero.temperingMarks).toBe(marksBefore + 2);
+    const restoredAgain = WorldGame.restore(JSON.parse(JSON.stringify(restored.save)));
+    expect(restoredAgain.save.hero.gold).toBe(restored.save.hero.gold);
+    expect(restoredAgain.save.hero.temperingMarks).toBe(restored.save.hero.temperingMarks);
+    expect(restoredAgain.currentCrownSeason().number).toBe(4);
   });
 
   test("выдаёт регалии короны только при смене владельца и не надевает их без разрешения", () => {

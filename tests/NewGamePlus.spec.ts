@@ -11,6 +11,7 @@ import {
 } from "../src/gameplay/NewGamePlus";
 import { ARENAS } from "../src/catalogs/WorldCatalog";
 import { GameSave, HeroClass, NewGamePlusOptions } from "../src/gameplay/WorldTypes";
+import { SeededRandom } from "../src/gameplay/RandomSource";
 
 function makeEligible(game: WorldGame): void {
   const last = ARENAS.length - 1;
@@ -133,6 +134,14 @@ describe("Новая летопись", () => {
     expect(inherited.relicRenown).toBe(0);
     expect(inherited.stats.attack).not.toBe(999);
     expect(inherited.grantedSkillId).toBe("execution");
+  });
+
+  test("наследие воспроизводимо через сохранённый поток добычи", () => {
+    const game = WorldGame.create("Кузнец", "Knight", 5_000);
+    const source = game.save.hero.inventory[0];
+    const first = prepareInheritedItem(source, "Knight", 2, "Кузнец", new SeededRandom("legacy-item"));
+    const second = prepareInheritedItem(source, "Knight", 2, "Кузнец", new SeededRandom("legacy-item"));
+    expect(first).toEqual(second);
   });
 
   test("переход атомарно отклоняет неизвестный закон", () => {
