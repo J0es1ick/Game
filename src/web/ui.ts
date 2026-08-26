@@ -114,6 +114,7 @@ let inventoryRarityFilter: Rarity | "all" = "all";
 let inventorySort: "newest" | "oldest" = "newest";
 let rivalrySort: "recent" | "wins" | "losses" = "recent";
 const openRivalryMemories = new Set<string>();
+const selectedLegacySalvageIds = new Set<string>();
 let inventoryVisibleLimit = 60;
 let equipmentPickerSlot: EquipmentSlot | null = null;
 let comparisonItemId: string | null = null;
@@ -2996,11 +2997,13 @@ function renderRelicWorkshop(): void {
   title.id = "relic-workshop-title";
   head.append(element("p", "eyebrow", "РАЗВИТИЕ РЕЛИКВИЙ"), title, element("p", "", "Надетые легендарные и мифические вещи получают известность в боях. На первой ступени можно выбрать постоянный путь развития."));
   const resource = statRow("Реликтовая пыль", hero.relicDust);
+  resource.id = "legacy-relic-dust";
   markTerm(resource.querySelector<HTMLElement>("span")!, "relicDust");
   const list = element("div", "relic-ready-list");
   ready.forEach((item) => {
     const isEquipped = equippedIds.has(item.id);
     const row = element("article", `relic-ready-card rarity-${item.rarity}${isEquipped ? " equipped" : ""}`);
+    row.dataset.relicReadyItemId = item.id;
     row.style.setProperty("--rarity-accent", rarityColors[item.rarity]);
     const copy = element("div", "relic-ready-copy");
     const identity = element("div", "relic-ready-identity");
@@ -3045,19 +3048,93 @@ function renderRelicWorkshop(): void {
   });
   if (ready.length === 0) list.append(element("p", "empty-copy", relics.length ? "Продолжайте побеждать с легендарными предметами: путь откроется на первой ступени наследия." : "Легендарных предметов пока нет."));
 
-  const salvageEntries = buildLegacySalvageEntries(hero.inventory, equippedIds, (itemId) => game!.canSell(itemId));
-  const availableCount = salvageEntries.filter((entry) => entry.status === "available").length;
   const salvage = element("section", "relic-salvage");
+  salvage.id = "legacy-salvage";
+  renderLegacySalvage(salvage);
+  panel.replaceChildren(head, resource, list, salvage);
+}
+
+function refreshLegacyDustDisplay(): void {
+  if (!game) return;
+  const value = document.querySelector<HTMLElement>("#legacy-relic-dust strong");
+  if (value) value.textContent = String(game.save.hero.relicDust);
+  document.querySelectorAll<HTMLButtonElement>(".relic-path-option button").forEach((button) => {
+    button.disabled = game!.save.hero.relicDust < 8;
+  });
+}
+
+function removeSalvagedRelicCandidates(itemIds: readonly string[]): void {
+  if (!game) return;
+  const list = document.querySelector<HTMLElement>(".relic-ready-list");
+  if (!list) return;
+  const removedIds = new Set(itemIds);
+  list.querySelectorAll<HTMLElement>("[data-relic-ready-item-id]").forEach((row) => {
+    if (row.dataset.relicReadyItemId && removedIds.has(row.dataset.relicReadyItemId)) row.remove();
+  });
+  if (list.querySelector("[data-relic-ready-item-id]")) return;
+  const relics = game.save.hero.inventory.filter((item) => rarityAtLeastUi(item.rarity, "legendary"));
+  list.replaceChildren(element("p", "empty-copy", relics.length
+    ? "Продолжайте побеждать с легендарными предметами: путь откроется на первой ступени наследия."
+    : "Легендарных предметов пока нет."));
+}
+
+function renderLegacySalvage(salvage: HTMLElement): void {
+  if (!game) return;
+  const hero = game.save.hero;
+  const equippedIds = new Set(Object.values(hero.equipped));
+  const salvageEntries = buildLegacySalvageEntries(hero.inventory, equippedIds, (itemId) => game!.canSell(itemId));
+  const availableEntries = salvageEntries.filter((entry) => entry.status === "available");
+  const availableIds = new Set(availableEntries.map((entry) => entry.item.id));
+  selectedLegacySalvageIds.forEach((itemId) => {
+    if (!availableIds.has(itemId)) selectedLegacySalvageIds.delete(itemId);
+  });
+  const availableCount = availableEntries.length;
   const salvageHeading = element("div", "relic-salvage-heading");
-  salvageHeading.append(
-    element("div", "", "Разобрать предмет в пыль"),
+  const headingCopy = element("div", "relic-salvage-heading-copy");
+  headingCopy.append(
+    element("div", "relic-salvage-title", "Разобрать предметы в пыль"),
     element("small", "", `Доступно для разбора: ${availableCount} из ${salvageEntries.length}`),
   );
+  const bulkControls = element("div", "relic-salvage-bulk");
+  const selectionSummary = element("small", "relic-salvage-selection", "Ничего не выбрано");
+  const bulkButton = element("button", "button relic-salvage-bulk-button", "Разобрать выбранное");
+  bulkButton.type = "button";
+  bulkButton.dataset.focusKey = "legacy:salvage:selected";
+  bulkControls.append(selectionSummary, bulkButton);
+  salvageHeading.append(headingCopy, bulkControls);
   const salvageList = element("div", "relic-salvage-list");
+  const syncSelection = () => {
+    const selectedEntries = availableEntries.filter((entry) => selectedLegacySalvageIds.has(entry.item.id));
+    const totalDust = selectedEntries.reduce((total, entry) => total + entry.dust, 0);
+    bulkButton.disabled = selectedEntries.length === 0;
+    bulkButton.textContent = selectedEntries.length > 0
+      ? `Разобрать выбранное · ${selectedEntries.length}`
+      : "Разобрать выбранное";
+    selectionSummary.textContent = selectedEntries.length > 0
+      ? `Выбрано: ${selectedEntries.length} · будет получено ${totalDust} пыли`
+      : "Ничего не выбрано";
+  };
   salvageEntries.forEach((entry, index) => {
     const item = entry.item;
-    const card = element("article", `relic-salvage-card rarity-${item.rarity} status-${entry.status}`);
+    const isSelected = selectedLegacySalvageIds.has(item.id);
+    const card = element("article", `relic-salvage-card rarity-${item.rarity} status-${entry.status}${isSelected ? " selected" : ""}`);
     card.style.setProperty("--rarity-accent", rarityColors[item.rarity]);
+    const selector = element("label", "relic-salvage-selector");
+    const checkbox = element("input") as HTMLInputElement;
+    checkbox.type = "checkbox";
+    checkbox.checked = isSelected;
+    checkbox.disabled = entry.status !== "available";
+    checkbox.dataset.focusKey = `legacy:salvage-select:${item.id}`;
+    checkbox.setAttribute("aria-label", entry.status === "available"
+      ? `Выбрать для разбора: ${displayItemName(item)}`
+      : `${displayItemName(item)} нельзя выбрать для разбора`);
+    checkbox.addEventListener("change", () => {
+      if (checkbox.checked) selectedLegacySalvageIds.add(item.id);
+      else selectedLegacySalvageIds.delete(item.id);
+      card.classList.toggle("selected", checkbox.checked);
+      syncSelection();
+    });
+    selector.append(checkbox, element("span", "", entry.status === "available" ? "Выбрать" : "Недоступно"));
     const art = equipmentArtwork(item.slot, hero.classId, "equipment-art relic-salvage-art", item);
     const copy = element("div", "relic-salvage-copy");
     copy.append(
@@ -3085,9 +3162,13 @@ function renderRelicWorkshop(): void {
         if (!window.confirm(`Разобрать «${displayItemName(item)}» без возможности восстановления?\n${description}\nБудет получено: ${entry.dust} пыли.`)) return;
         try {
           const dust = game!.salvageItem(item.id);
+          selectedLegacySalvageIds.delete(item.id);
           persist();
           renderHeader();
-          preserveUiFocus(() => pageRegistry.render("legacy", { force: true, animate: false }));
+          pageRegistry.invalidate("hero", "arsenal", "forge", "skills", "collections", "shop");
+          refreshLegacyDustDisplay();
+          removeSalvagedRelicCandidates([item.id]);
+          preserveUiFocus(() => renderLegacySalvage(salvage));
           queueWorldEffect({
             eyebrow: "НАСЛЕДИЕ СНАРЯЖЕНИЯ",
             title: "Предмет разобран",
@@ -3102,12 +3183,38 @@ function renderRelicWorkshop(): void {
       state.append(salvageButton);
     }
     card.dataset.itemIndex = String(index);
-    card.append(art, copy, state);
+    card.append(selector, art, copy, state);
     salvageList.append(card);
   });
   if (salvageEntries.length === 0) salvageList.append(element("p", "empty-copy", "В инвентаре пока нет предметов."));
-  salvage.append(salvageHeading, salvageList);
-  panel.replaceChildren(head, resource, list, salvage);
+  bulkButton.addEventListener("click", () => {
+    const selectedEntries = availableEntries.filter((entry) => selectedLegacySalvageIds.has(entry.item.id));
+    if (selectedEntries.length === 0) return;
+    const totalDust = selectedEntries.reduce((total, entry) => total + entry.dust, 0);
+    if (!window.confirm(`Разобрать выбранные предметы без возможности восстановления?\nКоличество: ${selectedEntries.length}\nБудет получено: ${totalDust} пыли.`)) return;
+    const itemIds = selectedEntries.map((entry) => entry.item.id);
+    try {
+      const dust = game!.salvageItems(itemIds);
+      itemIds.forEach((itemId) => selectedLegacySalvageIds.delete(itemId));
+      persist();
+      renderHeader();
+      pageRegistry.invalidate("hero", "arsenal", "forge", "skills", "collections", "shop");
+      refreshLegacyDustDisplay();
+      removeSalvagedRelicCandidates(itemIds);
+      preserveUiFocus(() => renderLegacySalvage(salvage));
+      queueWorldEffect({
+        eyebrow: "НАСЛЕДИЕ СНАРЯЖЕНИЯ",
+        title: "Выбранные предметы разобраны",
+        description: `Разобрано предметов: ${itemIds.length}.`,
+        stats: [`+${dust} пыли`],
+        symbol: "✦",
+        tone: "neutral",
+        sound: "forge",
+      });
+    } catch (error) { notifyError((error as Error).message); }
+  });
+  syncSelection();
+  salvage.replaceChildren(salvageHeading, salvageList);
 }
 
 function renderEliteLeaders(trackMovement = false): void {

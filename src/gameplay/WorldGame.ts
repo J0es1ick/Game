@@ -697,15 +697,29 @@ export class WorldGame {
   }
 
   public salvageItem(itemId: string): number {
+    return this.salvageItems([itemId]);
+  }
+
+  public salvageItems(itemIds: readonly string[]): number {
     this.requireFeature("equipment-legacy");
-    const item = this.save.hero.inventory.find((candidate) => candidate.id === itemId);
-    if (!item) throw new Error("Предмет не найден.");
-    if (Object.values(this.save.hero.equipped).includes(itemId)) throw new Error("Надетый предмет нельзя разобрать.");
-    if (!this.canSell(itemId)) throw new Error("Регалии короны нельзя разобрать.");
-    const dust = relicDustYield(item);
-    this.save.hero.inventory = this.save.hero.inventory.filter((candidate) => candidate.id !== itemId);
+    const uniqueIds = [...new Set(itemIds)];
+    if (uniqueIds.length === 0) throw new Error("Не выбраны предметы для разбора.");
+    const inventoryById = new Map(this.save.hero.inventory.map((item) => [item.id, item]));
+    const items = uniqueIds.map((itemId) => {
+      const item = inventoryById.get(itemId);
+      if (!item) throw new Error(uniqueIds.length === 1 ? "Предмет не найден." : "Один из выбранных предметов не найден.");
+      return item;
+    });
+    const equippedIds = new Set(Object.values(this.save.hero.equipped));
+    if (items.some((item) => equippedIds.has(item.id))) throw new Error("Надетый предмет нельзя разобрать.");
+    if (items.some((item) => !this.canSell(item.id))) throw new Error("Регалии короны нельзя разобрать.");
+    const ids = new Set(uniqueIds);
+    const dust = items.reduce((total, item) => total + relicDustYield(item), 0);
+    this.save.hero.inventory = this.save.hero.inventory.filter((candidate) => !ids.has(candidate.id));
     this.save.hero.relicDust += dust;
-    this.event("loot", `${item.name} разобран: получено ${dust} ед. реликтовой пыли.`);
+    this.event("loot", items.length === 1
+      ? `${items[0].name} разобран: получено ${dust} ед. реликтовой пыли.`
+      : `Разобрано предметов: ${items.length}. Получено ${dust} ед. реликтовой пыли.`);
     return dust;
   }
 

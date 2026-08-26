@@ -116,4 +116,40 @@ describe("equipment legacy salvage", () => {
     expect(game.save.hero.relicDust).toBe(dustBefore + relicDustYield(availableItem));
     expect(game.save.hero.inventory.some((item) => item.id === availableItem.id)).toBe(false);
   });
+
+  test("salvages several selected items as one operation without counting duplicate ids", () => {
+    const game = WorldGame.create("Сборщик", "Knight", 92_002);
+    game.save.hero.arenaWins[3] = 1;
+    const first = equipment("batch-rare", "rare", 8, 1);
+    const second = equipment("batch-epic", "epic", 10, 2);
+    game.save.hero.inventory.push(first, second);
+
+    const dustBefore = game.save.hero.relicDust;
+    const expectedDust = relicDustYield(first) + relicDustYield(second);
+
+    expect(game.salvageItems([first.id, second.id, first.id])).toBe(expectedDust);
+    expect(game.save.hero.relicDust).toBe(dustBefore + expectedDust);
+    expect(game.save.hero.inventory.some((item) => item.id === first.id || item.id === second.id)).toBe(false);
+  });
+
+  test("does not salvage anything when one selected item is missing or protected", () => {
+    const game = WorldGame.create("Проверяющий", "Knight", 92_003);
+    game.save.hero.arenaWins[3] = 1;
+    const first = equipment("atomic-first", "rare", 8);
+    const second = equipment("atomic-second", "epic", 10);
+    const protectedItem = createItem(30, {
+      classId: "Knight",
+      templateId: "crown-sovereign-head",
+      rarity: "mythic",
+    });
+    game.save.hero.inventory.push(first, second, protectedItem);
+    const dustBefore = game.save.hero.relicDust;
+    const equippedId = game.save.hero.equipped.weapon!;
+
+    expect(() => game.salvageItems([first.id, "missing-item", second.id])).toThrow("Один из выбранных предметов не найден.");
+    expect(() => game.salvageItems([first.id, equippedId, second.id])).toThrow("Надетый предмет нельзя разобрать.");
+    expect(() => game.salvageItems([first.id, protectedItem.id, second.id])).toThrow("Регалии короны нельзя разобрать.");
+    expect(game.save.hero.relicDust).toBe(dustBefore);
+    expect(game.save.hero.inventory).toEqual(expect.arrayContaining([first, second, protectedItem]));
+  });
 });

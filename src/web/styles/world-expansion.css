@@ -547,14 +547,18 @@
 }
 .relic-salvage-heading {
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   padding-bottom: 12px;
   color: #453c31;
 }
-.relic-salvage-heading > div { font-size: 19px; font-weight: 800; }
+.relic-salvage-heading-copy { display: grid; gap: 3px; }
+.relic-salvage-title { font-size: 19px; font-weight: 800; }
 .relic-salvage-heading small { color: #716858; font: 12px/1.4 "Courier New", monospace; }
+.relic-salvage-bulk { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
+.relic-salvage-selection { max-width: 260px; text-align: right; }
+.relic-salvage-bulk-button { min-width: 210px; min-height: 44px; }
 .relic-salvage-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -563,7 +567,7 @@
 .relic-salvage-card {
   position: relative;
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr) auto;
+  grid-template-columns: 28px 58px minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 108px;
   align-items: center;
@@ -578,10 +582,15 @@
   transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 .relic-salvage-card:hover { border-color: #766d5e; background: #f3ede2; transform: translateY(-1px); }
+.relic-salvage-card.selected { border-color: #8a5b3f; background: #f3e7d5; box-shadow: inset 0 0 0 1px rgba(138, 91, 63, .24); }
 .relic-salvage-card.status-equipped { border-color: #748975; border-left-color: #536f59; background: #dce3d6; cursor: default; }
 .relic-salvage-card.status-protected { border-color: #a89089; background: #e8ddd8; cursor: default; }
 .relic-salvage-card.status-equipped:hover,
 .relic-salvage-card.status-protected:hover { transform: none; }
+.relic-salvage-selector { display: grid; width: 28px; height: 38px; place-items: center; cursor: pointer; }
+.relic-salvage-selector input { width: 19px; height: 19px; margin: 0; accent-color: #8a4c3c; cursor: pointer; }
+.relic-salvage-selector input:disabled { cursor: not-allowed; opacity: .42; }
+.relic-salvage-selector span { display: none; }
 .relic-salvage-art { width: 54px; height: 68px; }
 .relic-salvage-copy { display: grid; min-width: 0; gap: 5px; }
 .relic-salvage-copy strong { overflow-wrap: anywhere; font-size: 14px; line-height: 1.25; }
@@ -636,7 +645,10 @@
   .crown-season-summary { grid-template-columns: 1fr; }
   .loot-target-actions { grid-column: auto; grid-template-columns: 1fr; }
   .relic-salvage-heading { align-items: stretch; flex-direction: column; }
-  .relic-salvage-card { grid-template-columns: 50px minmax(0, 1fr); }
+  .relic-salvage-bulk { align-items: stretch; flex-direction: column; }
+  .relic-salvage-selection { max-width: none; text-align: left; }
+  .relic-salvage-bulk-button { width: 100%; }
+  .relic-salvage-card { grid-template-columns: 28px 48px minmax(0, 1fr); }
   .relic-salvage-art { width: 48px; height: 62px; }
   .relic-salvage-state { grid-column: 1 / -1; justify-items: stretch; text-align: left; }
   .relic-salvage-button { width: 100%; }
