@@ -30,7 +30,7 @@
       </div>
     </div>
 
-    <div class="creation-screen hidden" id="creation-screen" aria-modal="true" role="dialog" aria-labelledby="creation-title">
+    <div class="creation-screen" id="creation-screen" hidden aria-modal="true" role="dialog" aria-labelledby="creation-title">
       <div class="creation-paper">
         <p class="eyebrow">НОВАЯ ЛЕТОПИСЬ</p>
         <h1 id="creation-title">Кем вас запомнит арена?</h1>
@@ -86,6 +86,7 @@
         <button class="active" type="button" data-nav-group="map" data-nav-default="map">Карта</button>
         <button type="button" data-nav-group="hero" data-nav-default="hero">Герой</button>
         <button type="button" data-nav-group="equipment" data-nav-default="arsenal">Снаряжение</button>
+        <button type="button" data-nav-group="shop" data-nav-default="shop">Лавка</button>
         <button type="button" data-nav-group="ratings" data-nav-default="leaders">Рейтинги</button>
         <button type="button" data-nav-group="world" data-nav-default="chronicle">Мир</button>
       </div>
@@ -95,8 +96,8 @@
         <button type="button" data-page="skills" data-nav-group="hero">Навыки</button>
         <button type="button" data-page="arsenal" data-nav-group="equipment">Инвентарь <span id="inventory-count">0</span></button>
         <button type="button" data-page="forge" data-nav-group="equipment">Кузница</button>
+        <button type="button" data-page="legacy" data-nav-group="equipment">Наследие</button>
         <button type="button" data-page="collections" data-nav-group="equipment">Коллекции <span id="collection-count">0</span></button>
-        <button type="button" data-page="shop" data-nav-group="equipment">Лавка</button>
         <button type="button" data-page="leaders" data-nav-group="ratings">Сотня лучших</button>
         <button type="button" data-page="elite" data-nav-group="ratings" data-term="legend">Элита <span>30</span></button>
         <button type="button" data-page="chronicle" data-nav-group="world">Летопись</button>
@@ -265,11 +266,17 @@
       </section>
 
       <section class="page" id="page-forge" aria-labelledby="forge-title">
-        <header class="page-heading"><div><p class="eyebrow">ПОСТОЯННОЕ УСИЛЕНИЕ ПРЕДМЕТОВ</p><h1 id="forge-title">Кузница</h1></div><p>Печати закалки добываются в поздних турнирах, у особых противников и изредка в сложных данжах. Золотом их купить нельзя.</p></header>
+        <header class="page-heading"><div><p class="eyebrow">ЗАКАЛКА И ПЕРЕКОВКА</p><h1 id="forge-title">Кузница</h1></div><p>Закаляйте проверенные вещи печатями или заменяйте одно свойство за монеты и печати. Оба улучшения навсегда меняют предмет.</p></header>
         <div class="forge-summary paper-panel"><div><small>ДОСТУПНЫЙ РЕСУРС</small><strong id="forge-marks" data-term="marks">0 печатей</strong></div><p data-term="enhancement">Каждый следующий уровень закалки дороже. Максимум — +5; характеристики предмета растут при каждом улучшении.</p></div>
-        <section class="loot-target-workshop paper-panel" id="loot-target-workshop" aria-labelledby="loot-target-title"></section>
-        <section class="relic-workshop paper-panel" id="relic-workshop"></section>
         <div class="forge-grid" id="forge-grid"></div>
+      </section>
+
+      <section class="page" id="page-legacy" aria-labelledby="legacy-title">
+        <header class="page-heading"><div><p class="eyebrow">ДОБЫЧА И ИСТОРИЯ СНАРЯЖЕНИЯ</p><h1 id="legacy-title">Наследие</h1></div><p>Направляйте будущие находки и развивайте легендарные вещи, которые уже заслужили имя в боях.</p></header>
+        <div class="legacy-layout">
+          <section class="loot-target-workshop paper-panel" id="loot-target-workshop" aria-labelledby="loot-target-title"></section>
+          <section class="relic-workshop paper-panel" id="relic-workshop" aria-labelledby="relic-workshop-title"></section>
+        </div>
       </section>
 
       <section class="page" id="page-skills" aria-labelledby="skills-title">

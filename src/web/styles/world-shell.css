@@ -577,7 +577,9 @@
 .nav-primary,
 .nav-secondary {
   display: flex;
+  max-width: 100vw;
   overflow-x: auto;
+  overscroll-behavior-inline: contain;
   gap: 2px;
   padding: 0 max(clamp(16px, 4vw, 54px), env(safe-area-inset-right)) 0 max(clamp(16px, 4vw, 54px), env(safe-area-inset-left));
   scroll-padding-inline: max(clamp(16px, 4vw, 54px), env(safe-area-inset-left));

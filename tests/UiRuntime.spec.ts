@@ -1,4 +1,4 @@
-import { DirtyPageRegistry, PausableTimeout, pageFromHash, pageHash } from "../src/web/UiRuntime";
+import { DirtyPageRegistry, ModalController, PausableTimeout, pageFromHash, pageHash } from "../src/web/UiRuntime";
 import { PriorityNotificationQueue } from "../src/web/NotificationCenter";
 
 describe("UI runtime", () => {
@@ -42,6 +42,39 @@ describe("UI runtime", () => {
     expect(delay).toBe(3_750);
     (scheduled as (() => void) | null)?.();
     expect(done).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens screens that still carry the legacy hidden utility class", () => {
+    const remove = jest.fn();
+    const layer = {
+      hidden: true,
+      inert: false,
+      classList: { remove },
+      setAttribute: jest.fn(),
+      removeAttribute: jest.fn(),
+      querySelector: jest.fn(() => null),
+      querySelectorAll: jest.fn(() => []),
+      hasAttribute: jest.fn(() => true),
+      focus: jest.fn(),
+    } as unknown as HTMLElement;
+    const documentStub = {
+      activeElement: null,
+      body: { classList: { toggle: jest.fn() } },
+      addEventListener: jest.fn(),
+      querySelectorAll: jest.fn(() => []),
+    } as unknown as Document;
+    const previousElement = globalThis.HTMLElement;
+    const previousAnimationFrame = globalThis.requestAnimationFrame;
+    Object.defineProperty(globalThis, "HTMLElement", { configurable: true, value: class HTMLElementStub {} });
+    Object.defineProperty(globalThis, "requestAnimationFrame", { configurable: true, value: jest.fn(() => 1) });
+    try {
+      new ModalController(documentStub).open(layer);
+      expect(remove).toHaveBeenCalledWith("hidden");
+      expect(layer.hidden).toBe(false);
+    } finally {
+      Object.defineProperty(globalThis, "HTMLElement", { configurable: true, value: previousElement });
+      Object.defineProperty(globalThis, "requestAnimationFrame", { configurable: true, value: previousAnimationFrame });
+    }
   });
 });
 

@@ -20,11 +20,12 @@ export default defineConfig({
               includeDependenciesRecursively: false,
             },
             {
-              // The campaign engine changes independently from the view layer.
-              // A static shared chunk keeps the synchronous API while preventing
-              // the main interface bundle from growing into a single large file.
-              name: "world-engine",
-              test: /[\\/]gameplay[\\/]WorldGame\.ts$/,
+              // These modules are leaves of the UI dependency graph. Keeping
+              // them together is safe: unlike WorldGame they do not import
+              // values back from the main entry chunk, so no startup cycle is
+              // introduced in the production build.
+              name: "ui-support",
+              test: /[\\/]web[\\/](GameAudio|NotificationCenter|TutorialCatalog|UiRuntime)\.ts$/,
               includeDependenciesRecursively: false,
             },
           ],

@@ -48,12 +48,19 @@ import { WorldSaveRepository } from "../gameplay/WorldSaveStorage";
 import {
   createCrownSeasonOverview,
   createEraChallengePanel,
+  createExpeditionConditionView,
   createExpeditionRouteView,
   narrativeEffectLines,
 } from "./CampaignViewBuilders";
 import { baseTutorialSteps, contextualTutorialSteps, type TutorialStep } from "./TutorialCatalog";
 import { SaveTransferController } from "./SaveTransferController";
 import { PendingBattleUiController, pendingBattleReport } from "./PendingBattleUi";
+import {
+  WORLD_PAGE_IDS,
+  WORLD_PAGE_NAV_GROUP,
+  isWorldPageAvailable,
+  type WorldPageId,
+} from "./WorldPageCatalog";
 import { buildRivalScoutingReport, rivalryStatus } from "../gameplay/RivalrySystem";
 import { FACTION_PERKS, factionModifier, unlockedFactionPerks } from "../gameplay/FactionSystem";
 import { crownSeasonRemainingDays } from "../gameplay/CrownSeason";
@@ -89,23 +96,8 @@ const SAVE_KEY = "dust-and-crown-save-v2";
 const MODE_KEY = "dust-and-crown-mode";
 const LEADER_SNAPSHOT_KEY = "dust-and-crown-leader-snapshot-v1";
 const ELITE_SNAPSHOT_KEY = "dust-and-crown-elite-snapshot-v1";
-const PAGE_IDS = ["map", "hero", "arsenal", "forge", "skills", "contracts", "collections", "shop", "leaders", "elite", "chronicle"] as const;
-type PageId = typeof PAGE_IDS[number];
-const NAV_GROUPS = ["map", "hero", "equipment", "ratings", "world"] as const;
-type NavGroup = typeof NAV_GROUPS[number];
-const PAGE_NAV_GROUP: Record<PageId, NavGroup> = {
-  map: "map",
-  hero: "hero",
-  skills: "hero",
-  arsenal: "equipment",
-  forge: "equipment",
-  collections: "equipment",
-  shop: "equipment",
-  leaders: "ratings",
-  elite: "ratings",
-  chronicle: "world",
-  contracts: "world",
-};
+const PAGE_IDS = WORLD_PAGE_IDS;
+type PageId = WorldPageId;
 const classIcons: Record<HeroClass, string> = {
   Knight: "♜", Archer: "➶", Wizard: "✦", Monk: "◉", Gunsmith: "⚙", Swordsman: "⚔",
 };
@@ -178,6 +170,7 @@ const pageRegistry = new DirtyPageRegistry<PageId>({
   hero: (animate) => { renderHeroVisual(animate); renderGearActions(); },
   arsenal: (animate) => { renderGearActions(); renderArsenal(animate); },
   forge: (animate) => renderForge(animate),
+  legacy: () => renderLegacy(),
   skills: (animate) => renderSkills(animate),
   contracts: () => renderContracts(),
   collections: () => renderCollections(),
@@ -702,28 +695,40 @@ function currentPage(): PageId {
 }
 
 function pageIsAvailable(page: PageId): boolean {
-  return page !== "contracts" || Boolean(game?.isFeatureUnlocked("contracts"));
+  return Boolean(game) && isWorldPageAvailable(page, (feature) => game!.isFeatureUnlocked(feature));
 }
 
 function syncNavigation(page: PageId): void {
-  const group = PAGE_NAV_GROUP[page];
+  const group = WORLD_PAGE_NAV_GROUP[page];
+  const secondary = $("#nav-secondary");
+  let hasVisibleSecondaryPage = false;
   $$<HTMLButtonElement>(".nav-primary button[data-nav-group]").forEach((button) => {
     const active = button.dataset.navGroup === group;
     button.classList.toggle("active", active);
-    button.setAttribute("aria-expanded", String(active));
-    button.setAttribute("aria-controls", "nav-secondary");
+    if (button.dataset.navDefault === "shop") {
+      button.removeAttribute("aria-expanded");
+      button.setAttribute("aria-controls", "page-shop");
+      if (active) button.setAttribute("aria-current", "page");
+      else button.removeAttribute("aria-current");
+    } else {
+      button.removeAttribute("aria-current");
+      button.setAttribute("aria-expanded", String(active));
+      button.setAttribute("aria-controls", "nav-secondary");
+    }
   });
   $$<HTMLButtonElement>(".nav-secondary button[data-page]").forEach((button) => {
     const buttonPage = button.dataset.page as PageId;
     const active = buttonPage === page;
     const visible = button.dataset.navGroup === group && pageIsAvailable(buttonPage);
+    if (visible) hasVisibleSecondaryPage = true;
     button.hidden = !visible;
     button.setAttribute("aria-hidden", String(!visible));
     button.classList.toggle("active", active);
     if (active) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
-  $("#nav-secondary").dataset.group = group;
+  secondary.hidden = !hasVisibleSecondaryPage;
+  secondary.dataset.group = group;
 }
 
 function renderActivePage(animate = false, force = false): void {
@@ -738,7 +743,9 @@ function showPage(page: string, scrollToTop = true, refresh = true, scrollNaviga
   syncNavigation(targetPage);
   $$(".page").forEach((section) => section.classList.toggle("active", section.id === `page-${targetPage}`));
   if (game && refresh) pageRegistry.render(targetPage, { animate: true });
-  const activeNavigationItem = document.querySelector<HTMLButtonElement>(`.main-nav button[data-page="${targetPage}"]`);
+  const activeNavigationItem = document.querySelector<HTMLButtonElement>(
+    `.main-nav button[data-page="${targetPage}"], .main-nav button[data-nav-default="${targetPage}"]`,
+  );
   if (scrollNavigation) activeNavigationItem?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   if (scrollToTop) window.scrollTo({ top: 0, behavior: "smooth" });
   if (updateRoute && location.hash !== pageHash(targetPage)) history.pushState(null, "", pageHash(targetPage));
@@ -1225,8 +1232,7 @@ function renderExpedition(): void {
   const heading = element("header", "expedition-heading");
   const copy = element("div");
   copy.append(element("p", "eyebrow", "ПОХОД ПРОДОЛЖАЕТСЯ"), element("h3", "", dungeon.name), element("p", "", `Этап ${expedition.stage + 1} из ${expedition.maxStages}. Решение влияет на риск и объём добычи.`));
-  const condition = element("div", "expedition-condition");
-  condition.append(statRow("Силы", `${expedition.health}%`), statRow("Монеты", expedition.accumulatedGold), statRow("Опыт", expedition.accumulatedExperience), statRow("Трофеи", expedition.loot.length));
+  const condition = createExpeditionConditionView(expedition);
   heading.append(copy, condition);
   const route = game.expeditionRoute();
   const routeMap = route ? renderExpeditionRoute(route.nodes) : element("div", "expedition-choices");
@@ -2754,11 +2760,7 @@ function renderShop(): void {
 function renderForge(animateItems = true, preserveOrder = false): void {
   if (!game) return;
   const hero = game.save.hero;
-  const legacyUnlocked = game.isFeatureUnlocked("equipment-legacy");
   $("#forge-marks").textContent = `${hero.temperingMarks} ${hero.temperingMarks === 1 ? "печать" : hero.temperingMarks >= 2 && hero.temperingMarks <= 4 ? "печати" : "печатей"}`;
-  renderLootTargetWorkshop();
-  $("#relic-workshop").hidden = !legacyUnlocked;
-  if (legacyUnlocked) renderRelicWorkshop();
   const grid = $("#forge-grid");
   const equippedIds = new Set(Object.values(hero.equipped));
   const displayedOrder = new Map(
@@ -2788,7 +2790,7 @@ function renderForge(animateItems = true, preserveOrder = false): void {
     art.style.setProperty("--rarity-color", rarityColors[item.rarity]);
     const copy = element("div", "forge-card-copy");
     const enhancement = item.enhancement ?? 0;
-    copy.append(element("small", "", `${equippedIds.has(item.id) ? "НАДЕТО · " : ""}${SLOT_LABELS[item.slot]} · ${RARITY_LABELS[item.rarity]}`), element("h3", "", item.relicName ?? item.name), element("p", "", `${item.level} ур. · закалка +${enhancement}/5${legacyUnlocked && rarityAtLeastUi(item.rarity, "legendary") ? ` · наследие ${item.relicTier ?? 0}/3 (${item.relicRenown ?? 0})` : ""}`), element("p", "item-stats", itemStatsText(item)));
+    copy.append(element("small", "", `${equippedIds.has(item.id) ? "НАДЕТО · " : ""}${SLOT_LABELS[item.slot]} · ${RARITY_LABELS[item.rarity]}`), element("h3", "", item.relicName ?? item.name), element("p", "", `${item.level} ур. · закалка +${enhancement}/5`), element("p", "item-stats", itemStatsText(item)));
     if (equippedIds.has(item.id)) card.classList.add("equipped");
     const button = element("button", "button", enhancement >= 5 ? "Максимальная закалка" : `Улучшить · ${game!.upgradeCost(item.id)} печ.`);
     button.type = "button";
@@ -2803,26 +2805,16 @@ function renderForge(animateItems = true, preserveOrder = false): void {
     });
     const actions = element("div", "forge-card-actions");
     actions.append(button);
-    if (legacyUnlocked && !equippedIds.has(item.id) && game!.canSell(item.id)) {
-      const salvage = element("button", "plain-button", "Разобрать в пыль");
-      salvage.dataset.focusKey = `forge:${item.id}:salvage`;
-      salvage.addEventListener("click", () => {
-        if (!window.confirm(`Разобрать «${item.name}» без возможности восстановления?`)) return;
-        try {
-          const dust = game!.salvageItem(item.id);
-          persist();
-          renderHeader();
-          preserveUiFocus(() => pageRegistry.render("forge", { force: true, animate: false }));
-          toast(`Получено реликтовой пыли: ${dust}.`);
-        }
-        catch (error) { toast((error as Error).message, "error"); }
-      });
-      actions.append(salvage);
-    }
     card.append(art, copy, actions, renderReforgeControl(item));
     return card;
   }));
   if (order.length === 0) grid.append(element("p", "empty-copy", "В инвентаре нет предметов для закалки."));
+}
+
+function renderLegacy(): void {
+  if (!game || !game.isFeatureUnlocked("equipment-legacy")) return;
+  renderLootTargetWorkshop();
+  renderRelicWorkshop();
 }
 
 function renderLootTargetWorkshop(): void {
@@ -2848,7 +2840,7 @@ function renderLootTargetWorkshop(): void {
   const slotLabel = element("label");
   slotLabel.append(document.createTextNode("Слот"));
   const slotSelect = element("select") as HTMLSelectElement;
-  slotSelect.dataset.focusKey = "forge:loot-target:slot";
+  slotSelect.dataset.focusKey = "legacy:loot-target:slot";
   slotSelect.append(new Option("Любой слот", ""));
   (["weapon", "offhand", "head", "chest", "hands", "feet"] as EquipmentSlot[]).forEach((slot) => {
     slotSelect.append(new Option(SLOT_LABELS[slot], slot, false, target?.slot === slot));
@@ -2858,7 +2850,7 @@ function renderLootTargetWorkshop(): void {
   const setLabel = element("label");
   setLabel.append(document.createTextNode("Комплект"));
   const setSelect = element("select") as HTMLSelectElement;
-  setSelect.dataset.focusKey = "forge:loot-target:set";
+  setSelect.dataset.focusKey = "legacy:loot-target:set";
   setSelect.append(new Option("Любой комплект", ""));
   EQUIPMENT_SETS
     .filter((set) => set.classes === "all" || set.classes.includes(hero.classId))
@@ -2868,14 +2860,15 @@ function renderLootTargetWorkshop(): void {
   const actions = element("div", "loot-target-actions");
   const save = element("button", "button primary", target ? "Изменить цель" : "Начать охоту");
   save.type = "submit";
-  save.dataset.focusKey = "forge:loot-target:save";
+  save.dataset.focusKey = "legacy:loot-target:save";
   const clear = element("button", "plain-button", "Сбросить цель");
   clear.type = "button";
+  clear.dataset.focusKey = "legacy:loot-target:clear";
   clear.disabled = !target;
   clear.addEventListener("click", () => {
     game!.setLootTarget(undefined);
     persist();
-    preserveUiFocus(() => renderForge(false, true));
+    preserveUiFocus(() => pageRegistry.render("legacy", { force: true, animate: false }));
     toast("Целевая охота отменена.");
   });
   actions.append(save, clear);
@@ -2895,7 +2888,7 @@ function renderLootTargetWorkshop(): void {
       };
       game!.setLootTarget(nextTarget);
       persist();
-      preserveUiFocus(() => renderForge(false, true));
+      preserveUiFocus(() => pageRegistry.render("legacy", { force: true, animate: false }));
       toast("Цель добычи сохранена.");
     } catch (error) { toast((error as Error).message, "error"); }
   });
@@ -3031,10 +3024,13 @@ function renderRelicWorkshop(): void {
   if (!game) return;
   const panel = $("#relic-workshop");
   const hero = game.save.hero;
+  const equippedIds = new Set(Object.values(hero.equipped));
   const relics = hero.inventory.filter((item) => rarityAtLeastUi(item.rarity, "legendary"));
   const ready = relics.filter((item) => (item.relicTier ?? 0) >= 1 && !item.relicPath);
   const head = element("div", "relic-workshop-head");
-  head.append(element("p", "eyebrow", "НАСЛЕДИЕ СНАРЯЖЕНИЯ"), element("h2", "", "Предметы помнят победы"), element("p", "", "Надетые легендарные и мифические вещи получают известность в боях. На первой ступени можно выбрать постоянный путь развития."));
+  const title = element("h2", "", "Предметы помнят победы");
+  title.id = "relic-workshop-title";
+  head.append(element("p", "eyebrow", "РАЗВИТИЕ РЕЛИКВИЙ"), title, element("p", "", "Надетые легендарные и мифические вещи получают известность в боях. На первой ступени можно выбрать постоянный путь развития."));
   const resource = statRow("Реликтовая пыль", hero.relicDust);
   markTerm(resource.querySelector<HTMLElement>("span")!, "relicDust");
   const list = element("div", "relic-ready-list");
@@ -3046,12 +3042,13 @@ function renderRelicWorkshop(): void {
       const option = element("div", "relic-path-option");
       const tooltipId = `relic-path-${item.id}-${path.id}`;
       const button = element("button", "plain-button", path.name);
+      button.dataset.focusKey = `legacy:${item.id}:${path.id}`;
       button.setAttribute("aria-describedby", tooltipId);
       button.disabled = hero.relicDust < 8;
       button.addEventListener("click", () => { try {
         game!.awakenRelic(item.id, path.id);
         persist();
-        preserveUiFocus(() => pageRegistry.render("forge", { force: true, animate: false }));
+        preserveUiFocus(() => pageRegistry.render("legacy", { force: true, animate: false }));
         toast(`${item.name} обрёл собственный путь.`);
         queueWorldEffect({ eyebrow: "ПРОБУЖДЕНИЕ РЕЛИКВИИ", title: path.name, description: path.description, stats: featureStatsText(path.stats).split(" · ").filter(Boolean), symbol: "✦", tone: "legendary", sound: "loot", duration: 2800 });
       } catch (error) { toast((error as Error).message, "error"); } });
@@ -3070,7 +3067,42 @@ function renderRelicWorkshop(): void {
     row.append(copy, actions); list.append(row);
   });
   if (ready.length === 0) list.append(element("p", "empty-copy", relics.length ? "Продолжайте побеждать с легендарными предметами: путь откроется на первой ступени наследия." : "Легендарных предметов пока нет."));
-  panel.replaceChildren(head, resource, list);
+
+  const salvageable = hero.inventory.filter((item) => !equippedIds.has(item.id) && game!.canSell(item.id));
+  const salvage = element("details", "relic-salvage");
+  const salvageSummary = element("summary", "", "Разобрать ненужный предмет в пыль");
+  const salvageForm = element("form", "relic-salvage-form") as HTMLFormElement;
+  const salvageLabel = element("label");
+  salvageLabel.append(document.createTextNode("Предмет для разбора"));
+  const salvageSelect = element("select") as HTMLSelectElement;
+  salvageSelect.dataset.focusKey = "legacy:salvage:item";
+  const dustByRarity: Record<Rarity, number> = { common: 1, rare: 2, epic: 4, legendary: 8, mythic: 14 };
+  salvageable.forEach((item) => {
+    const dust = dustByRarity[item.rarity] + (item.enhancement ?? 0);
+    salvageSelect.append(new Option(`${displayItemName(item)} · ${RARITY_LABELS[item.rarity]} · ${dust} пыли`, item.id));
+  });
+  salvageSelect.disabled = salvageable.length === 0;
+  salvageLabel.append(salvageSelect);
+  const salvageButton = element("button", "plain-button", "Разобрать без возврата");
+  salvageButton.type = "submit";
+  salvageButton.dataset.focusKey = "legacy:salvage:submit";
+  salvageButton.disabled = salvageable.length === 0;
+  salvageForm.append(salvageLabel, salvageButton);
+  if (salvageable.length === 0) salvageForm.append(element("p", "empty-copy", "Нет ненадетых предметов, доступных для разбора."));
+  salvageForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const item = game!.save.hero.inventory.find((candidate) => candidate.id === salvageSelect.value);
+    if (!item || !window.confirm(`Разобрать «${displayItemName(item)}» без возможности восстановления?`)) return;
+    try {
+      const dust = game!.salvageItem(item.id);
+      persist();
+      renderHeader();
+      preserveUiFocus(() => pageRegistry.render("legacy", { force: true, animate: false }));
+      toast(`Получено реликтовой пыли: ${dust}.`);
+    } catch (error) { toast((error as Error).message, "error"); }
+  });
+  salvage.append(salvageSummary, salvageForm);
+  panel.replaceChildren(head, resource, list, salvage);
 }
 
 function renderEliteLeaders(trackMovement = false): void {
@@ -3129,7 +3161,7 @@ function refreshEquipmentViews(preserveForgeOrder = false): void {
   if (!game) return;
   preserveUiFocus(() => {
     renderHeader();
-    pageRegistry.invalidate("hero", "arsenal", "forge", "skills", "collections", "shop");
+    pageRegistry.invalidate("hero", "arsenal", "forge", "legacy", "skills", "collections", "shop");
     const page = currentPage();
     if (page === "forge" && preserveForgeOrder) {
       renderForge(false, true);
@@ -3929,7 +3961,7 @@ function switchMode(): void {
 function activateBasicMode(): void {
   localStorage.setItem(MODE_KEY, "basic");
   $("#mode-screen").classList.add("hidden");
-  $("#creation-screen").classList.add("hidden");
+  $("#creation-screen").hidden = true;
   setWorldInterface(false);
   basicTournamentUi.initialize();
 }
@@ -3995,7 +4027,7 @@ function restorePreviousSave(): void {
 }
 
 function showSaveLoadFailure(message: string): void {
-  $("#creation-screen").classList.add("hidden");
+  $("#creation-screen").hidden = true;
   $(".game-header").hidden = true;
   $(".main-nav").hidden = true;
   $(".game-shell").hidden = true;
@@ -4071,7 +4103,7 @@ function bootstrap(): void {
   if (mode === "basic") { activateBasicMode(); return; }
   if (mode === "world") { activateWorldMode(); return; }
   $("#mode-screen").classList.remove("hidden");
-  $("#creation-screen").classList.add("hidden");
+  $("#creation-screen").hidden = true;
   $("#basic-shell").hidden = true;
   $(".game-header").hidden = true;
   $(".main-nav").hidden = true;
