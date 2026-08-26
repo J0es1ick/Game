@@ -238,7 +238,9 @@ export function newGamePlusStatus(save: GameSave): NewGamePlusStatus {
 
 function fighterRecord(save: GameSave, fighterId: string): LegacyFighterRecord | undefined {
   const enemy = save.enemies.find((candidate) => candidate.id === fighterId);
-  if (!enemy) return undefined;
+  // Death is permanent across chronicles too: the archive may remember a
+  // fallen rival by name, but it must never recreate them as a veteran.
+  if (!enemy?.alive) return undefined;
   return {
     name: enemy.name,
     title: enemy.title,
@@ -259,6 +261,7 @@ export function buildLegacyArchive(save: GameSave, completedAt = Date.now()): Le
   const eliteIndex = save.eliteLeagueMemberIds.indexOf("hero");
   const eliteRank = eliteIndex >= 0 ? eliteIndex + 1 : undefined;
   const notableFighters = Object.values(save.hero.rivalries)
+    .filter((rivalry) => !rivalry.killed)
     .sort((first, second) =>
       (second.meetings ?? second.wins + second.losses) - (first.meetings ?? first.wins + first.losses)
       || (second.intensity ?? 0) - (first.intensity ?? 0)

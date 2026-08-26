@@ -10,10 +10,23 @@ import {
   heroExperienceRequirement,
   normalizeExperienceProgress,
 } from "./ProgressionBalance";
-import { GameSave, HeroClass } from "./WorldTypes";
+import {
+  ContextualTutorialId,
+  GameSave,
+  HeroClass,
+  WorldFeatureId,
+  WorldFeatureUnlock,
+} from "./WorldTypes";
 import { MAX_ACTIVE_SKILLS } from "./WorldRules";
+import { normalizeEnemyStyleMemory } from "./EnemyMemory";
+import {
+  hasReachedWorldFeatureMilestone,
+  WORLD_FEATURE_IDS,
+} from "./WorldFeatureProgression";
 
 export const PROGRESSION_CURVE_MIGRATION = "rebalance-progression-curves-v1";
+export const ENEMY_STYLE_MEMORY_MIGRATION = "enemy-style-memory-v1";
+export const STAGED_WORLD_FEATURES_MIGRATION = "staged-world-features-v1";
 
 const HERO_CLASSES = Object.keys(CLASS_DEFINITIONS) as HeroClass[];
 
@@ -32,6 +45,15 @@ function defaultTraitId(classId: HeroClass, offset = 0): string {
  * ту же ссылку, и смена этого поведения могла бы сломать вызывающий код.
  */
 export function normalizeWorldSave(save: GameSave): GameSave {
+  const hadContractsBeforeMigration = Boolean(
+    save.activeContract
+    || save.completedContracts > 0
+    || (save.contractOffers?.length ?? 0) > 0,
+  );
+  const hadEquipmentLegacyBeforeMigration = Boolean(
+    save.hero.relicDust > 0
+    || save.hero.inventory.some((item) => (item.relicRenown ?? 0) > 0 || (item.relicTier ?? 0) > 0 || item.relicPath),
+  );
   save.version = 3;
   save.legacy = normalizeLegacyState(save.legacy);
   save.legacy.discoveredSkillIds = [...new Set([
@@ -50,6 +72,9 @@ export function normalizeWorldSave(save: GameSave): GameSave {
   save.eliteCrownWins ??= {};
   save.contractOffers ??= [];
   save.completedContracts ??= 0;
+  save.seenContextualTutorialIds ??= [];
+  save.unlockedFeatureIds ??= [];
+  save.pendingFeatureUnlocks ??= [];
   save.tournamentRuleSeed ??= Math.max(1, save.hero.createdAt % 999_999);
   // Старые сохранения уже побывали в мире, даже если у них ещё не было
   // отдельного признака пройденного обучения.
@@ -112,6 +137,34 @@ export function normalizeWorldSave(save: GameSave): GameSave {
     item.relicRenown ??= 0;
     item.relicHistory ??= [];
   });
+  const knownFeatures = new Set<WorldFeatureId>(WORLD_FEATURE_IDS);
+  const knownTutorials = new Set<ContextualTutorialId>(["contracts", "equipment-legacy", "adaptation"]);
+  save.seenContextualTutorialIds = [...new Set(save.seenContextualTutorialIds)]
+    .filter((id): id is ContextualTutorialId => knownTutorials.has(id));
+  save.unlockedFeatureIds = [...new Set(save.unlockedFeatureIds)]
+    .filter((id): id is WorldFeatureId => knownFeatures.has(id));
+  save.pendingFeatureUnlocks = save.pendingFeatureUnlocks.filter((entry): entry is WorldFeatureUnlock => (
+    Boolean(entry)
+    && knownFeatures.has(entry.id)
+    && typeof entry.day === "number"
+    && typeof entry.title === "string"
+    && typeof entry.description === "string"
+  ));
+
+  if (!save.migrations.includes(STAGED_WORLD_FEATURES_MIGRATION)) {
+    // Saves created before staged progression already exposed these systems.
+    // Preserve access when the player used them, while untouched campaigns
+    // adopt the new milestones instead of being granted everything silently.
+    const preserved = new Set(save.unlockedFeatureIds);
+    if (hadContractsBeforeMigration) preserved.add("contracts");
+    if (hadEquipmentLegacyBeforeMigration) preserved.add("equipment-legacy");
+    WORLD_FEATURE_IDS.forEach((id) => {
+      if (hasReachedWorldFeatureMilestone(save, id)) preserved.add(id);
+    });
+    save.unlockedFeatureIds = [...preserved];
+    save.pendingFeatureUnlocks = [];
+    save.migrations.push(STAGED_WORLD_FEATURES_MIGRATION);
+  }
   save.enemies.forEach((enemy) => {
     enemy.tournamentWins ??= Math.min(enemy.wins, Math.max(0, enemy.arenaIndex * 2));
     enemy.kills ??= 0;
@@ -120,11 +173,21 @@ export function normalizeWorldSave(save: GameSave): GameSave {
     enemy.scarIds ??= [];
     enemy.injuries ??= [];
     enemy.adaptationIds ??= [];
+    enemy.heroMemory = normalizeEnemyStyleMemory(enemy.heroMemory, enemy.adaptationIds, save.worldDay);
     const classIndex = HERO_CLASSES.indexOf(enemy.classId);
     enemy.tacticalStyle ??= DEFAULT_TACTICAL_PROFILES[
       (classIndex + enemy.arenaIndex) % DEFAULT_TACTICAL_PROFILES.length
     ].style;
   });
+  Object.values(hero.rivalries).forEach((record) => {
+    const memory = save.enemies.find((enemy) => enemy.id === record.enemyId)?.heroMemory;
+    if (!memory) return;
+    record.memoryStage ??= memory.stage;
+    record.memoryFamiliarity ??= memory.familiarity;
+    record.memorySimilarity ??= memory.currentSimilarity;
+    record.countermeasureIds ??= [...memory.countermeasureIds];
+  });
+  if (!save.migrations.includes(ENEMY_STYLE_MEMORY_MIGRATION)) save.migrations.push(ENEMY_STYLE_MEMORY_MIGRATION);
   save.shopOffers.forEach((offer) => {
     offer.item.price = calculateItemPrice(offer.item.level, offer.item.rarity);
   });

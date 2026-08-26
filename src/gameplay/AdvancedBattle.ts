@@ -5,11 +5,15 @@ import { Player } from "../abstract/Player";
 import { createWeapon } from "../catalogs/WeaponCatalog";
 import {
   DEFAULT_TACTICAL_PROFILES,
-  ENEMY_ADAPTATIONS,
   FIGHTER_SCARS,
   FIGHTER_TRAITS,
   TOURNAMENT_RULES,
 } from "../catalogs/WorldExpansionCatalog";
+import {
+  EnemyMemoryCombatRead,
+  heroLoadoutSignature,
+  readEnemyStyleMemory,
+} from "./EnemyMemory";
 import {
   BattleTurn,
   CombatantSnapshot,
@@ -36,6 +40,7 @@ interface RuntimeFighter extends CombatantSnapshot {
   setCounts: Record<string, number>;
   tactics: TacticalProfile;
   disableHealing: boolean;
+  memoryRead?: EnemyMemoryCombatRead;
 }
 
 export interface CombatResolution {
@@ -113,9 +118,8 @@ function featureStats(profile: HeroProfile | EnemyProfile): Partial<Stats> {
   const ids = [
     ...(profile.traitIds ?? []),
     ...(profile.scarIds ?? []),
-    ...("adaptationIds" in profile ? profile.adaptationIds ?? [] : []),
   ];
-  const definitions = [...FIGHTER_TRAITS, ...FIGHTER_SCARS, ...ENEMY_ADAPTATIONS];
+  const definitions = [...FIGHTER_TRAITS, ...FIGHTER_SCARS];
   const result: Partial<Stats> = {};
   ids.forEach((id) => {
     const feature = definitions.find((candidate) => candidate.id === id);
@@ -235,7 +239,11 @@ function cooldownTick(fighter: RuntimeFighter): void {
   Object.keys(fighter.cooldowns).forEach((id) => { fighter.cooldowns[id] = Math.max(0, fighter.cooldowns[id] - 1); });
 }
 
-function attackDamage(actor: RuntimeFighter, target: RuntimeFighter, multiplier = 1): { damage: number; critical: boolean; detail: string } {
+function hasMemoryCounter(target: RuntimeFighter, id: EnemyMemoryCombatRead["countermeasureIds"][number]): boolean {
+  return target.memoryRead?.countermeasureIds.includes(id) === true && (target.memoryRead?.strength ?? 0) > 0;
+}
+
+function attackDamage(actor: RuntimeFighter, target: RuntimeFighter, multiplier = 1, skillId?: string): { damage: number; critical: boolean; detail: string } {
   actor.attackCounter += 1;
   let detail = "обычная атака";
   const actorContext = {
@@ -247,7 +255,9 @@ function attackDamage(actor: RuntimeFighter, target: RuntimeFighter, multiplier 
   const classAttack = actor.model.modifyCombatAttack(actor.attack * multiplier, actorContext);
   actor.combo = classAttack.combo ?? actor.combo;
   if (classAttack.detail) detail = classAttack.detail;
-  const criticalChance = Math.min(60, actor.crit + actor.model.criticalChanceBonus(actorContext));
+  const memoryStrength = actor.id === "hero" ? target.memoryRead?.strength ?? 0 : 0;
+  const criticalGuard = hasMemoryCounter(target, "critical-guard") ? 12 * memoryStrength : 0;
+  const criticalChance = Math.min(60, Math.max(0, actor.crit + actor.model.criticalChanceBonus(actorContext) - criticalGuard));
   const critical = Math.random() * 100 < criticalChance;
   const variance = 0.9 + Math.random() * 0.2;
   const weakened = 1 - actor.weakened;
@@ -270,6 +280,20 @@ function attackDamage(actor: RuntimeFighter, target: RuntimeFighter, multiplier 
     damage += second;
     detail += `; второй удар: ${second}`;
   }
+  if (actor.id === "hero" && hasMemoryCounter(target, "guarded-opening") && actor.attackCounter <= 2) {
+    damage = Math.max(1, Math.round(damage * (1 - 0.22 * memoryStrength)));
+    detail += "; соперник ожидал ранний натиск";
+  }
+  if (actor.id === "hero" && skillId === "execution"
+    && hasMemoryCounter(target, "execution-watch") && target.health / target.maxHealth <= 0.42) {
+    damage = Math.max(1, Math.round(damage * (1 - 0.2 * memoryStrength)));
+    detail += "; соперник прикрылся от добивания";
+  }
+  if (actor.id === "hero" && skillId && hasMemoryCounter(target, "signature-parry")
+    && target.memoryRead?.signatureSkillId === skillId && Math.random() < 0.28 * memoryStrength) {
+    damage = Math.max(1, Math.round(damage * (1 - 0.58 * memoryStrength)));
+    detail += "; коронный приём частично парирован";
+  }
   return { damage, critical, detail };
 }
 
@@ -288,18 +312,26 @@ function performTurn(turn: number, actor: RuntimeFighter, target: RuntimeFighter
     if (skill.kind === "heal") {
       const healthShare = skill.power >= 40 ? 0.12 : 0.08;
       healing = Math.min(actor.maxHealth - actor.health, Math.round(skill.power + actor.level * 1.2 + actor.maxHealth * healthShare));
+      if (actor.id === "hero" && hasMemoryCounter(target, "healing-denial")) {
+        healing = Math.max(1, Math.round(healing * (1 - 0.35 * (target.memoryRead?.strength ?? 0))));
+        detail = "соперник частично сорвал восстановление; ";
+      }
       actor.health += healing;
-      detail = `восстановлено ${healing} HP`;
+      detail += `восстановлено ${healing} HP`;
     } else if (skill.kind === "buff") {
       actor.buff = Math.max(actor.buff, skill.power);
       detail = `следующая атака усилена на ${Math.round(skill.power * 100)}%`;
     } else if (skill.kind === "control") {
-      const result = attackDamage(actor, target, skill.power);
-      damage = result.damage; critical = result.critical; target.weakened = Math.max(target.weakened, 0.25);
-      detail = `${result.detail}; следующий удар цели ослаблен`;
+      const result = attackDamage(actor, target, skill.power, skill.id);
+      damage = result.damage; critical = result.critical;
+      const controlResistance = actor.id === "hero" && hasMemoryCounter(target, "control-discipline")
+        ? 0.65 * (target.memoryRead?.strength ?? 0)
+        : 0;
+      target.weakened = Math.max(target.weakened, 0.25 * (1 - controlResistance));
+      detail = `${result.detail}; следующий удар цели ослаблен${controlResistance > 0 ? " слабее из-за выученной дисциплины" : ""}`;
     } else {
       const multiplier = skill.id === "execution" && target.health / target.maxHealth < 0.42 ? skill.power * 1.25 : skill.power;
-      const result = attackDamage(actor, target, multiplier);
+      const result = attackDamage(actor, target, multiplier, skill.id);
       damage = result.damage; critical = result.critical; detail = result.detail;
     }
     {
@@ -337,6 +369,12 @@ export function resolveCombat(heroProfile: HeroProfile, enemyProfile: EnemyProfi
     side: "enemy",
     statMultipliers: options.enemyStatMultipliers,
   });
+  if (enemyProfile.heroMemory) {
+    enemy.memoryRead = readEnemyStyleMemory(
+      enemyProfile.heroMemory,
+      heroLoadoutSignature(heroProfile, hero.skills),
+    );
+  }
   const heroBefore: CombatantSnapshot = { ...hero };
   const enemyBefore: CombatantSnapshot = { ...enemy };
   const turns: BattleTurn[] = [];

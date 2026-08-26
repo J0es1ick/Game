@@ -65,6 +65,7 @@ export function enemyLeaderboardEntry(
     losses: enemy.losses,
     kills: enemy.kills,
     isHero: false,
+    carriedFromCycle: enemy.carriedFromCycle,
   };
 }
 

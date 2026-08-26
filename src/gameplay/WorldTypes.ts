@@ -88,6 +88,15 @@ export interface EquipmentItem extends IEquipment<Partial<Stats>> {
 }
 
 export type TacticalStyle = "balanced" | "aggressive" | "defensive" | "control";
+export type EnemyMemoryStage = "unknown" | "observing" | "familiar" | "adapted" | "mastered";
+export type HeroBehaviorPattern = "pressure" | "healing" | "control" | "burst" | "finisher";
+export type EnemyCountermeasureId =
+  | "guarded-opening"
+  | "critical-guard"
+  | "healing-denial"
+  | "control-discipline"
+  | "signature-parry"
+  | "execution-watch";
 
 export interface TacticalProfile {
   id: string;
@@ -97,6 +106,38 @@ export interface TacticalProfile {
   finisherThreshold: number;
   preserveStrongSkills: boolean;
   prioritizeControl: boolean;
+}
+
+/** Краткий отпечаток одного реально сыгранного стиля героя. */
+export interface HeroStyleSignature {
+  day: number;
+  classId: HeroClass;
+  tacticalStyle: TacticalStyle;
+  /** Только действительно применённые в бою навыки. */
+  skillIds: string[];
+  dominantSkillId?: string;
+  /** Нормализованные доли наблюдённых действий от 0 до 1. */
+  behavior: Partial<Record<HeroBehaviorPattern, number>>;
+}
+
+/**
+ * Память конкретного врага о стиле главного героя.
+ * Знания разных классов и тактик не заменяют друг друга: старые стили
+ * постепенно уходят в фон, но ускоряют повторное узнавание при возвращении.
+ */
+export interface EnemyStyleMemory {
+  familiarity: number;
+  stage: EnemyMemoryStage;
+  classKnowledge: Partial<Record<HeroClass, number>>;
+  tacticalKnowledge: Partial<Record<TacticalStyle, number>>;
+  skillKnowledge: Record<string, number>;
+  behaviorKnowledge: Partial<Record<HeroBehaviorPattern, number>>;
+  recentSignatures: HeroStyleSignature[];
+  countermeasureIds: EnemyCountermeasureId[];
+  lastEncounterDay: number;
+  lastDecayDay: number;
+  /** Сходство текущего стиля с самым узнаваемым сохранённым отпечатком, 0..1. */
+  currentSimilarity: number;
 }
 
 export interface FighterInjury {
@@ -128,6 +169,10 @@ export interface RivalryRecord {
   meetings?: number;
   intensity?: number;
   adaptationId?: string;
+  memoryStage?: EnemyMemoryStage;
+  memoryFamiliarity?: number;
+  memorySimilarity?: number;
+  countermeasureIds?: EnemyCountermeasureId[];
 }
 
 export interface ItemTemplate {
@@ -232,6 +277,7 @@ export interface EnemyProfile {
   scarIds: string[];
   injuries: FighterInjury[];
   adaptationIds: string[];
+  heroMemory: EnemyStyleMemory;
   tacticalStyle: TacticalStyle;
   carriedFromCycle?: number;
 }
@@ -451,6 +497,22 @@ export interface ShopOffer {
   sold: boolean;
 }
 
+export type WorldFeatureId = "contracts" | "equipment-legacy";
+export type ContextualTutorialId = "contracts" | "equipment-legacy" | "adaptation";
+
+/**
+ * Persistent notification produced when a campaign system becomes available.
+ * It deliberately lives in the save so closing the page cannot lose the
+ * explanation that accompanies a newly opened system.
+ */
+export interface WorldFeatureUnlock {
+  id: WorldFeatureId;
+  day: number;
+  title: string;
+  description: string;
+  tutorialId: Extract<ContextualTutorialId, WorldFeatureId>;
+}
+
 export interface GameSave {
   version: 2 | 3;
   migrations?: string[];
@@ -474,6 +536,9 @@ export interface GameSave {
   legacy: LegacyState;
   defeatedLegacyCycles: number[];
   tutorialCompleted?: boolean;
+  seenContextualTutorialIds: ContextualTutorialId[];
+  unlockedFeatureIds: WorldFeatureId[];
+  pendingFeatureUnlocks: WorldFeatureUnlock[];
   pendingEliteChallengeId?: string;
   contractOffers: ContractOffer[];
   activeContract?: ContractOffer;
@@ -593,4 +658,5 @@ export interface LeaderboardEntry {
   losses: number;
   kills: number;
   isHero: boolean;
+  carriedFromCycle?: number;
 }

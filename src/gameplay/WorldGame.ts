@@ -16,7 +16,6 @@ import { calculateItemPrice, createItem, createStarterItems, equipmentScore, ite
 import {
   CLASS_RELIC_EPITHETS,
   DEFAULT_TACTICAL_PROFILES,
-  ENEMY_ADAPTATIONS,
   EXPEDITION_CHOICES,
   FACTIONS,
   factionReputationTier,
@@ -34,6 +33,7 @@ import {
   BossDefinition,
   ContractObjective,
   ContractOffer,
+  ContextualTutorialId,
   DailyActivityReport,
   DuelDefinition,
   DungeonDefinition,
@@ -58,6 +58,8 @@ import {
   TacticalProfile,
   TournamentMatch,
   TournamentReport,
+  WorldFeatureId,
+  WorldFeatureUnlock,
   WorldEvent,
 } from "./WorldTypes";
 import {
@@ -86,8 +88,27 @@ import {
   enemyLeaderboardEntry,
   heroLeaderboardEntry,
 } from "./WorldRanking";
-import { normalizeWorldSave, PROGRESSION_CURVE_MIGRATION } from "./WorldSaveMigration";
+import {
+  normalizeWorldSave,
+  PROGRESSION_CURVE_MIGRATION,
+  STAGED_WORLD_FEATURES_MIGRATION,
+} from "./WorldSaveMigration";
 import { MAX_ACTIVE_SKILLS } from "./WorldRules";
+import {
+  countermeasureDefinition,
+  createEnemyStyleMemory,
+  decayEnemyStyleMemory,
+  EnemyMemoryCombatRead,
+  heroLoadoutSignature,
+  memoryStageDefinition,
+  readEnemyStyleMemory,
+  recordEnemyStyleMemory,
+} from "./EnemyMemory";
+import {
+  createWorldFeatureUnlock,
+  WORLD_FEATURE_IDS,
+  worldFeatureAvailability,
+} from "./WorldFeatureProgression";
 
 const enemyNames = [
   "Бран", "Хельга", "Торен", "Сив", "Мартен", "Рута", "Кай", "Орса", "Флинт", "Лисса",
@@ -145,11 +166,12 @@ export class WorldGame {
       appearance: { hairStyle: 0, faceStyle: 0 }, createdAt: now,
     };
     const save: GameSave = {
-      version: 3, migrations: [PROGRESSION_CURVE_MIGRATION], hero, enemies: [], worldDay: 1, lastSimulatedAt: now,
+      version: 3, migrations: [PROGRESSION_CURVE_MIGRATION, STAGED_WORLD_FEATURES_MIGRATION], hero, enemies: [], worldDay: 1, lastSimulatedAt: now,
       dungeonClears: {}, shopDay: 1, shopOffers: [],
       discoveredItems: starter.inventory.map((item) => item.templateId), tournamentRegistrations: {}, defeatedBosses: [],
       huntedLegendIds: [], eliteLeagueMemberIds: [], eliteRatings: {}, eliteCrownWins: {}, tutorialCompleted: false, events: [],
       legacy: defaultLegacyState(), defeatedLegacyCycles: [],
+      seenContextualTutorialIds: [], unlockedFeatureIds: [], pendingFeatureUnlocks: [],
       contractOffers: [], completedContracts: 0, tournamentRuleSeed: Math.max(1, now % 999_999),
     };
     const game = new WorldGame(save);
@@ -160,7 +182,6 @@ export class WorldGame {
     game.syncCrownSet();
     game.ensurePopulations(true);
     game.rotateShop();
-    game.refreshContracts(true);
     game.event("system", `${hero.name} начал путь в Нижнем городе.`);
     return game;
   }
@@ -173,6 +194,7 @@ export class WorldGame {
     game.ensurePopulations(false, false);
     game.cleanupVisualTestCatalog();
     game.recalculateHeroRating();
+    game.syncFeatureUnlocks();
     game.refreshContracts(false);
     return game;
   }
@@ -252,6 +274,7 @@ export class WorldGame {
     nextSave.defeatedLegacyCycles = [...this.save.defeatedLegacyCycles];
     nextSave.discoveredItems = [...new Set([...this.save.discoveredItems, ...nextSave.discoveredItems])];
     nextSave.tutorialCompleted = true;
+    nextSave.seenContextualTutorialIds = [...this.save.seenContextualTutorialIds];
     nextSave.hero.appearance = { ...this.save.hero.appearance };
     nextSave.hero.autoEquipBest = this.save.hero.autoEquipBest;
     nextSave.hero.autoSelectSkills = this.save.hero.autoSelectSkills;
@@ -357,7 +380,7 @@ export class WorldGame {
     } else {
       this.save.hero.losses += 1;
     }
-    this.recordHeroEncounter(enemy, heroWon);
+    this.recordHeroEncounter(enemy, heroWon, combat.turns);
     const activity: BossDefinition = {
       id: `legacy-${archive.cycle}`, kind: "boss", name: `${archive.name}, герой эпохи ${archive.cycle}`,
       place: "Зал отзвуков", description: "Архивный поединок с завершившим прежнюю летопись героем.",
@@ -398,13 +421,21 @@ export class WorldGame {
     return profile;
   }
 
+  /** Предпросмотр того, насколько конкретный соперник узнает выбранную сейчас сборку. */
+  public enemyMemoryPreview(enemyId: string): EnemyMemoryCombatRead | undefined {
+    const enemy = this.enemyById(enemyId);
+    if (!enemy) return undefined;
+    const memory = decayEnemyStyleMemory(enemy.heroMemory, this.save.worldDay);
+    const currentSkills = combatantSnapshot(this.save.hero).skills;
+    return readEnemyStyleMemory(memory, heroLoadoutSignature(this.save.hero, currentSkills, this.save.worldDay));
+  }
+
   public fighterFeatures(profile: HeroProfile | EnemyProfile): Array<{ id: string; name: string; description: string; kind: string; stats: Partial<Stats> }> {
     const ids = [
       ...(profile.traitIds ?? []).map((id) => ({ id, kind: "Черта" })),
       ...(profile.scarIds ?? []).map((id) => ({ id, kind: "Шрам" })),
-      ...("adaptationIds" in profile ? (profile.adaptationIds ?? []).map((id) => ({ id, kind: "Адаптация" })) : []),
     ];
-    const definitions = [...FIGHTER_TRAITS, ...FIGHTER_SCARS, ...ENEMY_ADAPTATIONS];
+    const definitions = [...FIGHTER_TRAITS, ...FIGHTER_SCARS];
     return ids.map(({ id, kind }) => {
       const feature = definitions.find((candidate) => candidate.id === id);
       return { id, kind, name: feature?.name ?? id, description: feature?.description ?? "История этого свойства ещё не записана.", stats: feature?.stats ?? {} };
@@ -415,6 +446,29 @@ export class WorldGame {
     const changes = this.featureChanges.map((change) => ({ ...change, stats: { ...change.stats } }));
     this.featureChanges = [];
     return changes;
+  }
+
+  public featureAvailability(id: WorldFeatureId): ActivityAvailability {
+    return worldFeatureAvailability(this.save, id);
+  }
+
+  public isFeatureUnlocked(id: WorldFeatureId): boolean {
+    return this.featureAvailability(id).unlocked;
+  }
+
+  public consumeFeatureUnlocks(): WorldFeatureUnlock[] {
+    this.syncFeatureUnlocks();
+    const unlocks = this.save.pendingFeatureUnlocks.map((entry) => ({ ...entry }));
+    this.save.pendingFeatureUnlocks = [];
+    return unlocks;
+  }
+
+  public hasSeenTutorial(id: ContextualTutorialId): boolean {
+    return this.save.seenContextualTutorialIds.includes(id);
+  }
+
+  public markTutorialSeen(id: ContextualTutorialId): void {
+    if (!this.save.seenContextualTutorialIds.includes(id)) this.save.seenContextualTutorialIds.push(id);
   }
 
   public consumeAutomaticLegendDefense(): BattleReport | undefined {
@@ -428,6 +482,7 @@ export class WorldGame {
   }
 
   public acceptContract(contractId: string, approach: "honor" | "profit"): ContractOffer {
+    this.requireFeature("contracts");
     if (this.save.activeContract) throw new Error("Сначала завершите или отмените действующий контракт.");
     const offer = this.save.contractOffers.find((candidate) => candidate.id === contractId);
     if (!offer) throw new Error("Предложение больше недоступно.");
@@ -442,6 +497,7 @@ export class WorldGame {
   }
 
   public abandonContract(): void {
+    this.requireFeature("contracts");
     const contract = this.save.activeContract;
     if (!contract) return;
     this.save.hero.factionReputation[contract.factionId] = Math.max(-20, (this.save.hero.factionReputation[contract.factionId] ?? 0) - 2);
@@ -450,6 +506,7 @@ export class WorldGame {
   }
 
   public salvageItem(itemId: string): number {
+    this.requireFeature("equipment-legacy");
     const item = this.save.hero.inventory.find((candidate) => candidate.id === itemId);
     if (!item) throw new Error("Предмет не найден.");
     if (Object.values(this.save.hero.equipped).includes(itemId)) throw new Error("Надетый предмет нельзя разобрать.");
@@ -463,6 +520,7 @@ export class WorldGame {
   }
 
   public awakenRelic(itemId: string, pathId: "might" | "guard" | "tempo"): EquipmentItem {
+    this.requireFeature("equipment-legacy");
     const item = this.save.hero.inventory.find((candidate) => candidate.id === itemId);
     if (!item) throw new Error("Предмет не найден.");
     if (!rarityAtLeast(item.rarity, "legendary")) throw new Error("Историю могут обрести только легендарные и мифические вещи.");
@@ -614,7 +672,7 @@ export class WorldGame {
     this.save.hero.gold += gold;
     if (heroWon) { this.save.hero.wins += 1; this.save.hero.dungeonWins += 1; }
     else { this.save.hero.losses += 1; this.save.hero.dungeonLosses += 1; }
-    this.recordHeroEncounter(enemy, heroWon);
+    this.recordHeroEncounter(enemy, heroWon, combat.turns);
 
     let item: EquipmentItem | undefined;
     let temperingMarks = 0;
@@ -689,7 +747,7 @@ export class WorldGame {
     if (heroWon) { this.save.hero.wins += 1; this.save.hero.duelWins += 1; }
     else { this.save.hero.losses += 1; this.save.hero.duelLosses += 1; }
     heroWon ? enemy.losses += 1 : enemy.wins += 1;
-    this.recordHeroEncounter(enemy, heroWon);
+    this.recordHeroEncounter(enemy, heroWon, combat.turns);
     if (heroWon) this.advanceContract("duel");
     this.event("battle", `${this.save.hero.name} ${heroWon ? "победил" : "проиграл"} ${enemy.name} в дуэли «${tier.name}».`);
     const battle: BattleReport = {
@@ -727,7 +785,7 @@ export class WorldGame {
       this.event("loot", `${this.save.hero.name} победил ${boss.name} и получил уникальный предмет «${item.name}».`);
       this.advanceContract("boss");
     } else this.save.hero.losses += 1;
-    this.recordHeroEncounter(enemy, heroWon);
+    this.recordHeroEncounter(enemy, heroWon, combat.turns);
     const battle: BattleReport = {
       activity: boss, heroBefore: combat.hero, enemyBefore: combat.enemy, winnerId: combat.winnerId,
       loserId: heroWon ? enemy.id : "hero", heroWon, enemyDied: false, turns: combat.turns,
@@ -782,7 +840,7 @@ export class WorldGame {
           heroBattles.push(battle);
           if (heroWon) { this.save.hero.wins += 1; this.save.hero.tournamentMatchWins += 1; }
           else { this.save.hero.losses += 1; this.save.hero.tournamentMatchLosses += 1; }
-          this.recordHeroEncounter(enemy, heroWon, enemyDied);
+          this.recordHeroEncounter(enemy, heroWon, combat.turns, enemyDied);
           this.updateEnemyAfterPlayerBattle(enemy, heroWon, enemyDied);
           if (!heroWon) heroPlacement = Math.max(2, Math.floor(arena.participants / (2 ** (round - 1))));
         } else {
@@ -944,7 +1002,7 @@ export class WorldGame {
       loserId: heroWon ? enemy.id : "hero", heroWon, enemyDied: false, turns: combat.turns,
       rewards: { experience: 0, gold: 0, levelsGained: 0, unlockedSkills: [] }, worldEvents: [],
     };
-    this.recordHeroEncounter(enemy, heroWon);
+    this.recordHeroEncounter(enemy, heroWon, combat.turns);
     if (!heroWon) return this.finishExpedition(true, "Раненый герой отступил. Часть найденного удалось вынести.", battle);
     if (expedition.stage >= expedition.maxStages) return this.finishExpedition(false, `Поход «${dungeon.name}» завершён. Все накопленные трофеи сохранены.`, battle);
     return { expedition, battle, completed: false, retreated: false, message: `Этап ${expedition.stage}/${expedition.maxStages} пройден. Можно углубиться или отступить.` };
@@ -1090,7 +1148,7 @@ export class WorldGame {
           heroBattles.push(battle);
           if (heroWon) { this.save.hero.wins += 1; this.save.hero.tournamentMatchWins += 1; }
           else { this.save.hero.losses += 1; this.save.hero.tournamentMatchLosses += 1; }
-          this.recordHeroEncounter(enemy, heroWon); this.updateEnemyAfterPlayerBattle(enemy, heroWon, false);
+          this.recordHeroEncounter(enemy, heroWon, combat.turns); this.updateEnemyAfterPlayerBattle(enemy, heroWon, false);
           this.adjustEliteRating("hero", heroWon ? 12 : -5); this.adjustEliteRating(enemy.id, heroWon ? -5 : 12);
           if (!heroWon) heroPlacement = Math.max(2, Math.floor(ELITE_SIZE / (2 ** (round - 1))));
         } else {
@@ -1175,7 +1233,7 @@ export class WorldGame {
       item = createItem(this.save.hero.level + 2, { classId: this.save.hero.classId, minimumRarity: "mythic" });
       this.addItem(item);
     } else this.save.hero.losses += 1;
-    this.recordHeroEncounter(enemy, heroWon);
+    this.recordHeroEncounter(enemy, heroWon, combat.turns);
     this.updateEnemyAfterPlayerBattle(enemy, heroWon, false);
     this.syncCrownSet();
     this.event("battle", `${this.save.hero.name} ${heroWon ? `занял место ${this.heroEliteRank()} в элите` : "не смог подняться"} после боя с ${enemy.name}.`);
@@ -1200,7 +1258,7 @@ export class WorldGame {
     const heroWon = combat.winnerId === "hero";
     if (heroWon) { this.save.hero.wins += 1; this.save.hero.legendDefenses += 1; this.adjustEliteRating("hero", 10); }
     else { this.save.hero.losses += 1; this.swapEliteMembers("hero", enemy.id); }
-    this.recordHeroEncounter(enemy, heroWon); this.updateEnemyAfterPlayerBattle(enemy, heroWon, false);
+    this.recordHeroEncounter(enemy, heroWon, combat.turns); this.updateEnemyAfterPlayerBattle(enemy, heroWon, false);
     this.save.pendingEliteChallengeId = undefined;
     this.save.lastLegendHuntDay = this.save.worldDay;
     this.syncCrownSet();
@@ -1557,6 +1615,7 @@ export class WorldGame {
     context: "arena" | "dungeon" | "duel" | "boss" | "crown-league" | "legend-hunt" = "arena",
     hero: HeroProfile = this.save.hero,
   ): ReturnType<typeof resolveCombat> {
+    enemy.heroMemory = decayEnemyStyleMemory(enemy.heroMemory ?? createEnemyStyleMemory(this.save.worldDay), this.save.worldDay);
     const epoch = epochDifficultyModifiers(this.save.legacy.cycle);
     const laws = eraLawModifiers(this.save.legacy.activeLawIds);
     const bossPower = context === "boss" ? laws.bossPowerMultiplier : 1;
@@ -1609,10 +1668,11 @@ export class WorldGame {
       equipped,
       history: [`Завершил эпоху ${archive.cycle} на ${archive.worldDay}-й день.`],
       traitIds: [], scarIds: [], injuries: [], adaptationIds: [], tacticalStyle: "balanced",
+      heroMemory: createEnemyStyleMemory(this.save.worldDay),
     };
   }
 
-  private recordHeroEncounter(enemy: EnemyProfile, heroWon: boolean, killed = false): void {
+  private recordHeroEncounter(enemy: EnemyProfile, heroWon: boolean, turns: BattleReport["turns"], killed = false): void {
     const hero = this.save.hero;
     const isTournamentFighter = this.save.enemies.some((candidate) => candidate.id === enemy.id);
     if (!isTournamentFighter) {
@@ -1634,20 +1694,33 @@ export class WorldGame {
       record.killed = true;
       hero.kills += 1;
     }
+    const observation = recordEnemyStyleMemory(enemy.heroMemory, hero, turns, this.save.worldDay);
+    enemy.heroMemory = observation.memory;
+    record.memoryStage = observation.memory.stage;
+    record.memoryFamiliarity = observation.memory.familiarity;
+    record.memorySimilarity = observation.memory.currentSimilarity;
+    record.countermeasureIds = [...observation.memory.countermeasureIds];
     hero.rivalries[enemy.id] = record;
-    if (heroWon && !killed && record.wins >= 2 && record.wins % 2 === 0 && enemy.adaptationIds.length < ENEMY_ADAPTATIONS.length) {
-      const adaptation = ENEMY_ADAPTATIONS.find((candidate) => !enemy.adaptationIds.includes(candidate.id));
-      if (adaptation) {
-        enemy.adaptationIds.push(adaptation.id);
-        record.adaptationId = adaptation.id;
-        this.featureChanges.push({
-          fighterId: enemy.id, fighterName: enemy.name, kind: "Адаптация",
-          name: adaptation.name, description: adaptation.description, stats: { ...adaptation.stats },
-        });
-        enemy.history.push(`После ${record.wins}-го поражения от ${hero.name} получил адаптацию «${adaptation.name}».`);
-        this.event("battle", `${enemy.name} изучил стиль ${hero.name}: ${adaptation.name}.`);
-      }
+
+    if (observation.update.stage !== observation.update.previousStage) {
+      const stage = memoryStageDefinition(observation.update.stage);
+      this.featureChanges.push({
+        fighterId: enemy.id, fighterName: enemy.name, kind: "Адаптация",
+        name: `Память: ${stage.name}`, description: stage.description, stats: {},
+      });
+      enemy.history.push(`Начал лучше читать стиль ${hero.name}: «${stage.name}».`);
+      this.event("battle", `${enemy.name}: ${stage.name.toLowerCase()} стиль ${hero.name}.`);
     }
+    observation.update.newCountermeasureIds.forEach((id) => {
+      const countermeasure = countermeasureDefinition(id);
+      if (!countermeasure) return;
+      this.featureChanges.push({
+        fighterId: enemy.id, fighterName: enemy.name, kind: "Адаптация",
+        name: countermeasure.name, description: `${countermeasure.description} ${countermeasure.effect}`, stats: {},
+      });
+      enemy.history.push(`Подготовил против ${hero.name} контрмеру «${countermeasure.name}».`);
+      this.event("battle", `${enemy.name} подготовил контрмеру против знакомого стиля: ${countermeasure.name}.`);
+    });
     this.applyBattleConsequences(heroWon, enemy);
   }
 
@@ -1698,6 +1771,7 @@ export class WorldGame {
   }
 
   private gainRelicRenown(enemy: EnemyProfile): void {
+    if (!this.isFeatureUnlocked("equipment-legacy")) return;
     const equippedIds = new Set(Object.values(this.save.hero.equipped));
     this.save.hero.inventory.filter((item) => equippedIds.has(item.id) && rarityAtLeast(item.rarity, "legendary")).forEach((item) => {
       item.relicRenown = (item.relicRenown ?? 0) + (enemy.level >= this.save.hero.level + 2 ? 2 : 1);
@@ -1734,6 +1808,11 @@ export class WorldGame {
   }
 
   private refreshContracts(force: boolean): void {
+    if (!this.isFeatureUnlocked("contracts")) {
+      this.save.contractOffers = [];
+      this.save.activeContract = undefined;
+      return;
+    }
     let active = this.save.activeContract;
     const trainingAvailable = this.save.hero.level < this.trainingLevelCap();
     if (active?.objective === "training" && !trainingAvailable) {
@@ -1772,6 +1851,7 @@ export class WorldGame {
   }
 
   private advanceContract(objective: ContractObjective): void {
+    if (!this.isFeatureUnlocked("contracts")) return;
     const contract = this.save.activeContract;
     if (!contract || contract.objective !== objective) return;
     contract.progress = Math.min(contract.target, contract.progress + 1);
@@ -1862,6 +1942,7 @@ export class WorldGame {
       arenaWins: newcomer ? 0 : getRandomNumber(0, Math.max(1, arenaIndex)), alive: true,
       equipment, equipped, history: [`Начал путь: ${arena.name}.`],
       traitIds: [FIGHTER_TRAITS[(classes.indexOf(classId) + level + arenaIndex) % FIGHTER_TRAITS.length].id], scarIds: [], injuries: [], adaptationIds: [],
+      heroMemory: createEnemyStyleMemory(this.save.worldDay),
       tacticalStyle: DEFAULT_TACTICAL_PROFILES[(classes.indexOf(classId) + arenaIndex) % DEFAULT_TACTICAL_PROFILES.length].style,
     };
     if (newcomer) enemy.history = [`Прибыл на арену «${arena.name}» в день ${this.save.worldDay}.`];
@@ -2108,10 +2189,32 @@ export class WorldGame {
     this.simulateDailyWorld(skipTournamentArenaId);
     this.healDailyInjuries();
     this.save.worldDay += 1;
+    this.syncFeatureUnlocks();
     this.refreshShopIfNeeded();
     this.refreshContracts(false);
     this.save.lastSimulatedAt = Date.now();
     this.clearExpiredTournamentRegistrations();
+  }
+
+  private syncFeatureUnlocks(): WorldFeatureUnlock[] {
+    const newlyUnlocked: WorldFeatureUnlock[] = [];
+    WORLD_FEATURE_IDS.forEach((id) => {
+      if (this.save.unlockedFeatureIds.includes(id) || !worldFeatureAvailability(this.save, id).unlocked) return;
+      this.save.unlockedFeatureIds.push(id);
+      const unlock = createWorldFeatureUnlock(this.save, id);
+      if (!this.save.pendingFeatureUnlocks.some((pending) => pending.id === id)) {
+        this.save.pendingFeatureUnlocks.push(unlock);
+      }
+      newlyUnlocked.push(unlock);
+      this.event("system", unlock.title + ". " + unlock.description);
+    });
+    return newlyUnlocked;
+  }
+
+  private requireFeature(id: WorldFeatureId): void {
+    const availability = this.featureAvailability(id);
+    if (!availability.unlocked) throw new Error(availability.reason);
+    this.syncFeatureUnlocks();
   }
 
   private prepareDayActivity(): void {

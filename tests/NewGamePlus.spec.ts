@@ -218,6 +218,28 @@ describe("Новая летопись", () => {
     });
   });
 
+  test("погибшие соперники остаются в некрологе и не возвращаются ветеранами", () => {
+    const game = WorldGame.create("Хранитель имён", "Knight", 8_500);
+    makeEligible(game);
+    const [fallen, survivor] = game.save.enemies.slice(0, 2);
+    fallen.alive = false;
+    game.save.hero.rivalries[fallen.id] = {
+      enemyId: fallen.id, name: fallen.name, classId: fallen.classId,
+      wins: 8, losses: 1, killed: true, lastMetDay: game.save.worldDay, meetings: 9,
+    };
+    game.save.hero.rivalries[survivor.id] = {
+      enemyId: survivor.id, name: survivor.name, classId: survivor.classId,
+      wins: 4, losses: 3, killed: false, lastMetDay: game.save.worldDay, meetings: 7,
+    };
+
+    const next = game.beginNewChronicle(transitionOptions(game), 8_600);
+    const veterans = next.save.enemies.filter((enemy) => enemy.carriedFromCycle === 1);
+
+    expect(veterans.some((enemy) => enemy.name === fallen.name)).toBe(false);
+    expect(veterans.some((enemy) => enemy.name === survivor.name)).toBe(true);
+    expect(next.save.legacy.archives[0].fallenNames).toContain(fallen.name);
+  });
+
   test("исторический чемпион побеждается один раз и учитывает закон древних", () => {
     const game = WorldGame.create("Предок", "Knight", 9_000);
     makeEligible(game);
@@ -229,6 +251,9 @@ describe("Новая летопись", () => {
     const equippedId = Object.values(next.save.hero.equipped).find(Boolean)!;
     const equipped = next.save.hero.inventory.find((item) => item.id === equippedId)!;
     equipped.stats = { health: 1_000_000, attack: 1_000_000, defense: 1_000_000, speed: 1_000, crit: 60 };
+    // Контракты новой эпохи появляются только после первого чемпионства.
+    // Этот тест проверяет связь исторического босса с уже открытым контрактом.
+    next.save.unlockedFeatureIds.push("contracts");
     next.save.activeContract = {
       id: "legacy-boss-contract",
       factionId: "free-company",

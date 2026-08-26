@@ -59,6 +59,9 @@ describe("world architecture helpers", () => {
 
     const enemy = game.save.enemies[0];
     expect(calculateEnemyWorldRating(enemy)).toBeGreaterThanOrEqual(1000);
+    enemy.carriedFromCycle = 4;
+    expect(enemyLeaderboardEntry(enemy).carriedFromCycle).toBe(4);
+    expect(heroLeaderboardEntry(hero).carriedFromCycle).toBeUndefined();
     expect(heroLeaderboardEntry(hero, { crownLeagueWins: 2 }).tournamentWins)
       .toBe(hero.arenaWins.reduce((sum, wins) => sum + wins, 0) + 2);
     expect(enemyLeaderboardEntry(enemy, { crownLeagueWins: 3 }).tournamentWins)

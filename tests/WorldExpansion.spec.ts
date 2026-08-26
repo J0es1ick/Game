@@ -3,20 +3,24 @@ import { WorldGame } from "../src/gameplay/WorldGame";
 import { createItem } from "../src/factories/ItemFactory";
 
 describe("расширение живого мира", () => {
-  test("создаёт героя с чертой, тактиками, репутацией и контрактами", () => {
+  test("создаёт героя с чертой, тактиками и закрытой до первого чемпионства доской контрактов", () => {
     const game = WorldGame.create("Путник", "Knight", 1_000);
 
     expect(game.save.hero.traitIds).toHaveLength(1);
     expect(game.save.hero.tacticalProfiles).toHaveLength(4);
     expect(game.save.hero.activeTacticalProfileId).toBe("balanced");
-    expect(game.save.contractOffers).toHaveLength(3);
+    expect(game.featureAvailability("contracts").unlocked).toBe(false);
+    expect(game.save.contractOffers).toHaveLength(0);
     expect(Object.keys(game.save.hero.factionReputation)).toHaveLength(3);
   });
 
   test("репутация фракции повышает награды её новых контрактов", () => {
     const base = WorldGame.create("Новичок", "Knight", 1_000);
+    base.save.hero.arenaWins[0] = 1;
+    WorldGame.restore(base.save);
     const baseOffer = base.save.contractOffers.find((offer) => offer.factionId === "wardens")!;
     const trusted = WorldGame.create("Союзник", "Knight", 1_000);
+    trusted.save.hero.arenaWins[0] = 1;
     trusted.save.hero.factionReputation.wardens = 45;
     trusted.save.contractOffers = [];
 
@@ -40,7 +44,8 @@ describe("расширение живого мира", () => {
 
     const restored = WorldGame.restore(game.save);
 
-    expect(restored.save.contractOffers).toHaveLength(3);
+    expect(restored.save.contractOffers).toHaveLength(0);
+    expect(restored.featureAvailability("contracts").unlocked).toBe(false);
     expect(restored.save.hero.traitIds.length).toBeGreaterThan(0);
     expect(restored.save.hero.tacticalProfiles).toHaveLength(4);
   });
@@ -76,6 +81,7 @@ describe("расширение живого мира", () => {
 
   test("пробуждает заслужившую имя реликвию по выбранному пути", () => {
     const game = WorldGame.create("Хранитель", "Knight", 1_000);
+    game.save.hero.arenaWins[3] = 1;
     const relic = createItem(12, { classId: "Knight", rarity: "legendary", slot: "weapon" });
     relic.relicTier = 1;
     relic.relicRenown = 5;
@@ -91,6 +97,7 @@ describe("расширение живого мира", () => {
 
   test("сообщает о постоянном усилении реликвии после боя", () => {
     const game = WorldGame.create("Наследник", "Knight", 1_000);
+    game.save.hero.arenaWins[3] = 1;
     game.save.hero.level = 30;
     const relic = createItem(30, { classId: "Knight", rarity: "legendary", slot: "weapon" });
     relic.relicRenown = 3;
@@ -106,5 +113,30 @@ describe("расширение живого мира", () => {
       expect.objectContaining({ fighterId: "hero", kind: "Наследие" }),
     ]));
     expect(changes.find((change) => change.kind === "Наследие")?.stats.attack).toBeGreaterThan(0);
+  });
+
+  test("открывает системы по рубежам и сохраняет одноразовые уведомления до чтения", () => {
+    const game = WorldGame.create("Первопроходец", "Knight", 1_000);
+
+    expect(() => game.acceptContract("missing", "honor")).toThrow("Станьте чемпионом");
+    expect(() => game.salvageItem(game.save.hero.inventory[0].id)).toThrow("Станьте чемпионом");
+
+    game.save.hero.arenaWins[0] = 1;
+    const withContracts = WorldGame.restore(JSON.parse(JSON.stringify(game.save)));
+    expect(withContracts.isFeatureUnlocked("contracts")).toBe(true);
+    expect(withContracts.save.contractOffers).toHaveLength(3);
+    expect(withContracts.save.pendingFeatureUnlocks.map((entry) => entry.id)).toEqual(["contracts"]);
+
+    const consumed = withContracts.consumeFeatureUnlocks();
+    expect(consumed).toEqual([expect.objectContaining({ id: "contracts", tutorialId: "contracts" })]);
+    withContracts.markTutorialSeen("contracts");
+    const restored = WorldGame.restore(JSON.parse(JSON.stringify(withContracts.save)));
+    expect(restored.consumeFeatureUnlocks()).toEqual([]);
+    expect(restored.hasSeenTutorial("contracts")).toBe(true);
+
+    withContracts.save.hero.arenaWins[3] = 1;
+    const legacyUnlock = withContracts.consumeFeatureUnlocks();
+    expect(legacyUnlock).toEqual([expect.objectContaining({ id: "equipment-legacy" })]);
+    expect(withContracts.isFeatureUnlocked("equipment-legacy")).toBe(true);
   });
 });

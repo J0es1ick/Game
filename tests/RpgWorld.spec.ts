@@ -183,6 +183,8 @@ describe("постоянный RPG-мир", () => {
 
   test("не предлагает и без штрафа отзывает контракт на недоступные тренировки", () => {
     const game = WorldGame.create("Ветеран", "Monk", 1_000);
+    game.save.hero.arenaWins[0] = 1;
+    WorldGame.restore(game.save);
     game.save.hero.level = game.trainingLevelCap();
     const blocked = { ...game.save.contractOffers[0], objective: "training" as const, title: "День дисциплины" };
     game.save.contractOffers = [blocked];
