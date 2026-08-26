@@ -2,6 +2,7 @@ node_modules/
 dist/
 dist-console/
 tmp/imagegen/
+.game-save/
 
 # The postponed 3D prototype is kept locally, outside the active project and deployment.
 assets/archive/3d/
