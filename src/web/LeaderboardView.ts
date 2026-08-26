@@ -9,6 +9,35 @@ function createMarker(className: string, text: string): HTMLSpanElement {
   return marker;
 }
 
+export interface EraVeteranBadgeCopy {
+  text: string;
+  label: string;
+}
+
+export function eraVeteranBadgeCopy(cycle: number | undefined): EraVeteranBadgeCopy | undefined {
+  if (cycle === undefined || !Number.isInteger(cycle) || cycle < 1) return undefined;
+  return {
+    text: `эп. ${cycle}`,
+    label: `Ветеран, перенесённый из эпохи ${cycle}`,
+  };
+}
+
+export function appendEraVeteranBadge(
+  nameCell: HTMLTableCellElement,
+  cycle: number | undefined,
+): HTMLSpanElement | undefined {
+  const copy = eraVeteranBadgeCopy(cycle);
+  if (!copy) return undefined;
+
+  const badge = nameCell.ownerDocument.createElement("span");
+  badge.className = "era-veteran-badge";
+  badge.textContent = copy.text;
+  badge.title = copy.label;
+  badge.setAttribute("aria-label", copy.label);
+  nameCell.append(badge);
+  return badge;
+}
+
 export function loadRankingSnapshot(key: string): RankingSnapshot {
   try {
     const value = JSON.parse(localStorage.getItem(key) ?? "{}") as unknown;

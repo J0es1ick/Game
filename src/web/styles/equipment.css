@@ -355,7 +355,7 @@
 .tournament-reminder {
   position: fixed;
   z-index: 70;
-  top: 92px;
+  top: calc(var(--game-header-height, 76px) + 58px);
   right: 24px;
   width: min(470px, calc(100vw - 32px));
   padding: 19px;
@@ -418,7 +418,7 @@
 .loot-reminder {
   position: fixed;
   z-index: 90;
-  top: 92px;
+  top: calc(var(--game-header-height, 76px) + 58px);
   right: 24px;
   width: min(520px, calc(100vw - 32px));
   padding: 17px;

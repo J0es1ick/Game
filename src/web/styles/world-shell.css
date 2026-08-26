@@ -109,7 +109,7 @@
   border-bottom: 1px solid #d1c8b5;
   font-size: 13px;
 }
-.history-list article div {
+.history-list article > div {
   display: grid;
   gap: 3px;
 }
@@ -180,6 +180,159 @@
 .rivalry-score {
   font: 750 15px/1 "Inter Tight", sans-serif;
   font-variant-numeric: tabular-nums;
+}
+.rivalry-memory {
+  min-width: 0;
+  margin-top: 7px;
+  border: 1px solid #c9bfaa;
+  border-left: 3px solid #90714d;
+  background: #e9e2d4;
+}
+.rivalry-memory[open] {
+  border-left-color: #81473c;
+  background: #e5ddce;
+}
+.rivalry-memory > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 9px;
+  cursor: pointer;
+  list-style: none;
+}
+.rivalry-memory > summary::-webkit-details-marker { display: none; }
+.rivalry-memory > summary::after {
+  color: #746b5c;
+  content: "+";
+  font: 700 16px/1 "Inter Tight", sans-serif;
+}
+.rivalry-memory[open] > summary::after { content: "−"; }
+.rivalry-memory > summary:focus-visible {
+  outline: 2px solid #8f5548;
+  outline-offset: 2px;
+}
+.rivalry-memory-mark {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  border: 1px solid #9e907a;
+  color: #6e5540;
+  background: #f0eadf;
+  font: 700 13px/1 Georgia, serif;
+  place-items: center;
+}
+.rivalry-memory-heading {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+.rivalry-memory-heading b {
+  overflow: hidden;
+  color: #3f3a31;
+  font: 700 14px/1.25 "Inter Tight", sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rivalry-memory-heading small {
+  color: #766e61;
+  font: 12px/1.35 "Inter Tight", sans-serif;
+}
+.rivalry-memory-body {
+  display: grid;
+  gap: 9px;
+  padding: 9px 10px 11px;
+  border-top: 1px solid #c9bfaa;
+}
+.rivalry-memory-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px 9px;
+  color: #625b50;
+  font-size: 12px;
+}
+.rivalry-memory-progress progress {
+  width: 100%;
+  height: 6px;
+  grid-column: 1 / -1;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: #cec5b4;
+}
+.rivalry-memory-progress progress::-webkit-progress-bar { background: #cec5b4; }
+.rivalry-memory-progress progress::-webkit-progress-value { background: #8b5144; }
+.rivalry-memory-progress progress::-moz-progress-bar { background: #8b5144; }
+.rivalry-memory-progress output {
+  color: #544c41;
+  font: 700 12px/1 "Courier New", monospace;
+}
+.rivalry-memory-note {
+  margin: 0;
+  color: #696154;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.rivalry-memory-note.disrupted {
+  padding: 7px 8px;
+  border-left: 3px solid #657f67;
+  color: #405b45;
+  background: #d9e0d4;
+}
+.rivalry-memory-section {
+  display: grid;
+  gap: 5px;
+}
+.rivalry-memory-section > strong {
+  color: #6e6659;
+  font: 700 12px/1.25 "Courier New", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.rivalry-memory-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.rivalry-memory-tag {
+  padding: 4px 6px;
+  border: 1px solid #baad98;
+  color: #575044;
+  background: #f0eadf;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.rivalry-memory-tag.counter {
+  border-color: #aa7568;
+  color: #74473e;
+  background: #ead7d0;
+}
+.rivalry-memory-counters {
+  display: grid;
+  gap: 5px;
+}
+.rivalry-memory-counter {
+  display: grid;
+  gap: 2px;
+  padding: 7px 8px;
+  border-left: 2px solid #9d6154;
+  background: #eadbd3;
+}
+.rivalry-memory-counter b {
+  color: #633f37;
+  font-size: 13px;
+}
+.rivalry-memory-counter span {
+  color: #705f56;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.rivalry-memory-empty {
+  color: #7b7366;
+  font-size: 12px;
+  font-style: italic;
 }
 .career-results {
   display: grid;

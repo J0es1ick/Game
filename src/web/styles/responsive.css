@@ -452,6 +452,16 @@
   .career-results-head {
     font-size: 10px;
   }
+  .rivalry-memory > summary {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    padding-inline: 7px;
+  }
+  .rivalry-memory-heading b {
+    white-space: normal;
+  }
+  .rivalry-memory-body {
+    padding-inline: 8px;
+  }
   .battle-overlay {
     padding: 0;
   }

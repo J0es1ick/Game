@@ -20,7 +20,7 @@
 .world-effect-stage {
   position: fixed;
   z-index: 205;
-  inset: calc(var(--game-header-height, 76px) + 58px) 22px auto auto;
+  inset: auto auto 22px 22px;
   width: min(410px, calc(100vw - 44px));
   pointer-events: none;
 }
@@ -63,19 +63,10 @@
 
 .term-help {
   position: relative;
-  cursor: help;
-  text-decoration-line: underline;
-  text-decoration-style: dotted;
-  text-decoration-color: #98835d;
-  text-underline-offset: 3px;
+  color: inherit;
+  text-decoration: none;
 }
-.term-help::after {
-  margin-left: 4px;
-  color: #c6a151;
-  content: "?";
-  font: 700 9px/1 "Inter Tight", sans-serif;
-  vertical-align: super;
-}
+.term-help::after { content: none; }
 .term-tooltip {
   position: fixed;
   z-index: 260;

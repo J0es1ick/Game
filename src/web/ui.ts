@@ -18,20 +18,20 @@ import {
   FACTION_REPUTATION_TIERS,
   FIGHTER_SCARS,
   FIGHTER_TRAITS,
-  ENEMY_ADAPTATIONS,
   RELIC_PATHS,
   RELIC_TIER_THRESHOLDS,
   factionReputationTier,
   TOURNAMENT_RULES,
 } from "../catalogs/WorldExpansionCatalog";
 import { ERA_LAWS, LEGACY_BOONS, legacyTitleForCycle } from "../catalogs/NewGamePlusCatalog";
+import { countermeasureDefinition, memoryStageDefinition, type EnemyMemoryCombatRead } from "../gameplay/EnemyMemory";
 import { CLASS_CHANGE_GOLD_COST, CLASS_CHANGE_MARK_COST, WorldGame, skillById } from "../gameplay/WorldGame";
 import { createEquipmentIcon, renderCharacterDoll } from "./CharacterDoll";
 import { basicTournamentUi } from "./BasicTournamentUi";
 import { gameAudio } from "./GameAudio";
 import { initializeGlossary, markTerm } from "./Glossary";
 import { queueWorldEffect } from "./WorldEffects";
-import { loadRankingSnapshot, markRankMovement, observeLeaderboardRows, saveRankingSnapshot } from "./LeaderboardView";
+import { appendEraVeteranBadge, loadRankingSnapshot, markRankMovement, observeLeaderboardRows, saveRankingSnapshot } from "./LeaderboardView";
 import { createElement as element, query as $, queryAll as $$ } from "./UiDom";
 import {
   ActivityDefinition,
@@ -41,15 +41,20 @@ import {
   DungeonDefinition,
   EquipmentItem,
   EquipmentSlot,
+  EnemyStyleMemory,
   ExpeditionStepReport,
   FighterFeatureChange,
   GameSave,
   HeroClass,
+  HeroBehaviorPattern,
   EraLawId,
   LegacyBoonId,
   Rarity,
   TournamentReport,
   Stats,
+  TacticalStyle,
+  ContextualTutorialId,
+  WorldFeatureId,
 } from "../gameplay/WorldTypes";
 
 const SAVE_KEY = "dust-and-crown-save-v2";
@@ -70,6 +75,7 @@ let inventorySetFilter = "all";
 let inventoryRarityFilter: Rarity | "all" = "all";
 let inventorySort: "newest" | "oldest" = "newest";
 let rivalrySort: "recent" | "wins" | "losses" = "recent";
+const openRivalryMemories = new Set<string>();
 let inventoryVisibleLimit = 60;
 let equipmentPickerSlot: EquipmentSlot | null = null;
 let comparisonItemId: string | null = null;
@@ -93,9 +99,13 @@ let pendingExpeditionLoot: { items: EquipmentItem[]; equipmentBefore: Partial<Re
 let expeditionRewardFollowup: { items: EquipmentItem[]; equipmentBefore: Partial<Record<EquipmentSlot, string>> | null } | null = null;
 let tutorialStepIndex = 0;
 let tutorialTarget: HTMLElement | null = null;
-let tutorialPositionTimer: number | null = null;
+let tutorialPositionFrame: number | null = null;
 let tutorialReturnPage = "map";
 let tutorialReturnScrollY = 0;
+let activeTutorialId: ContextualTutorialId | "base" = "base";
+let activeTutorialSteps: TutorialStep[] = [];
+let contextualTutorialTimer: number | null = null;
+const contextualTutorialQueue: ContextualTutorialId[] = [];
 let newChronicleStep = 0;
 let selectedLegacyId: LegacyBoonId | null = null;
 let selectedHeirloomItemId: string | null = null;
@@ -104,6 +114,7 @@ let newChronicleClass: HeroClass = "Knight";
 let newChronicleConfirmed = false;
 let newChronicleName = "";
 let newChronicleReturnFocus: HTMLElement | null = null;
+const activeToasts = new Map<string, { node: HTMLElement; count: number; timer: number }>();
 
 type TutorialStep = {
   page: string;
@@ -111,12 +122,13 @@ type TutorialStep = {
   title: string;
   copy: string;
   action: string;
+  feature?: WorldFeatureId;
 };
 
-const tutorialSteps: TutorialStep[] = [
+const baseTutorialSteps: TutorialStep[] = [
   { page: "map", target: ".game-header .hero-summary", title: "Это ваш герой", copy: "Кампания хранится в браузере и продолжается день за днём. В шапке всегда видны имя, класс и краткий итог карьеры.", action: "Начните с имени героя: рядом находятся все главные ресурсы кампании." },
   { page: "map", target: ".game-header .resources", title: "Следите за ресурсами", copy: "Уровень открывает активности, монеты нужны для лавки и смены класса, а редкие печати — для постоянной закалки хорошего снаряжения.", action: "Проверяйте место в рейтинге и день мира перед записью на события." },
-  { page: "map", target: ".main-nav", title: "Разделы всегда под рукой", copy: "Закреплённая навигация ведёт к герою, инвентарю, кузнице, навыкам, контрактам, коллекциям, лавке и рейтингам.", action: "Нажимайте вкладки в этой строке; кнопка «Как играть» запустит этот маршрут снова." },
+  { page: "map", target: ".main-nav", title: "Разделы всегда под рукой", copy: "Закреплённая навигация ведёт к герою, инвентарю, кузнице, навыкам, коллекциям, лавке и рейтингам. Более сложные системы появятся здесь только после нужных этапов карьеры.", action: "Нажимайте вкладки в этой строке; кнопка «Как играть» запустит этот маршрут снова." },
   { page: "map", target: ".map-shortcuts", title: "Быстрый переход по карте", copy: "Карта длинная, поэтому этот ряд сразу переносит к тренировкам, дуэлям, боссам, турнирам, данжам и эндгейму.", action: "Нажмите нужную карточку перехода — страница сама прокрутится к активности." },
   { page: "map", target: "#daily-actions-section", title: "Тренировка двигает день", copy: "Тренировка безопасно даёт опыт, но её потолок зависит от уже открытых арен. Каждый подход продвигает календарь и весь живой мир.", action: "Нажмите «Тренироваться», когда хотите развиться без риска и приблизить события." },
   { page: "map", target: "#duels-section", title: "Дуэли строят отдельную карьеру", copy: "Здесь герой встречает обычных бойцов мира подходящей силы. Дуэльные победы не поднимают мировой рейтинг, но открывают новые ступени.", action: "Выберите доступную ступень и нажмите «Начать дуэль»." },
@@ -127,13 +139,29 @@ const tutorialSteps: TutorialStep[] = [
   { page: "arsenal", target: ".inventory-panel", title: "Инвентарь — центр сборки", copy: "Фильтруйте добычу по слоту, комплекту, редкости и новизне. Сравнение показывает точную прибавку или потерю каждой характеристики.", action: "Используйте «Сравнить» перед экипировкой; массовая продажа не трогает надетые вещи и регалии." },
   { page: "forge", target: ".forge-summary", title: "Закаляйте только важные вещи", copy: "Печати добываются редко, а каждый следующий уровень закалки дороже. Надетое снаряжение всегда вынесено вверх списка.", action: "Выберите предмет и нажмите улучшение, если готовы потратить указанное число печатей." },
   { page: "skills", target: "#skill-tactics", title: "Сборка ограничена четырьмя навыками", copy: "Автоматический режим подбирает сильные доступные приёмы. Для билдостроения отключите автоподбор и соберите набор вручную; здесь же включается ручной бой.", action: "Добавляйте и убирайте навыки карточками ниже, затем выберите автоматический бой или подтверждение ходов." },
-  { page: "contracts", target: "#reputation-guide", title: "Репутация улучшает будущие контракты", copy: "Каждая фракция отдельно запоминает вашу помощь. Новые статусы повышают награды монетами и опытом в следующих поручениях именно этой фракции.", action: "Подход «честь» быстрее поднимает репутацию, а «выгода» приносит больше денег сразу." },
+  { page: "contracts", target: "#reputation-guide", title: "Репутация улучшает будущие контракты", copy: "Каждая фракция отдельно запоминает вашу помощь. Новые статусы повышают награды монетами и опытом в следующих поручениях именно этой фракции.", action: "Подход «честь» быстрее поднимает репутацию, а «выгода» приносит больше денег сразу.", feature: "contracts" },
   { page: "collections", target: "#collection-overview", title: "Коллекция помнит каждую находку", copy: "Однажды найденный предмет остаётся в каталоге даже после продажи. Здесь видны недостающие части комплектов и их бонусы.", action: "Найдите желаемый комплект и ориентируйтесь на его подсказку при выборе активностей." },
   { page: "shop", target: ".shopkeeper", title: "Лавка обновляется по календарю", copy: "Ассортимент подстраивается под класс и уровень героя. Цена зависит от силы и редкости, а сравнение работает до покупки.", action: "Сначала нажмите «Сравнить», затем покупайте только полезное для текущей сборки." },
   { page: "leaders", target: ".leader-summary", title: "Мировой рейтинг дают турниры", copy: "Сотня лучших учитывает турнирные результаты. Дуэли и данжи вынесены в отдельную статистику, а место меняется только после реальных выступлений.", action: "Откройте таблицу после нескольких дней, чтобы увидеть анимированное изменение позиций." },
   { page: "elite", target: "#page-elite .leader-summary", title: "Элита — поздняя игра", copy: "Чемпион последней арены может пройти Лигу короны и войти в элитную тридцатку. Первые пять — легенды; до лидера нужно последовательно победить стоящих выше.", action: "Вернитесь к эндгейму на карте после чемпионства и запишитесь в Лигу короны." },
   { page: "chronicle", target: ".chronicle-layout", title: "Мир живёт без героя", copy: "Соперники тренируются, меняют арены, находят вещи и могут погибнуть навсегда. Летопись объясняет, что происходило, пока вы занимались своей карьерой.", action: "Обучение закончено. Нажмите «Начать игру», чтобы вернуться туда, откуда вы его открыли." },
 ];
+
+const contextualTutorialSteps: Record<ContextualTutorialId, TutorialStep[]> = {
+  contracts: [
+    { page: "contracts", target: '.main-nav button[data-page="contracts"]', title: "Открыта доска контрактов", copy: "После первого чемпионства фракции начали доверять герою поручения. Контракт не заменяет активность: он задаёт дополнительную цель тренировкам, дуэлям, турнирам или данжам.", action: "Откройте новую вкладку «Контракты». Одновременно можно принять только одно поручение." },
+    { page: "contracts", target: "#reputation-guide", title: "Репутация меняет будущие награды", copy: "У каждой фракции своя шкала доверия. Повышение статуса усиливает монеты и опыт только в новых контрактах этой фракции.", action: "Изучите пороги статусов, затем выберите фракцию, чьи награды полезнее вашему пути." },
+    { page: "contracts", target: "#contract-grid", title: "Честь или выгода", copy: "Оба подхода выполняют одну задачу, но распределяют награду по-разному: честь быстрее растит репутацию, выгода увеличивает немедленную выплату.", action: "Наведите на вариант подхода, прочитайте точные изменения и примите подходящий контракт." },
+  ],
+  "equipment-legacy": [
+    { page: "forge", target: "#relic-workshop", title: "Открыто наследие снаряжения", copy: "Победы на второй половине арен пробуждают историю легендарных и мифических вещей. Надетые предметы получают известность и открывают ступени наследия.", action: "В кузнице следите за известностью ценных вещей и выбирайте постоянный путь только для снаряжения, которым действительно пользуетесь." },
+    { page: "forge", target: ".forge-grid", title: "Реликтовая пыль требует выбора", copy: "Ненужную ценную вещь можно разобрать в редкий ресурс. Выбранный путь реликвии постоянен, поэтому сравнивайте его с текущей сборкой.", action: "Сначала накопите известность предмета, затем изучите подсказки путей и подтвердите один из них." },
+  ],
+  adaptation: [
+    { page: "hero", target: "#hero-rivalries", title: "Соперник начал адаптацию", copy: "Знакомые противники запоминают ваш класс, тактику и часто используемые навыки. Повторение одного стиля постепенно усиливает их контрмеры.", action: "Раскройте досье соперника: там видны изученные привычки, сходство текущей сборки и подготовленные ответы." },
+    { page: "skills", target: "#skill-tactics", title: "Меняйте рисунок боя", copy: "Память врага не исчезает полностью, но смена навыков или тактического профиля снижает точность старых контрмер и даёт эффект неожиданности. Смена класса меняет стиль ещё сильнее.", action: "Соберите альтернативный набор из четырёх приёмов и чередуйте тактики перед повторными встречами." },
+  ],
+};
 
 function renderGearActions(): void {
   if (!game) return;
@@ -176,9 +204,57 @@ function loadGame(): WorldGame | null {
   }
 }
 
-function persist(): void {
+function contextualTutorialCanOpen(): boolean {
+  if (!game || !$("#tutorial-layer").hidden) return false;
+  return ["#battle-overlay", "#dungeon-layer", "#equipment-picker", "#equipment-comparison", "#new-chronicle-layer"]
+    .every((selector) => $(selector).hidden);
+}
+
+function queueContextualTutorial(id: ContextualTutorialId): void {
+  if (!game || game.hasSeenTutorial(id) || contextualTutorialQueue.includes(id)) return;
+  contextualTutorialQueue.push(id);
+  scheduleContextualTutorials();
+}
+
+function scheduleContextualTutorials(): void {
+  if (contextualTutorialTimer !== null || contextualTutorialQueue.length === 0) return;
+  contextualTutorialTimer = window.setTimeout(() => {
+    contextualTutorialTimer = null;
+    if (!contextualTutorialCanOpen()) {
+      scheduleContextualTutorials();
+      return;
+    }
+    const tutorialId = contextualTutorialQueue.shift();
+    if (tutorialId) openTutorial(false, tutorialId);
+  }, 3200);
+}
+
+function queueUnseenContextualTutorials(): void {
   if (!game) return;
+  (["contracts", "equipment-legacy"] as const).forEach((id) => {
+    if (game!.isFeatureUnlocked(id)) queueContextualTutorial(id);
+  });
+  const adaptationStarted = Object.values(game.save.hero.rivalries)
+    .some((record) => record.memoryStage && record.memoryStage !== "unknown");
+  if (adaptationStarted) queueContextualTutorial("adaptation");
+}
+
+function persist(options: { deferFeatureUnlocks?: boolean } = {}): void {
+  if (!game) return;
+  const featureUnlocks = options.deferFeatureUnlocks ? [] : game.consumeFeatureUnlocks();
   localStorage.setItem(SAVE_KEY, JSON.stringify(game.save));
+  featureUnlocks.forEach((unlock) => {
+    queueWorldEffect({
+      eyebrow: `НОВАЯ ВОЗМОЖНОСТЬ · ДЕНЬ ${unlock.day}`,
+      title: unlock.title,
+      description: unlock.description,
+      symbol: unlock.id === "contracts" ? "§" : "✦",
+      tone: "legendary",
+      sound: "reputation",
+      duration: 3000,
+    });
+    queueContextualTutorial(unlock.tutorialId);
+  });
   const defense = game.consumeAutomaticLegendDefense();
   if (defense) {
     queueWorldEffect({
@@ -214,9 +290,37 @@ function classForTemplate(classes: HeroClass[] | "all"): HeroClass {
 }
 
 function toast(message: string, kind: "ok" | "error" = "ok"): void {
+  const key = `${kind}:${message}`;
+  const current = activeToasts.get(key);
+  if (current) {
+    window.clearTimeout(current.timer);
+    current.count += 1;
+    current.node.textContent = current.count > 1 ? `${message} · ×${current.count}` : message;
+    current.timer = window.setTimeout(() => {
+      current.node.remove();
+      activeToasts.delete(key);
+    }, 3200);
+    return;
+  }
   const node = element("div", `toast ${kind}`, message);
-  $("#toast-region").append(node);
-  window.setTimeout(() => node.remove(), 3200);
+  const region = $("#toast-region");
+  while (region.childElementCount >= 4) {
+    const oldest = region.firstElementChild as HTMLElement | null;
+    if (!oldest) break;
+    const oldestEntry = [...activeToasts.entries()].find(([, value]) => value.node === oldest);
+    if (oldestEntry) {
+      window.clearTimeout(oldestEntry[1].timer);
+      activeToasts.delete(oldestEntry[0]);
+    }
+    oldest.remove();
+  }
+  region.append(node);
+  const record = { node, count: 1, timer: 0 };
+  record.timer = window.setTimeout(() => {
+    node.remove();
+    activeToasts.delete(key);
+  }, 3200);
+  activeToasts.set(key, record);
 }
 
 function updateSoundControls(): void {
@@ -251,6 +355,117 @@ function featureStatsText(stats: Partial<Stats>): string {
     .join(" · ");
 }
 
+const tacticalStyleLabels: Record<TacticalStyle, string> = {
+  balanced: "Ровный бой",
+  aggressive: "Давление",
+  defensive: "Выжидание",
+  control: "Срыв темпа",
+};
+
+const behaviorPatternLabels: Record<HeroBehaviorPattern, string> = {
+  pressure: "Ранний натиск",
+  healing: "Восстановление",
+  control: "Контроль",
+  burst: "Критические выпады",
+  finisher: "Добивание",
+};
+
+function strongestMemoryEntries<T extends string>(knowledge: Partial<Record<T, number>>, limit = 2): Array<[T, number]> {
+  return Object.entries(knowledge)
+    .map(([key, value]) => [key as T, Number(value)] as [T, number])
+    .filter(([, value]) => Number.isFinite(value) && value > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit);
+}
+
+function renderRivalryMemory(enemyId: string, memory: EnemyStyleMemory, preview?: EnemyMemoryCombatRead): HTMLElement {
+  const familiarity = Math.max(0, Math.min(100, Math.round(memory.familiarity)));
+  const similarity = Math.max(0, Math.min(100, Math.round((preview?.similarity ?? memory.currentSimilarity) * 100)));
+  const counterStrength = Math.max(0, Math.min(100, Math.round((preview?.strength ?? 0) * 100)));
+  const stage = memoryStageDefinition(memory.stage);
+  const details = document.createElement("details");
+  details.className = "rivalry-memory";
+  details.dataset.enemyId = enemyId;
+  details.open = openRivalryMemories.has(enemyId);
+  details.addEventListener("toggle", () => {
+    if (details.open) openRivalryMemories.add(enemyId);
+    else openRivalryMemories.delete(enemyId);
+  });
+
+  const summary = document.createElement("summary");
+  summary.setAttribute("aria-label", `Память соперника: ${stage.name}. Нажмите, чтобы открыть досье.`);
+  const mark = element("span", "rivalry-memory-mark", "◉");
+  mark.setAttribute("aria-hidden", "true");
+  const heading = element("span", "rivalry-memory-heading");
+  heading.append(
+    element("b", "", stage.name),
+    element("small", "", familiarity > 0 ? `Изученность ${familiarity}% · сходство текущего стиля ${similarity}%` : "Наблюдений пока нет"),
+  );
+  summary.append(mark, heading);
+  details.append(summary);
+
+  const body = element("div", "rivalry-memory-body");
+  const progressWrap = element("div", "rivalry-memory-progress");
+  const progressLabel = markTerm(element("span", "", "Изученность вашего стиля"), "styleFamiliarity");
+  const progressValue = document.createElement("output");
+  progressValue.textContent = `${familiarity}%`;
+  const progress = document.createElement("progress");
+  progress.max = 100;
+  progress.value = familiarity;
+  progress.setAttribute("aria-label", `Изученность стиля: ${familiarity} процентов`);
+  progressWrap.append(progressLabel, progressValue, progress);
+  body.append(progressWrap, element("p", "rivalry-memory-note", stage.description));
+
+  if (familiarity > 0) {
+    const styleRead = similarity < 35
+      ? `Вы заметно изменили манеру боя: подготовленные контрмеры сейчас работают лишь на ${counterStrength}%.`
+      : similarity < 70
+        ? `Соперник узнаёт только часть текущего построения. Сила его контрмер: ${counterStrength}%.`
+        : `Текущий стиль хорошо знаком сопернику. Сила его подготовленных ответов: ${counterStrength}%.`;
+    const note = element("p", `rivalry-memory-note${similarity < 35 ? " disrupted" : ""}`, styleRead);
+    if (similarity < 35) markTerm(note, "surprise");
+    body.append(note);
+  }
+
+  const signals = element("section", "rivalry-memory-section");
+  signals.append(element("strong", "", "Что соперник запомнил"));
+  const tags = element("div", "rivalry-memory-tags");
+  strongestMemoryEntries(memory.classKnowledge, 1).forEach(([classId, score]) => {
+    tags.append(element("span", "rivalry-memory-tag", `Класс: ${CLASS_DEFINITIONS[classId].name} · ${Math.round(score)}%`));
+  });
+  strongestMemoryEntries(memory.tacticalKnowledge, 1).forEach(([style, score]) => {
+    tags.append(element("span", "rivalry-memory-tag", `Тактика: ${tacticalStyleLabels[style]} · ${Math.round(score)}%`));
+  });
+  strongestMemoryEntries(memory.skillKnowledge, 2).forEach(([skillId, score]) => {
+    tags.append(element("span", "rivalry-memory-tag", `Приём: ${skillById(skillId)?.name ?? skillId} · ${Math.round(score)}%`));
+  });
+  strongestMemoryEntries(memory.behaviorKnowledge, 2).forEach(([pattern, score]) => {
+    tags.append(element("span", "rivalry-memory-tag", `${behaviorPatternLabels[pattern]} · ${Math.round(score)}%`));
+  });
+  if (!tags.childElementCount) tags.append(element("span", "rivalry-memory-empty", "Устойчивые привычки ещё не выявлены."));
+  signals.append(tags);
+  body.append(signals);
+
+  const counters = element("section", "rivalry-memory-section");
+  counters.append(markTerm(element("strong", "", "Подготовленные контрмеры"), "countermeasure"));
+  const counterList = element("div", "rivalry-memory-counters");
+  memory.countermeasureIds.forEach((id) => {
+    const definition = countermeasureDefinition(id);
+    if (!definition) return;
+    const counter = element("div", "rivalry-memory-counter");
+    counter.append(
+      element("b", "", definition.name),
+      element("span", "", `${definition.description} ${definition.effect}`),
+    );
+    counterList.append(counter);
+  });
+  if (!counterList.childElementCount) counterList.append(element("span", "rivalry-memory-empty", "Контрмеры появятся, если продолжать сражаться одинаково."));
+  counters.append(counterList);
+  body.append(counters);
+  details.append(body);
+  return details;
+}
+
 function displayItemName(item: EquipmentItem): string { return item.relicName ?? item.name; }
 
 function replayAnimation(node: HTMLElement, className: string): void {
@@ -266,26 +481,40 @@ function setAnimatedText(selector: string, text: string): void {
   replayAnimation(node, "value-updated");
 }
 
+function tutorialStepsFor(id: ContextualTutorialId | "base"): TutorialStep[] {
+  if (id !== "base") return contextualTutorialSteps[id];
+  return baseTutorialSteps.filter((step) => !step.feature || game?.isFeatureUnlocked(step.feature));
+}
+
+function scheduleTutorialPosition(): void {
+  if (tutorialPositionFrame !== null) window.cancelAnimationFrame(tutorialPositionFrame);
+  tutorialPositionFrame = window.requestAnimationFrame(() => {
+    tutorialPositionFrame = null;
+    positionTutorial();
+  });
+}
+
 function renderTutorial(animate = true): void {
-  const step = tutorialSteps[tutorialStepIndex];
+  const step = activeTutorialSteps[tutorialStepIndex];
+  if (!step) return;
   $("#tutorial-title").textContent = step.title;
   $("#tutorial-copy").textContent = step.copy;
   $("#tutorial-action-copy").textContent = step.action;
-  $("#tutorial-progress").textContent = `${tutorialStepIndex + 1} / ${tutorialSteps.length}`;
+  $("#tutorial-progress").textContent = `${tutorialStepIndex + 1} / ${activeTutorialSteps.length}`;
   const back = $("#tutorial-back") as HTMLButtonElement;
   const next = $("#tutorial-next") as HTMLButtonElement;
   back.hidden = tutorialStepIndex === 0;
-  next.textContent = tutorialStepIndex === tutorialSteps.length - 1 ? "Начать игру" : "Далее";
-  showPage(step.page, false);
-  if (tutorialPositionTimer !== null) window.clearTimeout(tutorialPositionTimer);
-  tutorialPositionTimer = window.setTimeout(() => {
+  next.textContent = tutorialStepIndex === activeTutorialSteps.length - 1
+    ? (activeTutorialId === "base" ? "Начать игру" : "Понятно")
+    : "Далее";
+  showPage(step.page, false, false, false);
+  window.requestAnimationFrame(() => {
     tutorialTarget = document.querySelector<HTMLElement>(step.target);
     if (!tutorialTarget) tutorialTarget = $(".game-header");
     const targetIsFixed = tutorialTarget.closest(".game-header, .main-nav");
-    if (targetIsFixed) window.scrollTo({ top: 0, behavior: animate ? "smooth" : "auto" });
-    else tutorialTarget.scrollIntoView({ behavior: animate ? "smooth" : "auto", block: "center", inline: "nearest" });
-    window.setTimeout(positionTutorial, animate ? 320 : 0);
-  }, 20);
+    if (!targetIsFixed) tutorialTarget.scrollIntoView({ behavior: "auto", block: "center", inline: "nearest" });
+    scheduleTutorialPosition();
+  });
   if (animate) {
     replayAnimation($(".tutorial-dialog"), "step-changing");
   }
@@ -305,35 +534,16 @@ function positionTutorial(): void {
   spotlight.style.width = `${Math.max(24, right - left)}px`;
   spotlight.style.height = `${Math.max(24, bottom - top)}px`;
 
-  const dialog = $("#tutorial-dialog");
-  if (window.innerWidth <= 560) return;
-  const gap = 20;
-  const dialogRect = dialog.getBoundingClientRect();
-  const dialogWidth = dialogRect.width || 410;
-  const dialogHeight = dialogRect.height || 330;
-  const roomRight = window.innerWidth - right;
-  const roomLeft = left;
-  const roomBelow = window.innerHeight - bottom;
-  let dialogLeft: number;
-  let dialogTop: number;
-  if (roomRight >= dialogWidth + gap) {
-    dialogLeft = right + gap;
-    dialogTop = rect.top + rect.height / 2 - dialogHeight / 2;
-  } else if (roomLeft >= dialogWidth + gap) {
-    dialogLeft = left - dialogWidth - gap;
-    dialogTop = rect.top + rect.height / 2 - dialogHeight / 2;
-  } else {
-    dialogLeft = window.innerWidth - dialogWidth - 18;
-    dialogTop = roomBelow >= dialogHeight + gap ? bottom + gap : top - dialogHeight - gap;
-  }
-  dialog.style.left = `${Math.max(12, Math.min(window.innerWidth - dialogWidth - 12, dialogLeft))}px`;
-  dialog.style.top = `${Math.max(12, Math.min(window.innerHeight - dialogHeight - 12, dialogTop))}px`;
 }
 
-function openTutorial(firstVisit = false): void {
+function openTutorial(firstVisit = false, tutorialId: ContextualTutorialId | "base" = "base"): void {
   if (!game) return;
+  if (tutorialId !== "base" && game.hasSeenTutorial(tutorialId)) return;
   tutorialReturnPage = document.querySelector<HTMLElement>(".page.active")?.id.replace("page-", "") ?? "map";
   tutorialReturnScrollY = window.scrollY;
+  activeTutorialId = tutorialId;
+  activeTutorialSteps = tutorialStepsFor(tutorialId);
+  if (!activeTutorialSteps.length) return;
   tutorialStepIndex = 0;
   $("#tutorial-layer").hidden = false;
   renderTutorial();
@@ -345,17 +555,17 @@ function openTutorial(firstVisit = false): void {
 
 function finishTutorial(): void {
   if (!game) return;
-  game.save.tutorialCompleted = true;
+  if (activeTutorialId === "base") game.save.tutorialCompleted = true;
+  else game.markTutorialSeen(activeTutorialId);
   persist();
   $("#tutorial-layer").hidden = true;
-  if (tutorialPositionTimer !== null) window.clearTimeout(tutorialPositionTimer);
-  tutorialPositionTimer = null;
+  if (tutorialPositionFrame !== null) window.cancelAnimationFrame(tutorialPositionFrame);
+  tutorialPositionFrame = null;
   tutorialTarget = null;
-  const dialog = $("#tutorial-dialog");
-  dialog.style.removeProperty("left");
-  dialog.style.removeProperty("top");
-  showPage(tutorialReturnPage, false, false);
+  activeTutorialSteps = [];
+  showPage(tutorialReturnPage, false, false, false);
   window.requestAnimationFrame(() => window.scrollTo({ top: tutorialReturnScrollY, behavior: "auto" }));
+  scheduleContextualTutorials();
 }
 
 function equippedItems(): EquipmentItem[] {
@@ -404,7 +614,7 @@ function createHero(): void {
   queueWorldEffect({ eyebrow: "НОВАЯ ЛЕТОПИСЬ", title: name, description: `${CLASS_DEFINITIONS[selectedClass].name} выходит на первую арену.`, symbol: classIcons[selectedClass], tone: "legendary", sound: "reputation", duration: 2600 });
 }
 
-function showPage(page: string, scrollToTop = true, refresh = true): void {
+function showPage(page: string, scrollToTop = true, refresh = true, scrollNavigation = true): void {
   $$(".main-nav button").forEach((button) => {
     const active = button.dataset.page === page;
     button.classList.toggle("active", active);
@@ -428,12 +638,23 @@ function showPage(page: string, scrollToTop = true, refresh = true): void {
     }
   }
   const activeNavigationItem = document.querySelector<HTMLButtonElement>(`.main-nav button[data-page="${page}"]`);
-  activeNavigationItem?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  if (scrollNavigation) activeNavigationItem?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
   if (scrollToTop) window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderFeatureNavigation(): void {
+  if (!game) return;
+  const contracts = document.querySelector<HTMLButtonElement>('.main-nav button[data-page="contracts"]');
+  if (contracts) {
+    const unlocked = game.isFeatureUnlocked("contracts");
+    contracts.hidden = !unlocked;
+    contracts.setAttribute("aria-hidden", String(!unlocked));
+  }
 }
 
 function renderHeader(): void {
   if (!game) return;
+  renderFeatureNavigation();
   const hero = game.save.hero;
   $("#header-portrait").textContent = classIcons[hero.classId];
   $("#header-portrait").style.setProperty("--portrait-accent", CLASS_DEFINITIONS[hero.classId].accent);
@@ -452,7 +673,9 @@ function renderHeader(): void {
   setAnimatedText("#header-day", String(game.save.worldDay));
   setAnimatedText("#inventory-count", String(hero.inventory.length));
   setAnimatedText("#collection-count", `${game.save.discoveredItems.length}/${ITEM_TEMPLATES.length}`);
-  setAnimatedText("#contract-count", game.save.activeContract ? `${game.save.activeContract.progress}/${game.save.activeContract.target}` : String(game.save.contractOffers.length));
+  setAnimatedText("#contract-count", game.isFeatureUnlocked("contracts")
+    ? (game.save.activeContract ? `${game.save.activeContract.progress}/${game.save.activeContract.target}` : String(game.save.contractOffers.length))
+    : "0");
 }
 
 function statRow(label: string, value: string | number): HTMLElement {
@@ -496,7 +719,7 @@ const rarityColors: Record<Rarity, string> = {
   common: "#898478", rare: "#477ca8", epic: "#76519d", legendary: "#c58b2d", mythic: "#a13c43",
 };
 
-function renderHeroVisual(): void {
+function renderHeroVisual(animateHistory = true): void {
   if (!game) return;
   const hero = game.save.hero;
   const items = equippedItems();
@@ -559,10 +782,10 @@ function renderHeroVisual(): void {
   const appearanceTitle = element("strong", "", "Внешность");
   const hair = document.createElement("select");
   [["0", "Короткая"], ["1", "Зачёс назад"], ["2", "Длинная"]].forEach(([value, label]) => hair.append(new Option(label, value, false, Number(value) === hero.appearance.hairStyle)));
-  hair.addEventListener("change", () => { hero.appearance.hairStyle = Number(hair.value) as 0 | 1 | 2; persist(); renderHeroVisual(); });
+  hair.addEventListener("change", () => { hero.appearance.hairStyle = Number(hair.value) as 0 | 1 | 2; persist(); renderHeroVisual(false); });
   editor.append(appearanceTitle, hair); stats.append(editor);
   renderClassChangePanel();
-  renderHeroHistory();
+  renderHeroHistory(animateHistory);
 }
 
 function renderClassChangePanel(): void {
@@ -599,7 +822,7 @@ function renderClassChangePanel(): void {
   panel.append(copy, controls);
 }
 
-function renderHeroHistory(): void {
+function renderHeroHistory(animateItems = true): void {
   if (!game) return;
   const hero = game.save.hero;
   const allRecords = Object.values(hero.rivalries);
@@ -650,7 +873,7 @@ function renderHeroHistory(): void {
   ].forEach(([value, label]) => rivalrySortSelect.append(new Option(label, value, false, value === rivalrySort)));
   rivalrySortSelect.addEventListener("change", () => {
     rivalrySort = rivalrySortSelect.value as typeof rivalrySort;
-    renderHeroHistory();
+    renderHeroHistory(false);
   });
   rivalryToolbar.append(element("span", "", "Сортировка"), rivalrySortSelect);
   rivalries.append(rivalryToolbar);
@@ -663,6 +886,7 @@ function renderHeroHistory(): void {
   const rivalryList = element("div", "history-list rivalry-history-list");
   records.forEach((record) => {
     const row = element("article");
+    if (!animateItems) row.classList.add("no-entry-motion");
     const copy = element("div");
     const ranked = topHundred.get(record.enemyId);
     const eliteFighter = elite.get(record.enemyId);
@@ -681,13 +905,10 @@ function renderHeroHistory(): void {
       element("small", "", `${CLASS_DEFINITIONS[record.classId].name} · последняя встреча: день ${record.lastMetDay}`),
       element("span", `rivalry-world-rank${eliteFighter ? " elite" : ranked ? " ranked" : ""}`, worldStatus),
     );
-    if (record.adaptationId) {
-      const adaptation = ENEMY_ADAPTATIONS.find((candidate) => candidate.id === record.adaptationId);
-      if (adaptation) copy.append(element("span", "rivalry-adaptation", `Адаптация против вас: ${adaptation.name} · ${adaptation.description} · ${featureStatsText(adaptation.stats)}`));
-    }
     if (worldFighter) {
       const features = game!.fighterFeatures(worldFighter).slice(0, 2).map((feature) => feature.name).join(" · ");
       if (features) copy.append(element("span", "rivalry-traits", `Характер: ${features}`));
+      copy.append(renderRivalryMemory(record.enemyId, worldFighter.heroMemory, game!.enemyMemoryPreview(record.enemyId)));
     }
     const wins = element("b", "rivalry-score", String(record.wins));
     wins.setAttribute("aria-label", `Победы: ${record.wins}`);
@@ -704,7 +925,10 @@ function renderHeroHistory(): void {
   necrology.replaceChildren(element("p", "eyebrow", "НЕКРОЛОГ"), element("h2", "", "Погибшие противники"));
   const dead = allRecords.filter((record) => record.killed);
   const deadList = element("div", "history-list necrology-list");
-  dead.forEach((record) => deadList.append(element("article", "", `${record.name} · побеждён в день ${record.lastMetDay}`)));
+  dead.forEach((record) => {
+    const row = element("article", animateItems ? "" : "no-entry-motion", `${record.name} · побеждён в день ${record.lastMetDay}`);
+    deadList.append(row);
+  });
   if (dead.length === 0) deadList.append(element("p", "empty-copy", "Герой пока не завершил ни одной чужой истории навсегда."));
   necrology.append(deadList);
 }
@@ -1327,8 +1551,9 @@ function createItemCard(item: EquipmentItem, mode: "inventory" | "shop", shopInd
   head.append(element("span", "item-slot", SLOT_LABELS[item.slot]), rarity);
   const artwork = equipmentArtwork(item.slot, classForTemplate(item.allowedClasses), "equipment-art", item);
   artwork.style.setProperty("--rarity-color", rarityColors[item.rarity]);
-  const progress = element("small", "", `Предмет ${item.level} уровня${item.enhancement ? ` · закалка +${item.enhancement}` : ""}${rarityAtLeastUi(item.rarity, "legendary") ? ` · наследие ${item.relicTier ?? 0}/3` : ""}`);
-  if (rarityAtLeastUi(item.rarity, "legendary")) markTerm(progress, "relic");
+  const legacyVisible = game.isFeatureUnlocked("equipment-legacy") && rarityAtLeastUi(item.rarity, "legendary");
+  const progress = element("small", "", `Предмет ${item.level} уровня${item.enhancement ? ` · закалка +${item.enhancement}` : ""}${legacyVisible ? ` · наследие ${item.relicTier ?? 0}/3` : ""}`);
+  if (legacyVisible) markTerm(progress, "relic");
   else if (item.enhancement) markTerm(progress, "enhancement");
   card.append(head, artwork, element("h3", "", displayItemName(item)), progress, element("p", "item-stats", itemStatsText(item)));
   if (item.affix) card.append(element("p", "item-affix", `${item.affix.name}: +${item.affix.value} · ${item.affix.description}`));
@@ -1808,12 +2033,15 @@ function renderNewChronicleStep(): void {
       card.addEventListener("click", () => {
         const isSelected = selectedWorldLawIds.includes(law.id);
         if (isSelected) selectedWorldLawIds = selectedWorldLawIds.filter((id) => id !== law.id);
+        else if (status.lawLimit === 1) selectedWorldLawIds = [law.id];
         else if (selectedWorldLawIds.length < status.lawLimit) selectedWorldLawIds.push(law.id);
         else { toast(`Можно выбрать не больше ${status.lawLimit}.`, "error"); return; }
-        const nowSelected = selectedWorldLawIds.includes(law.id);
-        card.classList.toggle("selected", nowSelected);
-        card.setAttribute("aria-pressed", String(nowSelected));
-        card.querySelector("small")!.textContent = nowSelected ? "ВЫБРАН" : "ЗАКОН ЭПОХИ";
+        grid.querySelectorAll<HTMLButtonElement>(".new-chronicle-choice").forEach((choice) => {
+          const nowSelected = selectedWorldLawIds.includes(choice.dataset.choiceId as EraLawId);
+          choice.classList.toggle("selected", nowSelected);
+          choice.setAttribute("aria-pressed", String(nowSelected));
+          choice.querySelector("small")!.textContent = nowSelected ? "ВЫБРАН" : "ЗАКОН ЭПОХИ";
+        });
         next.disabled = selectedWorldLawIds.length !== status.lawLimit;
       });
       grid.append(card);
@@ -2046,10 +2274,12 @@ function renderEndgame(animateItems = true): void {
   elite.forEach((entry, index) => {
     const rank = index + 1;
     const row = element("tr", `${entry.isHero ? "is-hero " : ""}${rank <= 5 ? "legend" : ""}`.trim());
+    const nameCell = element("td", "leader-name-cell", entry.name);
+    appendEraVeteranBadge(nameCell, entry.carriedFromCycle);
     row.append(
       element("td", "elite-rank", `#${rank}`),
       element("td", rank <= 5 ? "elite-title" : "", game!.legendTitle(rank) ?? "Элита"),
-      element("td", "", entry.name),
+      nameCell,
       element("td", "", CLASS_DEFINITIONS[entry.classId].name),
       element("td", "", String(entry.level)),
       element("td", "", String(entry.rating)),
@@ -2218,8 +2448,10 @@ function renderShop(): void {
 function renderForge(animateItems = true, preserveOrder = false): void {
   if (!game) return;
   const hero = game.save.hero;
+  const legacyUnlocked = game.isFeatureUnlocked("equipment-legacy");
   $("#forge-marks").textContent = `${hero.temperingMarks} ${hero.temperingMarks === 1 ? "печать" : hero.temperingMarks >= 2 && hero.temperingMarks <= 4 ? "печати" : "печатей"}`;
-  renderRelicWorkshop();
+  $("#relic-workshop").hidden = !legacyUnlocked;
+  if (legacyUnlocked) renderRelicWorkshop();
   const grid = $("#forge-grid");
   const equippedIds = new Set(Object.values(hero.equipped));
   const displayedOrder = new Map(
@@ -2249,7 +2481,7 @@ function renderForge(animateItems = true, preserveOrder = false): void {
     art.style.setProperty("--rarity-color", rarityColors[item.rarity]);
     const copy = element("div", "forge-card-copy");
     const enhancement = item.enhancement ?? 0;
-    copy.append(element("small", "", `${equippedIds.has(item.id) ? "НАДЕТО · " : ""}${SLOT_LABELS[item.slot]} · ${RARITY_LABELS[item.rarity]}`), element("h3", "", item.relicName ?? item.name), element("p", "", `${item.level} ур. · закалка +${enhancement}/5${rarityAtLeastUi(item.rarity, "legendary") ? ` · наследие ${item.relicTier ?? 0}/3 (${item.relicRenown ?? 0})` : ""}`), element("p", "item-stats", itemStatsText(item)));
+    copy.append(element("small", "", `${equippedIds.has(item.id) ? "НАДЕТО · " : ""}${SLOT_LABELS[item.slot]} · ${RARITY_LABELS[item.rarity]}`), element("h3", "", item.relicName ?? item.name), element("p", "", `${item.level} ур. · закалка +${enhancement}/5${legacyUnlocked && rarityAtLeastUi(item.rarity, "legendary") ? ` · наследие ${item.relicTier ?? 0}/3 (${item.relicRenown ?? 0})` : ""}`), element("p", "item-stats", itemStatsText(item)));
     if (equippedIds.has(item.id)) card.classList.add("equipped");
     const button = element("button", "button", enhancement >= 5 ? "Максимальная закалка" : `Улучшить · ${game!.upgradeCost(item.id)} печ.`);
     button.type = "button";
@@ -2263,7 +2495,7 @@ function renderForge(animateItems = true, preserveOrder = false): void {
     });
     const actions = element("div", "forge-card-actions");
     actions.append(button);
-    if (!equippedIds.has(item.id) && game!.canSell(item.id)) {
+    if (legacyUnlocked && !equippedIds.has(item.id) && game!.canSell(item.id)) {
       const salvage = element("button", "plain-button", "Разобрать в пыль");
       salvage.addEventListener("click", () => {
         if (!window.confirm(`Разобрать «${item.name}» без возможности восстановления?`)) return;
@@ -2301,6 +2533,7 @@ function renderLeaders(trackMovement = false): void {
     if (trackMovement) row.classList.add("leader-row-awaiting");
     const rankCell = element("td", "", String(index + 1));
     const nameCell = element("td", "leader-name-cell", entry.name);
+    appendEraVeteranBadge(nameCell, entry.carriedFromCycle);
     markRankMovement(row, nameCell, previousRanks[entry.id], index + 1, hasSnapshot);
     row.append(rankCell, nameCell);
     [CLASS_DEFINITIONS[entry.classId].name, ARENAS[entry.arenaIndex]?.name ?? "—", String(entry.level), String(entry.tournamentWins), String(entry.wins), String(entry.losses), String(entry.kills), String(entry.rating)].forEach((value) => row.append(element("td", "", value)));
@@ -2381,6 +2614,7 @@ function renderEliteLeaders(trackMovement = false): void {
     const rankCell = element("td", "", `#${rank}`);
     const titleCell = element("td", rank <= 5 ? "elite-title" : "", game!.legendTitle(rank) ?? "Элита");
     const nameCell = element("td", "leader-name-cell", entry.name);
+    appendEraVeteranBadge(nameCell, entry.carriedFromCycle);
     markRankMovement(row, nameCell, previousRanks[entry.id], rank, hasSnapshot);
     row.append(rankCell, titleCell, nameCell);
     [
@@ -2414,7 +2648,7 @@ function renderChronicle(): void {
 function refreshEquipmentViews(preserveForgeOrder = false): void {
   if (!game) return;
   renderHeader();
-  renderHeroVisual();
+  renderHeroVisual(false);
   renderGearActions();
   renderArsenal(false);
   renderForge(false, preserveForgeOrder);
@@ -2616,7 +2850,12 @@ function startBossFight(bossId: string): void {
 function startTournament(arenaId: string): void {
   if (!game) return;
   captureBattleEquipment();
-  try { currentTournament = game.playTournament(arenaId); persist(); }
+  try {
+    currentTournament = game.playTournament(arenaId);
+    // The tournament is calculated synchronously, but its unlocks should only
+    // be announced after the player has actually watched the final result.
+    persist({ deferFeatureUnlocks: true });
+  }
   catch (error) { battleEquipmentBefore = null; toast((error as Error).message, "error"); return; }
   renderTournamentReminder();
   tournamentBattleIndex = 0;
@@ -2717,9 +2956,12 @@ function playBattleTurn(): void {
 }
 
 function battleFeatureChangeCard(change: FighterFeatureChange): HTMLElement {
-  const card = element("article", `battle-feature-change ${change.kind === "Травма" ? "negative" : ""}`);
+  const adverse = change.kind === "Травма" || change.kind === "Адаптация";
+  const card = element("article", `battle-feature-change${adverse ? " negative" : ""}${change.kind === "Адаптация" ? " adaptation" : ""}`);
+  const kind = element("small", "", `${change.fighterName} · ${change.kind}`);
+  if (change.kind === "Адаптация") markTerm(kind, "enemyMemory");
   card.append(
-    element("small", "", `${change.fighterName} · ${change.kind}`),
+    kind,
     element("strong", "", change.name),
     element("p", "", change.description),
   );
@@ -2773,7 +3015,14 @@ function finishBattlePlayback(): void {
   const featureChanges = game?.consumeFeatureChanges() ?? [];
   if (featureChanges.length) {
     const featurePanel = element("section", "battle-feature-changes");
-    featurePanel.append(element("h4", "", featureChanges.length === 1 ? "Бой оставил след" : "После боя появились новые свойства"));
+    const adaptations = featureChanges.filter((change) => change.kind === "Адаптация");
+    if (adaptations.length && game && !game.hasSeenTutorial("adaptation")) {
+      queueContextualTutorial("adaptation");
+    }
+    const featureTitle = adaptations.length === featureChanges.length
+      ? (adaptations.length === 1 ? "Соперник запомнил ваш стиль" : "Соперники изучили ваш стиль")
+      : featureChanges.length === 1 ? "Бой оставил след" : "Бой изменил участников";
+    featurePanel.append(element("h4", "", featureTitle));
     const featureList = element("div");
     featureList.append(...featureChanges.map(battleFeatureChangeCard));
     featurePanel.append(featureList);
@@ -2784,7 +3033,7 @@ function finishBattlePlayback(): void {
       description: change.description,
       stats: featureStatsText(change.stats).split(" · ").filter(Boolean),
       symbol: change.kind === "Травма" ? "✕" : change.kind === "Шрам" ? "⌁" : "✦",
-      tone: change.kind === "Травма" ? "negative" : "positive",
+      tone: change.kind === "Травма" || change.kind === "Адаптация" ? "negative" : "positive",
       duration: 2500,
     }));
   }
@@ -2819,11 +3068,13 @@ function closeBattle(): void {
     openBattleReport(currentTournament.heroBattles[tournamentBattleIndex]);
     return;
   }
+  const completedTournament = Boolean(currentTournament);
   const expeditionResult = pendingExpeditionResult;
   const expeditionLoot = pendingExpeditionLoot;
   pendingExpeditionResult = null;
   pendingExpeditionLoot = null;
   currentReport = null; currentTournament = null; battleEquipmentBefore = null; battleInventoryBefore = null; $("#battle-overlay").hidden = true; $("#tournament-panel").hidden = true; document.body.classList.remove("battle-open");
+  if (completedTournament) persist();
   showPage(battleReturnPage, false, false);
   window.requestAnimationFrame(() => {
     window.scrollTo({ top: battleReturnScrollY, behavior: "auto" });
@@ -2885,6 +3136,7 @@ function bootstrapWorld(): void {
     notice.textContent = `Мир продолжал жить без вас: прошло ${cycles} дн. фоновых турниров, дуэлей и вылазок.`;
   }
   persist(); renderAll();
+  queueUnseenContextualTutorials();
   if (!game.save.tutorialCompleted) openTutorial(true);
 }
 
@@ -2948,7 +3200,7 @@ $("#tutorial-back").addEventListener("click", () => {
   renderTutorial();
 });
 $("#tutorial-next").addEventListener("click", () => {
-  if (tutorialStepIndex >= tutorialSteps.length - 1) { finishTutorial(); return; }
+  if (tutorialStepIndex >= activeTutorialSteps.length - 1) { finishTutorial(); return; }
   tutorialStepIndex += 1;
   renderTutorial();
 });
@@ -3009,11 +3261,11 @@ window.addEventListener("keydown", (event) => {
   else if (!$("#equipment-comparison").hidden) closeEquipmentComparison();
   else if (!$("#equipment-picker").hidden) closeEquipmentPicker();
 });
-window.addEventListener("resize", positionTutorial);
-window.addEventListener("scroll", positionTutorial, { passive: true });
+window.addEventListener("resize", scheduleTutorialPosition);
+window.addEventListener("scroll", scheduleTutorialPosition, { passive: true });
 $("#skip-battle").addEventListener("click", skipBattle);
 $("#manual-battle-step").addEventListener("click", confirmManualBattleTurn);
 $("#close-battle").addEventListener("click", closeBattle);
-window.addEventListener("beforeunload", persist);
+window.addEventListener("beforeunload", () => persist());
 
 bootstrap();

@@ -380,7 +380,12 @@
   border-left: 4px solid var(--green);
   background: #403a31;
 }
-.battle-feature-change.negative { border-left-color: #bd6658; }
+.battle-feature-change.negative,
+.battle-feature-change.adaptation { border-left-color: #bd6658; }
+.battle-feature-change.adaptation {
+  background: #493830;
+}
+.battle-feature-change.adaptation small { color: #deb0a2; }
 .battle-feature-change small,
 .battle-feature-change strong { display: block; }
 .battle-feature-change small {
@@ -442,8 +447,8 @@
 .toast-region {
   position: fixed;
   z-index: 120;
-  right: 20px;
-  bottom: 20px;
+  top: calc(var(--game-header-height, 76px) + 68px);
+  left: 20px;
   display: grid;
   width: min(360px, calc(100vw - 40px));
   gap: 8px;

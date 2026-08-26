@@ -409,6 +409,24 @@
 .leader-name-cell {
   white-space: nowrap;
 }
+.era-veteran-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 6px;
+  border: 1px solid #806b3f;
+  color: #67552f;
+  background: #eee2c4;
+  font: 750 10px/1 "Inter Tight", sans-serif;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.leader-table tr.is-hero .era-veteran-badge {
+  color: inherit;
+  border-color: rgba(255, 255, 255, 0.58);
+  background: rgba(40, 35, 29, 0.28);
+}
 .rank-change {
   display: inline-flex;
   min-width: 34px;
