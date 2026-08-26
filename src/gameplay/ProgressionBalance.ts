@@ -10,6 +10,14 @@ export function enemyExperienceRequirement(level: number): number {
   return Math.round(85 + completedLevels * 38 + completedLevels ** 2 * 2.4);
 }
 
+/** Total experience consumed before the hero enters the requested level. */
+export function cumulativeHeroExperience(targetLevel: number): number {
+  const safeTarget = Math.max(1, Math.floor(targetLevel));
+  let total = 0;
+  for (let level = 1; level < safeTarget; level += 1) total += heroExperienceRequirement(level);
+  return total;
+}
+
 export function normalizeExperienceProgress(
   experience: number,
   previousRequirement: number,

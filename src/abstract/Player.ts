@@ -19,6 +19,8 @@ export interface CombatContext {
   combo: number;
   healthRatio: number;
   setCounts: Readonly<Record<string, number>>;
+  /** Injected battle RNG; legacy callers may omit it. */
+  random?: () => number;
 }
 
 export interface CombatModifier {

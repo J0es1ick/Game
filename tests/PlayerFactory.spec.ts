@@ -21,4 +21,14 @@ describe("PlayerFactory", () => {
   it("создаёт запрошенное количество случайных объектов", () => {
     expect(factory.createMany(4)).toHaveLength(4);
   });
+
+  it("не расходует случайность при создании бойца с заданным именем", () => {
+    const random = jest.spyOn(Math, "random");
+    new PlayerFactory().create({
+      className: "Knight", health: 140, strength: 12, name: "Заданное имя",
+      weapon: { name: "Учебный меч", damage: 0 }, skills: [],
+    });
+    expect(random).not.toHaveBeenCalled();
+    random.mockRestore();
+  });
 });

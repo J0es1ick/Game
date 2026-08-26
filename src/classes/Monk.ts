@@ -36,7 +36,7 @@ export class Monk extends Player {
 
   public override modifyCombatDefense(damage: number, context: CombatContext): CombatModifier {
     const dodge = 0.14 + ((context.setCounts.crane ?? 0) >= 4 ? 0.06 : 0);
-    return Math.random() < dodge
+    return (context.random?.() ?? Math.random()) < dodge
       ? { damage: 0, detail: "монах уклонился", combo: (context.setCounts.crane ?? 0) >= 6 ? context.combo : 0 }
       : { damage, combo: 0 };
   }
