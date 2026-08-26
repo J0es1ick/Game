@@ -24,6 +24,7 @@
   width: min(410px, calc(100vw - 44px));
   pointer-events: none;
 }
+body.battle-open .world-effect-stage { z-index: 170; }
 .world-effect-card {
   --effect: #756b59;
   display: grid;

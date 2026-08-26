@@ -26,6 +26,20 @@ const queue = new PriorityNotificationQueue<WorldEffectPresentation>();
 let playing = false;
 let sequence = 0;
 
+const blockingLayerSelectors = [
+  "#mode-screen",
+  "#creation-screen",
+  "#new-chronicle-layer",
+  ".save-recovery-screen",
+] as const;
+
+function hasBlockingLayer(): boolean {
+  return blockingLayerSelectors.some((selector) => {
+    const layer = document.querySelector<HTMLElement>(selector);
+    return Boolean(layer && !layer.hidden && !layer.classList.contains("hidden"));
+  });
+}
+
 export function queueWorldEffect(effect: WorldEffectPresentation): void {
   if (typeof document === "undefined") return;
   if (effect.aggregation) {
@@ -47,7 +61,7 @@ export function queueWorldEffect(effect: WorldEffectPresentation): void {
 function playNext(): void {
   const host = document.querySelector<HTMLElement>("#world-effect-stage");
   if (queue.size === 0) { playing = false; return; }
-  if (document.body.classList.contains("ui-modal-open") || document.body.classList.contains("loot-notification-open")) {
+  if (hasBlockingLayer()) {
     playing = true;
     window.setTimeout(playNext, 180);
     return;
