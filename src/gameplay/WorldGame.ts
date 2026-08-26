@@ -3543,7 +3543,7 @@ export class WorldGame {
       const routineRecruitment = allowRoutineRecruitment ? Math.min(1, missing) : 0;
       const recruits = fillImmediately
         ? missing
-        : allowRoutineRecruitment ? Math.max(emergencyRecruitment, routineRecruitment) : 0;
+        : Math.max(emergencyRecruitment, routineRecruitment);
       for (let index = 0; index < recruits; index += 1) {
         this.save.enemies.push(this.createEnemy(arenaIndex, !fillImmediately));
       }
@@ -3552,15 +3552,25 @@ export class WorldGame {
       const previousEnemyIds = new Set(this.save.enemies.map((enemy) => enemy.id));
       const encounteredIds = new Set(Object.keys(this.save.hero.rivalries));
       this.save.eliteLeagueMemberIds.forEach((id) => encounteredIds.add(id));
+      ARENAS.forEach((arena, arenaIndex) => {
+        this.save.enemies
+          .filter((enemy) => enemy.alive && enemy.arenaIndex === arenaIndex && !eliteIds.has(enemy.id))
+          .sort((first, second) => second.rating - first.rating
+            || second.tournamentWins - first.tournamentWins
+            || second.history.length - first.history.length)
+          .slice(0, Math.max(ARENA_POPULATION_BASE_FLOOR, arena.participants))
+          .forEach((enemy) => encounteredIds.add(enemy.id));
+      });
       const encountered = this.save.enemies.filter((enemy) => encounteredIds.has(enemy.id));
       const retainedIds = new Set(encountered.map((enemy) => enemy.id));
+      const populationLimit = Math.max(0, 260 - encountered.length);
       const population = this.save.enemies
         .filter((enemy) => !retainedIds.has(enemy.id) && (enemy.alive || enemy.history.some((line) => line.includes(this.save.hero.name))))
         .sort((first, second) => Number(second.alive) - Number(first.alive)
           || second.rating - first.rating
           || second.tournamentWins - first.tournamentWins
           || second.history.length - first.history.length)
-        .slice(0, 240);
+        .slice(0, populationLimit);
       this.save.enemies = [...encountered, ...population];
       const retainedEnemyIds = new Set(this.save.enemies.map((enemy) => enemy.id));
       const removedEnemyIds = [...previousEnemyIds].filter((id) => !retainedEnemyIds.has(id));

@@ -536,6 +536,24 @@ describe("постоянный RPG-мир", () => {
     expect(restored.save.enemies.map((enemy) => enemy.id)).toEqual(idsBeforeRestore);
   });
 
+  test("аварийно восстанавливает истощённые арены при загрузке старого сохранения", () => {
+    const game = WorldGame.create("Смотритель", "Archer", 1_000);
+    const elite = new Set(game.save.eliteLeagueMemberIds);
+    ARENAS.forEach((arena, arenaIndex) => {
+      const local = game.save.enemies.filter((enemy) => enemy.alive && enemy.arenaIndex === arenaIndex && !elite.has(enemy.id));
+      local.slice(Math.max(0, arena.participants - 3)).forEach((enemy) => { enemy.alive = false; });
+    });
+
+    const restored = WorldGame.restore(JSON.parse(JSON.stringify(game.save)));
+    const restoredElite = new Set(restored.save.eliteLeagueMemberIds);
+
+    ARENAS.forEach((arena, arenaIndex) => {
+      const alive = restored.save.enemies.filter((enemy) =>
+        enemy.alive && enemy.arenaIndex === arenaIndex && !restoredElite.has(enemy.id));
+      expect(alive.length).toBeGreaterThanOrEqual(arena.participants);
+    });
+  });
+
   test("учитывает экипировку в итоговых характеристиках", () => {
     const game = WorldGame.create("Корт", "Swordsman", 1_000);
     const snapshot = combatantSnapshot(game.save.hero);

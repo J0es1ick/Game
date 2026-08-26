@@ -1,4 +1,5 @@
 import { worldBalanceSnapshot } from "../src/gameplay/BalanceTelemetry";
+import { ARENAS } from "../src/catalogs/WorldCatalog";
 import { WorldGame } from "../src/gameplay/WorldGame";
 
 const DAY_MS = 600_000;
@@ -11,6 +12,15 @@ function simulateDays(game: WorldGame, days: number, now: number): void {
     expect(game.simulateElapsed(now)).toBe(batch);
     remaining -= batch;
   }
+}
+
+function expectFullArenaPopulations(game: WorldGame): void {
+  const elite = new Set(game.save.eliteLeagueMemberIds);
+  ARENAS.forEach((arena, arenaIndex) => {
+    const alive = game.save.enemies.filter((enemy) =>
+      enemy.alive && enemy.arenaIndex === arenaIndex && !elite.has(enemy.id));
+    expect(alive.length).toBeGreaterThanOrEqual(arena.participants);
+  });
 }
 
 describe("seeded 365-day world soak", () => {
@@ -47,6 +57,19 @@ describe("seeded 365-day world soak", () => {
     expect(snapshot.currencies.gold).toBeGreaterThanOrEqual(0);
     expect(snapshot.currencies.gold).toBeLessThan(1_000_000_000);
     expect(game.save.events.length).toBeLessThanOrEqual(500);
+    expectFullArenaPopulations(game);
+  }, 30_000);
+
+  test("preserves a complete tournament field on every arena after each daily tick", () => {
+    const now = 1_760_000_000_000;
+    const game = WorldGame.create("Хранитель сеток", "Gunsmith", now);
+    game.save.hero.autoResolveLegendChallenges = true;
+
+    for (let day = 0; day < 180; day += 1) {
+      game.save.lastSimulatedAt = now - DAY_MS;
+      expect(game.simulateElapsed(now)).toBe(1);
+      expectFullArenaPopulations(game);
+    }
   }, 30_000);
 
   test("restoring the same seeded day produces the same rankings and economy", () => {
