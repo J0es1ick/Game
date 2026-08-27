@@ -12,6 +12,9 @@ export interface DollEquipmentState {
   rarity: Rarity;
   setId?: string;
   visualClassId?: HeroClass;
+  relicTier?: number;
+  relicPath?: "might" | "guard" | "tempo";
+  appearanceVariant?: string;
 }
 
 type DollSlots = Partial<Record<EquipmentSlot, DollEquipmentState>>;
@@ -355,6 +358,18 @@ const itemPalettes = [
 ];
 
 const profiles: Record<string, VisualProfile> = {
+  "faction-wardens": {
+    palette: 46, chest: "plate", head: "helmet", shoulders: "layered",
+    motif: "cross", variant: 60, outerwear: "cape", collar: "high",
+  },
+  "faction-company": {
+    palette: 41, chest: "brigandine", head: "hood", shoulders: "asymmetric",
+    motif: "knot", variant: 61, outerwear: "longcoat", collar: "classic",
+  },
+  "faction-ledger": {
+    palette: 45, chest: "coat", head: "hat", shoulders: "guard",
+    motif: "clock", variant: 62, outerwear: "longcoat", collar: "ceremonial",
+  },
   wanderer: {
     palette: 0,
     chest: "coat",
@@ -1341,11 +1356,30 @@ function itemArtwork(
 ): string {
   const profile = profileFor(state);
   const tier = rarityTier[state.rarity];
-  if (slot === "chest") return chestFront(profile, tier, showChestCollar);
-  if (slot === "head") return headFront(profile, tier);
-  if (slot === "hands") return handsFront(profile, tier);
-  if (slot === "feet") return feetFront(profile, tier);
-  return weaponFront(profile, classId, tier, slot === "offhand");
+  const artwork = slot === "chest" ? chestFront(profile, tier, showChestCollar)
+    : slot === "head" ? headFront(profile, tier)
+      : slot === "hands" ? handsFront(profile, tier)
+        : slot === "feet" ? feetFront(profile, tier)
+          : weaponFront(profile, classId, tier, slot === "offhand");
+  return artwork + relicEngraving(slot, state, classId);
+}
+
+function relicEngraving(slot: EquipmentSlot, state: DollEquipmentState, classId: HeroClass): string {
+  const deed = state.appearanceVariant?.match(/(championship|lethal|survival|legend)-([1-3])$/);
+  const tier = Math.max(0, Math.min(3, Math.max(state.relicTier ?? 0, Number(deed?.[2] ?? 0))));
+  if (!tier) return "";
+  const anchors: Array<[number, number, number]> = slot === "chest" ? [[210, 245, 1]]
+    : slot === "head" ? [[210, 42, 0.5]]
+      : slot === "hands" ? [[112, 304, 0.6], [308, 304, 0.6]]
+        : slot === "feet" ? [[167, 452, 0.65], [253, 452, 0.65]]
+          : slot === "weapon" ? [[classId === "Archer" ? 51 : 65, classId === "Wizard" ? 111 : classId === "Archer" ? 322 : 230, 0.4]]
+            : [[classId === "Swordsman" || classId === "Gunsmith" ? 355 : 363, classId === "Wizard" ? 142 : 320, 0.45]];
+  const symbol = state.relicPath === "might" ? "M-7 5 L0-8 L7 5 M-4 0 H4"
+    : state.relicPath === "guard" ? "M-7-7 H7 V1 Q6 7 0 10 Q-6 7-7 1 Z"
+      : state.relicPath === "tempo" ? "M-7-5 H5 L-4 5 H8 M0-9 L7-5 L0-1"
+        : "M0-7 L6 0 L0 7 L-6 0 Z";
+  const deedMark = deed ? `<path d="${deed[1] === "championship" ? "M-5 21 L-5 16 L0 19 L5 16 V21 Z" : deed[1] === "lethal" ? "M0 15 Q-8 24 0 25 Q8 24 0 15 Z" : deed[1] === "survival" ? "M-5 20 H5 M0 15 V25" : "M0 14 L3 18 L7 20 L3 22 L0 26 L-3 22 L-7 20 L-3 18 Z"}"/>` : "";
+  return `<g class="relic-engraving" data-relic-tier="${tier}" fill="none" stroke="var(--item-accent, #ad9361)" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${anchors.map(([x, y, scale]) => `<g transform="translate(${x} ${y}) scale(${scale})"><path d="${symbol}"/>${tier >= 2 ? '<path d="M-12-11 V11 M12-11 V11"/>' : ""}${tier >= 3 ? '<path d="M-12-11 Q0-18 12-11 M-12 11 Q0 18 12 11"/>' : ""}${deedMark}</g>`).join("")}</g>`;
 }
 
 function escapeTitle(value: string): string {

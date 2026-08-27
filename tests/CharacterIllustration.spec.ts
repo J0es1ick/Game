@@ -61,6 +61,21 @@ function fittedSleevePaths(markup: string): string[] {
 }
 
 describe("2D character illustration contracts", () => {
+  it("renders faction rewards with distinct palettes and silhouettes", () => {
+    const variants = ["faction-wardens", "faction-company", "faction-ledger"].map((setId) => render({ chest: equipment("chest", setId, "legendary") }));
+    expect(new Set(variants).size).toBe(3);
+    expect(new Set(variants.map((markup) => markup.match(/--item-primary:(#[0-9a-f]{6})/i)?.[1])).size).toBe(3);
+  });
+  it("adds restrained legacy engravings without changing the base body", () => {
+    const chest = equipment("chest", "wanderer", "legendary");
+    const plain = render({ chest });
+    const awakened = render({ chest: { ...chest, relicTier: 3, relicPath: "guard", appearanceVariant: "guard-3-legend-2" } });
+    expect(plain).not.toContain('class="relic-engraving"');
+    expect(awakened).toContain('class="relic-engraving" data-relic-tier="3"');
+    expect(fittedSleevePaths(awakened)).toEqual(fittedSleevePaths(plain));
+    expect(render({ chest: { ...chest, relicTier: 1, relicPath: "might" } })).not.toEqual(render({ chest: { ...chest, relicTier: 1, relicPath: "tempo" } }));
+  });
+
   it("renders one SVG illustration and never falls back to a canvas or 3D viewer", () => {
     const markup = render({
       chest: equipment("chest", "wanderer"),
