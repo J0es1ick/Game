@@ -89,6 +89,109 @@
 .expedition-choice .button { width: 100%; }
 .expedition-path { margin: 16px 0 8px; color: var(--muted); font: 12px "Courier New", monospace; }
 
+.activity-controller {
+  display: grid;
+  gap: 3px;
+  margin: 12px 0 2px;
+  padding: 10px 11px;
+  border-left: 4px solid var(--faction-accent);
+  background: #dfd8c9;
+}
+
+.activity-controller small,
+.activity-controller span { color: #6d6557; font-size: 11px; line-height: 1.35; }
+.activity-controller strong { font-size: 14px; }
+
+.world-control-board { display: grid; gap: 18px; margin: 18px 0; padding: 22px; border-top: 5px solid #3d3a32; }
+.world-control-head { display: grid; grid-template-columns: minmax(260px, .7fr) minmax(320px, 1fr); gap: 28px; align-items: end; }
+.world-control-head h2 { margin: 5px 0 0; font-size: 28px; }
+.world-control-copy { margin: 0; color: var(--muted); line-height: 1.5; }
+.world-control-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.world-control-card { display: grid; gap: 6px; padding: 15px; border: 1px solid #a79d8a; border-top: 4px solid var(--faction-accent); background: #ece5d7; }
+.world-control-card > small { color: #716959; font: 10px/1.3 "Courier New", monospace; }
+.world-control-card > strong { font-size: 17px; }
+.world-control-card > p { min-height: 38px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.faction-influence-bars { display: grid; gap: 6px; margin-top: 6px; }
+.faction-influence-row { display: grid; grid-template-columns: minmax(0, 1fr) 70px 24px; gap: 7px; align-items: center; font-size: 10px; }
+.faction-influence-row > div { height: 5px; overflow: hidden; background: #c9c0af; }
+.faction-influence-row i { display: block; height: 100%; background: var(--influence-color); }
+.faction-influence-row b { text-align: right; }
+.faction-control-summary { padding: 9px 10px; border-left: 3px solid var(--faction-accent); background: #dfd8c9; font-size: 12px; }
+
+.shop-controller { display: grid; grid-template-columns: minmax(220px, .6fr) minmax(300px, 1fr) auto; gap: 24px; align-items: center; margin-bottom: 14px; padding: 17px 20px; border-left: 6px solid var(--faction-accent); }
+.shop-controller h2 { margin: 4px 0 0; font-size: 24px; }
+.shop-controller > p { margin: 0; color: var(--muted); line-height: 1.45; }
+.shop-price-index { padding: 9px 12px; border: 1px solid #9d927f; background: #ded6c7; white-space: nowrap; }
+
+.living-world-board { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+.living-world-section { min-width: 0; padding: 20px; border-top: 5px solid #5b6c60; }
+.living-world-section h2 { margin: 5px 0 14px; font-size: 27px; }
+.living-world-section h3 { margin: 0 0 9px; font-size: 18px; }
+.living-world-section.world-season,
+.living-world-section.world-territories,
+.living-world-section.world-careers,
+.living-world-section.future-bosses { grid-column: 1 / -1; }
+.living-world-section.world-season { border-top-color: #a57a39; }
+.living-world-section.world-territories { border-top-color: #44433b; }
+.living-world-section.future-bosses { border-top-color: #914c43; }
+.living-world-section.world-relics { grid-column: 1 / -1; border-top-color: #8a6845; }
+.world-season-heading { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, .6fr); gap: 24px; align-items: end; }
+.world-season-heading h2 { margin-bottom: 6px; }
+.world-season-heading p:last-child { max-width: 760px; margin: 0; color: var(--muted); line-height: 1.5; }
+.world-season-stats { display: grid; grid-template-columns: repeat(2, 1fr); border: 1px solid #aea38f; background: #dfd7c8; }
+.world-season-stats .stat-row { padding: 10px 12px; }
+.world-season-championships { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 17px; }
+.world-season-championships article { display: grid; gap: 3px; padding: 11px 12px; border-left: 4px solid #a57a39; background: #e5ddce; }
+.world-season-championships small { color: #716858; font: 10px/1.3 "Courier New", monospace; text-transform: uppercase; }
+.world-season-championships strong { font-size: 14px; }
+.world-season-championships span { color: var(--muted); font-size: 11px; }
+.world-season-history { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.world-season-history p { margin: 0; padding: 9px 11px; border: 1px solid #b5aa97; color: #655e52; font-size: 11px; line-height: 1.4; }
+.territory-ledger { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; max-height: 540px; overflow-y: auto; scrollbar-gutter: stable; }
+.territory-ledger article { display: grid; gap: 3px; min-width: 0; padding: 11px 12px; border-left: 4px solid var(--faction-accent); background: #e3dccd; }
+.territory-ledger small { color: #716858; font: 10px/1.3 "Courier New", monospace; }
+.territory-ledger strong { overflow-wrap: anywhere; font-size: 14px; }
+.territory-ledger span { color: var(--faction-accent); font-size: 12px; font-weight: 700; }
+.territory-ledger p { margin: 3px 0 0; color: var(--muted); font-size: 11px; line-height: 1.4; }
+.living-world-list { display: grid; gap: 7px; }
+.living-world-list article { display: grid; grid-template-columns: minmax(180px, .55fr) minmax(0, 1fr); gap: 14px; padding: 10px 11px; border-left: 4px solid var(--faction-accent); background: #e2dbcd; }
+.living-world-list article > div { display: grid; gap: 2px; }
+.living-world-list article small,
+.living-world-list article > span { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.living-world-story { align-content: start; }
+.living-world-detail { margin-top: 6px; border-top: 1px dotted #aaa08d; }
+.living-world-detail summary { padding-top: 7px; color: #735b3f; cursor: pointer; font-size: 11px; }
+.living-world-detail > div { display: grid; gap: 5px; padding: 7px 0 2px; }
+.living-world-detail p { margin: 0; color: #625b4f; font-size: 11px; line-height: 1.4; }
+.living-world-detail .living-world-history-line { padding-left: 8px; border-left: 2px solid #aaa08d; color: #766d5f; }
+.world-career-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.living-world-subsection { min-width: 0; padding: 14px; border: 1px solid #b0a590; background: #eee7da; }
+.world-dynasty-list,
+.future-boss-list { display: grid; gap: 7px; }
+.world-dynasty-list article,
+.future-boss-list article { display: grid; gap: 3px; padding: 10px 11px; border-left: 4px solid var(--faction-accent, #776e5f); background: #ded7c8; }
+.world-dynasty-list span,
+.world-dynasty-list small,
+.future-boss-list span,
+.future-boss-list small { color: var(--muted); font-size: 11px; line-height: 1.4; }
+.future-boss-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.future-boss-list article { --faction-accent: #8e5146; }
+.future-boss-list article.dormant { --faction-accent: #817765; }
+.future-boss-list article.defeated { --faction-accent: #5e705f; opacity: .76; }
+.future-boss-list article.faction-hunter { --faction-accent: #914c43; background: #e5d2c8; }
+.future-boss-list p { margin: 3px 0 0; color: #625b50; font-size: 12px; line-height: 1.4; }
+.future-boss-action { width: 100%; min-height: 38px; margin-top: 7px; }
+.world-relic-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.world-relic-entry { display: grid; gap: 4px; padding: 12px; border: 1px solid #a69a83; border-left: 5px solid #8a6845; background: #e8dfcf; }
+.world-relic-entry.lost { border-left-color: #6f6a61; }
+.world-relic-entry.shop { border-left-color: #a8813f; }
+.world-relic-entry small { color: #796344; font: 11px/1.35 "Courier New", monospace; }
+.world-relic-entry p { margin: 3px 0 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.world-relic-mark { margin: 0; padding: 7px 9px; border-left: 3px solid #8a6845; color: #735b39; background: #e8dcc5; font: 11px/1.35 "Courier New", monospace; }
+.rivalry-world-intent,
+.rivalry-last-activity { display: block; margin-top: 4px; color: #6b6254; font-size: 12px; }
+.fighter-world-badge { display: inline-flex; margin-left: 8px; padding: 2px 5px; border: 1px solid var(--faction-accent); color: #50493e; background: color-mix(in srgb, var(--faction-accent) 15%, #eee7da); font: 9px/1.2 "Courier New", monospace; vertical-align: middle; }
+
 .expedition-route-shell { display: grid; gap: 16px; }
 .expedition-route-map {
   display: grid;
@@ -146,7 +249,36 @@
 .expedition-shrine-option span { font: 11px/1.4 "Courier New", monospace; }
 .expedition-shrine-option span.positive { color: #47664f; }
 .expedition-shrine-option span.negative { color: #994c42; }
+.expedition-merchant-choice {
+  padding: 18px;
+  border: 1px solid #8d754d;
+  border-left: 5px solid #9a754b;
+  background: #e4d8c2;
+}
+.expedition-merchant-choice h4 { margin: 5px 0 7px; font-size: 22px; }
+.expedition-merchant-choice > p:not(.eyebrow) { margin: 0; color: var(--muted); }
+.expedition-merchant-choice > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin-top: 14px; }
+.expedition-merchant-option { display: grid; gap: 6px; min-height: 118px; padding: 14px; border: 1px solid #958772; text-align: left; background: #f0e8da; }
+.expedition-merchant-option:hover:not(:disabled) { color: #f4eddf; background: #4b4439; }
+.expedition-merchant-option strong { font-size: 16px; }
+.expedition-merchant-option p { margin: 0; color: inherit; font-size: 12px; line-height: 1.4; opacity: .78; }
+.expedition-merchant-option span { align-self: end; font: 11px/1.35 "Courier New", monospace; }
+.expedition-merchant-option.unavailable { cursor: not-allowed; opacity: .55; }
 .expedition-retreat { margin-top: 5px; }
+
+.battle-analysis { margin-top: 13px; padding: 11px; border: 1px solid #777061; background: #2d2923; }
+.battle-analysis-heading small { color: #c4b8a4; font: 10px/1.3 "Courier New", monospace; letter-spacing: .08em; }
+.battle-analysis-heading h4 { margin: 3px 0 0; color: #f0e7d5; font-size: 15px; }
+.battle-analysis .battle-analysis-summary { margin: 7px 0 9px; color: #c9c0ae; line-height: 1.45; }
+.battle-analysis-fighters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.battle-analysis-fighters article { display: grid; gap: 4px; padding: 9px 10px; border-left: 4px solid #879b83; background: #403a31; }
+.battle-analysis-fighters strong { color: #f1e8d6; font-size: 13px; }
+.battle-analysis-fighters span,
+.battle-analysis-fighters p,
+.battle-analysis-fighters small { color: #c9c0ae; font-size: 11px; line-height: 1.4; }
+.battle-analysis-fighters p { margin: 0; }
+.battle-analysis-highlights { display: grid; gap: 4px; margin: 9px 0 0; padding-left: 18px; color: #d8cdb8; font-size: 11px; line-height: 1.4; }
+.battle-analysis-adaptation { margin-top: 9px !important; padding: 8px 9px; border-left: 3px solid #bd6658; background: #493830; }
 
 .legacy-layout {
   display: grid;
@@ -634,12 +766,26 @@
   .expedition-choices,
   .faction-grid,
   .contract-grid { grid-template-columns: 1fr; }
+  .world-control-head,
+  .shop-controller,
+  .living-world-board { grid-template-columns: 1fr; }
+  .living-world-section.world-season,
+  .living-world-section.world-territories,
+  .living-world-section.world-careers,
+  .living-world-section.future-bosses { grid-column: 1; }
+  .world-season-heading,
+  .world-career-columns { grid-template-columns: 1fr; }
+  .world-season-championships,
+  .territory-ledger { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .world-control-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .living-world-section.world-relics { grid-column: 1; }
   .relic-ready-list { grid-column: 1; }
   .relic-salvage-list { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 620px) {
   .expedition-shrine-choice > div,
+  .expedition-merchant-choice > div,
   .loot-target-controls,
   .reforge-control-body,
   .crown-season-summary { grid-template-columns: 1fr; }
@@ -663,4 +809,73 @@
   .relic-ready-list article > div:last-child { justify-content: flex-start; }
   .contract-actions { grid-template-columns: 1fr; }
   .expedition-condition { grid-template-columns: 1fr; }
+  .world-control-grid,
+  .world-relic-list,
+  .world-season-championships,
+  .world-season-history,
+  .territory-ledger,
+  .future-boss-list,
+  .battle-analysis-fighters { grid-template-columns: 1fr; }
+  .living-world-list article { grid-template-columns: 1fr; }
+}
+.relic-gift-list {
+  margin-block: 2rem;
+  border-top: 1px solid var(--line, #aaa28f);
+  padding-top: 1.5rem;
+}
+
+.relic-gift-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) minmax(180px, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding-block: 1rem;
+  border-bottom: 1px solid var(--line, #aaa28f);
+}
+
+.relic-gift-row select {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+}
+
+.relic-gift-row .equipment-art { height: 76px; }
+.epoch-final-goal { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line, #aaa28f); }
+.epoch-final-goal p { font-size: 1rem; line-height: 1.5; }
+.goal-complete { color: #426343; }
+
+@media (max-width: 700px) {
+  .relic-gift-row { grid-template-columns: 54px minmax(0, 1fr); }
+  .relic-gift-row select { grid-column: 1 / -1; }
+  .relic-gift-row button { grid-column: 1 / -1; }
+}
+.faction-campaign {
+  display: grid;
+  gap: .75rem;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line, #aaa28f);
+}
+.faction-campaign h4, .faction-campaign p { margin: 0; font-size: 1rem; line-height: 1.5; }
+.faction-campaign button { white-space: normal; }
+.battle-equipment-resonance { margin-top: .6rem; font-size: .95rem; line-height: 1.4; overflow-wrap: anywhere; }
+
+.chronicle-scroll-list {
+  max-height: min(36rem, 65vh);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  padding-right: .6rem;
+  align-content: start;
+}
+
+.chronicle-scroll-list:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 4px;
+}
+
+.chronicle-scroll-list > article {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }

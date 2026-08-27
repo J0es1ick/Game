@@ -292,6 +292,7 @@
         <header class="page-heading"><div><p class="eyebrow">РЕПУТАЦИЯ И ЗАКАЗЫ МИРА</p><h1 id="contracts-title" data-term="factionReputation">Фракции и контракты</h1></div><p>Выберите, чьи интересы поддерживать. Контракты используют обычные активности мира и дают им конкретную цель.</p></header>
         <section class="active-contract paper-panel" id="active-contract"></section>
         <section class="reputation-guide paper-panel" id="reputation-guide" aria-labelledby="reputation-guide-title"></section>
+        <section class="world-control-board paper-panel" id="world-control-board" aria-labelledby="world-control-title"></section>
         <div class="faction-grid" id="faction-grid"></div>
         <header class="skill-section-heading"><div><p class="eyebrow">ДОСТУПНЫЕ ПОРУЧЕНИЯ</p><h2>Доска контрактов</h2></div><p>Подход «честь» повышает репутацию, «выгода» — денежную награду. Одновременно действует один контракт.</p></header>
         <div class="contract-grid" id="contract-grid"></div>
@@ -305,6 +306,7 @@
 
       <section class="page" id="page-shop" aria-labelledby="shop-title">
         <header class="page-heading"><div><p class="eyebrow">АССОРТИМЕНТ МЕНЯЕТСЯ РАЗ В ДВА ДНЯ</p><h1 id="shop-title">Лавка Ионы</h1></div><p id="shop-description">Торговец подбирает вещи под класс и текущий уровень героя.</p></header>
+        <section class="shop-controller paper-panel" id="shop-controller"></section>
         <div class="shopkeeper"><div class="shopkeeper-mark">И</div><blockquote>«Редкость не делает вещь полезной. Сначала реши, какой бой ты хочешь вести».</blockquote></div>
         <div class="item-grid shop-grid" id="shop-grid"></div>
       </section>
@@ -328,7 +330,8 @@
           <button id="chronicle-archive-tab" type="button" role="tab" data-chronicle-view="archive" aria-controls="epoch-history-view" aria-selected="false" tabindex="-1">Архив эпох <span id="epoch-count">0</span></button>
         </nav>
         <section class="chronicle-view" id="current-chronicle-view" role="tabpanel" aria-labelledby="chronicle-current-tab">
-          <div class="chronicle-layout"><div class="event-list" id="event-list"></div><aside class="world-rules"><h2>Как живёт мир</h2><ol><li>Бойцы сражаются только с противниками своей арены.</li><li>Победители получают опыт и снаряжение.</li><li>Для перехода выше нужны уровень и серия побед.</li><li>Погибший боец больше не создаётся повторно.</li><li>На каждой арене появляются новые бойцы её диапазона силы.</li></ol></aside></div>
+          <section class="living-world-board" id="living-world-board"></section>
+          <div class="chronicle-layout"><div class="event-list" id="event-list"></div><aside class="world-rules"><h2>Как живёт мир</h2><ol><li>У каждого бойца есть цель, деньги и ежедневное занятие.</li><li>Бойцы тренируются, ходят в данжи, покупают и закаляют вещи.</li><li>Победы усиливают фракции и меняют хозяев арен и лавки.</li><li>Ветераны могут стать наставниками, а элитная пятёрка — легендами.</li><li>Знаменитое оружие переживает владельца и возвращается в мировой оборот.</li><li>Погибший боец больше не создаётся повторно.</li></ol></aside></div>
         </section>
         <section class="chronicle-view epoch-history-view" id="epoch-history-view" hidden role="tabpanel" aria-labelledby="chronicle-archive-tab">
           <header class="epoch-history-heading">
