@@ -33,6 +33,15 @@ describe("deep world save validation", () => {
 
   test.each([
     {
+      name: "invalid equipment resonance",
+      path: "$.pendingBattle.session.hero.equipmentResonance",
+      corrupt: (save: GameSave) => {
+        save.pendingBattle!.session.hero.equipmentResonance = {
+          setId: "wanderer", setName: "Путь странника", path: "guard", stage: 1, pieces: 12, description: "Защита",
+        };
+      },
+    },
+    {
       name: "health beyond maximum",
       path: "$.pendingBattle.session.hero.health",
       corrupt: (save: GameSave) => { save.pendingBattle!.session.hero.health = save.pendingBattle!.session.hero.maxHealth + 1; },
@@ -120,5 +129,57 @@ describe("deep world save validation", () => {
     expedition.startExpedition(DUNGEONS[0].id);
     expedition.save.activeExpedition!.loot.push({ ...expedition.save.hero.inventory[0] });
     expectInvalidAt(copy(expedition.save), "$.items");
+  });
+
+  test("accepts routes with traps, merchants, persistent rivals and alternate bosses", () => {
+    const game = WorldGame.create("Route validator", "Monk", 91_007);
+    game.save.hero.level = 40;
+    game.save.hero.highestArena = ARENAS.length - 1;
+    game.save.worldDay = 100;
+    game.startExpedition(DUNGEONS[0].id);
+    const kinds = new Set(game.save.activeExpedition?.route?.nodes.map((node) => node.kind));
+
+    expect(kinds.has("trap")).toBe(true);
+    expect(kinds.has("merchant")).toBe(true);
+    expect(kinds.has("rival")).toBe(true);
+    expect(kinds.has("alternate-boss")).toBe(true);
+    expect(validateWorldSave(copy(game.save))).toEqual({ valid: true, issues: [] });
+  });
+
+  test("rejects corruption in persistent world systems", () => {
+    const base = copy(WorldGame.create("World validator", "Wizard", 91_008).save);
+
+    const discovery = copy(base);
+    discovery.dungeonDiscoveries = {
+      cellar: {
+        dungeonId: "other-dungeon",
+        completedRuns: 1,
+        discoveredNodeIds: [],
+        discoveredClueIds: [],
+        seenEncounterKinds: [],
+      },
+    };
+    expectInvalidAt(discovery, "$.dungeonDiscoveries.cellar.dungeonId");
+
+    const faction = copy(base);
+    faction.factionControl!.shopControllerId = "unknown-faction";
+    expectInvalidAt(faction, "$.factionControl.shopControllerId");
+
+    const season = copy(base);
+    (season.worldSeason as unknown as Record<string, unknown>).ruleId = "unknown-rule";
+    expectInvalidAt(season, "$.worldSeason.ruleId");
+
+    const npcLife = copy(base);
+    const fighterId = npcLife.enemies[0].id;
+    (npcLife.npcLife!.profiles[fighterId] as unknown as Record<string, unknown>).career = "unknown-career";
+    expectInvalidAt(npcLife, `$.npcLife.profiles.${fighterId}`);
+
+    const route = WorldGame.restore(copy(base));
+    route.save.hero.level = 40;
+    route.save.hero.highestArena = ARENAS.length - 1;
+    route.save.worldDay = 100;
+    route.startExpedition(DUNGEONS[0].id);
+    (route.save.activeExpedition!.route!.nodes[0] as unknown as Record<string, unknown>).kind = "unknown-node";
+    expectInvalidAt(copy(route.save), "$.activeExpedition.route.nodes[0].kind");
   });
 });

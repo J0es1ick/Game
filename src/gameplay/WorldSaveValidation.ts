@@ -5,6 +5,8 @@ import {
   HeroClass,
   Rarity,
 } from "./WorldTypes";
+import { FACTIONS } from "../catalogs/WorldExpansionCatalog";
+import { WORLD_SEASON_RULES } from "./WorldSeason";
 
 export interface WorldSaveValidationIssue {
   path: string;
@@ -21,8 +23,16 @@ const EQUIPMENT_SLOTS = new Set<EquipmentSlot>(["weapon", "offhand", "head", "ch
 const RARITIES = new Set<Rarity>(["common", "rare", "epic", "legendary", "mythic"]);
 const PENDING_BATTLE_KINDS = new Set([
   "dungeon", "expedition", "duel", "boss", "legacy-champion", "legend-hunt", "legend-defense",
-  "arena-tournament", "crown-league",
+  "arena-tournament", "crown-league", "world-encounter",
 ]);
+const DUNGEON_NODE_KINDS = new Set([
+  "battle", "elite", "cache", "camp", "shrine", "trap", "merchant", "rival", "boss", "alternate-boss",
+]);
+const NPC_CAREERS = new Set(["active", "legend", "mentor", "future-boss"]);
+const NPC_GOALS = new Set(["champion", "wealth", "relic", "vengeance", "elite"]);
+const NPC_ACTIVITIES = new Set(["training", "arena", "dungeon", "shopping", "forging", "rest"]);
+const WORLD_SEASON_RULE_IDS = new Set<string>(WORLD_SEASON_RULES.map((rule) => rule.id));
+const FACTION_IDS = new Set(FACTIONS.map((faction) => faction.id));
 const TACTICAL_STYLES = new Set(["balanced", "aggressive", "defensive", "control"]);
 const BATTLE_STATUS_IDS = new Set(["guarded", "marked", "arcane-surge", "burning", "bleeding", "staggered"]);
 const CLASS_RESOURCE_IDS = new Set(["resolve", "focus", "arcana", "chi", "heat", "edge"]);
@@ -98,6 +108,36 @@ function validateItem(value: unknown, path: string, issues: WorldSaveValidationI
   )) {
     issues.push({ path: `${path}.allowedClasses`, message: "Список разрешённых классов повреждён." });
   }
+  ["enhancement", "relicRenown", "relicTier"].forEach((field) => {
+    if (value[field] !== undefined && !isNonNegativeInteger(value[field])) {
+      issues.push({ path: `${path}.${field}`, message: "Прогресс предмета должен быть неотрицательным целым числом." });
+    }
+  });
+  if (isFiniteNumber(value.relicTier) && value.relicTier > 3) {
+    issues.push({ path: `${path}.relicTier`, message: "Ступень наследия не может быть выше третьей." });
+  }
+  if (value.relicPath !== undefined && !["might", "guard", "tempo"].includes(String(value.relicPath))) {
+    issues.push({ path: `${path}.relicPath`, message: "Путь развития предмета повреждён." });
+  }
+  ["relicHistory", "relicFeats"].forEach((field) => {
+    if (value[field] !== undefined) validateStringList(value[field], `${path}.${field}`, issues);
+  });
+  if (value.relicProperties !== undefined) {
+    if (!Array.isArray(value.relicProperties)) {
+      issues.push({ path: `${path}.relicProperties`, message: "Свойства реликвии повреждены." });
+    } else {
+      value.relicProperties.forEach((property, index) => {
+        const propertyPath = `${path}.relicProperties[${index}]`;
+        if (!isRecord(property)
+          || !isNonEmptyString(property.name)
+          || !isNonEmptyString(property.description)
+          || !["health", "attack", "defense", "speed", "crit"].includes(String(property.stat))
+          || !isFiniteNumber(property.value)) {
+          issues.push({ path: propertyPath, message: "Свойство реликвии повреждено." });
+        }
+      });
+    }
+  }
   return true;
 }
 
@@ -114,6 +154,257 @@ function validateCollection(
     return undefined;
   }
   return value;
+}
+
+function validateFiniteNumberRecord(value: unknown, path: string, issues: WorldSaveValidationIssue[]): boolean {
+  if (!isRecord(value) || !Object.values(value).every((entry) => isFiniteNumber(entry) && entry >= 0)) {
+    issues.push({ path, message: "Ожидался словарь неотрицательных чисел." });
+    return false;
+  }
+  return true;
+}
+
+function validateDungeonRoute(value: unknown, path: string, issues: WorldSaveValidationIssue[]): void {
+  if (!isRecord(value) || !Array.isArray(value.nodes) || !isNonEmptyString(value.bossNodeId)) {
+    issues.push({ path, message: "Маршрут похода повреждён." });
+    return;
+  }
+  if (!isNonEmptyString(value.dungeonId)) issues.push({ path: `${path}.dungeonId`, message: "Идентификатор данжа повреждён." });
+  validateStringList(value.entryNodeIds, `${path}.entryNodeIds`, issues, { unique: true });
+  const nodeIds = new Set<string>();
+  value.nodes.forEach((node, index) => {
+    const nodePath = `${path}.nodes[${index}]`;
+    if (!isRecord(node)) {
+      issues.push({ path: nodePath, message: "Узел маршрута повреждён." });
+      return;
+    }
+    if (!isNonEmptyString(node.id)) issues.push({ path: `${nodePath}.id`, message: "Идентификатор узла повреждён." });
+    else if (nodeIds.has(node.id)) issues.push({ path: `${nodePath}.id`, message: "Идентификатор узла повторяется." });
+    else nodeIds.add(node.id);
+    ["depth", "lane"].forEach((field) => {
+      if (!isNonNegativeInteger(node[field])) issues.push({ path: `${nodePath}.${field}`, message: "Координата узла повреждена." });
+    });
+    ["danger", "rewardMultiplier"].forEach((field) => {
+      if (!isFiniteNumber(node[field]) || node[field] < 0) issues.push({ path: `${nodePath}.${field}`, message: "Параметр узла повреждён." });
+    });
+    if (!DUNGEON_NODE_KINDS.has(String(node.kind))) {
+      issues.push({ path: `${nodePath}.kind`, message: "Неизвестный тип узла маршрута." });
+    }
+    validateStringList(node.connections, `${nodePath}.connections`, issues, { unique: true });
+    if (node.hidden !== undefined && typeof node.hidden !== "boolean") {
+      issues.push({ path: `${nodePath}.hidden`, message: "Признак скрытого узла повреждён." });
+    }
+    if (node.revealAfterRuns !== undefined && !isNonNegativeInteger(node.revealAfterRuns)) {
+      issues.push({ path: `${nodePath}.revealAfterRuns`, message: "Условие открытия узла повреждено." });
+    }
+    ["requiredClueId"].forEach((field) => {
+      if (node[field] !== undefined && !isNonEmptyString(node[field])) {
+        issues.push({ path: `${nodePath}.${field}`, message: "Идентификатор подсказки повреждён." });
+      }
+    });
+    if (node.revealsClueIds !== undefined) validateStringList(node.revealsClueIds, `${nodePath}.revealsClueIds`, issues, { unique: true });
+    if (node.event !== undefined) {
+      if (!isRecord(node.event) || !isNonEmptyString(node.event.type)) {
+        issues.push({ path: `${nodePath}.event`, message: "Событие узла повреждено." });
+      } else if (node.event.type === "trap") {
+        if (!isFiniteNumber(node.event.staminaLoss) || node.event.staminaLoss < 0
+          || !isFiniteNumber(node.event.goldLossPercent) || node.event.goldLossPercent < 0) {
+          issues.push({ path: `${nodePath}.event`, message: "Параметры ловушки повреждены." });
+        }
+      } else if (node.event.type === "merchant") {
+        const merchant = node.event;
+        ["priceMultiplier", "healingPrice", "staminaRestored"].forEach((field) => {
+          if (!isFiniteNumber(merchant[field]) || (merchant[field] as number) < 0) {
+            issues.push({ path: `${nodePath}.event.${field}`, message: "Параметр торговца повреждён." });
+          }
+        });
+      } else if (node.event.type === "rival") {
+        if (!isNonEmptyString(node.event.encounterKey)) {
+          issues.push({ path: `${nodePath}.event.encounterKey`, message: "Ключ встречи с соперником повреждён." });
+        }
+      } else if (node.event.type === "boss") {
+        if (!new Set(["guardian", "hidden"]).has(String(node.event.variant))) {
+          issues.push({ path: `${nodePath}.event.variant`, message: "Вариант хранителя повреждён." });
+        }
+      } else {
+        issues.push({ path: `${nodePath}.event.type`, message: "Неизвестный тип события узла." });
+      }
+    }
+  });
+  if (!nodeIds.has(value.bossNodeId as string)) issues.push({ path: `${path}.bossNodeId`, message: "Главный хранитель отсутствует в маршруте." });
+  if (value.alternateBossNodeId !== undefined && (!isNonEmptyString(value.alternateBossNodeId)
+    || !nodeIds.has(value.alternateBossNodeId))) {
+    issues.push({ path: `${path}.alternateBossNodeId`, message: "Скрытый хранитель отсутствует в маршруте." });
+  }
+  value.nodes.filter(isRecord).forEach((node, index) => {
+    if (Array.isArray(node.connections) && node.connections.some((id) => !nodeIds.has(id))) {
+      issues.push({ path: `${path}.nodes[${index}].connections`, message: "Переход ссылается на неизвестный узел." });
+    }
+  });
+}
+
+function validateDungeonDiscovery(value: unknown, path: string, dungeonId: string, issues: WorldSaveValidationIssue[]): void {
+  if (!isRecord(value)) {
+    issues.push({ path, message: "История исследования данжа повреждена." });
+    return;
+  }
+  if (value.dungeonId !== undefined && value.dungeonId !== dungeonId) issues.push({ path: `${path}.dungeonId`, message: "История относится к другому данжу." });
+  if (value.completedRuns !== undefined && !isNonNegativeInteger(value.completedRuns)) issues.push({ path: `${path}.completedRuns`, message: "Число походов повреждено." });
+  ["discoveredNodeIds", "discoveredClueIds"].forEach((field) => {
+    if (value[field] !== undefined) validateStringList(value[field], `${path}.${field}`, issues, { unique: true });
+  });
+  if (value.seenEncounterKinds !== undefined && (!Array.isArray(value.seenEncounterKinds)
+    || !value.seenEncounterKinds.every((kind) => DUNGEON_NODE_KINDS.has(String(kind))))) {
+    issues.push({ path: `${path}.seenEncounterKinds`, message: "История типов встреч повреждена." });
+  }
+  if (value.alternateBossDefeated !== undefined && typeof value.alternateBossDefeated !== "boolean") {
+    issues.push({ path: `${path}.alternateBossDefeated`, message: "Признак победы над скрытым хранителем повреждён." });
+  }
+}
+
+function validateFactionControl(value: unknown, path: string, issues: WorldSaveValidationIssue[]): void {
+  if (!isRecord(value)) {
+    issues.push({ path, message: "Состояние влияния фракций повреждено." });
+    return;
+  }
+  ["arenaControllers", "dungeonControllers"].forEach((field) => {
+    if (value[field] === undefined && field === "dungeonControllers") return;
+    if (!isRecord(value[field]) || !Object.values(value[field] as Record<string, unknown>).every((id) => FACTION_IDS.has(String(id)))) {
+      issues.push({ path: `${path}.${field}`, message: "Контролирующая фракция повреждена." });
+    }
+  });
+  ["arenaInfluence", "dungeonInfluence"].forEach((field) => {
+    if (value[field] === undefined && field === "dungeonInfluence") return;
+    if (!isRecord(value[field])) {
+      issues.push({ path: `${path}.${field}`, message: "Влияние фракций повреждено." });
+      return;
+    }
+    Object.entries(value[field] as Record<string, unknown>).forEach(([id, influence]) => {
+      validateFiniteNumberRecord(influence, `${path}.${field}.${id}`, issues);
+    });
+  });
+  if (!FACTION_IDS.has(String(value.shopControllerId))) issues.push({ path: `${path}.shopControllerId`, message: "Хозяин лавки повреждён." });
+  if (!isFiniteNumber(value.lastShiftDay) || value.lastShiftDay < 1) issues.push({ path: `${path}.lastShiftDay`, message: "День смены контроля повреждён." });
+  if (value.shopOwnerMentorId !== undefined && !isNonEmptyString(value.shopOwnerMentorId)) {
+    issues.push({ path: `${path}.shopOwnerMentorId`, message: "Владелец лавки повреждён." });
+  }
+  if (value.shopPriceRevision !== undefined && !isNonNegativeInteger(value.shopPriceRevision)) {
+    issues.push({ path: `${path}.shopPriceRevision`, message: "Версия цен лавки повреждена." });
+  }
+  if (value.relations !== undefined) {
+    if (!isRecord(value.relations)) issues.push({ path: `${path}.relations`, message: "Отношения фракций повреждены." });
+    else Object.entries(value.relations).forEach(([factionId, relations]) => {
+      if (!FACTION_IDS.has(factionId) || !isRecord(relations) || !Object.values(relations).every(isFiniteNumber)) {
+        issues.push({ path: `${path}.relations.${factionId}`, message: "Отношения фракции повреждены." });
+      }
+    });
+  }
+}
+
+function validateWorldRelics(value: unknown, path: string, issues: WorldSaveValidationIssue[]): void {
+  if (!Array.isArray(value)) {
+    issues.push({ path, message: "Летопись мировых реликвий повреждена." });
+    return;
+  }
+  const ids = new Set<string>();
+  value.forEach((record, index) => {
+    const recordPath = `${path}[${index}]`;
+    if (!isRecord(record)) {
+      issues.push({ path: recordPath, message: "Запись о реликвии повреждена." });
+      return;
+    }
+    if (!isNonEmptyString(record.id) || ids.has(record.id)) issues.push({ path: `${recordPath}.id`, message: "Идентификатор реликвии повреждён или повторяется." });
+    else ids.add(record.id);
+    validateItem(record.item, `${recordPath}.item`, issues);
+    if (!isFiniteNumber(record.createdDay) || record.createdDay < 1) issues.push({ path: `${recordPath}.createdDay`, message: "День создания реликвии повреждён." });
+    if (!["wielded", "lost", "shop"].includes(String(record.status))) issues.push({ path: `${recordPath}.status`, message: "Состояние реликвии повреждено." });
+    validateStringList(record.formerOwners, `${recordPath}.formerOwners`, issues);
+    validateStringList(record.history, `${recordPath}.history`, issues);
+    if (record.lastSyncedDay !== undefined && (!isFiniteNumber(record.lastSyncedDay) || record.lastSyncedDay < 1)) {
+      issues.push({ path: `${recordPath}.lastSyncedDay`, message: "Дата синхронизации реликвии повреждена." });
+    }
+  });
+}
+
+function validateNpcLife(value: unknown, path: string, issues: WorldSaveValidationIssue[]): void {
+  if (!isRecord(value)) {
+    issues.push({ path, message: "Жизненный цикл бойцов повреждён." });
+    return;
+  }
+  ["season", "seasonStartedDay"].forEach((field) => {
+    if (!isFiniteNumber(value[field]) || value[field] < 1) issues.push({ path: `${path}.${field}`, message: "Номер сезона повреждён." });
+  });
+  if (!isRecord(value.profiles)) issues.push({ path: `${path}.profiles`, message: "Профили бойцов повреждены." });
+  else Object.entries(value.profiles).forEach(([fighterId, profile]) => {
+    const profilePath = `${path}.profiles.${fighterId}`;
+    if (!isRecord(profile) || profile.fighterId !== fighterId || !NPC_CAREERS.has(String(profile.career))) {
+      issues.push({ path: profilePath, message: "Профиль бойца повреждён." });
+    }
+  });
+  if (!Array.isArray(value.dynasties)) issues.push({ path: `${path}.dynasties`, message: "Список династий повреждён." });
+  else value.dynasties.forEach((dynasty, index) => {
+    if (!isRecord(dynasty) || !isNonEmptyString(dynasty.id) || !isNonEmptyString(dynasty.founderId)
+      || !Array.isArray(dynasty.memberIds) || !dynasty.memberIds.every(isNonEmptyString)) {
+      issues.push({ path: `${path}.dynasties[${index}]`, message: "Запись о династии повреждена." });
+    }
+  });
+  if (!Array.isArray(value.futureBosses)) issues.push({ path: `${path}.futureBosses`, message: "Список будущих боссов повреждён." });
+  else value.futureBosses.forEach((boss, index) => {
+    if (!isRecord(boss) || !isNonEmptyString(boss.id) || !isNonEmptyString(boss.fighterId)
+      || !["dormant", "available", "defeated"].includes(String(boss.status))) {
+      issues.push({ path: `${path}.futureBosses[${index}]`, message: "Запись о будущем боссе повреждена." });
+    }
+  });
+}
+
+function validateWorldSeason(value: unknown, path: string, issues: WorldSaveValidationIssue[]): void {
+  if (!isRecord(value)) {
+    issues.push({ path, message: "Сезон мира повреждён." });
+    return;
+  }
+  ["number", "startsDay", "endsDay"].forEach((field) => {
+    if (value[field] !== undefined && (!isFiniteNumber(value[field]) || value[field] < 1)) issues.push({ path: `${path}.${field}`, message: "Граница сезона повреждена." });
+  });
+  if (value.ruleId !== undefined && !WORLD_SEASON_RULE_IDS.has(String(value.ruleId))) issues.push({ path: `${path}.ruleId`, message: "Правило сезона неизвестно." });
+  if (value.arenaPoints !== undefined && !isRecord(value.arenaPoints)) issues.push({ path: `${path}.arenaPoints`, message: "Таблица арен сезона повреждена." });
+  else if (isRecord(value.arenaPoints)) Object.entries(value.arenaPoints).forEach(([arenaId, points]) => validateFiniteNumberRecord(points, `${path}.arenaPoints.${arenaId}`, issues));
+  if (value.elitePoints !== undefined) validateFiniteNumberRecord(value.elitePoints, `${path}.elitePoints`, issues);
+}
+
+function validateWorldSeasonHistory(value: unknown, path: string, issues: WorldSaveValidationIssue[]): void {
+  if (!Array.isArray(value)) {
+    issues.push({ path, message: "История сезонов мира повреждена." });
+    return;
+  }
+  value.forEach((season, index) => {
+    const seasonPath = `${path}[${index}]`;
+    if (!isRecord(season)) {
+      issues.push({ path: seasonPath, message: "Итог сезона повреждён." });
+      return;
+    }
+    ["number", "startsDay", "endsDay"].forEach((field) => {
+      if (season[field] !== undefined && (!isFiniteNumber(season[field]) || season[field] < 1)) issues.push({ path: `${seasonPath}.${field}`, message: "Граница сезона повреждена." });
+    });
+    if (season.ruleId !== undefined && !WORLD_SEASON_RULE_IDS.has(String(season.ruleId))) issues.push({ path: `${seasonPath}.ruleId`, message: "Правило сезона неизвестно." });
+    ["promotedIds", "demotedIds", "retiredIds", "mentorIds", "newcomerIds"].forEach((field) => {
+      if (season[field] !== undefined) validateStringList(season[field], `${seasonPath}.${field}`, issues, { unique: true });
+    });
+    if (season.champions !== undefined && !Array.isArray(season.champions)) issues.push({ path: `${seasonPath}.champions`, message: "Чемпионы сезона повреждены." });
+    else if (Array.isArray(season.champions)) season.champions.forEach((champion, championIndex) => {
+      if (!isRecord(champion) || !isNonEmptyString(champion.fighterId) || !isNonEmptyString(champion.fighterName)
+        || !isNonEmptyString(champion.arenaId) || !isNonNegativeInteger(champion.points)
+        || !isFiniteNumber(champion.place) || champion.place < 1) {
+        issues.push({ path: `${seasonPath}.champions[${championIndex}]`, message: "Запись о чемпионе сезона повреждена." });
+      }
+    });
+    if (season.eliteChampion !== undefined) {
+      const champion = season.eliteChampion;
+      if (!isRecord(champion) || !isNonEmptyString(champion.fighterId) || !isNonEmptyString(champion.fighterName)
+        || champion.arenaId !== "elite" || !isNonNegativeInteger(champion.points) || champion.place !== 1) {
+        issues.push({ path: `${seasonPath}.eliteChampion`, message: "Запись о чемпионе элиты повреждена." });
+      }
+    }
+  });
 }
 
 function validateCombatantSnapshot(
@@ -164,6 +455,16 @@ function validateCombatantSnapshot(
       issues.push({ path: `${path}.setCounts`, message: "Счётчики комплектов повреждены." });
     }
   }
+  if (value.equipmentResonance !== undefined) {
+    const resonance = value.equipmentResonance;
+    if (!isRecord(resonance) || !isNonEmptyString(resonance.setId) || !isNonEmptyString(resonance.setName)
+      || !["might", "guard", "tempo"].includes(String(resonance.path))
+      || !isNonNegativeInteger(resonance.stage) || ![1, 2, 3].includes(resonance.stage)
+      || !isNonNegativeInteger(resonance.pieces) || resonance.pieces < 1 || resonance.pieces > 6
+      || typeof resonance.description !== "string") {
+      issues.push({ path: `${path}.equipmentResonance`, message: "Резонанс снаряжения повреждён." });
+    }
+  }
   if (value.mutationId !== undefined && !isNonEmptyString(value.mutationId)) {
     issues.push({ path: `${path}.mutationId`, message: "Идентификатор мутации повреждён." });
   }
@@ -180,9 +481,9 @@ function validateBattleRuntime(
   issues: WorldSaveValidationIssue[],
 ): value is Record<string, unknown> {
   if (!validateCombatantSnapshot(value, path, issues)) return false;
-  if (!isRecord(value.cooldowns)) {
+  if (value.cooldowns !== undefined && !isRecord(value.cooldowns)) {
     issues.push({ path: `${path}.cooldowns`, message: "Перезарядки навыков отсутствуют." });
-  } else {
+  } else if (isRecord(value.cooldowns)) {
     Object.entries(value.cooldowns).forEach(([skillId, cooldown]) => {
       if (!isNonEmptyString(skillId) || !isNonNegativeInteger(cooldown)) {
         issues.push({ path: `${path}.cooldowns.${skillId}`, message: "Перезарядка должна быть неотрицательным целым числом." });
@@ -193,18 +494,18 @@ function validateBattleRuntime(
     });
   }
   ["buff", "weakened"].forEach((field) => {
-    if (!isFiniteNumber(value[field]) || (value[field] as number) < 0) {
+    if (value[field] !== undefined && (!isFiniteNumber(value[field]) || (value[field] as number) < 0)) {
       issues.push({ path: `${path}.${field}`, message: "Эффект должен быть конечным неотрицательным числом." });
     }
   });
-  ["attackCounter", "combo"].forEach((field) => {
-    if (!isNonNegativeInteger(value[field])) {
+  ["attackCounter", "actionsTaken", "combo"].forEach((field) => {
+    if (value[field] !== undefined && !isNonNegativeInteger(value[field])) {
       issues.push({ path: `${path}.${field}`, message: "Счётчик должен быть неотрицательным целым числом." });
     }
   });
-  if (!isRecord(value.tactics)) {
+  if (value.tactics !== undefined && !isRecord(value.tactics)) {
     issues.push({ path: `${path}.tactics`, message: "Тактический профиль отсутствует." });
-  } else {
+  } else if (isRecord(value.tactics)) {
     const tactics = value.tactics;
     ["id", "name"].forEach((field) => {
       if (!isNonEmptyString(tactics[field])) {
@@ -229,12 +530,12 @@ function validateBattleRuntime(
       issues.push({ path: `${path}.tactics.style`, message: "Тактика не совпадает со стилем снимка бойца." });
     }
   }
-  if (typeof value.disableHealing !== "boolean") {
+  if (value.disableHealing !== undefined && typeof value.disableHealing !== "boolean") {
     issues.push({ path: `${path}.disableHealing`, message: "Флаг запрета лечения повреждён." });
   }
-  if (!Array.isArray(value.statuses)) {
+  if (value.statuses !== undefined && !Array.isArray(value.statuses)) {
     issues.push({ path: `${path}.statuses`, message: "Состояния бойца отсутствуют." });
-  } else {
+  } else if (Array.isArray(value.statuses)) {
     value.statuses.forEach((status, index) => {
       const statusPath = `${path}.statuses[${index}]`;
       if (!isRecord(status)) {
@@ -258,9 +559,9 @@ function validateBattleRuntime(
       }
     });
   }
-  if (!isRecord(value.resource)) {
+  if (value.resource !== undefined && !isRecord(value.resource)) {
     issues.push({ path: `${path}.resource`, message: "Классовый ресурс отсутствует." });
-  } else {
+  } else if (isRecord(value.resource)) {
     if (!CLASS_RESOURCE_IDS.has(String(value.resource.id))) {
       issues.push({ path: `${path}.resource.id`, message: "Неизвестный классовый ресурс." });
     }
@@ -279,10 +580,10 @@ function validateBattleRuntime(
       issues.push({ path: `${path}.resource.current`, message: "Текущее значение классового ресурса выходит за допустимые границы." });
     }
   }
-  if (!isFiniteNumber(value.nextActionAt) || value.nextActionAt < 0) {
+  if (value.nextActionAt !== undefined && (!isFiniteNumber(value.nextActionAt) || value.nextActionAt < 0)) {
     issues.push({ path: `${path}.nextActionAt`, message: "Инициатива следующего действия повреждена." });
   }
-  validateStringList(value.usedMechanics, `${path}.usedMechanics`, issues, { unique: true });
+  if (value.usedMechanics !== undefined) validateStringList(value.usedMechanics, `${path}.usedMechanics`, issues, { unique: true });
   if (value.memoryRead !== undefined) {
     if (!isRecord(value.memoryRead)) {
       issues.push({ path: `${path}.memoryRead`, message: "Снимок памяти противника повреждён." });
@@ -303,9 +604,9 @@ function validateBattleRuntime(
       }
     }
   }
-    if (!isRecord(value.mutationState)) {
+  if (value.mutationState !== undefined && !isRecord(value.mutationState)) {
     issues.push({ path: `${path}.mutationState`, message: "Состояние мутации отсутствует." });
-  } else {
+  } else if (isRecord(value.mutationState)) {
     const mutationState = value.mutationState;
     if (!isNonNegativeInteger(value.mutationState.counter)) {
       issues.push({ path: `${path}.mutationState.counter`, message: "Счётчик мутации повреждён." });
@@ -728,6 +1029,12 @@ export function validateWorldSave(value: unknown): WorldSaveValidationResult {
           issues.push({ path: `${path}.${field}`, message: "Ожидалось конечное число." });
         }
       });
+      ([ ["duelWins", "wins"], ["duelLosses", "losses"] ] as const).forEach(([field, total]) => {
+        if (candidate[field] !== undefined && (!isNonNegativeInteger(candidate[field])
+          || !isFiniteNumber(candidate[total]) || candidate[field] > candidate[total])) {
+          issues.push({ path: `${path}.${field}`, message: "Число дуэлей выходит за пределы общего счётчика боёв." });
+        }
+      });
       if (candidate.arenaTournamentWins !== undefined && !(
         Array.isArray(candidate.arenaTournamentWins)
         && candidate.arenaTournamentWins.every(isFiniteNumber)
@@ -751,6 +1058,24 @@ export function validateWorldSave(value: unknown): WorldSaveValidationResult {
         });
       }
       if (!Array.isArray(candidate.history)) issues.push({ path: `${path}.history`, message: "История бойца повреждена." });
+      if (candidate.goal !== undefined && !NPC_GOALS.has(String(candidate.goal))) {
+        issues.push({ path: `${path}.goal`, message: "Цель бойца повреждена." });
+      }
+      if (candidate.lastActivity !== undefined && (!isRecord(candidate.lastActivity)
+        || !NPC_ACTIVITIES.has(String(candidate.lastActivity.activity))
+        || !isFiniteNumber(candidate.lastActivity.day))) {
+        issues.push({ path: `${path}.lastActivity`, message: "Последнее действие бойца повреждено." });
+      }
+      if (candidate.relationships !== undefined) {
+        if (!isRecord(candidate.relationships)) issues.push({ path: `${path}.relationships`, message: "Связи бойца повреждены." });
+        else Object.entries(candidate.relationships).forEach(([fighterId, relationship]) => {
+          if (!isRecord(relationship) || relationship.fighterId !== fighterId
+            || !["rival", "ally", "mentor"].includes(String(relationship.kind))
+            || !isFiniteNumber(relationship.intensity)) {
+            issues.push({ path: `${path}.relationships.${fighterId}`, message: "Связь бойца повреждена." });
+          }
+        });
+      }
     });
   }
 
@@ -830,6 +1155,48 @@ export function validateWorldSave(value: unknown): WorldSaveValidationResult {
       });
     }
   }
+  if (value.factionControl !== undefined) validateFactionControl(value.factionControl, "$.factionControl", issues);
+  if (value.factionCampaigns !== undefined) {
+    if (!isRecord(value.factionCampaigns)) issues.push({ path: "$.factionCampaigns", message: "Фракционные поручения повреждены." });
+    else Object.entries(value.factionCampaigns).forEach(([id, campaign]) => {
+      if (!["wardens", "free-company", "red-ledger"].includes(id) || !isRecord(campaign)
+        || !isNonNegativeInteger(campaign.stage) || campaign.stage > 3
+        || !isNonNegativeInteger(campaign.progress) || campaign.progress > 4
+        || !Array.isArray(campaign.claimedStageIds)
+        || campaign.claimedStageIds.length !== campaign.stage
+        || campaign.claimedStageIds.some((stageId, index) => stageId !== `${id}-campaign-${index + 1}`)) {
+        issues.push({ path: `$.factionCampaigns.${id}`, message: "Прогресс фракционного поручения повреждён." });
+      }
+    });
+  }
+  if (value.mentors !== undefined) {
+    if (!Array.isArray(value.mentors)) issues.push({ path: "$.mentors", message: "Список наставников повреждён." });
+    else value.mentors.forEach((mentor, index) => {
+      const path = `$.mentors[${index}]`;
+      if (!isRecord(mentor) || !isNonEmptyString(mentor.id) || !isNonEmptyString(mentor.fighterId)
+        || !HERO_CLASSES.has(mentor.classId as HeroClass) || !NPC_GOALS.has(String(mentor.goal))
+        || !Array.isArray(mentor.studentIds) || !mentor.studentIds.every(isNonEmptyString)) {
+        issues.push({ path, message: "Запись о наставнике повреждена." });
+      }
+      if (isRecord(mentor) && mentor.role !== undefined
+        && !["mentor", "shop-owner", "faction-founder"].includes(String(mentor.role))) {
+        issues.push({ path: `${path}.role`, message: "Роль наставника повреждена." });
+      }
+    });
+  }
+  if (value.worldRelics !== undefined) validateWorldRelics(value.worldRelics, "$.worldRelics", issues);
+  if (value.npcLife !== undefined) validateNpcLife(value.npcLife, "$.npcLife", issues);
+  if (value.worldSeason !== undefined) validateWorldSeason(value.worldSeason, "$.worldSeason", issues);
+  if (value.worldSeasonHistory !== undefined) validateWorldSeasonHistory(value.worldSeasonHistory, "$.worldSeasonHistory", issues);
+  if (value.dungeonDiscoveries !== undefined) {
+    if (!isRecord(value.dungeonDiscoveries)) {
+      issues.push({ path: "$.dungeonDiscoveries", message: "История исследования данжей повреждена." });
+    } else {
+      Object.entries(value.dungeonDiscoveries).forEach(([dungeonId, discovery]) => {
+        validateDungeonDiscovery(discovery, `$.dungeonDiscoveries.${dungeonId}`, dungeonId, issues);
+      });
+    }
+  }
   if (value.lastCrownSeasonResult !== undefined) {
     if (!isRecord(value.lastCrownSeasonResult)) {
       issues.push({ path: "$.lastCrownSeasonResult", message: "Итог сезона Лиги короны повреждён." });
@@ -884,7 +1251,9 @@ export function validateWorldSave(value: unknown): WorldSaveValidationResult {
       }
     }
   }
-  if (value.pendingBattle !== undefined) validatePendingBattle(value.pendingBattle, issues);
+  const pendingBattleMigrationApplied = Array.isArray(value.migrations)
+    && value.migrations.includes("pending-battle-state-v1");
+  if (value.pendingBattle !== undefined && pendingBattleMigrationApplied) validatePendingBattle(value.pendingBattle, issues);
   if (value.activeExpedition !== undefined) {
     if (!isRecord(value.activeExpedition)) {
       issues.push({ path: "$.activeExpedition", message: "Активный поход повреждён." });
@@ -906,6 +1275,23 @@ export function validateWorldSave(value: unknown): WorldSaveValidationResult {
           issues.push({ path: `$.activeExpedition.${field}`, message: "Ожидался список строк." });
         }
       });
+      ["discoveredNodeIds", "encounteredFighterIds"].forEach((field) => {
+        if (expedition[field] !== undefined) validateStringList(expedition[field], `$.activeExpedition.${field}`, issues, { unique: true });
+      });
+      ["maxSupplies", "supplies", "daysSpent"].forEach((field) => {
+        if (expedition[field] !== undefined && !isNonNegativeInteger(expedition[field])) {
+          issues.push({ path: `$.activeExpedition.${field}`, message: "Параметр похода должен быть неотрицательным целым числом." });
+        }
+      });
+      if (isFiniteNumber(expedition.supplies) && isFiniteNumber(expedition.maxSupplies)
+        && expedition.supplies > expedition.maxSupplies) {
+        issues.push({ path: "$.activeExpedition.supplies", message: "Запас сил не может превышать максимум." });
+      }
+      ["currentNodeId", "pendingShrineNodeId", "pendingMerchantNodeId"].forEach((field) => {
+        if (expedition[field] !== undefined && !isNonEmptyString(expedition[field])) {
+          issues.push({ path: `$.activeExpedition.${field}`, message: "Идентификатор узла повреждён." });
+        }
+      });
       if (Array.isArray(expedition.loot)) {
         expedition.loot.forEach((item, index) => {
           validateItem(item, `$.activeExpedition.loot[${index}]`, issues);
@@ -913,19 +1299,7 @@ export function validateWorldSave(value: unknown): WorldSaveValidationResult {
         });
       }
       if (expedition.route !== undefined) {
-        const route = expedition.route;
-        if (!isRecord(route) || !Array.isArray(route.nodes) || typeof route.bossNodeId !== "string") {
-          issues.push({ path: "$.activeExpedition.route", message: "Маршрут похода повреждён." });
-        } else {
-          route.nodes.forEach((node, index) => {
-            if (!isRecord(node) || typeof node.id !== "string" || !isFiniteNumber(node.depth)
-              || !Array.isArray(node.connections) || !node.connections.every((id) => typeof id === "string")) {
-              issues.push({ path: `$.activeExpedition.route.nodes[${index}]`, message: "Узел маршрута повреждён." });
-            } else if (!["battle", "elite", "cache", "camp", "shrine", "boss"].includes(String(node.kind))) {
-              issues.push({ path: `$.activeExpedition.route.nodes[${index}].kind`, message: "Неизвестный тип узла маршрута." });
-            }
-          });
-        }
+        validateDungeonRoute(expedition.route, "$.activeExpedition.route", issues);
       }
     }
   }
@@ -934,7 +1308,7 @@ export function validateWorldSave(value: unknown): WorldSaveValidationResult {
       if (!isRecord(offer)) issues.push({ path: `$.shopOffers[${index}]`, message: "Предложение лавки повреждено." });
       else {
         validateItem(offer.item, `$.shopOffers[${index}].item`, issues);
-        if (isRecord(offer.item) && typeof offer.item.id === "string") itemIds.push(offer.item.id);
+        if (offer.sold !== true && isRecord(offer.item) && typeof offer.item.id === "string") itemIds.push(offer.item.id);
       }
     });
   }
@@ -957,6 +1331,10 @@ export function validateWorldSave(value: unknown): WorldSaveValidationResult {
       if (new Set(eliteIds).size !== eliteIds.length) {
         issues.push({ path: "$.eliteLeagueMemberIds", message: "В элитной лиге есть повторяющиеся бойцы." });
       }
+    }
+    if (value.pendingFactionHunterId !== undefined
+      && (!isNonEmptyString(value.pendingFactionHunterId) || !enemyIds.includes(value.pendingFactionHunterId))) {
+      issues.push({ path: "$.pendingFactionHunterId", message: "Охотник фракции отсутствует среди бойцов мира." });
     }
   }
 

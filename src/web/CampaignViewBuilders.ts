@@ -1,6 +1,7 @@
 import { FACTIONS, TOURNAMENT_RULES } from "../catalogs/WorldExpansionCatalog";
 import type { CrownSeasonState } from "../gameplay/CrownSeason";
-import type { DungeonRouteNode } from "../gameplay/DungeonRoute";
+import { visibleDungeonNodes } from "../gameplay/DungeonRoute";
+import type { DungeonDiscoveryState, DungeonRoute, DungeonRouteNode } from "../gameplay/DungeonRoute";
 import type { EraChallenge, EraObjectiveProgress } from "../gameplay/EraChallenges";
 import type { NarrativeEffect } from "../gameplay/NarrativeEvents";
 import { normalizeExpeditionStamina } from "../gameplay/ExpeditionStamina";
@@ -114,28 +115,49 @@ export interface ExpeditionRouteViewData {
   expedition: DungeonExpedition;
   reachableIds: ReadonlySet<string>;
   onAdvance: (nodeId: string) => void;
+  route?: DungeonRoute;
+  discovery?: DungeonDiscoveryState;
 }
 
 export function createExpeditionRouteView(data: ExpeditionRouteViewData): HTMLElement {
   const visited = new Set(data.expedition.visitedNodeIds ?? []);
   const route = element("div", "expedition-route-map");
   route.setAttribute("aria-label", "Маршрут экспедиции");
-  const depths = [...new Set(data.nodes.map((node) => node.depth))].sort((a, b) => a - b);
+  const visibleNodes = data.route && data.discovery
+    ? visibleDungeonNodes(data.route, data.discovery)
+    : data.nodes;
+  const depths = [...new Set(visibleNodes.map((node) => node.depth))].sort((a, b) => a - b);
   const kindLabels: Record<DungeonRouteNode["kind"], string> = {
-    battle: "Бой", elite: "Элита", cache: "Тайник", camp: "Лагерь", shrine: "Святилище", boss: "Хранитель",
+    battle: "Бой",
+    elite: "Элита",
+    cache: "Тайник",
+    camp: "Лагерь",
+    shrine: "Святилище",
+    trap: "Ловушка",
+    merchant: "Торговец",
+    rival: "Соперник с арены",
+    boss: "Хранитель",
+    "alternate-boss": "Тайный владыка",
+  };
+  const outcomeLabel = (node: DungeonRouteNode): string => {
+    if (node.kind === "camp") return "Восстановление и передышка";
+    if (node.kind === "merchant") return "Торговля и лечение";
+    if (node.kind === "trap") return "Риск потерять силы и найти тайный след";
+    if (node.kind === "shrine") return "Клятва с наградой и ценой";
+    return node.rewardMultiplier > 0 ? `Награда ×${node.rewardMultiplier}` : "Развилка маршрута";
   };
   depths.forEach((depth) => {
     const column = element("section", "expedition-route-column");
     column.append(element("small", "", depth === depths.length - 1 ? "ФИНАЛ" : `ГЛУБИНА ${depth + 1}`));
-    data.nodes.filter((node) => node.depth === depth).sort((a, b) => a.lane - b.lane).forEach((node) => {
+    visibleNodes.filter((node) => node.depth === depth).sort((a, b) => a.lane - b.lane).forEach((node) => {
       const state = visited.has(node.id) ? "visited" : data.reachableIds.has(node.id) ? "reachable" : "locked";
       const card = element("article", `expedition-route-node ${node.kind} ${state}${data.expedition.currentNodeId === node.id ? " current" : ""}`);
-      const danger = node.danger === 0 ? "без боя" : `опасность ${node.danger}/4`;
+      const danger = node.danger === 0 ? "без боя" : `опасность ${node.danger}/5`;
       card.append(
         element("small", "", `${kindLabels[node.kind]} · ${danger}`),
         element("strong", "", node.title),
         element("p", "", node.description),
-        element("span", "", node.rewardMultiplier > 0 ? `Награда ×${node.rewardMultiplier}` : "Восстановление и передышка"),
+        element("span", "", outcomeLabel(node)),
       );
       if (data.reachableIds.has(node.id)) {
         const choose = element("button", "button", "Идти сюда");

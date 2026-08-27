@@ -10,10 +10,15 @@ import {
   RARITY_ORDER,
   SKILLS,
 } from "../catalogs/WorldCatalog";
+import { FACTIONS } from "../catalogs/WorldExpansionCatalog";
 import { createItem } from "../factories/ItemFactory";
 import type { RandomSource } from "./RandomSource";
+import { ERA_OBJECTIVES, evaluateEraObjective, type EraObjectiveProgress } from "./EraChallenges";
+import { createEnemyStyleMemory, heroLoadoutSignature, normalizeEnemyStyleMemory } from "./EnemyMemory";
+import { selectActiveSkills } from "./SkillLoadout";
 import {
   EquipmentItem,
+  EnemyStyleMemory,
   EraLawId,
   GameSave,
   HeroClass,
@@ -28,6 +33,7 @@ import {
 const LEGEND_COUNT = 5;
 const MAX_ARCHIVED_RIVALS = 5;
 const MAX_FALLEN_NAMES = 80;
+const MAX_ARCHIVE_WITNESSES = 12;
 
 const VALID_LAW_IDS = new Set<EraLawId>(ERA_LAWS.map((law) => law.id));
 const VALID_BOON_IDS = new Set([
@@ -37,6 +43,71 @@ const VALID_BOON_IDS = new Set([
   "old-map",
   "forge-tradition",
 ] as const);
+const VALID_WORLD_ROLES = new Set<NonNullable<LegacyHeroRecord["worldRole"]>>([
+  "legend",
+  "boss",
+  "mentor",
+  "faction-founder",
+]);
+
+export type LegacyWorldRole = NonNullable<LegacyHeroRecord["worldRole"]>;
+
+export interface LegacyWorldRoleDecision {
+  role: LegacyWorldRole;
+  scores: Record<LegacyWorldRole, number>;
+  reason: string;
+  schoolName?: string;
+  factionId?: string;
+  rememberedByIds: string[];
+}
+
+export interface LegacyArchiveInfluence {
+  role: LegacyWorldRole;
+  headline: string;
+  summary: string;
+  mentor?: {
+    id: string;
+    name: string;
+    title: string;
+    classId: HeroClass;
+    level: number;
+    rating: number;
+    schoolName: string;
+  };
+  opponent?: {
+    id: string;
+    kind: "legendary-rival" | "legacy-boss";
+    name: string;
+    title: string;
+    classId: HeroClass;
+    level: number;
+    rating: number;
+    arenaIndex: number;
+    unlockLevel: number;
+    powerMultiplier: number;
+  };
+  factionTradition?: {
+    factionId: string;
+    founderName: string;
+    name: string;
+    inheritedReputation: number;
+    contractRewardMultiplier: number;
+  };
+}
+
+export interface EpochFinalGoalProfile {
+  id: string;
+  name: string;
+  description: string;
+  supportingObjectiveIds: string[];
+  decisiveLawId?: EraLawId;
+}
+
+export interface EpochFinalGoalProgress extends EpochFinalGoalProfile {
+  objectives: EraObjectiveProgress[];
+  requirements: NewGamePlusRequirement[];
+  completed: boolean;
+}
 
 export type RewardContext =
   | "training"
@@ -92,6 +163,244 @@ function roundMultiplier(value: number): number {
   return Math.round(value * 1_000) / 1_000;
 }
 
+function roundScore(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function archiveRoleFallback(archive: LegacyHeroRecord): LegacyWorldRole {
+  if (archive.factionId) return "faction-founder";
+  if ((archive.eliteRank ?? LEGEND_COUNT + 1) <= LEGEND_COUNT || archive.crownLeagueWins > 0) return "legend";
+  if (archive.kills >= Math.max(5, Math.floor(archive.wins * 0.08))) return "boss";
+  return "mentor";
+}
+
+function schoolName(name: string, classId: HeroClass): string {
+  return `Школа «${CLASS_DEFINITIONS[classId].epithet}: ${name}»`;
+}
+
+export function determineLegacyWorldRole(save: GameSave): LegacyWorldRoleDecision {
+  const rivalries = Object.values(save.hero.rivalries);
+  const persistentRivalries = rivalries.filter((rivalry) => !rivalry.killed);
+  const meetings = persistentRivalries.reduce((sum, rivalry) => sum + (rivalry.meetings ?? rivalry.wins + rivalry.losses), 0);
+  const intenseRivalries = persistentRivalries.filter((rivalry) => (rivalry.intensity ?? 0) >= 3).length;
+  const eliteIndex = save.eliteLeagueMemberIds.indexOf("hero");
+  const eliteRank = eliteIndex >= 0 ? eliteIndex + 1 : undefined;
+  const tournamentWins = save.hero.arenaWins.reduce((sum, wins) => sum + wins, 0) + save.hero.crownLeagueWins;
+  const factionEntries = FACTIONS.map((faction) => ({
+    id: faction.id,
+    reputation: Math.max(0, save.hero.factionReputation[faction.id] ?? 0),
+  })).sort((first, second) => second.reputation - first.reputation || first.id.localeCompare(second.id));
+  const strongestFaction = factionEntries[0];
+  const totalFactionReputation = factionEntries.reduce((sum, entry) => sum + entry.reputation, 0);
+  const controlledArenas = Object.values(save.factionControl?.arenaControllers ?? {})
+    .filter((factionId) => factionId === strongestFaction?.id).length;
+  const scores: Record<LegacyWorldRole, number> = {
+    legend: roundScore(
+      (eliteRank ? Math.max(0, 78 - (eliteRank - 1) * 9) : 0)
+      + save.hero.crownLeagueWins * 24
+      + save.hero.legendDefenses * 14
+      + tournamentWins * 0.65
+      + save.hero.rating / 260,
+    ),
+    boss: roundScore(
+      save.hero.kills * 11
+      + save.hero.bossWins * 8
+      + Math.max(0, save.hero.wins - save.hero.losses) * 0.16
+      + intenseRivalries * 5
+      + save.hero.level * 0.55,
+    ),
+    mentor: roundScore(
+      persistentRivalries.length * 8
+      + meetings * 0.75
+      + tournamentWins * 0.85
+      + save.hero.classChanges * 10
+      + save.hero.level * 1.15
+      + save.hero.losses * 0.2,
+    ),
+    "faction-founder": roundScore(
+      (strongestFaction?.reputation ?? 0) * 1.35
+      + totalFactionReputation * 0.18
+      + ((strongestFaction?.reputation ?? 0) >= 45 ? 35 : 0)
+      + controlledArenas * 4,
+    ),
+  };
+  const roleOrder: LegacyWorldRole[] = ["legend", "faction-founder", "boss", "mentor"];
+  const role = roleOrder.reduce((best, candidate) => scores[candidate] > scores[best] ? candidate : best);
+  const rememberedByIds = [...new Set([
+    ...persistentRivalries
+      .sort((first, second) =>
+        (second.meetings ?? second.wins + second.losses) - (first.meetings ?? first.wins + first.losses)
+        || (second.intensity ?? 0) - (first.intensity ?? 0)
+        || second.lastMetDay - first.lastMetDay)
+      .map((rivalry) => rivalry.enemyId),
+    ...save.eliteLeagueMemberIds.filter((id) => id !== "hero"),
+    ...(role === "faction-founder"
+      ? save.enemies.filter((enemy) => enemy.alive && enemy.factionId === strongestFaction?.id).map((enemy) => enemy.id)
+      : []),
+  ])].slice(0, MAX_ARCHIVE_WITNESSES);
+  const reasons: Record<LegacyWorldRole, string> = {
+    legend: "Титулы, защиты короны и положение в элите превратили героя в мерило для новых чемпионов.",
+    boss: "Смертельные победы и личные вражды оставили после героя угрозу, с которой придётся столкнуться снова.",
+    mentor: "Долгая турнирная карьера и множество личных встреч сложились в школу боя.",
+    "faction-founder": "Высокая репутация и влияние на арены превратили имя героя во фракционную традицию.",
+  };
+  return {
+    role,
+    scores,
+    reason: reasons[role],
+    schoolName: role === "mentor" ? schoolName(save.hero.name, save.hero.classId) : undefined,
+    factionId: role === "faction-founder" ? strongestFaction?.id : undefined,
+    rememberedByIds,
+  };
+}
+
+export function describeLegacyArchiveInfluence(archive: LegacyHeroRecord): LegacyArchiveInfluence {
+  const role = archive.worldRole && VALID_WORLD_ROLES.has(archive.worldRole)
+    ? archive.worldRole
+    : archiveRoleFallback(archive);
+  const common = {
+    role,
+    headline: "",
+    summary: "",
+  };
+  if (role === "mentor") {
+    const academy = archive.schoolName ?? schoolName(archive.name, archive.classId);
+    return {
+      ...common,
+      headline: academy,
+      summary: `${archive.name} остаётся в мире как наставник. Ученики наследуют его класс и часть боевой памяти.`,
+      mentor: {
+        id: `legacy-mentor-${archive.cycle}`,
+        name: archive.name,
+        title: archive.title,
+        classId: archive.classId,
+        level: Math.max(18, Math.min(40, archive.level)),
+        rating: Math.max(1_800, archive.rating),
+        schoolName: academy,
+      },
+    };
+  }
+  if (role === "faction-founder") {
+    const factionId = archive.factionId ?? FACTIONS[0].id;
+    const faction = FACTIONS.find((candidate) => candidate.id === factionId) ?? FACTIONS[0];
+    return {
+      ...common,
+      headline: `Традиция «${archive.name}»`,
+      summary: `${archive.name} вошёл в историю фракции «${faction.name}». Её контракты и отношение к наследнику изменятся.`,
+      factionTradition: {
+        factionId: faction.id,
+        founderName: archive.name,
+        name: `${faction.name} · традиция ${archive.name}`,
+        inheritedReputation: 12 + Math.min(12, Math.floor(archive.tournamentWins / 3)),
+        contractRewardMultiplier: roundMultiplier(1.08 + Math.min(0.12, archive.crownLeagueWins * 0.03)),
+      },
+    };
+  }
+  const boss = role === "boss";
+  return {
+    ...common,
+    headline: boss ? `Возвращение: ${archive.name}` : `Живая легенда: ${archive.name}`,
+    summary: boss
+      ? `${archive.name} становится особым боссом новой эпохи и хранит следы прежней экипировки.`
+      : `${archive.name} становится легендарным соперником, которого можно встретить на пути к Короне.`,
+    opponent: {
+      id: `legacy-${boss ? "boss" : "rival"}-${archive.cycle}`,
+      kind: boss ? "legacy-boss" : "legendary-rival",
+      name: archive.name,
+      title: archive.title,
+      classId: archive.classId,
+      level: Math.max(boss ? 24 : 18, Math.min(40, archive.level)),
+      rating: Math.max(boss ? 2_500 : 2_100, archive.rating),
+      arenaIndex: Math.max(0, ARENAS.length - (boss ? 1 : 2)),
+      unlockLevel: boss ? 24 : 18,
+      powerMultiplier: boss ? 1.22 : 1.1,
+    },
+  };
+}
+
+export function epochFinalGoalProfile(
+  cycle: number,
+  lawIds: readonly EraLawId[],
+  archive?: LegacyHeroRecord,
+): EpochFinalGoalProfile {
+  const safeCycle = positiveInteger(cycle);
+  const laws = [...new Set(lawIds.filter((id) => VALID_LAW_IDS.has(id)))];
+  const decisiveLawId = laws.length > 0 ? laws[(safeCycle - 1) % laws.length] : undefined;
+  const role = archive?.worldRole ?? (archive ? archiveRoleFallback(archive) : undefined);
+  const roleGoals: Record<LegacyWorldRole, Pick<EpochFinalGoalProfile, "name" | "description" | "supportingObjectiveIds">> = {
+    legend: {
+      name: "Свергнуть память Короны",
+      description: "Превзойти легендарного героя прошлой эпохи и закрепить собственное имя в элите.",
+      supportingObjectiveIds: ["book-of-rivals", "unbroken-road"],
+    },
+    boss: {
+      name: "Закрыть старую рану",
+      description: "Выследить опасное воплощение прежнего героя и победить его в решающем бою.",
+      supportingObjectiveIds: ["break-evolution", "living-arsenal"],
+    },
+    mentor: {
+      name: "Превзойти старую школу",
+      description: "Одержать победы тремя классами и победить двенадцать постоянных соперников, доказав превосходство новой школы.",
+      supportingObjectiveIds: ["many-schools", "book-of-rivals"],
+    },
+    "faction-founder": {
+      name: "Решить судьбу старого ордена",
+      description: "Объединить фракции союзной репутацией и стать чемпионом всех арен, превзойдя влияние старого ордена.",
+      supportingObjectiveIds: ["common-oath", "six-banners"],
+    },
+  };
+  const lawGoals: Partial<Record<EraLawId, Pick<EpochFinalGoalProfile, "description" | "supportingObjectiveIds">>> = {
+    "age-of-steel": { description: "Финальная победа потребует полностью пробуждённого арсенала.", supportingObjectiveIds: ["living-arsenal"] },
+    "hungry-lands": { description: "Путь к финалу проходит через глубочайшие подземелья эпохи.", supportingObjectiveIds: ["underworld-map"] },
+    "bloody-arenas": { description: "Право на финальный бой нужно заслужить чемпионствами на всех аренах.", supportingObjectiveIds: ["six-banners"] },
+    "mercenary-age": { description: "До финала нужно победить двенадцать постоянных соперников и заслужить союзную репутацию всех фракций.", supportingObjectiveIds: ["book-of-rivals", "common-oath"] },
+    "ancient-awakening": { description: "До финала необходимо победить восемнадцать врагов с мутациями и полностью пробудить три реликвии.", supportingObjectiveIds: ["break-evolution", "living-arsenal"] },
+    "crown-discord": { description: "Финал открывается только после длинной серии побед и защиты титула.", supportingObjectiveIds: ["unbroken-road", "six-banners"] },
+  };
+  const base = role ? roleGoals[role] : {
+    name: "Написать финал эпохи",
+    description: "Завершить цели эпохи и доказать право начать новую летопись.",
+    supportingObjectiveIds: ["six-banners", "underworld-map"],
+  };
+  const law = decisiveLawId ? lawGoals[decisiveLawId] : undefined;
+  return {
+    id: `epoch-${safeCycle}-${role ?? "open"}-${decisiveLawId ?? "free"}`,
+    name: base.name,
+    description: law ? `${base.description} ${law.description}` : base.description,
+    supportingObjectiveIds: [...new Set([...base.supportingObjectiveIds, ...(law?.supportingObjectiveIds ?? [])])],
+    decisiveLawId,
+  };
+}
+
+export function epochFinalGoalProgress(save: GameSave): EpochFinalGoalProgress | undefined {
+  const legacy = normalizeLegacyState(save.legacy);
+  if (legacy.cycle < 2) return undefined;
+  const archive = legacy.archives.filter((candidate) => candidate.cycle < legacy.cycle)
+    .sort((first, second) => second.cycle - first.cycle)[0];
+  const profile = epochFinalGoalProfile(legacy.cycle, legacy.activeLawIds, archive);
+  const state = save.eraChallengeProgress;
+  const metrics = { ...(state?.cycle === legacy.cycle ? state.metrics : {}) };
+  metrics.arenaChampionships = Math.max(metrics.arenaChampionships ?? 0, save.hero.arenaWins.filter((wins) => wins > 0).length);
+  metrics.uniqueDungeonsCompleted = Math.max(metrics.uniqueDungeonsCompleted ?? 0, Object.keys(save.dungeonClears ?? {}).length);
+  metrics.awakenedRelics = Math.max(metrics.awakenedRelics ?? 0, save.hero.inventory.filter((item) => (item.relicTier ?? 0) >= 3).length);
+  metrics.alliedFactions = Math.max(metrics.alliedFactions ?? 0, Object.values(save.hero.factionReputation).filter((value) => value >= 45).length);
+  const objectives = profile.supportingObjectiveIds.map((id) => ERA_OBJECTIVES.find((objective) => objective.id === id)!)
+    .filter(Boolean).map((objective) => evaluateEraObjective(objective, metrics));
+  const requirements: NewGamePlusRequirement[] = objectives.map((progress) => ({
+    id: `epoch-goal-${progress.objective.id}`,
+    label: `${profile.name}: ${progress.objective.name} (${progress.current}/${progress.target})`,
+    met: progress.completed,
+  }));
+  if (archive && describeLegacyArchiveInfluence(archive).opponent) {
+    requirements.push({
+      id: "epoch-goal-predecessor",
+      label: `Победить ${archive.name}, героя эпохи ${archive.cycle}, в Зале отзвуков`,
+      met: (save.defeatedLegacyCycles ?? []).includes(archive.cycle),
+    });
+  }
+  return { ...profile, objectives, requirements, completed: requirements.every((requirement) => requirement.met) };
+}
+
 function cloneItem(item: EquipmentItem): EquipmentItem {
   return {
     ...item,
@@ -99,21 +408,87 @@ function cloneItem(item: EquipmentItem): EquipmentItem {
     allowedClasses: item.allowedClasses === "all" ? "all" : [...item.allowedClasses],
     affix: item.affix ? { ...item.affix } : undefined,
     relicHistory: item.relicHistory ? [...item.relicHistory] : undefined,
+    relicFeats: item.relicFeats ? [...item.relicFeats] : undefined,
+    relicProperties: item.relicProperties?.map((property) => ({ ...property })),
   };
 }
 
 function cloneFighter(fighter: LegacyFighterRecord): LegacyFighterRecord {
-  return { ...fighter };
+  return { ...fighter, heroMemory: fighter.heroMemory ? normalizeEnemyStyleMemory(fighter.heroMemory) : undefined };
+}
+
+export function inheritArchiveStyleMemory(fighter: LegacyFighterRecord, day = 1): EnemyStyleMemory {
+  const source = normalizeEnemyStyleMemory(fighter.heroMemory, [], day);
+  const attenuate = (knowledge: Record<string, number | undefined>): Record<string, number> => Object.fromEntries(
+    Object.entries(knowledge).sort((first, second) => Number(second[1]) - Number(first[1]))
+      .slice(0, 12).map(([key, value]) => [key, Math.round(Number(value) * 0.6)]),
+  );
+  return normalizeEnemyStyleMemory({
+    ...source,
+    familiarity: Math.min(60, Math.round(source.familiarity * 0.6)),
+    classKnowledge: attenuate(source.classKnowledge),
+    tacticalKnowledge: attenuate(source.tacticalKnowledge),
+    skillKnowledge: attenuate(source.skillKnowledge),
+    behaviorKnowledge: attenuate(source.behaviorKnowledge),
+    recentSignatures: source.recentSignatures.slice(0, 4).map((signature) => ({ ...signature, day })),
+    countermeasureIds: source.countermeasureIds.slice(0, 3),
+    currentSimilarity: 0,
+    lastEncounterDay: day,
+    lastDecayDay: day,
+  }, [], day);
+}
+
+function archiveHeroStyleMemory(save: GameSave): EnemyStyleMemory {
+  const equipped = new Set(Object.values(save.hero.equipped));
+  const itemSkills = save.hero.inventory.filter((item) => equipped.has(item.id)).map((item) => item.grantedSkillId);
+  const available = SKILLS.filter((skill) => skill.unlockLevel <= save.hero.level
+    && (skill.classes === "all" || skill.classes.includes(save.hero.classId))
+    && (!skill.equipmentOnly || itemSkills.includes(skill.id)));
+  const tactics = save.hero.tacticalProfiles.find((profile) => profile.id === save.hero.activeTacticalProfileId);
+  const selected = selectActiveSkills(save.hero, available, tactics).map((skill) => skill.id);
+  const signature = heroLoadoutSignature(save.hero, selected, save.worldDay);
+  return normalizeEnemyStyleMemory({
+    ...createEnemyStyleMemory(save.worldDay),
+    familiarity: 75,
+    classKnowledge: { [signature.classId]: 75 },
+    tacticalKnowledge: { [signature.tacticalStyle]: 75 },
+    skillKnowledge: Object.fromEntries(signature.skillIds.map((id) => [id, 70])),
+    behaviorKnowledge: Object.fromEntries(Object.entries(signature.behavior).map(([key, value]) => [key, Math.round(Number(value) * 70)])),
+    recentSignatures: [signature],
+    countermeasureIds: ["guarded-opening", "signature-parry"],
+  });
 }
 
 function cloneArchive(archive: LegacyHeroRecord): LegacyHeroRecord {
+  const worldRole = archive.worldRole && VALID_WORLD_ROLES.has(archive.worldRole)
+    ? archive.worldRole
+    : archiveRoleFallback(archive);
+  const safeSchoolName = typeof archive.schoolName === "string" && archive.schoolName.trim()
+    ? archive.schoolName.trim()
+    : worldRole === "mentor" ? schoolName(archive.name, archive.classId) : undefined;
+  const safeFactionId = worldRole === "faction-founder"
+    && typeof archive.factionId === "string"
+    && FACTIONS.some((faction) => faction.id === archive.factionId)
+    ? archive.factionId
+    : undefined;
   return {
     ...archive,
-    appearance: { ...archive.appearance },
-    equipment: archive.equipment.map(cloneItem),
-    notableFighters: archive.notableFighters.map(cloneFighter),
-    fallenNames: [...archive.fallenNames],
-    lawIds: [...(archive.lawIds ?? [])],
+    heroMemory: archive.heroMemory ? normalizeEnemyStyleMemory(archive.heroMemory) : undefined,
+    worldRole: worldRole === "faction-founder" && !safeFactionId ? "mentor" : worldRole,
+    schoolName: worldRole === "faction-founder" && !safeFactionId
+      ? schoolName(archive.name, archive.classId)
+      : safeSchoolName,
+    factionId: safeFactionId,
+    rememberedByIds: [...new Set((archive.rememberedByIds ?? [])
+      .filter((id): id is string => typeof id === "string" && Boolean(id.trim())))].slice(0, MAX_ARCHIVE_WITNESSES),
+    appearance: {
+      hairStyle: [0, 1, 2].includes(archive.appearance?.hairStyle) ? archive.appearance.hairStyle : 0,
+      faceStyle: [0, 1, 2].includes(archive.appearance?.faceStyle) ? archive.appearance.faceStyle : 0,
+    },
+    equipment: (archive.equipment ?? []).map(cloneItem),
+    notableFighters: (archive.notableFighters ?? []).map(cloneFighter),
+    fallenNames: [...(archive.fallenNames ?? [])],
+    lawIds: [...new Set((archive.lawIds ?? []).filter((id) => VALID_LAW_IDS.has(id)))],
   };
 }
 
@@ -207,6 +582,7 @@ export function newGamePlusRequirements(save: GameSave): NewGamePlusRequirement[
       label: "Завершить или покинуть текущую экспедицию",
       met: !save.activeExpedition,
     },
+    ...(epochFinalGoalProgress(save)?.requirements ?? []),
   ];
 }
 
@@ -243,11 +619,13 @@ function fighterRecord(save: GameSave, fighterId: string): LegacyFighterRecord |
     wins: enemy.wins,
     losses: enemy.losses,
     kills: enemy.kills,
+    heroMemory: normalizeEnemyStyleMemory(enemy.heroMemory),
   };
 }
 
 export function buildLegacyArchive(save: GameSave, completedAt = Date.now()): LegacyHeroRecord {
   const legacy = normalizeLegacyState(save.legacy);
+  const worldIdentity = determineLegacyWorldRole(save);
   const equippedIds = new Set(Object.values(save.hero.equipped));
   const equipment = save.hero.inventory.filter((item) => equippedIds.has(item.id)).map(cloneItem);
   const eliteIndex = save.eliteLeagueMemberIds.indexOf("hero");
@@ -262,7 +640,7 @@ export function buildLegacyArchive(save: GameSave, completedAt = Date.now()): Le
     .filter((fighter): fighter is LegacyFighterRecord => Boolean(fighter))
     .slice(0, MAX_ARCHIVED_RIVALS);
   const fallenNames = [...new Set(save.enemies
-    .filter((enemy) => !enemy.alive)
+    .filter((enemy) => !enemy.alive && !enemy.retiredDay)
     .map((enemy) => enemy.name))]
     .slice(-MAX_FALLEN_NAMES);
   const title = eliteRank && eliteRank <= LEGEND_COUNT
@@ -281,6 +659,7 @@ export function buildLegacyArchive(save: GameSave, completedAt = Date.now()): Le
     wins: save.hero.wins,
     losses: save.hero.losses,
     kills: save.hero.kills,
+    heroMemory: archiveHeroStyleMemory(save),
     eliteRank,
     crownLeagueWins: save.hero.crownLeagueWins,
     legendDefenses: save.hero.legendDefenses,
@@ -293,6 +672,10 @@ export function buildLegacyArchive(save: GameSave, completedAt = Date.now()): Le
     equipment,
     notableFighters,
     fallenNames,
+    worldRole: worldIdentity.role,
+    schoolName: worldIdentity.schoolName,
+    factionId: worldIdentity.factionId,
+    rememberedByIds: worldIdentity.rememberedByIds,
     completedAt,
   };
 }
