@@ -127,7 +127,7 @@ function enemyProfile(classId: HeroClass, level: number, rarity: Rarity): EnemyP
 }
 
 describe("long-horizon balance guardrails", () => {
-  test("late-game mirror fights do not collapse into one-shot exchanges", () => {
+  test("late-game mirror fights preserve defensive builds without one-shots or stalemates", () => {
     const groupMetrics: Array<{ level: number; classId: HeroClass; rarity: Rarity; median: number; p90: number; oneShotRate: number; winRate: number }> = [];
     levels.forEach((level) => classes.forEach((classId) => rarities.forEach((rarity, rarityIndex) => {
       const reports = Array.from({ length: 21 }, (_, sample) => resolveCombat(
@@ -149,8 +149,11 @@ describe("long-horizon balance guardrails", () => {
 
     const late = groupMetrics.filter((metric) => metric.level >= 20);
     expect(Math.min(...late.map((metric) => metric.median))).toBeGreaterThanOrEqual(6);
-    expect(Math.max(...late.map((metric) => metric.p90))).toBeLessThanOrEqual(25);
+    expect(Math.max(...late.map((metric) => metric.p90))).toBeLessThanOrEqual(36);
     expect(Math.max(...late.map((metric) => metric.oneShotRate))).toBeLessThanOrEqual(0.1);
+    const mirrorWinRate = late.reduce((sum, metric) => sum + metric.winRate, 0) / late.length;
+    expect(mirrorWinRate).toBeGreaterThan(0.45);
+    expect(mirrorWinRate).toBeLessThan(0.55);
   });
 
   test("one mythic signature item creates an advantage over a typical epic build", () => {

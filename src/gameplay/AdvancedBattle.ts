@@ -14,7 +14,6 @@ import {
   readEnemyStyleMemory,
 } from "./EnemyMemory";
 import {
-  BattleTurn,
   CombatantSnapshot,
   EnemyProfile,
   EquipmentItem,
@@ -25,7 +24,6 @@ import {
   Stats,
   TacticalProfile,
 } from "./WorldTypes";
-import { MAX_ACTIVE_SKILLS } from "./WorldRules";
 import { FighterPowerCalculator } from "./FighterPowerCalculator";
 import {
   ENEMY_CLASS_MUTATIONS,
@@ -39,8 +37,23 @@ import {
   BattleStatus,
   BattleStatusId,
   ClassResourceState,
+  StatusCombinationId,
   createClassResource,
 } from "./CombatEffects";
+import {
+  analyzeBattle,
+  BattleAnalytics,
+  DetailedBattleTurn,
+} from "./BattleAnalytics";
+import { chooseTacticalSkill, TacticalDecision } from "./BattleTactics";
+import { combatActionRate, combatArmorMultiplier, combatPressure, MAX_DIRECT_DAMAGE_SHARE, skillHealing } from "./CombatBalance";
+import { selectActiveSkills } from "./SkillLoadout";
+import {
+  equipmentResonance,
+  resonanceCooldownCadence,
+  resonanceDamageMultiplier,
+  resonanceGuardMultiplier,
+} from "./EquipmentEvolution";
 import { nativeRandom, RandomSnapshot, RandomSource, SeededRandom } from "./RandomSource";
 
 export { MAX_ACTIVE_SKILLS } from "./WorldRules";
@@ -51,6 +64,7 @@ interface RuntimeFighter extends CombatantSnapshot {
   buff: number;
   weakened: number;
   attackCounter: number;
+  actionsTaken: number;
   combo: number;
   setCounts: Record<string, number>;
   tactics: TacticalProfile;
@@ -68,7 +82,8 @@ export interface CombatResolution {
   hero: CombatantSnapshot;
   enemy: CombatantSnapshot;
   winnerId: string;
-  turns: BattleTurn[];
+  turns: DetailedBattleTurn[];
+  analysis: BattleAnalytics;
 }
 
 export interface CombatStatMultipliers {
@@ -79,6 +94,7 @@ export interface CombatStatMultipliers {
 
 export interface CombatOptions {
   heroLevelCap?: number;
+  enemyLevelCap?: number;
   ruleIds?: string[];
   heroStatMultipliers?: CombatStatMultipliers;
   enemyStatMultipliers?: CombatStatMultipliers;
@@ -93,6 +109,9 @@ export interface BattleActionOption {
   kind: "basic" | SkillDefinition["kind"];
   cooldown: number;
   available: boolean;
+  recommended?: boolean;
+  reason?: string;
+  score?: number;
 }
 
 export interface BattleFighterState extends CombatantSnapshot {
@@ -106,6 +125,7 @@ export interface BattleRuntimeSnapshot extends CombatantSnapshot {
   buff: number;
   weakened: number;
   attackCounter: number;
+  actionsTaken?: number;
   combo: number;
   tactics: TacticalProfile;
   disableHealing: boolean;
@@ -123,7 +143,7 @@ export interface BattleSessionSnapshot {
   enemyBefore: CombatantSnapshot;
   hero: BattleRuntimeSnapshot;
   enemy: BattleRuntimeSnapshot;
-  turns: BattleTurn[];
+  turns: DetailedBattleTurn[];
   nextActorId: string;
   winnerId?: string;
   random: RandomSnapshot;
@@ -141,6 +161,9 @@ function itemStats(items: EquipmentItem[], levelCap?: number): Partial<Stats> {
       sum[key] = (sum[key] ?? 0) + Math.max(1, Math.round(value * scale));
     }
     if (item.affix) sum[item.affix.stat] = (sum[item.affix.stat] ?? 0) + Math.max(1, Math.round(item.affix.value * scale));
+    (item.relicProperties ?? []).forEach((property) => {
+      sum[property.stat] = (sum[property.stat] ?? 0) + Math.max(1, Math.round(property.value * scale));
+    });
     return sum;
   }, {});
 }
@@ -170,14 +193,6 @@ function skillsFor(classId: HeroClass, level: number, items: EquipmentItem[]): S
   return SKILLS.filter((skill) =>
     (!skill.equipmentOnly && (skill.classes === "all" || skill.classes.includes(classId)) && skill.unlockLevel <= level)
     || ids.has(skill.id));
-}
-
-function activeSkills(profile: HeroProfile | EnemyProfile, available: SkillDefinition[]): SkillDefinition[] {
-  const recommended = [...available].sort((a, b) => b.priority - a.priority).slice(0, MAX_ACTIVE_SKILLS);
-  if (!("selectedSkillIds" in profile) || profile.autoSelectSkills !== false) return recommended;
-  const byId = new Map(available.map((skill) => [skill.id, skill]));
-  const selected = profile.selectedSkillIds.map((id) => byId.get(id)).filter((skill): skill is SkillDefinition => Boolean(skill));
-  return (selected.length > 0 ? selected : recommended).slice(0, MAX_ACTIVE_SKILLS);
 }
 
 function featureStats(profile: HeroProfile | EnemyProfile): Partial<Stats> {
@@ -256,7 +271,7 @@ function toRuntime(profile: HeroProfile | EnemyProfile, options: RuntimeOptions 
     const inheritedSkill = SKILLS.find((skill) => skill.id === profile.legacySkillId);
     if (inheritedSkill && !availableSkills.some((skill) => skill.id === inheritedSkill.id)) availableSkills.push(inheritedSkill);
   }
-  const skills = activeSkills(profile, availableSkills).filter((skill) => !disableHealing || skill.kind !== "heal");
+  const skills = selectActiveSkills(profile, availableSkills.filter((skill) => !disableHealing || skill.kind !== "heal"), tacticsFor(profile));
   const model = new PlayerFactory().create({
     className: profile.classId,
     health: Math.round(stats.health),
@@ -280,7 +295,8 @@ function toRuntime(profile: HeroProfile | EnemyProfile, options: RuntimeOptions 
     traitIds: [...(profile.traitIds ?? [])],
     injuryNames: (profile.injuries ?? []).filter((injury) => injury.remainingDays > 0).map((injury) => injury.name),
     tacticalStyle: tacticsFor(profile).style,
-    model, cooldowns: {}, buff: 0, weakened: 0, attackCounter: 0, combo: 0, setCounts: counts,
+    model, cooldowns: {}, buff: 0, weakened: 0, attackCounter: 0, actionsTaken: 0, combo: 0, setCounts: counts,
+    equipmentResonance: equipmentResonance(items),
     tactics: tacticsFor(profile), disableHealing, statuses: [], resource: createClassResource(profile.classId),
     nextActionAt: 0, usedMechanics: new Set<string>(), mutation, mutationState: initialEnemyMutationState(),
   };
@@ -320,8 +336,10 @@ function runtimeFromSnapshot(snapshot: CombatantSnapshot): RuntimeFighter {
     buff: 0,
     weakened: 0,
     attackCounter: 0,
+    actionsTaken: 0,
     combo: 0,
     setCounts: { ...(snapshot.setCounts ?? {}) },
+    equipmentResonance: snapshot.equipmentResonance ? { ...snapshot.equipmentResonance } : undefined,
     tactics,
     tacticalStyle: tactics.style,
     disableHealing: false,
@@ -341,6 +359,15 @@ function cloneCombatantSnapshot(snapshot: CombatantSnapshot): CombatantSnapshot 
     traitIds: snapshot.traitIds ? [...snapshot.traitIds] : undefined,
     injuryNames: snapshot.injuryNames ? [...snapshot.injuryNames] : undefined,
     setCounts: snapshot.setCounts ? { ...snapshot.setCounts } : undefined,
+    equipmentResonance: snapshot.equipmentResonance ? { ...snapshot.equipmentResonance } : undefined,
+  };
+}
+
+function cloneBattleTurn(turn: DetailedBattleTurn): DetailedBattleTurn {
+  return {
+    ...turn,
+    statusComboIds: turn.statusComboIds ? [...turn.statusComboIds] : undefined,
+    resourceEvents: turn.resourceEvents?.map((event) => ({ ...event })),
   };
 }
 
@@ -351,6 +378,7 @@ function battleRuntimeSnapshot(runtime: RuntimeFighter): BattleRuntimeSnapshot {
     buff: runtime.buff,
     weakened: runtime.weakened,
     attackCounter: runtime.attackCounter,
+    actionsTaken: runtime.actionsTaken,
     combo: runtime.combo,
     tactics: { ...runtime.tactics },
     disableHealing: runtime.disableHealing,
@@ -362,6 +390,7 @@ function battleRuntimeSnapshot(runtime: RuntimeFighter): BattleRuntimeSnapshot {
       ? {
         ...runtime.memoryRead,
         countermeasureIds: [...runtime.memoryRead.countermeasureIds],
+        evidence: runtime.memoryRead.evidence ? [...runtime.memoryRead.evidence] : undefined,
       }
       : undefined,
     mutationState: { ...runtime.mutationState },
@@ -374,18 +403,20 @@ function runtimeFromBattleSnapshot(snapshot: BattleRuntimeSnapshot): RuntimeFigh
   runtime.buff = snapshot.buff;
   runtime.weakened = snapshot.weakened;
   runtime.attackCounter = snapshot.attackCounter;
+  runtime.actionsTaken = Math.max(0, Number(snapshot.actionsTaken) || 0);
   runtime.combo = snapshot.combo;
   runtime.tactics = { ...snapshot.tactics };
   runtime.tacticalStyle = snapshot.tactics.style;
   runtime.disableHealing = snapshot.disableHealing;
   runtime.statuses = snapshot.statuses.map((status) => ({ ...status }));
-  runtime.resource = { ...snapshot.resource };
+  runtime.resource = { ...createClassResource(snapshot.classId), ...snapshot.resource };
   runtime.nextActionAt = snapshot.nextActionAt;
   runtime.usedMechanics = new Set(snapshot.usedMechanics);
   runtime.memoryRead = snapshot.memoryRead
     ? {
       ...snapshot.memoryRead,
       countermeasureIds: [...snapshot.memoryRead.countermeasureIds],
+      evidence: snapshot.memoryRead.evidence ? [...snapshot.memoryRead.evidence] : undefined,
     }
     : undefined;
   runtime.mutationState = { ...snapshot.mutationState };
@@ -406,33 +437,19 @@ function isBattleSessionSnapshot(value: unknown): value is BattleSessionSnapshot
 
 export function combatantSnapshot(profile: HeroProfile | EnemyProfile, levelCap?: number): CombatantSnapshot {
   const runtime = toRuntime(profile, { levelCap, side: profile.id === "hero" ? "hero" : "enemy" });
-  return {
-    id: runtime.id, name: runtime.name, classId: runtime.classId, level: runtime.level, originalLevel: runtime.originalLevel,
-    maxHealth: runtime.maxHealth, health: runtime.health, attack: runtime.attack,
-    defense: runtime.defense, speed: runtime.speed, crit: runtime.crit,
-    equipmentScore: runtime.equipmentScore, skills: [...runtime.skills], traitIds: [...(profile.traitIds ?? [])],
-    injuryNames: (profile.injuries ?? []).filter((injury) => injury.remainingDays > 0).map((injury) => injury.name),
-    tacticalStyle: runtime.tactics.style,
-  };
+  return runtimeSnapshot(runtime);
 }
 
 function readySkills(actor: RuntimeFighter): SkillDefinition[] {
   return SKILLS.filter((skill) => actor.skills.includes(skill.id) && (actor.cooldowns[skill.id] ?? 0) <= 0);
 }
 
-function pickSkill(actor: RuntimeFighter, target: RuntimeFighter): SkillDefinition | undefined {
-  const ready = readySkills(actor);
-  const useful = ready.filter((skill) => skill.kind !== "heal" || actor.health / actor.maxHealth < actor.tactics.healThreshold)
-    .filter((skill) => skill.id !== "execution" || target.health / target.maxHealth < actor.tactics.finisherThreshold);
-  const score = (skill: SkillDefinition): number => {
-    let value = skill.priority;
-    if (actor.tactics.style === "aggressive" && skill.kind === "attack") value += 40;
-    if (actor.tactics.style === "defensive" && (skill.kind === "heal" || skill.kind === "buff")) value += 45;
-    if (actor.tactics.prioritizeControl && skill.kind === "control") value += 55;
-    if (actor.tactics.preserveStrongSkills && target.health / target.maxHealth > 0.7 && skill.power > 1.4) value -= 35;
-    return value;
-  };
-  return useful.sort((a, b) => score(b) - score(a) || actor.skills.indexOf(a.id) - actor.skills.indexOf(b.id))[0];
+function skillDecision(ready: SkillDefinition[], actor: RuntimeFighter, target: RuntimeFighter): TacticalDecision {
+  const pressure = combatPressure(actor.actionsTaken + 1, target.actionsTaken);
+  const denial = actor.id === "hero" && hasMemoryCounter(target, "healing-denial")
+    ? 1 - 0.35 * (target.memoryRead?.strength ?? 0)
+    : 1;
+  return chooseTacticalSkill(ready, { ...actor, healingMultiplier: pressure.healingMultiplier * denial }, target);
 }
 
 function cooldownTick(fighter: RuntimeFighter): void {
@@ -469,7 +486,7 @@ function attackDamage(
   effects: BattleEffectPipeline,
   multiplier = 1,
   skillId?: string,
-): { damage: number; critical: boolean; detail: string } {
+): { damage: number; critical: boolean; detail: string; statusComboIds: StatusCombinationId[] } {
   actor.attackCounter += 1;
   let detail = "обычная атака";
   let mutationDamageMultiplier = 1;
@@ -519,7 +536,7 @@ function attackDamage(
   actor.weakened = 0;
   const raw = classAttack.damage * mutationDamageMultiplier * (1 + actor.buff) * weakened * variance * (critical ? 1.45 : 1);
   actor.buff = 0;
-  const armorMultiplier = 120 / (120 + Math.max(0, target.defense) * 1.35);
+  const armorMultiplier = combatArmorMultiplier(target.defense);
   let damage = Math.max(1, Math.round(raw * armorMultiplier));
   const defended = target.model.modifyCombatDefense(damage, {
     attackCounter: target.attackCounter,
@@ -576,7 +593,7 @@ function attackDamage(
     }
     if (mutation.effect.detail) detail += `; ${mutation.effect.detail}`;
   }
-  return { damage, critical, detail };
+  return { damage, critical, detail, statusComboIds: [...modified.statusComboIds] };
 }
 
 function performTurn(
@@ -586,7 +603,7 @@ function performTurn(
   random: RandomSource,
   effects: BattleEffectPipeline,
   choice?: BattleAction,
-): BattleTurn {
+): DetailedBattleTurn {
   cooldownTick(actor);
   const startEffects = effects.beginTurn(actor);
   if (actor.health <= 0) {
@@ -594,36 +611,48 @@ function performTurn(
       turn, actorId: actor.id, targetId: actor.id, actorName: actor.name, targetName: actor.name,
       action: "Последствия состояний", detail: startEffects.detail.join("; "), damage: startEffects.damage,
       healing: 0, actorHealth: actor.health, targetHealth: actor.health, critical: false,
+      statusComboIds: [...startEffects.statusComboIds],
     };
   }
   let skill: SkillDefinition | undefined;
+  let decisionReason = "";
+  let decisionScore = 0;
   if (choice?.type === "skill") {
     skill = readySkills(actor).find((candidate) => candidate.id === choice.skillId);
     if (!skill) throw new RangeError(`Skill ${choice.skillId} is not available for ${actor.name}.`);
+    decisionReason = "приём выбран игроком вручную";
   } else if (!choice || choice.type !== "basic") {
-    skill = pickSkill(actor, target);
+    const decision = skillDecision(readySkills(actor), actor, target);
+    skill = decision.skill;
+    decisionReason = decision.reason;
+    decisionScore = decision.score;
+  } else {
+    decisionReason = "обычная атака выбрана игроком вручную";
   }
+  actor.actionsTaken += 1;
   let action = "Обычная атака";
   const turnStartDetail = startEffects.detail.join("; ");
   let detail = "";
   let damage = 0;
   let healing = 0;
   let critical = false;
+  const statusComboIds = [...startEffects.statusComboIds];
+  const targetAfflicted = target.statuses.some((status) => status.id === "burning" || status.id === "bleeding" || status.id === "marked");
 
-  const pressureTurns = Math.max(0, turn - 7);
-  const damagePressure = 1 + Math.min(2, pressureTurns * 0.08);
-  const healingPressure = Math.max(0, 1 - pressureTurns * 0.1);
+  const pressure = combatPressure(actor.actionsTaken, target.actionsTaken);
+  const damagePressure = pressure.damageMultiplier;
+  const healingPressure = pressure.healingMultiplier;
 
   if (skill) {
     action = skill.name;
     actor.cooldowns[skill.id] = Math.max(1, skill.cooldown - ((actor.setCounts.astral ?? 0) >= 6 ? 1 : 0));
     if (skill.kind === "heal") {
-      const healthShare = skill.power >= 40 ? 0.08 : 0.05;
-      healing = Math.min(actor.maxHealth - actor.health, Math.round(skill.power + actor.level * 1.2 + actor.maxHealth * healthShare));
+      let healingMultiplier = healingPressure;
       if (actor.id === "hero" && hasMemoryCounter(target, "healing-denial")) {
-        healing = Math.max(1, Math.round(healing * (1 - 0.35 * (target.memoryRead?.strength ?? 0))));
+        healingMultiplier *= 1 - 0.35 * (target.memoryRead?.strength ?? 0);
         detail = "соперник частично сорвал восстановление; ";
       }
+      healing = skillHealing(skill, actor.level, actor.health, actor.maxHealth, healingMultiplier);
       actor.health += healing;
       detail += `восстановлено ${healing} HP`;
     } else if (skill.kind === "buff") {
@@ -632,23 +661,26 @@ function performTurn(
     } else if (skill.kind === "control") {
       const result = attackDamage(actor, target, random, effects, skill.power, skill.id);
       damage = result.damage; critical = result.critical;
+      statusComboIds.push(...result.statusComboIds);
       const controlResistance = actor.id === "hero" && hasMemoryCounter(target, "control-discipline")
         ? 0.65 * (target.memoryRead?.strength ?? 0)
         : 0;
       target.weakened = Math.max(target.weakened, 0.25 * (1 - controlResistance));
       const blockedStatus = addStatusWithMutation(target, effects, "staggered", 2, actor.id);
-      if (blockedStatus) detail += `; ${blockedStatus}`;
       detail = `${result.detail}; следующий удар цели ослаблен${controlResistance > 0 ? " слабее из-за выученной дисциплины" : ""}`;
+      if (blockedStatus) detail += `; ${blockedStatus}`;
     } else {
       const multiplier = skill.id === "execution" && target.health / target.maxHealth < 0.42 ? skill.power * 1.25 : skill.power;
       const result = attackDamage(actor, target, random, effects, multiplier, skill.id);
       damage = result.damage; critical = result.critical; detail = result.detail;
+      statusComboIds.push(...result.statusComboIds);
     }
     {
       const baseEcho = actor.model.recoveryAfterSkill(actor.maxHealth, actor.health);
-      const echo = (actor.setCounts.astral ?? 0) >= 4
+      const baseRecovery = (actor.setCounts.astral ?? 0) >= 4
         ? Math.min(actor.maxHealth - actor.health, baseEcho * 2)
         : baseEcho;
+      const echo = Math.min(actor.maxHealth - actor.health, Math.max(0, Math.round(baseRecovery * healingPressure)));
       if (echo > 0) {
         actor.health += echo;
         healing += echo;
@@ -658,15 +690,27 @@ function performTurn(
   } else {
     const result = attackDamage(actor, target, random, effects);
     damage = result.damage; critical = result.critical; detail = result.detail;
+    statusComboIds.push(...result.statusComboIds);
   }
 
+  const resonancePower = resonanceDamageMultiplier(actor.equipmentResonance, targetAfflicted);
+  if (damage > 0 && resonancePower > 1) {
+    damage = Math.max(1, Math.round(damage * resonancePower));
+    detail += `; наследие комплекта «${actor.equipmentResonance!.setName}» усилило удар по ослабленной цели`;
+  }
   if (damage > 0 && damagePressure > 1) {
     damage = Math.max(1, Math.round(damage * damagePressure));
-    const minimumDamageShare = Math.min(0.34, 0.05 + pressureTurns * 0.03);
-    damage = Math.max(damage, Math.round(target.maxHealth * minimumDamageShare));
     if (damagePressure >= 1.25) detail += "; усталость боя усилила натиск";
   }
-  damage = Math.min(damage, Math.max(1, Math.round(target.maxHealth * 0.48)));
+  damage = Math.min(damage, Math.max(1, Math.round(target.maxHealth * MAX_DIRECT_DAMAGE_SHARE)));
+
+  if (damage > 0 && target.health / target.maxHealth < 0.4 && target.equipmentResonance?.path === "guard"
+    && !target.usedMechanics.has("resonance-last-guard")) {
+    target.usedMechanics.add("resonance-last-guard");
+    damage = Math.max(1, Math.round(damage * resonanceGuardMultiplier(target.equipmentResonance)));
+    effects.addStatus(target, "guarded", 3, target.id);
+    detail += `; наследие комплекта «${target.equipmentResonance.setName}» приняло часть удара и подготовило защиту`;
+  }
 
   if (damage >= target.health && target.health > 1 && (target.setCounts.bastion ?? 0) >= 6
     && !target.usedMechanics.has("bastion-last-stand")) {
@@ -676,25 +720,40 @@ function performTurn(
   }
   target.health = Math.max(0, target.health - damage);
   if (critical && damage > 0 && (actor.setCounts.dusk ?? 0) >= 6) {
-    const restored = Math.min(actor.maxHealth - actor.health, Math.max(1, Math.round(actor.maxHealth * 0.03)));
+    const restored = Math.min(actor.maxHealth - actor.health, Math.max(1, Math.round(actor.maxHealth * 0.03 * healingPressure)));
     actor.health += restored;
     healing += restored;
     detail += `; парные сумерки восстановили ${restored} HP`;
   }
-  const mechanic = effects.afterAction(actor, target, damage, Boolean(skill));
+  const mechanic = effects.afterAction(actor, target, damage, Boolean(skill), {
+    critical,
+    skillKind: skill?.kind,
+    skillId: skill?.id,
+    combo: actor.combo,
+    healing,
+    healingMultiplier: healingPressure,
+  });
   healing += mechanic.healing;
   if (mechanic.detail.length > 0) detail += `; ${mechanic.detail.join("; ")}`;
-  if (healing > 0 && healingPressure < 1) {
-    const reducedHealing = Math.max(0, Math.round(healing * healingPressure));
-    actor.health = Math.max(0, actor.health - (healing - reducedHealing));
-    healing = reducedHealing;
-    if (healingPressure <= 0.75) detail += "; усталость ослабила восстановление";
+  const cadence = resonanceCooldownCadence(actor.equipmentResonance);
+  if (skill && cadence && actor.actionsTaken % cadence === 0) {
+    const cooling = Object.keys(actor.cooldowns).filter((id) => id !== skill.id && actor.cooldowns[id] > 0);
+    cooling.forEach((id) => { actor.cooldowns[id] = Math.max(0, actor.cooldowns[id] - 1); });
+    if (cooling.length > 0) detail += `; наследие комплекта «${actor.equipmentResonance!.setName}» ускорило возвращение ${cooling.length} навыков`;
   }
+  if (healing > 0 && healingPressure <= 0.75) detail += "; усталость ослабила восстановление";
   if (turnStartDetail) detail = `${turnStartDetail}${detail ? `; ${detail}` : ""}`;
+  if (decisionReason) detail += `${detail ? "; " : ""}Решение: ${decisionReason}`;
   detail = detail.replace(/^;\s*/, "");
   return {
     turn, actorId: actor.id, targetId: target.id, actorName: actor.name, targetName: target.name,
     action, skillId: skill?.id, detail, damage, healing, actorHealth: actor.health, targetHealth: target.health, critical,
+    decisionReason,
+    decisionScore,
+    resourceChange: mechanic.resourceEvents.reduce((sum, event) => sum + event.gained, 0) || undefined,
+    resourceTriggered: mechanic.resourceEvents.find((event) => event.trigger)?.trigger,
+    statusComboIds: [...new Set(statusComboIds)],
+    resourceEvents: mechanic.resourceEvents.map((event) => ({ ...event })),
   };
 }
 
@@ -717,6 +776,7 @@ function runtimeSnapshot(runtime: RuntimeFighter): CombatantSnapshot {
     injuryNames: runtime.injuryNames ? [...runtime.injuryNames] : undefined,
     tacticalStyle: runtime.tacticalStyle,
     setCounts: { ...runtime.setCounts },
+    equipmentResonance: runtime.equipmentResonance ? { ...runtime.equipmentResonance } : undefined,
     mutationId: runtime.mutation?.id,
     mutationPotency: runtime.mutation?.potency,
   };
@@ -729,7 +789,7 @@ export class BattleSession {
   private readonly enemyBefore: CombatantSnapshot;
   private readonly random: RandomSource;
   private readonly effects = new BattleEffectPipeline();
-  private readonly turnLog: BattleTurn[] = [];
+  private readonly turnLog: DetailedBattleTurn[] = [];
   private nextActor: RuntimeFighter;
   private winner?: RuntimeFighter;
   private readonly maximumActions = 120;
@@ -752,7 +812,7 @@ export class BattleSession {
       this.enemy = runtimeFromBattleSnapshot(snapshot.enemy);
       this.heroBefore = cloneCombatantSnapshot(snapshot.heroBefore);
       this.enemyBefore = cloneCombatantSnapshot(snapshot.enemyBefore);
-      this.turnLog.push(...snapshot.turns.map((turn) => ({ ...turn })));
+      this.turnLog.push(...snapshot.turns.map(cloneBattleTurn));
       const nextActor = snapshot.nextActorId === this.hero.id ? this.hero
         : snapshot.nextActorId === this.enemy.id ? this.enemy
           : undefined;
@@ -772,12 +832,30 @@ export class BattleSession {
     if (isCombatantSnapshot(heroProfile) && isCombatantSnapshot(enemyProfile)) {
       this.hero = runtimeFromSnapshot(heroProfile);
       this.enemy = runtimeFromSnapshot(enemyProfile);
+      const rules = TOURNAMENT_RULES.filter((rule) => options.ruleIds?.includes(rule.id));
+      const applyRules = (fighter: RuntimeFighter, opponent: RuntimeFighter, side: "hero" | "enemy") => {
+        rules.forEach((rule) => {
+          const bonus = side === "hero" ? rule.heroStats : rule.enemyStats;
+          const health = (bonus?.health ?? 0) + (fighter.level < opponent.level ? rule.lowerLevelHealthBonus ?? 0 : 0);
+          fighter.maxHealth = Math.max(1, fighter.maxHealth + health);
+          fighter.health = Math.max(1, Math.min(fighter.maxHealth, fighter.health + health));
+          fighter.attack = Math.max(1, fighter.attack + (bonus?.attack ?? 0));
+          fighter.defense = Math.max(0, fighter.defense + (bonus?.defense ?? 0));
+          fighter.speed = Math.max(1, fighter.speed + (bonus?.speed ?? 0));
+          fighter.crit = Math.max(0, Math.min(60, fighter.crit + (bonus?.crit ?? 0)));
+          if (rule.disableHealing) fighter.disableHealing = true;
+        });
+        if (fighter.disableHealing) fighter.skills = fighter.skills.filter((id) => SKILLS.find((skill) => skill.id === id)?.kind !== "heal");
+      };
+      applyRules(this.hero, this.enemy, "hero");
+      applyRules(this.enemy, this.hero, "enemy");
     } else if (!isCombatantSnapshot(heroProfile) && !isCombatantSnapshot(enemyProfile)) {
       const activeRules = TOURNAMENT_RULES.filter((rule) => options.ruleIds?.includes(rule.id));
       const challengerHealth = activeRules.reduce((sum, rule) => sum + (rule.lowerLevelHealthBonus ?? 0), 0);
       const heroLevel = options.heroLevelCap ? Math.min(heroProfile.level, options.heroLevelCap) : heroProfile.level;
-      const heroBonus = heroLevel < enemyProfile.level ? { health: challengerHealth } : {};
-      const enemyBonus = enemyProfile.level < heroLevel ? { health: challengerHealth } : {};
+      const enemyLevel = options.enemyLevelCap ? Math.min(enemyProfile.level, options.enemyLevelCap) : enemyProfile.level;
+      const heroBonus = heroLevel < enemyLevel ? { health: challengerHealth } : {};
+      const enemyBonus = enemyLevel < heroLevel ? { health: challengerHealth } : {};
       this.hero = toRuntime(heroProfile, {
         levelCap: options.heroLevelCap,
         ruleIds: options.ruleIds,
@@ -786,6 +864,7 @@ export class BattleSession {
         bonusStats: heroBonus,
       });
       this.enemy = toRuntime(enemyProfile, {
+        levelCap: options.enemyLevelCap,
         ruleIds: options.ruleIds,
         side: "enemy",
         statMultipliers: options.enemyStatMultipliers,
@@ -815,7 +894,7 @@ export class BattleSession {
     return Boolean(this.winner);
   }
 
-  public get turns(): readonly BattleTurn[] {
+  public get turns(): readonly DetailedBattleTurn[] {
     return this.turnLog;
   }
 
@@ -830,7 +909,7 @@ export class BattleSession {
       enemyBefore: cloneCombatantSnapshot(this.enemyBefore),
       hero: battleRuntimeSnapshot(this.hero),
       enemy: battleRuntimeSnapshot(this.enemy),
-      turns: this.turnLog.map((turn) => ({ ...turn })),
+      turns: this.turnLog.map(cloneBattleTurn),
       nextActorId: this.nextActor.id,
       winnerId: this.winner?.id,
       random: random.snapshot(),
@@ -851,16 +930,38 @@ export class BattleSession {
   public availableActions(): BattleActionOption[] {
     if (this.isFinished) return [];
     const actor = this.nextActor;
+    const target = actor.id === this.hero.id ? this.enemy : this.hero;
+    const ready = SKILLS.filter((skill) => actor.skills.includes(skill.id)
+      && Math.max(0, (actor.cooldowns[skill.id] ?? 0) - 1) === 0);
+    const decision = skillDecision(ready, actor, target);
     return [
-      { id: "basic", name: "Обычная атака", kind: "basic", cooldown: 0, available: true },
+      {
+        id: "basic",
+        name: "Обычная атака",
+        kind: "basic",
+        cooldown: 0,
+        available: true,
+        recommended: !decision.skill,
+        reason: !decision.skill ? decision.reason : undefined,
+        score: !decision.skill ? decision.score : undefined,
+      },
       ...SKILLS.filter((skill) => actor.skills.includes(skill.id)).map((skill) => {
         const cooldown = Math.max(0, (actor.cooldowns[skill.id] ?? 0) - 1);
-        return { id: skill.id, name: skill.name, kind: skill.kind, cooldown, available: cooldown === 0 };
+        return {
+          id: skill.id,
+          name: skill.name,
+          kind: skill.kind,
+          cooldown,
+          available: cooldown === 0,
+          recommended: decision.skill?.id === skill.id,
+          reason: decision.skill?.id === skill.id ? decision.reason : undefined,
+          score: decision.considered.find((entry) => entry.skillId === skill.id)?.score,
+        };
       }),
     ];
   }
 
-  public step(action?: BattleAction): BattleTurn {
+  public step(action?: BattleAction): DetailedBattleTurn {
     if (this.isFinished) throw new Error("Battle session is already complete.");
     const actor = this.nextActor;
     const target = actor.id === this.hero.id ? this.enemy : this.hero;
@@ -912,16 +1013,18 @@ export class BattleSession {
 
   public resolution(): CombatResolution {
     if (!this.winner) throw new Error("Battle session has not finished yet.");
+    const turns = this.turnLog.map(cloneBattleTurn);
     return {
       hero: this.heroBefore,
       enemy: this.enemyBefore,
       winnerId: this.winner.id,
-      turns: [...this.turnLog],
+      turns,
+      analysis: analyzeBattle(turns, this.heroBefore, this.enemyBefore, this.winner.id),
     };
   }
 
   private actionInterval(fighter: RuntimeFighter): number {
-    return 100 / Math.max(8, 12 + fighter.speed);
+    return 100 / combatActionRate(fighter.speed);
   }
 
   private selectNextActor(): RuntimeFighter {
@@ -952,9 +1055,13 @@ export function nextSkills(classId: HeroClass, level: number): SkillDefinition[]
 
 export function describeSetProgress(items: EquipmentItem[]): Array<{ name: string; count: number; active: string[] }> {
   const counts = setCounts(items);
+  const resonance = equipmentResonance(items);
   return EQUIPMENT_SETS.map((set) => ({
     name: set.name,
     count: counts[set.id] ?? 0,
-    active: set.bonuses.filter((bonus) => (counts[set.id] ?? 0) >= bonus.pieces).map((bonus) => bonus.description),
+    active: [
+      ...set.bonuses.filter((bonus) => (counts[set.id] ?? 0) >= bonus.pieces).map((bonus) => bonus.description),
+      ...(resonance?.setId === set.id ? [`Наследие комплекта ${resonance.stage}: ${resonance.description}`] : []),
+    ],
   })).filter((set) => set.count > 0);
 }

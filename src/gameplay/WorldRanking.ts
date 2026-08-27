@@ -39,9 +39,9 @@ export function calculateEnemyWorldRating(enemy: EnemyProfile): number {
   return 1000 + provenArena * WORLD_RATING_ARENA_BAND
     + Math.min(300, championships)
     + Math.min(80, otherTournamentWins * 5)
-    + Math.min(160, enemy.wins * 2)
+    + Math.min(160, Math.max(0, enemy.wins - (enemy.duelWins ?? 0)) * 2)
     + Math.min(100, enemy.level * 3)
-    - Math.min(140, enemy.losses * 2);
+    - Math.min(140, Math.max(0, enemy.losses - (enemy.duelLosses ?? 0)) * 2);
 }
 
 export function heroLeaderboardEntry(
