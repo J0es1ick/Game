@@ -1,11 +1,14 @@
 import type { IEquipment } from "../equipment/IEquipment";
 import type { RandomSnapshot } from "./RandomSource";
 import type { StructuredWorldEventPayload } from "./WorldEvents";
-import type { DungeonRoute } from "./DungeonRoute";
+import type { DungeonNodeKind, DungeonRoute } from "./DungeonRoute";
 import type { CrownSeasonResult, CrownSeasonState } from "./CrownSeason";
 import type { LootPityState, LootTarget } from "./LootProgression";
 import type { EraChallengeProgressState } from "./EraChallenges";
 import type { BattleSessionSnapshot } from "./AdvancedBattle";
+import type { NpcLifeWorldState } from "./NpcLifeSimulation";
+import type { WorldSeasonResult, WorldSeasonState } from "./WorldSeason";
+import type { FactionCampaignState } from "./FactionCampaign";
 
 export type HeroClass =
   | "Knight"
@@ -87,8 +90,30 @@ export interface EquipmentItem extends IEquipment<Partial<Stats>> {
   relicPath?: "might" | "guard" | "tempo";
   relicName?: string;
   relicHistory?: string[];
+  relicFeats?: string[];
+  relicProperties?: ItemAffix[];
+  appearanceVariant?: string;
   inheritedFromCycle?: number;
+  worldRelicId?: string;
   isVisualTestItem?: boolean;
+}
+
+export type NpcGoal = "champion" | "wealth" | "relic" | "vengeance" | "elite";
+export type NpcActivity = "training" | "arena" | "dungeon" | "shopping" | "forging" | "rest";
+
+export interface NpcRelationship {
+  fighterId: string;
+  kind: "rival" | "ally" | "mentor";
+  intensity: number;
+  lastChangedDay: number;
+  encounters?: number;
+  outcomeBalance?: number;
+}
+
+export interface NpcActivityRecord {
+  day: number;
+  activity: NpcActivity;
+  description: string;
 }
 
 export type TacticalStyle = "balanced" | "aggressive" | "defensive" | "control";
@@ -110,6 +135,9 @@ export interface TacticalProfile {
   finisherThreshold: number;
   preserveStrongSkills: boolean;
   prioritizeControl: boolean;
+  breakGuardFirst?: boolean;
+  ultimateHealthThreshold?: number;
+  preferredOpeningSkillId?: string;
 }
 
 export interface HeroStyleSignature {
@@ -119,6 +147,14 @@ export interface HeroStyleSignature {
   skillIds: string[];
   dominantSkillId?: string;
   behavior: Partial<Record<HeroBehaviorPattern, number>>;
+  fingerprint?: {
+    openingActionIds: string[];
+    defensiveRatio: number;
+    healingRatio: number;
+    healingUrgency: number;
+    comboPatterns: string[];
+    repetitionRatio: number;
+  };
 }
 
 export interface EnemyStyleMemory {
@@ -179,6 +215,7 @@ export interface ItemTemplate {
   setId?: string;
   exclusiveToBoss?: string;
   exclusiveToElite?: boolean;
+  exclusiveToFaction?: string;
 }
 
 export interface EquipmentSetDefinition {
@@ -196,6 +233,15 @@ export interface EquipmentSetDefinition {
 }
 
 export type EquipmentSet = Partial<Record<EquipmentSlot, string>>;
+
+export interface EquipmentResonance {
+  setId: string;
+  setName: string;
+  path: "might" | "guard" | "tempo";
+  stage: 1 | 2 | 3;
+  pieces: number;
+  description: string;
+}
 
 export interface HeroAppearance {
   hairStyle: 0 | 1 | 2;
@@ -260,6 +306,8 @@ export interface EnemyProfile {
   rating: number;
   wins: number;
   losses: number;
+  duelWins?: number;
+  duelLosses?: number;
   tournamentWins: number;
   arenaTournamentWins: number[];
   kills: number;
@@ -278,6 +326,60 @@ export interface EnemyProfile {
   carriedFromCycle?: number;
   eraMutationId?: string;
   eraMutationPotency?: number;
+  factionId?: string;
+  gold?: number;
+  goal?: NpcGoal;
+  joinedDay?: number;
+  lastActivity?: NpcActivityRecord;
+  relationships?: Record<string, NpcRelationship>;
+  mentorId?: string;
+  legendSinceDay?: number;
+  retiredDay?: number;
+  factionLoyalty?: number;
+  factionHostility?: Record<string, number>;
+}
+
+export interface MentorRecord {
+  id: string;
+  fighterId: string;
+  name: string;
+  classId: HeroClass;
+  factionId: string;
+  goal: NpcGoal;
+  level: number;
+  rating: number;
+  retiredDay: number;
+  studentIds: string[];
+  legacy: string;
+  dynastyId?: string;
+  role?: "mentor" | "shop-owner" | "faction-founder";
+}
+
+export interface FactionControlState {
+  arenaControllers: Record<string, string>;
+  arenaInfluence: Record<string, Record<string, number>>;
+  shopControllerId: string;
+  lastShiftDay: number;
+  dungeonControllers?: Record<string, string>;
+  dungeonInfluence?: Record<string, Record<string, number>>;
+  relations?: Record<string, Record<string, number>>;
+  shopOwnerMentorId?: string;
+  shopPriceRevision?: number;
+}
+
+export interface WorldRelicRecord {
+  id: string;
+  item: EquipmentItem;
+  createdDay: number;
+  status: "wielded" | "lost" | "shop";
+  currentOwnerId?: string;
+  currentOwnerName?: string;
+  formerOwners: string[];
+  history: string[];
+  legacyKind?: "conquest" | "blood" | "journey";
+  legacyStage?: 1 | 2 | 3;
+  legacyProperty?: ItemAffix;
+  lastSyncedDay?: number;
 }
 
 export interface LegacyFighterRecord {
@@ -290,6 +392,7 @@ export interface LegacyFighterRecord {
   wins: number;
   losses: number;
   kills: number;
+  heroMemory?: EnemyStyleMemory;
 }
 
 export interface LegacyHeroRecord extends LegacyFighterRecord {
@@ -305,6 +408,10 @@ export interface LegacyHeroRecord extends LegacyFighterRecord {
   equipment: EquipmentItem[];
   notableFighters: LegacyFighterRecord[];
   fallenNames: string[];
+  worldRole?: "legend" | "boss" | "mentor" | "faction-founder";
+  schoolName?: string;
+  factionId?: string;
+  rememberedByIds?: string[];
   completedAt: number;
 }
 
@@ -374,10 +481,24 @@ export interface DungeonExpedition {
   visitedNodeIds?: string[];
   currentNodeId?: string;
   pendingShrineNodeId?: string;
+  pendingMerchantNodeId?: string;
   attackMultiplier?: number;
   defenseMultiplier?: number;
   lootChanceBonus?: number;
   daysSpent?: number;
+  supplies?: number;
+  maxSupplies?: number;
+  discoveredNodeIds?: string[];
+  encounteredFighterIds?: string[];
+}
+
+export interface DungeonDiscovery {
+  dungeonId: string;
+  completedRuns: number;
+  discoveredNodeIds: string[];
+  discoveredClueIds: string[];
+  seenEncounterKinds: DungeonNodeKind[];
+  alternateBossDefeated?: boolean;
 }
 
 export type ExpeditionShrineChoiceId = "blood-oath" | "guardian-vow";
@@ -542,6 +663,15 @@ export interface GameSave {
   dungeonClears: Record<string, number>;
   shopDay: number;
   shopOffers: ShopOffer[];
+  factionControl?: FactionControlState;
+  factionCampaigns?: FactionCampaignState;
+  mentors?: MentorRecord[];
+  worldRelics?: WorldRelicRecord[];
+  npcLife?: NpcLifeWorldState;
+  worldSeason?: WorldSeasonState;
+  worldSeasonHistory?: WorldSeasonResult[];
+  dungeonDiscoveries?: Record<string, DungeonDiscovery>;
+  pendingFactionHunterId?: string;
   discoveredItems: string[];
   tournamentRegistrations: Record<string, number>;
   defeatedBosses: string[];
@@ -595,6 +725,7 @@ export interface CombatantSnapshot {
   injuryNames?: string[];
   tacticalStyle?: TacticalStyle;
   setCounts?: Record<string, number>;
+  equipmentResonance?: EquipmentResonance;
   mutationId?: string;
   mutationPotency?: number;
 }
@@ -613,6 +744,32 @@ export interface BattleTurn {
   actorHealth: number;
   targetHealth: number;
   critical: boolean;
+  decisionReason?: string;
+  decisionScore?: number;
+  resourceChange?: number;
+  resourceTriggered?: string;
+  statusComboIds?: string[];
+}
+
+export interface FighterBattleAnalytics {
+  fighterId: string;
+  fighterName: string;
+  totalDamage: number;
+  totalHealing: number;
+  criticalHits: number;
+  mostUsedSkillId?: string;
+  decisiveSkillId?: string;
+  statusComboIds: string[];
+  resourceTriggers: string[];
+}
+
+export interface BattleAnalytics {
+  duration: number;
+  actionCount: number;
+  fighters: FighterBattleAnalytics[];
+  decidingEffect?: string;
+  adaptationReason?: string;
+  highlights: string[];
 }
 
 export interface BattleRewards {
@@ -637,6 +794,7 @@ export interface BattleReport {
   rewards: BattleRewards;
   worldEvents: WorldEvent[];
   ruleIds?: string[];
+  analysis?: BattleAnalytics;
 }
 
 export interface TournamentMatch {
@@ -700,6 +858,7 @@ export type PendingBattleKind =
   | "duel"
   | "boss"
   | "legacy-champion"
+  | "world-encounter"
   | "legend-hunt"
   | "legend-defense"
   | "arena-tournament"
