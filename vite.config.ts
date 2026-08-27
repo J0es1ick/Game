@@ -1,9 +1,19 @@
+import { resolve } from "node:path";
 import { defineConfig } from "vite";
 
 export default defineConfig({
   base: "/Game/",
   root: "./src/web",
   publicDir: false,
+  plugins: [
+    {
+      name: "watch-game-sources",
+      apply: "serve",
+      configureServer(server) {
+        server.watcher.add(resolve(server.config.root, ".."));
+      },
+    },
+  ],
   build: {
     outDir: "../../dist",
     emptyOutDir: true,
@@ -28,6 +38,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    strictPort: true,
   },
   resolve: {
     alias: {
