@@ -36,6 +36,7 @@ import {
 import { createWorldRelicRecord, normalizeFactionControlState, normalizeWorldRelics } from "./LivingWorld";
 import { normalizeNpcLifeWorldState } from "./NpcLifeSimulation";
 import { normalizeWorldSeason, worldSeasonRule } from "./WorldSeason";
+import { restoreWorldSeasonNames } from "./WorldSeasonNames";
 import { createClassResource } from "./CombatEffects";
 import { initialEnemyMutationState } from "./EraChallenges";
 import { normalizeDungeonDiscoveryState } from "./DungeonRoute";
@@ -244,6 +245,7 @@ export function normalizeWorldSave(save: GameSave): GameSave {
       summary: typeof season.summary === "string" ? season.summary : `Сезон ${finiteInteger(season.number, index + 1, 1)} восстановлен из летописи.`,
     };
   });
+  restoreWorldSeasonNames(save);
   normalizeDungeonDiscoveries(save);
   const knownNarrativeIds = new Set(NARRATIVE_EVENTS.map((event) => event.id));
   save.seenNarrativeEventIds = [...new Set(save.seenNarrativeEventIds)].filter((id) => knownNarrativeIds.has(id));

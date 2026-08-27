@@ -22,6 +22,7 @@ export interface WorldSeasonState {
   ruleId: WorldSeasonRuleId;
   arenaPoints: Record<string, Record<string, number>>;
   elitePoints: Record<string, number>;
+  fighterNames: Record<string, string>;
 }
 
 export interface WorldSeasonStanding {
@@ -104,6 +105,42 @@ function safeRule(id: string | undefined): WorldSeasonRule {
   return WORLD_SEASON_RULES.find((rule) => rule.id === id) ?? WORLD_SEASON_RULES[0];
 }
 
+export const UNKNOWN_SEASON_FIGHTER_NAME = "Неизвестный участник";
+
+export function knownSeasonFighterName(fighterId: string, name: unknown): string | undefined {
+  if (typeof name !== "string") return undefined;
+  const value = name.trim();
+  if (!value || (value === fighterId && fighterId !== "hero") || value === UNKNOWN_SEASON_FIGHTER_NAME) return undefined;
+  return value;
+}
+
+export function rememberWorldSeasonFighters(
+  season: WorldSeasonState,
+  fighters: readonly Pick<EnemyProfile, "id" | "name">[],
+): void {
+  const participants = new Set([
+    ...Object.values(season.arenaPoints).flatMap((points) => Object.keys(points)),
+    ...Object.keys(season.elitePoints),
+  ]);
+  season.fighterNames ??= {};
+  fighters.forEach((fighter) => {
+    const name = knownSeasonFighterName(fighter.id, fighter.name);
+    if (participants.has(fighter.id) && name) season.fighterNames[fighter.id] = name;
+  });
+}
+
+function seasonFighterNames(season: WorldSeasonState, fighters: readonly EnemyProfile[], heroName: string): Map<string, string> {
+  const names = new Map<string, string>();
+  const remember = (id: string, value: unknown): void => {
+    const name = knownSeasonFighterName(id, value);
+    if (name) names.set(id, name);
+  };
+  Object.entries(season.fighterNames ?? {}).forEach(([id, name]) => remember(id, name));
+  fighters.forEach((fighter) => remember(fighter.id, fighter.name));
+  names.set("hero", heroName);
+  return names;
+}
+
 export function worldSeasonRule(id: string | undefined): WorldSeasonRule {
   return { ...safeRule(id) };
 }
@@ -121,6 +158,7 @@ export function createWorldSeason(day: number, number: number, random: RandomSou
     ruleId: rule.id,
     arenaPoints: Object.fromEntries(ARENAS.map((arena) => [arena.id, {}])),
     elitePoints: {},
+    fighterNames: {},
   };
 }
 
@@ -146,6 +184,11 @@ export function normalizeWorldSeason(
     elitePoints: Object.fromEntries(Object.entries(source.elitePoints ?? {})
       .filter(([, points]) => Number.isFinite(points))
       .map(([fighterId, points]) => [fighterId, Math.max(0, Math.floor(Number(points)))])),
+    fighterNames: Object.fromEntries(Object.entries(source.fighterNames ?? {})
+      .flatMap(([id, value]) => {
+        const name = knownSeasonFighterName(id, value);
+        return name ? [[id, name]] : [];
+      })),
   };
 }
 
@@ -154,10 +197,13 @@ export function awardWorldSeasonPoints(
   arenaId: string,
   fighterId: string,
   kind: "win" | "loss" | "champion",
+  fighterName?: string,
 ): number {
   const points = kind === "champion" ? 18 : kind === "win" ? 3 : 1;
   season.arenaPoints[arenaId] ??= {};
   season.arenaPoints[arenaId][fighterId] = (season.arenaPoints[arenaId][fighterId] ?? 0) + points;
+  const name = knownSeasonFighterName(fighterId, fighterName);
+  if (name) (season.fighterNames ??= {})[fighterId] = name;
   return points;
 }
 
@@ -165,9 +211,12 @@ export function awardWorldEliteSeasonPoints(
   season: WorldSeasonState,
   fighterId: string,
   result: "win" | "loss" | "defense" | "champion",
+  fighterName?: string,
 ): number {
   const points = { win: 3, loss: 1, defense: 5, champion: 18 }[result];
   season.elitePoints[fighterId] = (season.elitePoints[fighterId] ?? 0) + points;
+  const name = knownSeasonFighterName(fighterId, fighterName);
+  if (name) (season.fighterNames ??= {})[fighterId] = name;
   return points;
 }
 
@@ -176,8 +225,7 @@ export function worldEliteSeasonStandings(
   fighters: readonly EnemyProfile[],
   heroName: string,
 ): WorldSeasonStanding[] {
-  const names = new Map(fighters.map((fighter) => [fighter.id, fighter.name]));
-  names.set("hero", heroName);
+  const names = seasonFighterNames(season, fighters, heroName);
   return Object.entries(season.elitePoints)
     .filter(([fighterId, points]) => names.has(fighterId) && points > 0)
     .map(([fighterId, points]) => ({ fighterId, fighterName: names.get(fighterId)!, arenaId: "elite", points, place: 0 }))
@@ -190,11 +238,10 @@ export function worldSeasonStandings(
   fighters: readonly EnemyProfile[],
   heroName: string,
 ): WorldSeasonStanding[] {
-  const names = new Map(fighters.map((fighter) => [fighter.id, fighter.name]));
-  names.set("hero", heroName);
+  const names = seasonFighterNames(season, fighters, heroName);
   return ARENAS.flatMap((arena) => Object.entries(season.arenaPoints[arena.id] ?? {})
-    .map(([fighterId, points]) => ({ fighterId, fighterName: names.get(fighterId) ?? fighterId, arenaId: arena.id, points, place: 0 }))
-    .sort((first, second) => second.points - first.points || first.fighterName.localeCompare(second.fighterName, "ru"))
+    .map(([fighterId, points]) => ({ fighterId, fighterName: names.get(fighterId) ?? UNKNOWN_SEASON_FIGHTER_NAME, arenaId: arena.id, points, place: 0 }))
+    .sort((first, second) => second.points - first.points || first.fighterName.localeCompare(second.fighterName, "ru") || first.fighterId.localeCompare(second.fighterId))
     .map((standing, index) => ({ ...standing, place: index + 1 })));
 }
 

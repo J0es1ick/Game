@@ -369,6 +369,15 @@ function validateWorldSeason(value: unknown, path: string, issues: WorldSaveVali
   if (value.arenaPoints !== undefined && !isRecord(value.arenaPoints)) issues.push({ path: `${path}.arenaPoints`, message: "Таблица арен сезона повреждена." });
   else if (isRecord(value.arenaPoints)) Object.entries(value.arenaPoints).forEach(([arenaId, points]) => validateFiniteNumberRecord(points, `${path}.arenaPoints.${arenaId}`, issues));
   if (value.elitePoints !== undefined) validateFiniteNumberRecord(value.elitePoints, `${path}.elitePoints`, issues);
+  if (value.fighterNames !== undefined) {
+    if (!isRecord(value.fighterNames)) {
+      issues.push({ path: `${path}.fighterNames`, message: "Имена участников сезона повреждены." });
+    } else Object.entries(value.fighterNames).forEach(([id, name]) => {
+      if (!isNonEmptyString(id) || !isNonEmptyString(name)) {
+        issues.push({ path: `${path}.fighterNames.${id}`, message: "Ожидалось имя участника сезона." });
+      }
+    });
+  }
 }
 
 function validateWorldSeasonHistory(value: unknown, path: string, issues: WorldSaveValidationIssue[]): void {

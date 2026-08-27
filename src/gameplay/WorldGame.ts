@@ -203,6 +203,7 @@ import {
   awardWorldSeasonPoints,
   closeWorldSeason,
   createWorldSeason,
+  rememberWorldSeasonFighters,
   worldSeasonRule,
   worldSeasonStandings as calculateWorldSeasonStandings,
   type WorldSeasonResult,
@@ -413,6 +414,7 @@ export class WorldGame {
       ...season,
       arenaPoints: Object.fromEntries(Object.entries(season.arenaPoints).map(([arenaId, points]) => [arenaId, { ...points }])),
       elitePoints: { ...season.elitePoints },
+      fighterNames: { ...season.fighterNames },
       rule: worldSeasonRule(season.ruleId),
       remainingDays: Math.max(0, season.endsDay - this.save.worldDay + 1),
     };
@@ -2199,8 +2201,8 @@ export class WorldGame {
       this.awardCrownSeason(heroWon ? "hero" : enemy.id, "win");
       this.awardCrownSeason(heroWon ? enemy.id : "hero", "loss");
     } else if (arena) {
-      awardWorldSeasonPoints(this.save.worldSeason!, arena.id, heroWon ? "hero" : enemy.id, "win");
-      awardWorldSeasonPoints(this.save.worldSeason!, arena.id, heroWon ? enemy.id : "hero", "loss");
+      awardWorldSeasonPoints(this.save.worldSeason!, arena.id, heroWon ? "hero" : enemy.id, "win", heroWon ? this.save.hero.name : enemy.name);
+      awardWorldSeasonPoints(this.save.worldSeason!, arena.id, heroWon ? enemy.id : "hero", "loss", heroWon ? enemy.name : this.save.hero.name);
     }
     const [firstId, secondId] = state.pairs[state.pairIndex];
     const winnerId = heroWon ? "hero" : enemy.id;
@@ -2252,8 +2254,8 @@ export class WorldGame {
       loser.losses += 1;
       this.recordNpcRivalry(winner, loser);
       this.addFactionInfluence(winner, arenaIndex, 1);
-      awardWorldSeasonPoints(this.save.worldSeason!, ARENAS[arenaIndex].id, winner.id, "win");
-      awardWorldSeasonPoints(this.save.worldSeason!, ARENAS[arenaIndex].id, loser.id, "loss");
+      awardWorldSeasonPoints(this.save.worldSeason!, ARENAS[arenaIndex].id, winner.id, "win", winner.name);
+      awardWorldSeasonPoints(this.save.worldSeason!, ARENAS[arenaIndex].id, loser.id, "loss", loser.name);
       this.progressEnemy(winner, false);
     });
   }
@@ -2308,7 +2310,7 @@ export class WorldGame {
       this.recordEnemyHistory(npcChampion, `Стал чемпионом турнира «${arena.name}» в день ${this.save.worldDay}.`);
       npcChampion.rating = this.enemyWorldRating(npcChampion);
     }
-    awardWorldSeasonPoints(this.save.worldSeason!, arena.id, championId, "champion");
+    awardWorldSeasonPoints(this.save.worldSeason!, arena.id, championId, "champion", champion.name);
     this.recalculateHeroRating();
     this.event("tournament", `«${arena.name}» завершён. Чемпион: ${champion.name}. Участников: ${arena.participants}.`, {
       kind: "tournament", tournamentId: arena.id, tournamentName: arena.name,
@@ -3509,7 +3511,7 @@ export class WorldGame {
 
   private awardCrownSeason(fighterId: string, result: "win" | "loss" | "defense" | "champion"): void {
     this.save.crownSeason = awardCrownSeasonPoints(this.save.crownSeason, fighterId, result);
-    awardWorldEliteSeasonPoints(this.save.worldSeason!, fighterId, result);
+    awardWorldEliteSeasonPoints(this.save.worldSeason!, fighterId, result, this.fighterById(fighterId)?.name);
   }
 
   private syncCrownSeason(): void {
@@ -4441,8 +4443,8 @@ export class WorldGame {
       loser.losses += 1;
       this.recordNpcRivalry(winner, loser);
       this.addFactionInfluence(winner, arenaIndex, 1);
-      awardWorldSeasonPoints(this.save.worldSeason!, ARENAS[arenaIndex].id, winner.id, "win");
-      awardWorldSeasonPoints(this.save.worldSeason!, ARENAS[arenaIndex].id, loser.id, "loss");
+      awardWorldSeasonPoints(this.save.worldSeason!, ARENAS[arenaIndex].id, winner.id, "win", winner.name);
+      awardWorldSeasonPoints(this.save.worldSeason!, ARENAS[arenaIndex].id, loser.id, "loss", loser.name);
       if (recordEvents) this.event("battle", `${winner.name} победил ${loser.name} на арене «${ARENAS[arenaIndex].name}».`, {
         kind: "battle", actorId: winner.id, actorName: winner.name,
         targetId: loser.id, targetName: loser.name, outcome: "won",
@@ -4686,8 +4688,8 @@ export class WorldGame {
     this.recordNpcRivalry(winner, loser);
     if (!targeted) {
       this.addFactionInfluence(winner, winner.arenaIndex, 1);
-      awardWorldSeasonPoints(this.save.worldSeason!, ARENAS[winner.arenaIndex].id, winner.id, "win");
-      awardWorldSeasonPoints(this.save.worldSeason!, ARENAS[loser.arenaIndex].id, loser.id, "loss");
+      awardWorldSeasonPoints(this.save.worldSeason!, ARENAS[winner.arenaIndex].id, winner.id, "win", winner.name);
+      awardWorldSeasonPoints(this.save.worldSeason!, ARENAS[loser.arenaIndex].id, loser.id, "loss", loser.name);
     }
     this.progressEnemy(winner, false);
     if (fullCombat) this.event("battle", `${winner.name} победил ${loser.name} в личной встрече, которую мир запомнил подробно.`);
@@ -4891,13 +4893,13 @@ export class WorldGame {
         this.recordNpcRivalry(winner, loser);
         this.addFactionInfluence(winner, arenaIndex, 1);
         recordNpcEncounter(this.save.npcLife!, winner, loser, { day: this.save.worldDay, kind: "tournament" });
-        awardWorldSeasonPoints(this.save.worldSeason!, arena.id, winner.id, "win");
-        awardWorldSeasonPoints(this.save.worldSeason!, arena.id, loser.id, "loss");
+        awardWorldSeasonPoints(this.save.worldSeason!, arena.id, winner.id, "win", winner.name);
+        awardWorldSeasonPoints(this.save.worldSeason!, arena.id, loser.id, "loss", loser.name);
         return { winner };
       }, { seeded: true });
     const champion = bracket.champion;
     this.recordArenaChampionship(champion, arenaIndex);
-    awardWorldSeasonPoints(this.save.worldSeason!, arena.id, champion.id, "champion");
+    awardWorldSeasonPoints(this.save.worldSeason!, arena.id, champion.id, "champion", champion.name);
     champion.gold = (champion.gold ?? 0) + arena.rewardGold;
     this.addFactionInfluence(champion, arenaIndex, 14 + arenaIndex * 2);
     champion.rating = this.enemyWorldRating(champion);
@@ -5248,6 +5250,7 @@ export class WorldGame {
       }
     });
     if (this.save.enemies.length > 260) {
+      rememberWorldSeasonFighters(this.save.worldSeason!, [this.save.hero, ...this.save.enemies]);
       const previousEnemyIds = new Set(this.save.enemies.map((enemy) => enemy.id));
       const encounteredIds = new Set(Object.keys(this.save.hero.rivalries));
       this.save.eliteLeagueMemberIds.forEach((id) => encounteredIds.add(id));
