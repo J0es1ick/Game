@@ -269,7 +269,14 @@ function persist(options: { deferFeatureUnlocks?: boolean } = {}): void {
   try {
     saveRepository.save(game.save);
   } catch (error) {
-    notifyError((error as Error).message);
+    queueWorldEffect({
+      eyebrow: "ОШИБКА СОХРАНЕНИЯ",
+      title: "Прогресс не записан",
+      description: (error as Error).message,
+      symbol: "!",
+      tone: "negative",
+      duration: 8000,
+    });
     return;
   }
   pageRegistry.invalidateAll();
@@ -4627,8 +4634,7 @@ function closeSaveMenu(): void {
 function exportSaveFile(): void {
   if (!game) return;
   try {
-    persist({ deferFeatureUnlocks: true });
-    const download = saveTransferController.export(game.save.hero.name, game.save.worldDay);
+    const download = saveTransferController.export(game.save.hero.name, game.save.worldDay, game.save);
     const blob = new Blob([download.content], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");

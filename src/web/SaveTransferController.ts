@@ -1,5 +1,5 @@
 import type { GameSave } from "../gameplay/WorldTypes";
-import type { KeyValueStorage, WorldSaveRepository } from "../gameplay/WorldSaveStorage";
+import { exportWorldSave, type KeyValueStorage, type WorldSaveRepository } from "../gameplay/WorldSaveStorage";
 
 export interface SaveDownload {
   fileName: string;
@@ -12,11 +12,11 @@ export class SaveTransferController {
     private readonly storage: KeyValueStorage,
   ) {}
 
-  public export(heroName: string, worldDay: number): SaveDownload {
+  public export(heroName: string, worldDay: number, currentSave?: GameSave): SaveDownload {
     const safeName = heroName.replace(/[^\p{L}\p{N}_-]+/gu, "-").replace(/^-|-$/g, "") || "hero";
     return {
       fileName: `dust-and-crown-${safeName}-day-${Math.max(1, Math.floor(worldDay))}.json`,
-      content: this.repository.export(),
+      content: currentSave ? exportWorldSave(currentSave) : this.repository.export(),
     };
   }
 

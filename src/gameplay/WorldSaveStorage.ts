@@ -1,6 +1,7 @@
 import { normalizeWorldSave } from "./WorldSaveMigration";
 import { GameSave } from "./WorldTypes";
 import { assertRestorableWorldSave, InvalidWorldSaveError } from "./WorldSaveValidation";
+import { decodeWorldSaveStorage, encodeWorldSaveStorage, isCompressedWorldSave, worldSaveChecksum } from "./WorldSaveCodec";
 
 export const WORLD_SAVE_EXPORT_FORMAT = "dust-and-crown-world-save";
 export const WORLD_SAVE_EXPORT_SCHEMA = 1;
@@ -33,15 +34,6 @@ function cloneSave(save: GameSave): GameSave {
   return JSON.parse(JSON.stringify(save)) as GameSave;
 }
 
-function checksum(value: string): string {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
-}
-
 function migratedClone(value: unknown): GameSave {
   assertRestorableWorldSave(value);
   return normalizeWorldSave(cloneSave(value));
@@ -52,6 +44,7 @@ export function serializeWorldSave(save: GameSave): string {
 }
 
 export function parseWorldSave(serialized: string): GameSave {
+  serialized = decodeWorldSaveStorage(serialized);
   let parsed: unknown;
   try {
     parsed = JSON.parse(serialized) as unknown;
@@ -65,7 +58,7 @@ export function parseWorldSave(serialized: string): GameSave {
       throw new InvalidWorldSaveError([{ path: "$", message: "Версия экспортированного файла не поддерживается." }]);
     }
     const payload = JSON.stringify(envelope.save);
-    if (envelope.checksum !== checksum(payload)) {
+    if (envelope.checksum !== worldSaveChecksum(payload)) {
       throw new InvalidWorldSaveError([{ path: "$.checksum", message: "Контрольная сумма не совпала: файл повреждён." }]);
     }
     return migratedClone(envelope.save);
@@ -88,7 +81,7 @@ export function exportWorldSave(save: GameSave, now = Date.now()): string {
     format: WORLD_SAVE_EXPORT_FORMAT,
     schemaVersion: WORLD_SAVE_EXPORT_SCHEMA,
     exportedAt: now,
-    checksum: checksum(payload),
+    checksum: worldSaveChecksum(payload),
     save: migrated,
   };
   return JSON.stringify(envelope, null, 2);
@@ -97,6 +90,7 @@ export function exportWorldSave(save: GameSave, now = Date.now()): string {
 export class WorldSaveRepository {
   public readonly backupKey: string;
   public readonly temporaryKey: string;
+  private verifiedPrimary: string | null = null;
 
   public constructor(
     private readonly storage: KeyValueStorage,
@@ -107,14 +101,16 @@ export class WorldSaveRepository {
   }
 
   public load(): LoadedWorldSave | null {
+    this.compactStoredCopies();
     const interrupted = this.storage.getItem(this.temporaryKey);
     if (interrupted) {
       const parsed = safeParseWorldSave(interrupted);
       if (parsed.save) {
-        const current = this.storage.getItem(this.primaryKey);
-        if (current && safeParseWorldSave(current).save) this.storage.setItem(this.backupKey, current);
-        this.storage.setItem(this.primaryKey, interrupted);
-        this.storage.removeItem(this.temporaryKey);
+        try {
+          this.writePrimary(interrupted);
+        } catch {
+          return { save: parsed.save, source: "temporary" };
+        }
         return { save: parsed.save, source: "temporary" };
       }
       this.storage.removeItem(this.temporaryKey);
@@ -127,23 +123,18 @@ export class WorldSaveRepository {
       const serialized = this.storage.getItem(key);
       if (!serialized) continue;
       const parsed = safeParseWorldSave(serialized);
-      if (parsed.save) return { save: parsed.save, source };
+      if (parsed.save) {
+        if (source === "primary") this.verifiedPrimary = serialized;
+        return { save: parsed.save, source };
+      }
     }
     return null;
   }
 
   public save(save: GameSave): void {
-    const serialized = serializeWorldSave(save);
-    const current = this.storage.getItem(this.primaryKey);
-    if (current && safeParseWorldSave(current).save) this.storage.setItem(this.backupKey, current);
-
-    this.storage.setItem(this.temporaryKey, serialized);
-    const temporary = this.storage.getItem(this.temporaryKey);
-    if (!temporary || !safeParseWorldSave(temporary).save) {
-      throw new Error("Не удалось проверить временную копию сохранения.");
-    }
-    this.storage.setItem(this.primaryKey, temporary);
-    this.storage.removeItem(this.temporaryKey);
+    const serialized = encodeWorldSaveStorage(serializeWorldSave(save));
+    this.compactStoredCopies();
+    this.writePrimary(serialized);
   }
 
   public import(serialized: string): GameSave {
@@ -157,4 +148,64 @@ export class WorldSaveRepository {
     if (!loaded) throw new Error("Сохранение для экспорта не найдено.");
     return exportWorldSave(loaded.save, now);
   }
+
+  private compactStoredCopies(): void {
+    for (const key of [this.primaryKey, this.backupKey, this.temporaryKey]) {
+      const stored = this.storage.getItem(key);
+      if (!stored || isCompressedWorldSave(stored) || !safeParseWorldSave(stored).save) continue;
+      try {
+        const packed = encodeWorldSaveStorage(stored);
+        if (packed.length < stored.length) this.storage.setItem(key, packed);
+      } catch {
+        continue;
+      }
+    }
+  }
+
+  private writePrimary(serialized: string): void {
+    const current = this.storage.getItem(this.primaryKey);
+    if (current === serialized) {
+      this.verifiedPrimary = serialized;
+      this.storage.removeItem(this.temporaryKey);
+      return;
+    }
+    const previous = current && (this.verifiedPrimary === current || safeParseWorldSave(current).save) ? current : null;
+    try {
+      this.storage.setItem(this.primaryKey, serialized);
+    } catch (error) {
+      const backup = this.storage.getItem(this.backupKey);
+      if (!isStorageQuotaError(error) || !previous || !backup) throw storageWriteError(error);
+      this.storage.removeItem(this.backupKey);
+      try {
+        this.storage.setItem(this.primaryKey, serialized);
+      } catch (retryError) {
+        this.tryWriteBackup(backup);
+        throw storageWriteError(retryError);
+      }
+    }
+    this.verifiedPrimary = serialized;
+    this.storage.removeItem(this.temporaryKey);
+    if (previous) this.tryWriteBackup(previous);
+  }
+
+  private tryWriteBackup(serialized: string): void {
+    try {
+      this.storage.setItem(this.backupKey, serialized);
+    } catch {
+      return;
+    }
+  }
+}
+
+function isStorageQuotaError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const value = error as { name?: string; code?: number };
+  return value.name === "QuotaExceededError" || value.name === "NS_ERROR_DOM_QUOTA_REACHED"
+    || value.code === 22 || value.code === 1014;
+}
+
+function storageWriteError(error: unknown): Error {
+  return new Error(isStorageQuotaError(error)
+    ? "В хранилище браузера не хватает места даже для сжатого сохранения. Последняя записанная летопись не удалена. Не закрывайте вкладку: скачайте текущий прогресс через меню «Летопись» → «Скачать сохранение»."
+    : "Браузер не разрешил записать сохранение. Не закрывайте вкладку: скачайте текущую летопись через меню «Летопись» → «Скачать сохранение».");
 }

@@ -34,6 +34,27 @@ describe("save transfer UI controller", () => {
     expect(storage.getItem(repository.primaryKey)).toBe(before);
   });
 
+  test("downloads current in-memory progress even when browser writes fail", () => {
+    const storage = new MemoryStorage();
+    const repository = new WorldSaveRepository(storage, "save");
+    const game = WorldGame.create("Спасённый прогресс", "Swordsman", 504);
+    repository.save(game.save);
+    const primary = storage.getItem(repository.primaryKey);
+    game.save.worldDay += 10;
+    game.save.hero.gold += 543;
+    jest.spyOn(storage, "setItem").mockImplementation(() => { throw new Error("Storage full"); });
+    const repositoryExport = jest.spyOn(repository, "export");
+    const transfer = new SaveTransferController(repository, storage);
+
+    const download = transfer.export(game.save.hero.name, game.save.worldDay, game.save);
+    const exported = JSON.parse(download.content) as { save: typeof game.save };
+    expect(exported.save.worldDay).toBe(game.save.worldDay);
+    expect(exported.save.hero.gold).toBe(game.save.hero.gold);
+    expect(repositoryExport).not.toHaveBeenCalled();
+    expect(storage.setItem).not.toHaveBeenCalled();
+    expect(storage.getItem(repository.primaryKey)).toBe(primary);
+  });
+
   test("restores the previous verified backup and keeps the newer state as rollback", () => {
     const storage = new MemoryStorage();
     const repository = new WorldSaveRepository(storage, "save");
