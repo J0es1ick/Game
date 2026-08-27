@@ -14,6 +14,7 @@ import {
   Stats,
 } from "../gameplay/WorldTypes";
 import { TournamentArena } from "../arenas/TournamentArena";
+import { FACTION_EQUIPMENT_SETS, FACTION_ITEM_TEMPLATES } from "./FactionEquipmentCatalog";
 
 export const CLASS_DEFINITIONS: Record<HeroClass, ClassDefinition> = {
   Knight: {
@@ -550,6 +551,7 @@ export const ITEM_TEMPLATES: ItemTemplate[] = [
   { id: "dusk-grips", name: "Хваты сумерек", slot: "hands", allowedClasses: ["Swordsman"], primaryStat: "attack", setId: "dusk" },
   { id: "dusk-boots", name: "Сапоги сумерек", slot: "feet", allowedClasses: ["Swordsman"], primaryStat: "speed", setId: "dusk" },
   ...additionalItemTemplates,
+  ...FACTION_ITEM_TEMPLATES,
 ];
 
 const statBonusLabels: Record<keyof Stats, string> = {
@@ -577,6 +579,7 @@ export const EQUIPMENT_SETS: EquipmentSetDefinition[] = [
       { pieces: 6, description: `+${set.stats[2] === "health" ? 38 : 8} к ${statBonusLabels[set.stats[2]]}`, stats: { [set.stats[2]]: set.stats[2] === "health" ? 38 : 8 } },
     ],
   })),
+  ...FACTION_EQUIPMENT_SETS,
 ];
 
 export function addStats(base: Stats, bonus: Partial<Stats>): Stats {

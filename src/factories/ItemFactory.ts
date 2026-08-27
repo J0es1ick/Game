@@ -54,6 +54,7 @@ export function createItem(level: number, options: ItemCreationOptions = {}): Eq
     isAllowed(template.allowedClasses, options.classId)
     && (!template.exclusiveToBoss || options.templateId === template.id)
     && (!template.exclusiveToElite || options.templateId === template.id)
+    && (!template.exclusiveToFaction || options.templateId === template.id)
     && (!options.slot || template.slot === options.slot)
     && (!options.templateId || template.id === options.templateId));
   const template = random.pick(candidates.length > 0 ? candidates : ITEM_TEMPLATES);
@@ -93,7 +94,7 @@ export function createItem(level: number, options: ItemCreationOptions = {}): Eq
 
 export function createStarterItems(classId: HeroClass, randomSource: RandomSource = nativeRandom): EquipmentItem[] {
   const definition = CLASS_DEFINITIONS[classId];
-  const compatible = ITEM_TEMPLATES.filter((item) => !item.exclusiveToBoss && !item.exclusiveToElite && isAllowed(item.allowedClasses, classId));
+  const compatible = ITEM_TEMPLATES.filter((item) => !item.exclusiveToBoss && !item.exclusiveToElite && !item.exclusiveToFaction && isAllowed(item.allowedClasses, classId));
   const weaponTemplate = compatible.find((item) => item.slot === "weapon")!;
   const items: EquipmentItem[] = [createItem(1, { classId, templateId: weaponTemplate.id, rarity: "common", randomSource })];
   items[0].name = definition.startingWeapon;

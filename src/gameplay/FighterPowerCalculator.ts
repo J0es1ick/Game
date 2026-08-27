@@ -25,6 +25,9 @@ export class FighterPowerCalculator {
       return result;
     }, {});
     if (item.affix) stats[item.affix.stat] = (stats[item.affix.stat] ?? 0) + Math.max(1, Math.round(item.affix.value * scale));
+    (item.relicProperties ?? []).forEach((property) => {
+      stats[property.stat] = (stats[property.stat] ?? 0) + Math.max(1, Math.round(property.value * scale));
+    });
     const skill = item.grantedSkillId ? SKILLS.find((candidate) => candidate.id === item.grantedSkillId) : undefined;
     const skillPower = skill
       ? 5 + skill.priority * 0.18 + Math.max(0, skill.power) * (skill.kind === "attack" ? 5 : 1.5)
