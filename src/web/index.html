@@ -484,7 +484,20 @@
       </div>
     </section>
 
+    <section class="season-changes-layer" id="season-changes-layer" hidden role="dialog" aria-modal="true" aria-labelledby="season-changes-title" aria-describedby="season-changes-description">
+      <div class="season-changes-dialog">
+        <header><div><p class="eyebrow" id="season-changes-kicker"></p><h2 id="season-changes-title">Новые условия сезона</h2></div><button class="dialog-close" id="close-season-changes" type="button" aria-label="Закрыть изменения сезона">×</button></header>
+        <div class="season-changes-content">
+          <p id="season-changes-description"></p>
+          <p id="season-changes-previous"></p>
+          <table class="season-changes-table"><thead><tr><th scope="col">Условия</th><th scope="col">Было</th><th scope="col">Стало</th></tr></thead><tbody id="season-changes-rows"></tbody></table>
+          <p id="season-changes-note"></p>
+        </div>
+        <footer><button class="button primary" id="confirm-season-changes" type="button">Понятно</button></footer>
+      </div>
+    </section>
     <div class="world-effect-stage" id="world-effect-stage" aria-live="polite" aria-atomic="true"></div>
+    <div class="world-effect-stage world-announcement-stage" id="world-announcement-stage" aria-live="polite" aria-atomic="true"></div>
     <script type="module" src="./ui.ts"></script>
   </body>
 </html>

@@ -46,6 +46,8 @@ import { basicTournamentUi } from "./BasicTournamentUi";
 import { gameAudio } from "./GameAudio";
 import { initializeGlossary, markTerm } from "./Glossary";
 import { queueWorldEffect } from "./WorldEffects";
+import { SeasonNoticeTracker } from "./SeasonNotices";
+import { openSeasonChanges } from "./SeasonChangesDialog";
 import { appendEraVeteranBadge, loadRankingSnapshot, markRankMovement, observeLeaderboardRows, saveRankingSnapshot } from "./LeaderboardView";
 import { createElement as element, query as $, queryAll as $$ } from "./UiDom";
 import { DirtyPageRegistry, ModalController, PausableTimeout, pageFromHash, pageHash } from "./UiRuntime";
@@ -167,6 +169,7 @@ const modalController = new ModalController(document);
 const lootReminderTimeout = new PausableTimeout();
 const saveRepository = new WorldSaveRepository(localStorage, SAVE_KEY);
 const saveTransferController = new SaveTransferController(saveRepository, localStorage);
+const seasonNoticeTracker = new SeasonNoticeTracker();
 let saveLoadError: string | null = null;
 let saveRecoveredFromBackup = false;
 
@@ -280,6 +283,15 @@ function persist(options: { deferFeatureUnlocks?: boolean } = {}): void {
     return;
   }
   pageRegistry.invalidateAll();
+  seasonNoticeTracker.collect(game.save).forEach((notice) => queueWorldEffect({
+    variant: "season",
+    replaceKey: `season-${notice.kind}`,
+    eyebrow: notice.kind === "world" ? `МИРОВОЙ СЕЗОН ${notice.number}` : "СМЕНА СЕЗОНА · ЭЛИТА",
+    title: notice.title,
+    description: notice.description,
+    symbol: "◈", tone: "legendary", sound: "reputation", duration: 7000,
+    action: { label: "Узнать изменения", run: () => openSeasonChanges(notice, modalController) },
+  }));
   featureUnlocks.forEach((unlock) => {
     queueWorldEffect({
       eyebrow: `НОВАЯ ВОЗМОЖНОСТЬ · ДЕНЬ ${unlock.day}`,
@@ -296,6 +308,8 @@ function persist(options: { deferFeatureUnlocks?: boolean } = {}): void {
   if (defense) {
     queueWorldEffect({
       eyebrow: "АВТОМАТИЧЕСКАЯ ЗАЩИТА ТИТУЛА",
+      variant: defense.heroWon ? "victory" : "defeat",
+      replaceKey: "legend-defense-result",
       title: defense.heroWon ? "Место легенды сохранено" : "Место легенды потеряно",
       description: defense.heroWon
         ? `${defense.enemyBefore.name} не смог отобрать вашу позицию.`
@@ -353,17 +367,34 @@ function updateSoundControls(): void {
 function initializeStickyOffsets(): void {
   const header = document.querySelector<HTMLElement>(".game-header");
   const navigation = document.querySelector<HTMLElement>(".main-nav");
+  const basicHeader = document.querySelector<HTMLElement>(".basic-header");
   if (!header || !navigation) return;
+  let announcementTop = "";
+  const syncAnnouncement = () => {
+    const bottom = Math.max(0, header.getBoundingClientRect().bottom, navigation.getBoundingClientRect().bottom, basicHeader?.getBoundingClientRect().bottom ?? 0);
+    const next = `${Math.ceil(bottom) + 12}px`;
+    if (announcementTop === next) return;
+    announcementTop = next;
+    document.documentElement.style.setProperty("--announcement-top", next);
+  };
   const sync = () => {
     document.documentElement.style.setProperty("--game-header-height", `${Math.ceil(header.getBoundingClientRect().height)}px`);
     document.documentElement.style.setProperty("--main-nav-height", `${Math.ceil(navigation.getBoundingClientRect().height)}px`);
+    syncAnnouncement();
   };
+  let scrollFrame = 0;
+  window.addEventListener("scroll", () => {
+    if (scrollFrame) return;
+    scrollFrame = requestAnimationFrame(() => { scrollFrame = 0; syncAnnouncement(); });
+  }, { passive: true });
   sync();
   if ("ResizeObserver" in window) {
     const observer = new ResizeObserver(sync);
     observer.observe(header);
     observer.observe(navigation);
+    if (basicHeader) observer.observe(basicHeader);
   }
+  window.addEventListener("resize", sync);
 }
 
 function toggleSound(): void {
@@ -4452,6 +4483,7 @@ function finishBattlePlayback(): void {
   gameAudio.battleResult(currentReport.heroWon);
   queueWorldEffect({
     eyebrow: currentReport.activity.name,
+    variant: currentReport.heroWon ? "victory" : "defeat",
     title,
     description: currentReport.heroWon ? `${currentReport.enemyBefore.name} побеждён.` : `${currentReport.enemyBefore.name} оказался сильнее.`,
     symbol: currentReport.heroWon ? "♛" : "×",
@@ -4721,6 +4753,7 @@ function bootstrapWorld(): void {
   pendingBattleUi = new PendingBattleUiController(game);
   modalController.close($("#creation-screen"), false);
   const resumedPendingBattle = game.currentPendingBattle();
+  seasonNoticeTracker.reset(game.save);
   const cycles = resumedPendingBattle ? 0 : game.simulateElapsed();
   if (cycles > 0) {
     const notice = $("#world-notice"); notice.hidden = false;

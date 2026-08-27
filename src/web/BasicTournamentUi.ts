@@ -100,6 +100,7 @@ function step(): void {
   if (report.battleFinished && report.winner) {
     queueWorldEffect({
       eyebrow: report.tournamentFinished ? "ТУРНИР ЗАВЕРШЁН" : "БОЙ ЗАВЕРШЁН",
+      variant: "victory",
       title: report.winner.name,
       description: report.tournamentFinished ? "Последний соперник побеждён. Определён чемпион турнирной сетки." : `${report.defeated?.name ?? "Соперник"} покидает турнирную сетку.`,
       symbol: report.tournamentFinished ? "♛" : "⚔",
