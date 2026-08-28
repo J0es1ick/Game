@@ -15,8 +15,7 @@
 .activity-state,
 .activity-levels,
 .worn-item p,
-.forge-card-copy p,
-.world-rules ol {
+.forge-card-copy p {
   font-size: 13px;
   line-height: 1.5;
 }
@@ -198,8 +197,7 @@
     margin-right: auto;
   }
   .map-layout,
-  .arsenal-layout,
-  .chronicle-layout {
+  .arsenal-layout {
     grid-template-columns: 1fr;
   }
   .hero-visual-layout {

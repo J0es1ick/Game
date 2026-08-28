@@ -72,7 +72,7 @@ button:not(:disabled):active,
 .page.active .shopkeeper,
 .page.active .leader-summary,
 .page.active .leader-table-wrap,
-.page.active .chronicle-layout,
+.page.active .living-world-board,
 .page.active .skill-tactics,
 .page.active .forge-summary,
 .page.active .hero-visual-layout,
@@ -89,7 +89,6 @@ button:not(:disabled):active,
 .equipment-picker-grid > .picker-item,
 .collection-pieces > div,
 .history-list > article,
-.event-list > .world-event,
 .bracket-strip > article {
   animation: ui-card-in 260ms var(--motion-ease) both;
 }

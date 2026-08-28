@@ -3578,7 +3578,7 @@ function renderChronicle(): void {
     .filter((enemy) => enemy.alive && enemy.lastActivity)
     .sort((first, second) => (second.lastActivity?.day ?? 0) - (first.lastActivity?.day ?? 0) || second.rating - first.rating);
   const activeFighters = activityCandidates;
-  const agency = element("section", "living-world-section paper-panel");
+  const agency = element("section", "living-world-section world-activities paper-panel");
   agency.append(element("p", "eyebrow", "САМОСТОЯТЕЛЬНЫЕ РЕШЕНИЯ"), element("h2", "", "Чем заняты бойцы"));
   const agencyList = element("div", "living-world-list");
   prepareChronicleList(agencyList, "activities", `Самостоятельные решения: ${activeFighters.length} бойцов`);
@@ -3723,7 +3723,7 @@ function renderChronicle(): void {
   });
   if (game.worldRelicChronicle().length === 0) relicList.append(element("p", "empty-copy", "Реликвия рождается из легендарной вещи после великих побед её владельца."));
   relics.append(relicList);
-  const veterans = element("section", "living-world-section paper-panel");
+  const veterans = element("section", "living-world-section world-veterans paper-panel");
   const veteranFighters = game.save.enemies.filter((fighter) => fighter.carriedFromCycle !== undefined);
   veterans.append(element("p", "eyebrow", "ПАМЯТЬ ПРОШЛЫХ ЭПОХ"), element("h2", "", `Ветераны · ${veteranFighters.length}`));
   const veteranList = element("div", "living-world-list");
@@ -3743,12 +3743,6 @@ function renderChronicle(): void {
   livingBoard.replaceChildren(seasonPanel, territories, agency, careers, bosses, relics, veterans);
   restoreChronicleScroll();
 
-  const list = $("#event-list"); list.replaceChildren();
-  game.save.events.forEach((event) => {
-    const row = element("article", `world-event ${event.type}`);
-    row.append(element("span", "event-day", `ДЕНЬ ${event.day}`), element("p", "", event.message)); list.append(row);
-  });
-  if (game.save.events.length === 0) list.append(element("p", "empty-copy", "Мир ещё не успел оставить событий в летописи."));
   renderEpochHistory();
 }
 

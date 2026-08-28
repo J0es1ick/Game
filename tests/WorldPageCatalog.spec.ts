@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pageFromHash, pageHash } from "../src/web/UiRuntime";
+import { baseTutorialSteps } from "../src/web/TutorialCatalog";
 import {
   WORLD_PAGE_IDS,
   WORLD_PAGE_NAV_GROUP,
@@ -47,5 +48,14 @@ describe("world page markup", () => {
     expect(forgePage).not.toContain("relic-workshop");
     expect(legacyPage).toContain('id="loot-target-workshop"');
     expect(legacyPage).toContain('id="relic-workshop"');
+  });
+
+  it("keeps the world boards and epoch archive without the duplicate event feed", () => {
+    expect(html).toContain('id="living-world-board"');
+    expect(html).toContain('id="epoch-history-view"');
+    expect(html).not.toContain('id="event-list"');
+    expect(html).not.toContain('class="chronicle-layout"');
+    expect(html).not.toContain('class="world-rules"');
+    expect(baseTutorialSteps.find((step) => step.page === "chronicle")?.target).toBe(".world-season");
   });
 });
