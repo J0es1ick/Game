@@ -63,7 +63,7 @@ export function queueWorldEffect(effect: WorldEffectPresentation): void {
       return;
     }
   }
-  const priority = effect.tone === "negative" ? 30 : effect.tone === "legendary" ? 20 : 10;
+  const priority = effect.variant === "season" ? 40 : effect.tone === "negative" ? 30 : effect.tone === "legendary" ? 20 : 10;
   const battleResult = effect.variant === "victory" || effect.variant === "defeat";
   const id = effect.replaceKey ?? (battleResult ? "battle-result" : `${effect.aggregation?.key ?? effect.title}:${sequence++}`);
   queue.enqueue({ id, payload: effect, priority });

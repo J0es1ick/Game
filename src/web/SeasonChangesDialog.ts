@@ -4,10 +4,10 @@ import type { ModalController } from "./UiRuntime";
 
 export function openSeasonChanges(notice: SeasonNotice, modal: ModalController): void {
   const layer = query("#season-changes-layer");
-  query("#season-changes-kicker").textContent = `${notice.kind === "world" ? "МИРОВОЙ СЕЗОН" : "ЛИГА КОРОНЫ"} ${notice.number} · ДНИ ${notice.startsDay}–${notice.endsDay}`;
+  query("#season-changes-kicker").textContent = `${notice.kind === "world" ? `ЭПОХА ${notice.cycle} · МИРОВОЙ СЕЗОН` : "ЛИГА КОРОНЫ"} ${notice.number} · ДНИ ${notice.startsDay}–${notice.endsDay}`;
   query("#season-changes-title").textContent = notice.title;
   query("#season-changes-description").textContent = notice.description;
-  query("#season-changes-previous").textContent = `Предыдущие условия: ${notice.previousTitle}`;
+  query("#season-changes-previous").textContent = `Сравнение с условиями: ${notice.previousTitle}`;
   query("#season-changes-note").textContent = notice.note;
   const body = query("#season-changes-rows");
   body.replaceChildren(...notice.changes.map((change) => {

@@ -4,7 +4,7 @@ import { WorldGame } from "../src/gameplay/WorldGame";
 import { SeededRandom } from "../src/gameplay/RandomSource";
 import { createWorldSeason } from "../src/gameplay/WorldSeason";
 import type { GameSave } from "../src/gameplay/WorldTypes";
-import { SeasonNoticeTracker } from "../src/web/SeasonNotices";
+import { currentWorldSeasonNotice, SeasonNoticeTracker } from "../src/web/SeasonNotices";
 
 let initial: GameSave;
 beforeAll(() => { initial = WorldGame.create("Хронист", "Knight", 15_300).save; });
@@ -105,5 +105,57 @@ describe("season change announcements", () => {
     state.worldSeason!.number += 1;
     state.crownSeason.number += 1;
     expect(tracker.collect(state).map((notice) => notice.kind)).toEqual(["world", "crown"]);
+  });
+
+  test("announces the world season after a real training day, before unlocking crown content", () => {
+    const game = WorldGame.restore(save());
+    game.save.worldSeason!.endsDay = game.save.worldDay;
+    const previousTitle = currentWorldSeasonNotice(game.save)!.title;
+    const tracker = new SeasonNoticeTracker();
+    tracker.reset(game.save);
+
+    game.train();
+
+    expect(tracker.collect(game.save)).toMatchObject([{
+      kind: "world", cycle: game.save.legacy.cycle, number: 2, startsDay: game.save.worldDay,
+    }]);
+    expect(tracker.collect(game.save)).toEqual([]);
+    const notice = currentWorldSeasonNotice(game.save)!;
+    expect(notice.previousTitle).toBe(previousTitle);
+  });
+
+  test("announces a world season crossed by the offline simulation", () => {
+    const game = WorldGame.restore(save());
+    game.save.worldSeason!.endsDay = game.save.worldDay;
+    const tracker = new SeasonNoticeTracker();
+    tracker.reset(game.save);
+
+    expect(game.simulateElapsed(game.save.lastSimulatedAt + 600_000)).toBe(1);
+
+    expect(tracker.collect(game.save)).toMatchObject([{ kind: "world", number: 2 }]);
+  });
+
+  test("allows reopening current world conditions without consuming a pending announcement", () => {
+    const state = save();
+    state.legacy.cycle = 3;
+    state.worldSeason!.ruleId = "scarce-coin";
+    const tracker = new SeasonNoticeTracker();
+    tracker.reset(state);
+    state.worldSeason!.number += 1;
+    const before = JSON.stringify(state);
+
+    const notice = currentWorldSeasonNotice(state)!;
+
+    expect(notice).toMatchObject({ kind: "world", cycle: 3, number: 2, previousTitle: "Обычные условия" });
+    expect(notice.changes.find((line) => line.label === "Монетные выплаты"))
+      .toEqual({ label: "Монетные выплаты", before: "Обычные условия", after: "-28%" });
+    expect(JSON.stringify(state)).toBe(before);
+    expect(tracker.collect(state)).toMatchObject([{ kind: "world", cycle: 3, number: 2 }]);
+  });
+
+  test("does not invent world conditions before a legacy save has been migrated", () => {
+    const state = save();
+    delete state.worldSeason;
+    expect(currentWorldSeasonNotice(state)).toBeUndefined();
   });
 });

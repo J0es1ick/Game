@@ -166,7 +166,7 @@ describe("world effect playback", () => {
     expect(stage.children).toHaveLength(1);
   });
 
-  it("keeps only the latest pending battle result without dropping a season change", () => {
+  it("puts seasonal changes before queued battle results while coalescing old battles", () => {
     const { banner } = installDom();
     const { queueWorldEffect } = require("../src/web/WorldEffects") as typeof import("../src/web/WorldEffects");
     queueWorldEffect({ variant: "victory", eyebrow: "АРЕНА", title: "Первый бой", description: "", duration: 1000 });
@@ -177,9 +177,9 @@ describe("world effect playback", () => {
     queueWorldEffect({ variant: "defeat", eyebrow: "АРЕНА", title: "Последний бой", description: "", tone: "negative", duration: 1000 });
 
     jest.advanceTimersByTime(1060);
-    expect(banner.children[0].children[1].children[1].textContent).toBe("Последний бой");
-    jest.advanceTimersByTime(1060);
     expect(banner.children[0].children[1].children[1].textContent).toBe("Новый сезон");
+    jest.advanceTimersByTime(1060);
+    expect(banner.children[0].children[1].children[1].textContent).toBe("Последний бой");
     jest.advanceTimersByTime(1060);
     expect(banner.children).toHaveLength(0);
   });

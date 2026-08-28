@@ -46,7 +46,7 @@ import { basicTournamentUi } from "./BasicTournamentUi";
 import { gameAudio } from "./GameAudio";
 import { initializeGlossary, markTerm } from "./Glossary";
 import { queueWorldEffect } from "./WorldEffects";
-import { SeasonNoticeTracker } from "./SeasonNotices";
+import { currentWorldSeasonNotice, SeasonNoticeTracker } from "./SeasonNotices";
 import { openSeasonChanges } from "./SeasonChangesDialog";
 import { appendEraVeteranBadge, loadRankingSnapshot, markRankMovement, observeLeaderboardRows, saveRankingSnapshot } from "./LeaderboardView";
 import { createElement as element, query as $, queryAll as $$ } from "./UiDom";
@@ -286,8 +286,8 @@ function persist(options: { deferFeatureUnlocks?: boolean } = {}): void {
   seasonNoticeTracker.collect(game.save).forEach((notice) => queueWorldEffect({
     variant: "season",
     replaceKey: `season-${notice.kind}`,
-    eyebrow: notice.kind === "world" ? `МИРОВОЙ СЕЗОН ${notice.number}` : "СМЕНА СЕЗОНА · ЭЛИТА",
-    title: notice.title,
+    eyebrow: notice.kind === "world" ? `ЭПОХА ${notice.cycle} · СЕЗОН ${notice.number}` : "СМЕНА СЕЗОНА · ЭЛИТА",
+    title: notice.kind === "world" ? `Новый сезон: ${notice.title}` : notice.title,
     description: notice.description,
     symbol: "◈", tone: "legendary", sound: "reputation", duration: 7000,
     action: { label: "Узнать изменения", run: () => openSeasonChanges(notice, modalController) },
@@ -3502,7 +3502,7 @@ function renderChronicle(): void {
   const seasonHeading = element("header", "world-season-heading");
   const seasonCopy = element("div");
   seasonCopy.append(
-    element("p", "eyebrow", `МИРОВОЙ СЕЗОН ${season.number}`),
+    element("p", "eyebrow", `ЭПОХА ${game.save.legacy.cycle} · МИРОВОЙ СЕЗОН ${season.number}`),
     element("h2", "", season.rule.name),
     element("p", "", season.rule.description),
   );
@@ -3511,7 +3511,15 @@ function renderChronicle(): void {
     statRow("Дни сезона", `${season.startsDay}–${season.endsDay}`),
     statRow("Осталось", `${season.remainingDays} дн.`),
   );
-  seasonHeading.append(seasonCopy, seasonStats);
+  const seasonControls = element("div", "world-season-controls");
+  const seasonDetails = element("button", "plain-button", "Узнать изменения");
+  seasonDetails.type = "button";
+  seasonDetails.addEventListener("click", () => {
+    const notice = currentWorldSeasonNotice(game!.save);
+    if (notice) openSeasonChanges(notice, modalController);
+  });
+  seasonControls.append(seasonStats, seasonDetails);
+  seasonHeading.append(seasonCopy, seasonControls);
   const championships = element("div", "world-season-championships");
   ARENAS.forEach((arena) => {
     const leader = game!.worldSeasonLeaderboard(arena.id)[0];

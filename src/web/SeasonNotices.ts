@@ -1,6 +1,6 @@
 import { ARENAS } from "../catalogs/WorldCatalog";
 import { TOURNAMENT_RULES } from "../catalogs/WorldExpansionCatalog";
-import { worldSeasonRule, type WorldSeasonState } from "../gameplay/WorldSeason";
+import { worldSeasonRule, type WorldSeasonRule, type WorldSeasonState } from "../gameplay/WorldSeason";
 import type { CrownSeasonState } from "../gameplay/CrownSeason";
 import type { GameSave } from "../gameplay/WorldTypes";
 
@@ -13,6 +13,7 @@ export interface SeasonChangeLine {
 
 export interface SeasonNotice {
   kind: "world" | "crown";
+  cycle: number;
   number: number;
   title: string;
   previousTitle: string;
@@ -44,6 +45,30 @@ function modifier(value: number): string {
   return percent === 0 ? "Обычные условия" : `${percent > 0 ? "+" : ""}${percent}%`;
 }
 
+function worldNotice(cycle: number, season: NonNullable<SeasonSnapshot["world"]>, before?: WorldSeasonRule): SeasonNotice {
+  const after = worldSeasonRule(season.ruleId);
+  return {
+    kind: "world", cycle, number: season.number,
+    title: after.name, previousTitle: before?.name ?? "Обычные условия", description: after.description,
+    startsDay: season.startsDay, endsDay: season.endsDay,
+    changes: [
+      { label: "Риск гибели на аренах", before: modifier(before?.lethalityMultiplier ?? 1), after: modifier(after.lethalityMultiplier) },
+      { label: "Монетные выплаты", before: modifier(before?.goldMultiplier ?? 1), after: modifier(after.goldMultiplier) },
+      { label: "Награды данжей", before: modifier(before?.dungeonRewardMultiplier ?? 1), after: modifier(after.dungeonRewardMultiplier) },
+      { label: "Влияние побед на фракции", before: modifier(before?.factionInfluenceMultiplier ?? 1), after: modifier(after.factionInfluenceMultiplier) },
+      { label: "Опыт соперников", before: modifier(before?.npcExperienceMultiplier ?? 1), after: modifier(after.npcExperienceMultiplier) },
+    ],
+    note: "Проценты указаны относительно обычных условий. Сезонные очки начинаются с нуля; общий рейтинг и снаряжение не сбрасываются. Итоги прошлого сезона остаются в летописи.",
+  };
+}
+
+export function currentWorldSeasonNotice(save: GameSave): SeasonNotice | undefined {
+  const current = save.worldSeason;
+  if (!current) return;
+  const previous = save.worldSeasonHistory?.find((season) => season.number === current.number - 1);
+  return worldNotice(save.legacy.cycle, current, previous ? worldSeasonRule(previous.ruleId) : undefined);
+}
+
 export class SeasonNoticeTracker {
   private previous?: SeasonSnapshot;
 
@@ -58,27 +83,13 @@ export class SeasonNoticeTracker {
     if (!previous || previous.cycle !== next.cycle) return [];
     const notices: SeasonNotice[] = [];
     if (next.world && previous.world && next.world.number > previous.world.number) {
-      const before = worldSeasonRule(previous.world.ruleId);
-      const after = worldSeasonRule(next.world.ruleId);
-      notices.push({
-        kind: "world", number: next.world.number,
-        title: after.name, previousTitle: before.name, description: after.description,
-        startsDay: next.world.startsDay, endsDay: next.world.endsDay,
-        changes: [
-          { label: "Риск гибели на аренах", before: modifier(before.lethalityMultiplier), after: modifier(after.lethalityMultiplier) },
-          { label: "Монетные выплаты", before: modifier(before.goldMultiplier), after: modifier(after.goldMultiplier) },
-          { label: "Награды данжей", before: modifier(before.dungeonRewardMultiplier), after: modifier(after.dungeonRewardMultiplier) },
-          { label: "Влияние побед на фракции", before: modifier(before.factionInfluenceMultiplier), after: modifier(after.factionInfluenceMultiplier) },
-          { label: "Опыт соперников", before: modifier(before.npcExperienceMultiplier), after: modifier(after.npcExperienceMultiplier) },
-        ],
-        note: "Проценты указаны относительно обычных условий. Сезонные очки начинаются с нуля; общий рейтинг и снаряжение не сбрасываются. Итоги прошлого сезона остаются в летописи.",
-      });
+      notices.push(worldNotice(next.cycle, next.world, worldSeasonRule(previous.world.ruleId)));
     }
     if (next.crown.number > previous.crown.number && save.hero.highestArena >= ARENAS.length - 1) {
       const before = new Set(previous.crown.ruleIds);
       const after = new Set(next.crown.ruleIds);
       notices.push({
-        kind: "crown", number: next.crown.number,
+        kind: "crown", cycle: next.cycle, number: next.crown.number,
         title: `Сезон ${next.crown.number} Лиги короны`, previousTitle: `Сезон ${previous.crown.number}`,
         description: "Начался новый элитный сезон. Обновлены турнирные правила и сезонный зачёт.",
         startsDay: next.crown.startsDay, endsDay: next.crown.endsDay,
