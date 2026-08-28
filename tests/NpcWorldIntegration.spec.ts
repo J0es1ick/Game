@@ -1,11 +1,13 @@
 import { ARENAS, ITEM_TEMPLATES } from "../src/catalogs/WorldCatalog";
 import { createItem } from "../src/factories/ItemFactory";
 import * as NpcCombat from "../src/gameplay/NpcCombat";
+import * as NpcLifeSimulation from "../src/gameplay/NpcLifeSimulation";
 import { WorldGame } from "../src/gameplay/WorldGame";
 import { calculateEnemyWorldRating } from "../src/gameplay/WorldRanking";
 import type { EnemyProfile, ExpeditionStepReport } from "../src/gameplay/WorldTypes";
 
 interface WorldSimulation {
+  simulateNpcAgencyDay(): void;
   resolvePlannedNpcFight(first: EnemyProfile, second: EnemyProfile, targeted: boolean): Pick<NpcCombat.NpcCombatResult, "winner" | "loser" | "fullCombat">;
   simulateBackgroundTournament(arenaIndex: number): void;
   simulateEliteDay(): void;
@@ -23,6 +25,23 @@ function world() {
 afterEach(() => jest.restoreAllMocks());
 
 describe("NPC world combat integration", () => {
+  test("all daily NPC plans share one roster index", () => {
+    const { game, simulation } = world();
+    const expectedFighterIds = game.save.enemies.filter((enemy) => enemy.alive).map((enemy) => enemy.id);
+    const contextSpy = jest.spyOn(NpcLifeSimulation, "createNpcPlanningContext");
+    const plansSpy = jest.spyOn(NpcLifeSimulation, "planNpcDay");
+    simulation.simulateNpcAgencyDay();
+    expect(contextSpy).toHaveBeenCalledTimes(1);
+    expect(plansSpy.mock.calls.map(([fighter]) => fighter.id)).toEqual(expectedFighterIds);
+    const context = contextSpy.mock.results[0].value;
+    expect(context.index.activeById.size).toBe(expectedFighterIds.length);
+    expect(plansSpy.mock.calls.every(([, , value]) => value === context)).toBe(true);
+    game.save.worldDay += 1;
+    simulation.simulateNpcAgencyDay();
+    expect(contextSpy).toHaveBeenCalledTimes(2);
+    expect(contextSpy.mock.results[1].value).not.toBe(context);
+  });
+
   test("a personal revenge duel does not award arena progress or season points", () => {
     const { game, simulation } = world();
     const pair = game.save.enemies.slice(0, 2);

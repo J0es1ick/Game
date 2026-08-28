@@ -187,6 +187,7 @@ import {
   chooseNpcArenaOpponent,
   cleanupNpcLifeReferences,
   createNpcLifeWorldState,
+  createNpcPlanningContext,
   evolveNpcRelationships,
   normalizeNpcLifeWorldState,
   npcReferenceRetentionIds,
@@ -278,6 +279,8 @@ const CONTRACT_LIFETIME = 7;
 const ACTIVE_INJURY_CHANCE = 0.24;
 export const CLASS_CHANGE_GOLD_COST = 25_000;
 export const CLASS_CHANGE_MARK_COST = 5;
+const TEMPERING_MARK_COSTS = [1, 2, 3, 5, 8] as const;
+let eliteRegaliaTemplateIds: ReadonlySet<string> | undefined;
 
 function pendingOpeningRound(seedIds: string[]): Array<[string, string?]> {
   const targetSize = 2 ** Math.ceil(Math.log2(seedIds.length));
@@ -1178,7 +1181,7 @@ export class WorldGame {
     });
     const equippedIds = new Set(Object.values(this.save.hero.equipped));
     if (items.some((item) => equippedIds.has(item.id))) throw new Error("Надетый предмет нельзя разобрать.");
-    if (items.some((item) => !this.canSell(item.id))) throw new Error("Регалии короны нельзя разобрать.");
+    if (items.some((item) => !this.canSellItem(item))) throw new Error("Регалии короны нельзя разобрать.");
     if (items.some((item) => item.worldRelicId)) throw new Error("Мировую реликвию нельзя уничтожить: её можно продать, чтобы она вернулась в оборот мира.");
     const ids = new Set(uniqueIds);
     const dust = items.reduce((total, item) => total + relicDustYield(item), 0);
@@ -3189,7 +3192,7 @@ export class WorldGame {
     const item = this.save.hero.inventory.find((candidate) => candidate.id === itemId);
     if (!item) return 0;
     if (Object.values(this.save.hero.equipped).includes(itemId)) throw new Error("Сначала снимите предмет.");
-    if (!this.canSell(itemId)) throw new Error("Регалии живой короны нельзя продать, пока они принадлежат лидеру элиты.");
+    if (!this.canSellItem(item)) throw new Error("Регалии живой короны нельзя продать, пока они принадлежат лидеру элиты.");
     const value = Math.max(1, Math.round(item.price * 0.45));
     this.returnHeroRelicToWorld(item, `День ${this.save.worldDay}: ${this.save.hero.name} продал реликвию обратно в мир.`);
     this.save.hero.inventory = this.save.hero.inventory.filter((candidate) => candidate.id !== itemId);
@@ -3199,14 +3202,17 @@ export class WorldGame {
 
   public canSell(itemId: string): boolean {
     const item = this.save.hero.inventory.find((candidate) => candidate.id === itemId);
-    if (!item) return false;
-    const template = ITEM_TEMPLATES.find((candidate) => candidate.id === item.templateId);
-    return !template?.exclusiveToElite;
+    return item ? this.canSellItem(item) : false;
+  }
+
+  public canSellItem(item: Readonly<Pick<EquipmentItem, "templateId">>): boolean {
+    eliteRegaliaTemplateIds ??= new Set(ITEM_TEMPLATES.filter((template) => template.exclusiveToElite).map((template) => template.id));
+    return !eliteRegaliaTemplateIds.has(item.templateId);
   }
 
   public sellUnequipped(): { count: number; value: number } {
     const equippedIds = new Set(Object.values(this.save.hero.equipped));
-    const sellable = this.save.hero.inventory.filter((item) => !equippedIds.has(item.id) && this.canSell(item.id));
+    const sellable = this.save.hero.inventory.filter((item) => !equippedIds.has(item.id) && this.canSellItem(item));
     const ids = new Set(sellable.map((item) => item.id));
     const value = sellable.reduce((total, item) => total + Math.max(1, Math.round(item.price * 0.45)), 0);
     sellable.forEach((item) => this.returnHeroRelicToWorld(item, `День ${this.save.worldDay}: реликвия покинула инвентарь ${this.save.hero.name}.`));
@@ -3252,9 +3258,12 @@ export class WorldGame {
   public upgradeCost(itemId: string): number {
     const item = this.save.hero.inventory.find((candidate) => candidate.id === itemId);
     if (!item) throw new Error("Предмет не найден.");
+    return this.upgradeCostFor(item);
+  }
+
+  public upgradeCostFor(item: Readonly<Pick<EquipmentItem, "enhancement">>): number {
     if (this.save.legacy.activeBoonId === "forge-tradition" && (item.enhancement ?? 0) === 0) return 0;
-    const costs = [1, 2, 3, 5, 8];
-    return costs[item.enhancement ?? 0] ?? 0;
+    return TEMPERING_MARK_COSTS[item.enhancement ?? 0] ?? 0;
   }
 
   public upgradeItem(itemId: string): EquipmentItem {
@@ -3262,7 +3271,7 @@ export class WorldGame {
     if (!item) throw new Error("Предмет не найден.");
     const current = item.enhancement ?? 0;
     if (current >= 5) throw new Error("Предмет уже достиг максимальной закалки.");
-    const cost = this.upgradeCost(itemId);
+    const cost = this.upgradeCostFor(item);
     if (this.save.hero.temperingMarks < cost) throw new Error(`Нужно печатей закалки: ${cost}.`);
     this.save.hero.temperingMarks -= cost;
     item.enhancement = current + 1;
@@ -4565,13 +4574,14 @@ export class WorldGame {
     const eliteIds = new Set(this.save.eliteLeagueMemberIds);
     const active = this.save.enemies.filter((enemy) => enemy.alive);
     const life = this.save.npcLife = normalizeNpcLifeWorldState(this.save.npcLife, this.save.enemies, this.save.worldDay);
-    const plans = new Map(active.map((enemy) => [enemy.id, planNpcDay(enemy, life, {
+    const planningContext = createNpcPlanningContext({
       day: this.save.worldDay,
       fighters: active,
       eliteIds,
       mentors: this.save.mentors,
       random: this.random.world,
-    })]));
+    }, life);
+    const plans = new Map(active.map((enemy) => [enemy.id, planNpcDay(enemy, life, planningContext)]));
     const resolvedFighters = new Set<string>();
     active.forEach((enemy) => {
       const plan = plans.get(enemy.id)!;

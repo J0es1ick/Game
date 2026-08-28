@@ -5,6 +5,7 @@ import {
   chooseNpcArenaOpponent,
   cleanupNpcLifeReferences,
   createNpcLifeWorldState,
+  createNpcPlanningContext,
   isNpcDesiredLoot,
   normalizeNpcLifeWorldState,
   npcReferenceRetentionIds,
@@ -34,6 +35,42 @@ function fighters(count = 4): EnemyProfile[] {
 }
 
 describe("NpcLifeSimulation", () => {
+  test("a shared planning index preserves seeded daily decisions", () => {
+    const original = fighters(24);
+    const indexed = structuredClone(original);
+    const state = normalizeNpcLifeWorldState(undefined, original, 12);
+    const indexedState = structuredClone(state);
+    const random = new SeededRandom("planning-index");
+    const context = createNpcPlanningContext({ day: 12, fighters: indexed, random: new SeededRandom("planning-index") }, indexedState);
+    const expected = original.map((fighter) => planNpcDay(fighter, state, { day: 12, fighters: original, random }));
+    const actual = indexed.map((fighter) => planNpcDay(fighter, indexedState, context));
+    expect(actual).toEqual(expected);
+    expect(indexedState).toEqual(state);
+  });
+
+  test("shared indexes do not select a rival who died after the index was built", () => {
+    const [fighter, rival, fallback] = fighters(3);
+    fighter.goal = "elite";
+    fallback.arenaIndex = fighter.arenaIndex;
+    fighter.relationships = {
+      [rival.id]: { fighterId: rival.id, kind: "rival", intensity: 95, lastChangedDay: 11 },
+    };
+    const state = createNpcLifeWorldState(1);
+    const context = createNpcPlanningContext({ day: 12, fighters: [fighter, rival, fallback], random: fixedRandom }, state);
+    rival.alive = false;
+    const plan = planNpcDay(fighter, state, context);
+    expect(plan.targetFighterId).not.toBe(rival.id);
+    expect(state.profiles[fighter.id].revengeTargetId).toBeUndefined();
+  });
+
+  test("closest-opponent ties keep the original roster order", () => {
+    const [fighter, first, second] = fighters(3);
+    first.rating = fighter.rating - 10;
+    second.rating = fighter.rating + 10;
+    const plan = planNpcDay(fighter, createNpcLifeWorldState(1), { day: 12, fighters: [fighter], random: fixedRandom });
+    expect(chooseNpcArenaOpponent(plan, fighter, [first, second])).toBe(first);
+  });
+
   function novice(): EnemyProfile {
     return { ...fighters(1)[0], traitIds: [], history: [], wins: 0, losses: 0, tournamentWins: 0, duelWins: 0, duelLosses: 0, joinedDay: 1 };
   }

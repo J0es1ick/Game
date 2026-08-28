@@ -9,6 +9,7 @@ import {
   NpcActivity,
   NpcGoal,
   NpcRelationship,
+  ItemTemplate,
 } from "./WorldTypes";
 
 export type NpcCareer = "active" | "legend" | "mentor" | "future-boss";
@@ -80,6 +81,13 @@ export interface NpcPlanningContext {
   eliteIds?: ReadonlySet<string>;
   mentors?: readonly MentorRecord[];
   random?: RandomSource;
+  index?: NpcPlanningIndex;
+}
+
+export interface NpcPlanningIndex {
+  activeById: ReadonlyMap<string, EnemyProfile>;
+  arenas: ReadonlyMap<number, readonly EnemyProfile[]>;
+  dynasties: ReadonlyMap<string, readonly EnemyProfile[]>;
 }
 
 export interface NpcEncounterContext {
@@ -122,6 +130,32 @@ export interface NpcSeasonContext {
 
 const EQUIPMENT_SLOTS: EquipmentSlot[] = ["weapon", "offhand", "head", "chest", "hands", "feet"];
 const MAX_RELATIONSHIPS = 24;
+let templatesById: ReadonlyMap<string, ItemTemplate> | undefined;
+const compatibleSetCache = new Map<EnemyProfile["classId"], EquipmentSetDefinition[]>();
+
+function itemTemplate(id: string): ItemTemplate | undefined {
+  templatesById ??= new Map(ITEM_TEMPLATES.map((template) => [template.id, template]));
+  return templatesById.get(id);
+}
+
+export function createNpcPlanningContext(context: NpcPlanningContext, state: NpcLifeWorldState): NpcPlanningContext {
+  const activeById = new Map<string, EnemyProfile>();
+  const arenas = new Map<number, EnemyProfile[]>();
+  const dynasties = new Map<string, EnemyProfile[]>();
+  context.fighters.forEach((fighter) => {
+    if (!fighter.alive) return;
+    activeById.set(fighter.id, fighter);
+    const arena = arenas.get(fighter.arenaIndex) ?? [];
+    arena.push(fighter);
+    arenas.set(fighter.arenaIndex, arena);
+    const dynastyId = state.profiles[fighter.id]?.dynastyId;
+    if (!dynastyId) return;
+    const dynasty = dynasties.get(dynastyId) ?? [];
+    dynasty.push(fighter);
+    dynasties.set(dynastyId, dynasty);
+  });
+  return { ...context, index: { activeById, arenas, dynasties } };
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -141,11 +175,15 @@ function profileFor(state: NpcLifeWorldState, fighterId: string): NpcLifeProfile
 }
 
 function compatibleSets(enemy: EnemyProfile): EquipmentSetDefinition[] {
-  return EQUIPMENT_SETS.filter((set) => (set.classes === "all" || set.classes.includes(enemy.classId))
+  const cached = compatibleSetCache.get(enemy.classId);
+  if (cached) return cached;
+  const sets = EQUIPMENT_SETS.filter((set) => (set.classes === "all" || set.classes.includes(enemy.classId))
     && set.pieces.every((id) => {
-      const template = ITEM_TEMPLATES.find((candidate) => candidate.id === id);
+      const template = itemTemplate(id);
       return template && !template.exclusiveToBoss && !template.exclusiveToElite && !template.exclusiveToFaction;
     }));
+  compatibleSetCache.set(enemy.classId, sets);
+  return sets;
 }
 
 function equippedItems(enemy: EnemyProfile) {
@@ -165,7 +203,7 @@ function setMissingPiece(enemy: EnemyProfile, set: EquipmentSetDefinition): { te
   const owned = ownedSetPieces(enemy, set.id);
   const templateId = set.pieces.find((id) => !owned.has(id));
   if (!templateId) return undefined;
-  const template = ITEM_TEMPLATES.find((candidate) => candidate.id === templateId);
+  const template = itemTemplate(templateId);
   return template ? { templateId, slot: template.slot } : undefined;
 }
 
@@ -194,19 +232,28 @@ function selectDesiredSet(enemy: EnemyProfile, profile: NpcLifeProfile): Equipme
   return target;
 }
 
-function activeRival(enemy: EnemyProfile, fighters: EnemyProfile[]): EnemyProfile | undefined {
-  const active = new Map(fighters.filter((candidate) => candidate.alive).map((candidate) => [candidate.id, candidate]));
-  return Object.values(enemy.relationships ?? {})
-    .filter((relationship) => relationship.kind === "rival" && active.has(relationship.fighterId))
-    .sort((first, second) => second.intensity - first.intensity || second.lastChangedDay - first.lastChangedDay)
-    .map((relationship) => active.get(relationship.fighterId))
-    .find((candidate): candidate is EnemyProfile => Boolean(candidate));
+function activeRival(enemy: EnemyProfile, active: ReadonlyMap<string, EnemyProfile>): EnemyProfile | undefined {
+  let best: NpcRelationship | undefined;
+  Object.values(enemy.relationships ?? {}).forEach((relationship) => {
+    if (relationship.kind !== "rival" || !active.get(relationship.fighterId)?.alive) return;
+    if (!best || relationship.intensity > best.intensity
+      || (relationship.intensity === best.intensity && relationship.lastChangedDay > best.lastChangedDay)) best = relationship;
+  });
+  return best ? active.get(best.fighterId) : undefined;
 }
 
-function closestArenaOpponent(enemy: EnemyProfile, fighters: EnemyProfile[]): EnemyProfile | undefined {
-  return fighters
-    .filter((candidate) => candidate.alive && candidate.id !== enemy.id && candidate.arenaIndex === enemy.arenaIndex)
-    .sort((first, second) => Math.abs(first.rating - enemy.rating) - Math.abs(second.rating - enemy.rating))[0];
+function closestArenaOpponent(enemy: EnemyProfile, fighters: readonly EnemyProfile[]): EnemyProfile | undefined {
+  let closest: EnemyProfile | undefined;
+  let closestDifference = Infinity;
+  fighters.forEach((candidate) => {
+    if (!candidate.alive || candidate.id === enemy.id || candidate.arenaIndex !== enemy.arenaIndex) return;
+    const difference = Math.abs(candidate.rating - enemy.rating);
+    if (difference < closestDifference) {
+      closest = candidate;
+      closestDifference = difference;
+    }
+  });
+  return closest;
 }
 
 function activityScores(enemy: EnemyProfile, profile: NpcLifeProfile, desiredSet: EquipmentSetDefinition | undefined, rival: EnemyProfile | undefined): Record<NpcActivity, number> {
@@ -465,27 +512,27 @@ export function normalizeNpcLifeWorldState(value: unknown, fighters: readonly En
 export function planNpcDay(enemy: EnemyProfile, state: NpcLifeWorldState, context: NpcPlanningContext): NpcDailyPlan {
   const random = context.random ?? nativeRandom;
   const profile = profileFor(state, enemy.id);
-  const rival = activeRival(enemy, context.fighters);
+  const index = context.index ?? createNpcPlanningContext(context, state).index!;
+  const rival = activeRival(enemy, index.activeById);
   if (rival && (enemy.relationships?.[rival.id]?.intensity ?? 0) >= 30) {
     profile.revengeTargetId = rival.id;
     enemy.goal = "vengeance";
-  } else if (profile.revengeTargetId && !context.fighters.some((candidate) => candidate.id === profile.revengeTargetId && candidate.alive)) {
+  } else if (profile.revengeTargetId && !index.activeById.get(profile.revengeTargetId)?.alive) {
     profile.revengeTargetId = undefined;
   }
   const desiredSet = selectDesiredSet(enemy, profile);
   const scores = activityScores(enemy, profile, desiredSet, rival);
   const selected = chooseScoredActivity(scores, random);
   const target = selected.activity === "arena"
-    ? rival ?? closestArenaOpponent(enemy, context.fighters)
+    ? rival ?? closestArenaOpponent(enemy, index.arenas.get(enemy.arenaIndex) ?? [])
     : undefined;
   const ally = Object.values(enemy.relationships ?? {})
     .filter((relationship) => relationship.kind === "ally")
     .sort((first, second) => second.intensity - first.intensity)
-    .map((relationship) => context.fighters.find((candidate) => candidate.id === relationship.fighterId && candidate.alive))
-    .find((candidate): candidate is EnemyProfile => Boolean(candidate));
+    .map((relationship) => index.activeById.get(relationship.fighterId))
+    .find((candidate): candidate is EnemyProfile => Boolean(candidate?.alive));
   const dynastyCompanion = profile.dynastyId
-    ? context.fighters.find((candidate) => candidate.alive && candidate.id !== enemy.id
-      && state.profiles[candidate.id]?.dynastyId === profile.dynastyId)
+    ? index.dynasties.get(profile.dynastyId)?.find((candidate) => candidate.alive && candidate.id !== enemy.id)
     : undefined;
   const companion = selected.activity === "dungeon" || selected.activity === "training"
     ? ally ?? dynastyCompanion
@@ -507,14 +554,24 @@ export function planNpcDay(enemy: EnemyProfile, state: NpcLifeWorldState, contex
 }
 
 export function chooseNpcArenaOpponent(plan: NpcDailyPlan, fighter: EnemyProfile, candidates: readonly EnemyProfile[]): EnemyProfile | undefined {
-  const valid = candidates.filter((candidate) => candidate.alive && candidate.id !== fighter.id);
-  return valid.find((candidate) => candidate.id === plan.targetFighterId)
-    ?? [...valid].sort((first, second) => Math.abs(first.rating - fighter.rating) - Math.abs(second.rating - fighter.rating))[0];
+  let closest: EnemyProfile | undefined;
+  let target: EnemyProfile | undefined;
+  let closestDifference = Infinity;
+  candidates.forEach((candidate) => {
+    if (!candidate.alive || candidate.id === fighter.id) return;
+    if (candidate.id === plan.targetFighterId) target = candidate;
+    const difference = Math.abs(candidate.rating - fighter.rating);
+    if (difference < closestDifference) {
+      closest = candidate;
+      closestDifference = difference;
+    }
+  });
+  return target ?? closest;
 }
 
 export function isNpcDesiredLoot(plan: NpcDailyPlan, enemy: EnemyProfile, templateId: string, slot: EquipmentSlot): boolean {
   if (plan.targetTemplateId === templateId) return true;
-  if (plan.targetSetId && ITEM_TEMPLATES.some((template) => template.id === templateId && template.setId === plan.targetSetId)) return true;
+  if (plan.targetSetId && itemTemplate(templateId)?.setId === plan.targetSetId) return true;
   return !enemy.equipped[slot];
 }
 
@@ -548,7 +605,8 @@ export function recordNpcAlliance(state: NpcLifeWorldState, first: EnemyProfile,
 }
 
 export function evolveNpcRelationships(fighters: EnemyProfile[], state: NpcLifeWorldState, day: number): number {
-  const active = new Set(["hero", ...fighters.filter((fighter) => fighter.alive).map((fighter) => fighter.id)]);
+  const activeById = new Map(fighters.filter((fighter) => fighter.alive).map((fighter) => [fighter.id, fighter]));
+  const active = new Set(["hero", ...activeById.keys()]);
   let removed = 0;
   fighters.forEach((fighter) => {
     const profile = profileFor(state, fighter.id);
@@ -571,7 +629,7 @@ export function evolveNpcRelationships(fighters: EnemyProfile[], state: NpcLifeW
     });
     fighter.relationships = Object.fromEntries(entries);
     trimRelationships(fighter);
-    const rival = activeRival(fighter, fighters);
+    const rival = activeRival(fighter, activeById);
     if (rival && (fighter.relationships[rival.id]?.intensity ?? 0) >= 30) {
       profile.revengeTargetId = rival.id;
       fighter.goal = "vengeance";
