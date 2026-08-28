@@ -1,11 +1,13 @@
 import { resolve } from "node:path";
 import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   base: "/Game/",
   root: "./src/web",
   publicDir: false,
   plugins: [
+    react(),
     {
       name: "watch-game-sources",
       apply: "serve",
@@ -22,13 +24,23 @@ export default defineConfig({
         codeSplitting: {
           groups: [
             {
+              name: "react-vendor",
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+              includeDependenciesRecursively: false,
+            },
+            {
+              name: "save-codec",
+              test: /[\\/]node_modules[\\/]fflate[\\/]/,
+              includeDependenciesRecursively: false,
+            },
+            {
               name: "character-art",
               test: /[\\/]web[\\/]CharacterIllustration\.ts$/,
               includeDependenciesRecursively: false,
             },
             {
               name: "ui-support",
-              test: /[\\/]web[\\/](GameAudio|NotificationCenter|TutorialCatalog|UiRuntime)\.ts$/,
+              test: /[\\/]web[\\/](GameAudio|TutorialCatalog|UiRuntime)\.ts$/,
               includeDependenciesRecursively: false,
             },
           ],

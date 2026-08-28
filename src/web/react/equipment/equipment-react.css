@@ -1,0 +1,228 @@
+.worn-item-choice {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.worn-item-choice > span:last-child {
+  min-width: 0;
+}
+.worn-item-choice:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 4px;
+}
+.worn-item-description {
+  display: block;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.equipment-pagination {
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  margin: 16px 0;
+}
+
+.equipment-pagination > span {
+  color: var(--muted);
+  font-size: 14px;
+}
+.equipment-pagination button {
+  min-height: 40px;
+  padding: 8px 12px;
+}
+.equipment-panel button.equipment-slot {
+  text-align: left;
+  cursor: pointer;
+}
+.equipment-panel button.equipment-slot:hover {
+  background: #eee6d6;
+}
+.equipment-panel button.equipment-slot:focus-visible {
+  outline: 2px solid var(--red);
+  outline-offset: 2px;
+}
+.collection-filters {
+  align-items: center;
+  gap: 18px;
+  margin: 18px 0;
+}
+.collection-filters input[type="search"] {
+  max-width: 260px;
+  min-height: 40px;
+  padding: 8px;
+}
+.tactical-profile-details {
+  padding: 10px 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.tactical-profile-details p {
+  margin: 0 0 8px;
+}
+.relic-gift-details {
+  padding: 12px 0;
+  border-top: 1px solid #b6ad9d;
+}
+.relic-gift-details > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.relic-gift-details .relic-gift-row {
+  margin-top: 12px;
+}
+.relic-history {
+  margin-top: 10px;
+}
+.relic-history ul {
+  max-height: 240px;
+  overflow-y: auto;
+  padding-left: 20px;
+}
+.relic-history li {
+  margin-bottom: 8px;
+}
+.relic-ready-card > div:last-child {
+  min-width: 0;
+}
+.relic-workshop > .equipment-pagination {
+  grid-column: 1 / -1;
+}
+.react-modal-layer.comparison-dialog,
+.react-modal-layer.equipment-picker-dialog,
+.react-modal-layer.new-chronicle-layer {
+  width: auto;
+  height: auto;
+  min-width: 0;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  padding: 16px;
+  overflow: hidden;
+  border: 0;
+  background: rgb(20 18 15 / 78%);
+  box-shadow: none;
+  place-items: center;
+}
+
+.react-modal-layer.comparison-dialog > .react-modal-paper {
+  width: min(1060px, 100%);
+}
+.react-modal-layer.equipment-picker-dialog > .react-modal-paper {
+  width: min(960px, 100%);
+}
+.react-modal-layer.comparison-dialog .comparison-actions {
+  width: 100%;
+  margin: 0;
+}
+.react-modal-layer.comparison-dialog .comparison-difference {
+  grid-template-columns: minmax(0, 1fr);
+}
+.react-modal-layer.comparison-dialog .comparison-stat-list {
+  grid-template-columns: repeat(auto-fit, minmax(min(145px, 100%), 1fr));
+  gap: 8px;
+}
+.react-modal-layer.comparison-dialog .stat-comparison-values {
+  gap: 7px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.react-modal-layer.comparison-dialog .comparison-stat {
+  font-size: 14px;
+}
+.react-modal-layer.comparison-dialog .comparison-note {
+  font-size: 14px;
+}
+.react-modal-layer.new-chronicle-layer > .react-modal-paper {
+  width: min(1050px, 100%);
+  height: min(840px, calc(100dvh - 32px));
+}
+.react-modal-layer.new-chronicle-layer .react-modal-body {
+  flex: 1;
+  padding: 0;
+}
+.react-modal-layer.new-chronicle-layer #new-chronicle-progress {
+  margin: 16px 26px;
+  font-size: 13px;
+}
+.react-modal-layer.new-chronicle-layer .new-chronicle-stage {
+  min-height: 0;
+  padding: 24px 26px;
+}
+.react-modal-layer.new-chronicle-layer .heirloom-grid {
+  max-height: none;
+  padding: 0;
+  overflow: visible;
+}
+.react-modal-layer.new-chronicle-layer .new-chronicle-actions {
+  position: static;
+  inset: auto;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.comparison-stat-list {
+  min-width: 0;
+}
+.comparison-item-copy {
+  min-width: 0;
+}
+.item-card.equipped .item-slot {
+  color: #345740;
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .react-modal-layer.comparison-dialog,
+  .react-modal-layer.equipment-picker-dialog,
+  .react-modal-layer.new-chronicle-layer {
+    padding: 8px;
+  }
+  .react-modal-layer.new-chronicle-layer > .react-modal-paper {
+    height: calc(100dvh - 16px);
+  }
+  .react-modal-layer.new-chronicle-layer #new-chronicle-progress {
+    margin: 14px 16px;
+  }
+  .react-modal-layer.new-chronicle-layer .new-chronicle-stage {
+    padding: 18px 16px;
+  }
+  .react-modal-layer.equipment-picker-dialog .equipment-picker-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .worn-item-choice {
+    gap: 9px;
+  }
+  .worn-item-description {
+    font-size: 13px;
+  }
+  .equipment-pagination {
+    gap: 8px;
+  }
+  .collection-filters {
+    justify-content: start;
+  }
+  .collection-filters input[type="search"] {
+    width: 100%;
+  }
+  .comparison-stat-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

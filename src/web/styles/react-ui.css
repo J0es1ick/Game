@@ -1,0 +1,378 @@
+.react-modal-layer {
+  position: fixed;
+  z-index: 140;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(20 18 15 / 78%);
+  animation: ui-veil-in 160ms ease-out both;
+}
+
+.react-modal-layer[hidden] {
+  display: none;
+}
+
+.react-modal-paper {
+  display: flex;
+  flex-direction: column;
+  width: min(1100px, calc(100vw - 32px));
+  min-width: 0;
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
+  border: 1px solid #968b77;
+  color: var(--ink);
+  background: var(--paper-light, #f0ecdf);
+  box-shadow: 10px 12px 0 rgb(10 8 5 / 38%);
+  animation: ui-dialog-in 200ms ease-out both;
+}
+
+.react-modal-heading,
+.react-modal-footer {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 26px;
+}
+
+.react-modal-heading {
+  border-bottom: 1px solid #aaa08d;
+}
+.react-modal-heading > div {
+  min-width: 0;
+}
+.react-modal-heading h2 {
+  margin: 0;
+  font-size: clamp(25px, 3vw, 36px);
+  overflow-wrap: anywhere;
+}
+.react-modal-heading .eyebrow {
+  margin-bottom: 9px;
+}
+.react-modal-heading .modal-close {
+  flex: 0 0 42px;
+  min-height: 42px;
+  padding: 0;
+  font-size: 24px;
+}
+.react-modal-footer {
+  justify-content: flex-end;
+  border-top: 1px solid #aaa08d;
+  background: #e3dccd;
+}
+.react-modal-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 24px 26px;
+}
+.react-modal-body > :first-child {
+  margin-top: 0;
+}
+.react-modal-body .dialog-intro {
+  margin-bottom: 24px;
+  font-size: 17px;
+  line-height: 1.6;
+}
+.react-modal-footer .button {
+  min-width: 170px;
+}
+.creation-error {
+  padding: 12px 16px;
+  border-left: 3px solid #9b503d;
+  color: #803a2d;
+  background: #ebd9cd;
+}
+
+.page-heading-copy {
+  max-width: 580px;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.page-heading-copy p {
+  margin: 0;
+}
+.react-world-notice {
+  margin-bottom: 20px;
+  padding: 14px 18px;
+  border: 1px solid #b7a76f;
+  background: #e2d5a5;
+  font-size: 14px;
+}
+.react-world-notice[hidden] {
+  display: none;
+}
+.react-loading-screen,
+.react-loading-page {
+  display: grid;
+  min-height: 55dvh;
+  align-content: center;
+  justify-items: center;
+  gap: 16px;
+  color: var(--muted);
+}
+.react-loading-screen {
+  min-height: 100dvh;
+}
+.loading-mark {
+  display: inline-block;
+  color: var(--red);
+  font:
+    44px/1 Georgia,
+    serif;
+  animation: loading-turn 1.8s linear infinite;
+}
+.list-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  font-size: 14px;
+}
+.list-pagination .plain-button {
+  min-height: 40px;
+}
+.list-pagination span {
+  text-align: center;
+  color: var(--muted);
+}
+
+.react-hint {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+.react-hint > button {
+  width: 100%;
+}
+.react-hint-body {
+  position: absolute;
+  z-index: 50;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  display: none;
+  width: min(310px, 80vw);
+  padding: 15px;
+  border: 1px solid #756753;
+  color: #f3eada;
+  background: #2c2822;
+  box-shadow: 5px 6px 0 rgb(25 20 15 / 20%);
+  transform: translateX(-50%);
+  font-size: 14px;
+  line-height: 1.5;
+  pointer-events: none;
+}
+.react-hint-body strong,
+.react-hint-body > span {
+  display: block;
+}
+.react-hint-body strong {
+  margin-bottom: 6px;
+}
+.react-hint:is(:hover, :focus-within) .react-hint-body {
+  display: block;
+}
+.contract-actions .react-hint {
+  flex: 1;
+}
+.world-effect-card {
+  position: relative;
+}
+.world-effect-stage {
+  z-index: 180;
+}
+.world-effect-card > div {
+  padding-right: 40px;
+}
+.world-effect-card small {
+  font-size: 11px;
+}
+.world-effect-card p {
+  font-size: 14px;
+}
+.world-effect-card .world-effect-close {
+  font-size: 24px;
+}
+.tournament-reminder-list {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+}
+.tournament-reminder-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+.tournament-reminder .reminder-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  font-size: 22px;
+}
+.tournament-reminder .button {
+  min-height: 40px;
+}
+
+.narrative-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr));
+  gap: 14px;
+}
+.narrative-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  padding: 22px;
+  border: 1px solid #9d917c;
+  border-top: 4px solid var(--green);
+  color: var(--ink);
+  background: #e5dece;
+  text-align: left;
+}
+.narrative-choice strong {
+  font-size: 21px;
+}
+.narrative-choice > span {
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.5;
+}
+.narrative-choice-effects {
+  display: grid;
+  gap: 5px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid #b7ad9b;
+}
+.narrative-choice-effects small {
+  font-size: 14px;
+}
+.narrative-choice:not(:disabled):hover {
+  background: #d9d4c4;
+  border-color: #62755c;
+}
+.season-comparison-scroll {
+  overflow-x: auto;
+  margin: 20px 0;
+}
+.season-changes-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.season-changes-table th,
+.season-changes-table td {
+  padding: 16px;
+  border: 1px solid #b8ad98;
+  font-size: 16px;
+}
+.season-changes-table th p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 400;
+}
+.season-changes-table tbody tr.is-changed {
+  background: #e5dcc7;
+}
+.season-changes-table tbody th {
+  width: 46%;
+}
+.season-changes-table thead {
+  color: #eae3d4;
+  background: #39342b;
+}
+.season-changes-note {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.living-world-board .living-world-list,
+.living-world-board .world-dynasty-list,
+.living-world-board .future-boss-list,
+.living-world-board .world-relic-list {
+  max-height: 560px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+.living-world-detail > div {
+  padding-top: 8px;
+}
+.living-world-board .living-world-section {
+  min-width: 0;
+}
+.save-recovery-actions {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+@keyframes loading-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 700px) {
+  .react-modal-layer {
+    padding: 8px;
+  }
+  .react-modal-paper {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    box-shadow: 4px 5px 0 rgb(10 8 5 / 38%);
+  }
+  .react-modal-heading,
+  .react-modal-footer {
+    padding: 16px;
+    gap: 12px;
+  }
+  .react-modal-body {
+    padding: 18px 16px;
+  }
+  .react-modal-footer .button {
+    min-width: 0;
+    flex: 1;
+  }
+  .list-pagination {
+    gap: 8px;
+  }
+  .list-pagination button {
+    padding: 8px;
+  }
+  .react-hint-body {
+    left: 0;
+    transform: none;
+  }
+  .contract-actions .react-hint:last-child .react-hint-body {
+    right: 0;
+    left: auto;
+  }
+  .season-changes-table th,
+  .season-changes-table td {
+    padding: 10px;
+    font-size: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-mark,
+  .react-modal-paper,
+  .react-modal-layer {
+    animation: none;
+  }
+}

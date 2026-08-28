@@ -1,0 +1,131 @@
+.react-tutorial-layer {
+  pointer-events: none;
+}
+.react-tutorial-layer .tutorial-spotlight {
+  pointer-events: none;
+  box-shadow:
+    0 0 0 9999px rgb(26 23 18 / 36%),
+    0 0 0 7px rgb(224 180 76 / 18%);
+}
+.react-tutorial-dialog {
+  right: 20px;
+  bottom: 20px;
+  width: min(460px, calc(100vw - 32px));
+  height: min(410px, calc(100dvh - 44px));
+  padding: 18px;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 14px;
+}
+.react-tutorial-dialog > header {
+  gap: 8px;
+  min-height: 34px;
+}
+.react-tutorial-dialog > header .eyebrow {
+  margin: 0;
+  flex: 1;
+  font-size: 11px;
+  color: #716354;
+}
+.react-tutorial-dialog > header .tutorial-dismiss {
+  padding: 3px;
+  width: 32px;
+  height: 32px;
+  font-size: 22px;
+}
+.react-tutorial-content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+  animation: tutorial-step-in 180ms ease-out;
+}
+.react-tutorial-content h2 {
+  margin: 0 0 12px;
+  font-size: clamp(23px, 2vw, 28px);
+  line-height: 1.15;
+}
+.react-tutorial-content > p {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #514b41;
+}
+.react-tutorial-content .tutorial-action {
+  margin-bottom: 10px;
+}
+.react-tutorial-content .tutorial-action small {
+  font-size: 10px;
+}
+.react-tutorial-content .tutorial-action strong {
+  font-size: 13px;
+  line-height: 1.45;
+}
+.react-tutorial-content .tutorial-action.completed {
+  background: #d6dfce;
+}
+.react-tutorial-content .tutorial-action.completed > span {
+  color: #46634a;
+}
+.react-tutorial-content > .tutorial-optional {
+  margin: 8px 0 0;
+  color: #706656;
+  font-size: 12px;
+}
+.react-tutorial-content .tutorial-return {
+  width: 100%;
+  margin: 4px 0;
+}
+.react-tutorial-dialog > footer {
+  padding-top: 12px;
+  border-top: 1px solid #c5bcab;
+  gap: 8px;
+}
+.react-tutorial-dialog > footer > div {
+  gap: 8px;
+}
+.react-tutorial-dialog > footer button {
+  min-height: 42px;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+.react-tutorial-dialog #tutorial-next {
+  min-width: 112px;
+}
+@media (max-width: 560px) {
+  .react-tutorial-dialog {
+    width: calc(100vw - 20px);
+    height: min(355px, 54dvh);
+    padding: 12px;
+    gap: 10px;
+  }
+  .react-tutorial-dialog > footer {
+    flex-direction: row;
+    align-items: center;
+  }
+  .react-tutorial-dialog > footer > div {
+    width: auto;
+  }
+  .react-tutorial-dialog > footer button {
+    width: auto;
+    min-height: 40px;
+    padding: 8px;
+    font-size: 12px;
+  }
+  .react-tutorial-dialog #tutorial-next {
+    min-width: 92px;
+  }
+  .react-tutorial-dialog > header .eyebrow {
+    font-size: 9px;
+  }
+  .react-tutorial-content h2 {
+    font-size: 22px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .react-tutorial-content {
+    animation: none;
+  }
+  .react-tutorial-layer .tutorial-spotlight {
+    transition: none;
+  }
+}

@@ -1,0 +1,73 @@
+.react-basic-shell .basic-workbench {
+  grid-template-columns: minmax(250px, 0.8fr) minmax(0, 1.8fr) minmax(
+      270px,
+      0.9fr
+    );
+}
+.react-basic-shell .basic-header p:last-child,
+.react-basic-shell .basic-versus p {
+  font-size: 14px;
+}
+.react-basic-shell .basic-roster-row {
+  font-size: 13px;
+}
+.react-basic-shell .basic-log p {
+  grid-template-columns: 72px minmax(0, 1fr);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.react-basic-shell .basic-log p:nth-child(even) {
+  padding-left: 0;
+  border-left: 0;
+}
+.react-basic-shell .basic-bracket {
+  margin-top: 20px;
+}
+.react-basic-shell .basic-bracket > summary {
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+.react-basic-shell .basic-control-deck {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.react-basic-shell .basic-control-deck .button {
+  min-width: 0;
+}
+.react-basic-shell .basic-log .react-list-entry {
+  min-width: 0;
+}
+
+@media (max-width: 1150px) {
+  .react-basic-shell .basic-workbench {
+    grid-template-columns: minmax(250px, 0.85fr) minmax(0, 1.6fr);
+  }
+  .react-basic-shell .basic-inspector {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 740px) {
+  .react-basic-shell .basic-workbench {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .react-basic-shell .basic-header,
+  .react-basic-shell .basic-head-actions {
+    flex-wrap: wrap;
+  }
+  .react-basic-shell .basic-versus {
+    gap: 10px;
+    padding: 20px 0;
+  }
+  .react-basic-shell .basic-versus article {
+    padding: 12px;
+  }
+  .react-basic-shell .basic-speed {
+    grid-template-columns: 1fr auto !important;
+  }
+  .react-basic-shell .basic-speed input {
+    grid-column: 1 / -1;
+  }
+  .react-basic-shell .basic-log {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

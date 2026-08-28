@@ -1,7 +1,31 @@
-import { appendEraVeteranBadge, eraVeteranBadgeCopy } from "../src/web/LeaderboardView";
+import {
+  eraVeteranBadgeCopy,
+  loadRankingSnapshot,
+  saveRankingSnapshot,
+} from "../src/web/LeaderboardView";
 
-describe("leaderboard era veteran badge", () => {
-  it("describes a carried fighter with the source era number", () => {
+describe("leaderboard presentation data", () => {
+  let original: PropertyDescriptor | undefined;
+  let values: Map<string, string>;
+
+  beforeEach(() => {
+    original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+    values = new Map();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+      },
+    });
+  });
+
+  afterEach(() => {
+    if (original) Object.defineProperty(globalThis, "localStorage", original);
+    else Reflect.deleteProperty(globalThis, "localStorage");
+  });
+
+  test("describes a carried fighter with the source era number", () => {
     expect(eraVeteranBadgeCopy(3)).toEqual({
       text: "эп. 3",
       label: "Ветеран, перенесённый из эпохи 3",
@@ -11,25 +35,24 @@ describe("leaderboard era veteran badge", () => {
     expect(eraVeteranBadgeCopy(1.5)).toBeUndefined();
   });
 
-  it("adds matching visible, title and accessible labels", () => {
-    const attributes = new Map<string, string>();
-    const badge = {
-      className: "",
-      textContent: "",
-      title: "",
-      setAttribute: (name: string, value: string) => attributes.set(name, value),
-    } as unknown as HTMLSpanElement;
-    const appended: HTMLSpanElement[] = [];
-    const nameCell = {
-      ownerDocument: { createElement: () => badge },
-      append: (node: HTMLSpanElement) => appended.push(node),
-    } as unknown as HTMLTableCellElement;
+  test("keeps snapshots keyed by stable fighter identity", () => {
+    saveRankingSnapshot("world", [{ id: "first" }, { id: "second" }]);
+    expect(loadRankingSnapshot("world")).toEqual({ first: 1, second: 2 });
+    saveRankingSnapshot("world", [{ id: "second" }, { id: "third" }]);
+    expect(loadRankingSnapshot("world")).toEqual({ second: 1, third: 2 });
+  });
 
-    expect(appendEraVeteranBadge(nameCell, 7)).toBe(badge);
-    expect(appended).toEqual([badge]);
-    expect(badge.className).toBe("era-veteran-badge");
-    expect(badge.textContent).toBe("эп. 7");
-    expect(badge.title).toBe("Ветеран, перенесённый из эпохи 7");
-    expect(attributes.get("aria-label")).toBe("Ветеран, перенесённый из эпохи 7");
+  test("ignores invalid or inaccessible snapshot data", () => {
+    values.set("world", '{"valid":3,"zero":0,"negative":-1,"text":"4"}');
+    expect(loadRankingSnapshot("world")).toEqual({ valid: 3 });
+    values.set("world", "not-json");
+    expect(loadRankingSnapshot("world")).toEqual({});
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      get: () => {
+        throw new Error("Storage denied");
+      },
+    });
+    expect(loadRankingSnapshot("world")).toEqual({});
   });
 });

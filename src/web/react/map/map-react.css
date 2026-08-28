@@ -1,0 +1,36 @@
+.react-map-page {
+  --map-header-offset: var(--game-header-height, 76px);
+  --map-shortcuts-top: calc(
+    var(--map-header-offset) + var(--main-nav-height, 82px) + 8px
+  );
+  --map-sidebar-top: calc(
+    var(--map-shortcuts-top) + var(--map-shortcuts-height, 86px) + 16px
+  );
+}
+
+.react-map-page .map-shortcuts {
+  top: var(--map-shortcuts-top);
+}
+
+.react-map-page .hero-card,
+.react-map-page .next-goal {
+  top: var(--map-sidebar-top);
+}
+
+.react-map-page
+  :is(
+    #daily-actions-section,
+    #duels-section,
+    #bosses-section,
+    #tournaments-section,
+    #dungeons-section,
+    #endgame-section
+  ) {
+  scroll-margin-top: var(--map-sidebar-top);
+}
+
+@media (max-width: 820px) {
+  .react-map-page {
+    --map-header-offset: 0px;
+  }
+}
