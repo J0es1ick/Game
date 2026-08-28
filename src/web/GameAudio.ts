@@ -1,25 +1,37 @@
 import { BattleTurn, HeroClass } from "../gameplay/WorldTypes";
 
 const STORAGE_KEY = "dust-and-crown-sound-muted";
+const MAX_VOICES = 48;
+const MAX_NOISE_BUFFERS = 12;
+const NOISE_VARIANTS = 2;
 
 export type InterfaceSound = "choice" | "forge" | "loot" | "reputation" | "training";
 
 function storedMuted(): boolean {
   if (typeof window === "undefined") return false;
-  return window.localStorage.getItem(STORAGE_KEY) === "true";
+  try { return window.localStorage.getItem(STORAGE_KEY) === "true"; }
+  catch { return false; }
 }
 
 class GameAudio {
   private context: AudioContext | null = null;
   private master: GainNode | null = null;
   private muted = storedMuted();
+  private resuming: AudioContext | null = null;
+  private voices = new Map<AudioScheduledSourceNode, () => void>();
+  private noiseBuffers = new Map<string, { buffers: AudioBuffer[]; next: number }>();
 
   public get isMuted(): boolean { return this.muted; }
 
   public setMuted(muted: boolean): void {
     this.muted = muted;
-    if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_KEY, String(muted));
-    if (this.master) this.master.gain.setTargetAtTime(muted ? 0 : 0.32, this.context!.currentTime, 0.015);
+    try {
+      if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_KEY, String(muted));
+    } catch {}
+    if (this.master && this.context && this.context.state !== "closed") {
+      try { this.master.gain.setTargetAtTime(muted ? 0 : 0.32, this.context.currentTime, 0.015); } catch {}
+    }
+    if (muted) this.stopVoices();
     if (!muted) {
       this.ensureContext();
       this.tone(520, 0.06, "sine", 0.08);
@@ -100,6 +112,14 @@ class GameAudio {
   private ensureContext(): AudioContext | null {
     if (this.muted || typeof window === "undefined") return null;
     try {
+      if (this.context?.state === "closed") {
+        this.stopVoices();
+        try { this.master?.disconnect(); } catch {}
+        this.master = null;
+        this.context = null;
+        this.resuming = null;
+        this.noiseBuffers.clear();
+      }
       if (!this.context) {
         const AudioContextCtor = window.AudioContext ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
         if (!AudioContextCtor) return null;
@@ -108,50 +128,112 @@ class GameAudio {
         this.master.gain.value = 0.32;
         this.master.connect(this.context.destination);
       }
-      if (this.context.state === "suspended") void this.context.resume();
-      return this.context;
+      if (this.context.state !== "running" && this.resuming !== this.context) {
+        const context = this.context;
+        this.resuming = context;
+        const settled = () => { if (this.resuming === context) this.resuming = null; };
+        try { void context.resume().then(settled, settled); }
+        catch { settled(); }
+      }
+      return this.context.state === "running" ? this.context : null;
     } catch {
       return null;
     }
   }
 
+  private stopVoices(): void {
+    for (const [source, release] of this.voices) {
+      try { source.stop(); } catch {}
+      release();
+    }
+  }
+
+  private trackVoice(source: AudioScheduledSourceNode, nodes: AudioNode[], afterRelease?: () => void): () => void {
+    if (this.voices.size >= MAX_VOICES) {
+      const [oldest, release] = this.voices.entries().next().value!;
+      try { oldest.stop(); } catch {}
+      release();
+    }
+    let released = false;
+    const release = () => {
+      if (released) return;
+      released = true;
+      source.onended = null;
+      this.voices.delete(source);
+      for (const node of [source, ...nodes]) {
+        try { node.disconnect(); } catch {}
+      }
+      try { afterRelease?.(); } catch {}
+    };
+    this.voices.set(source, release);
+    source.onended = release;
+    return release;
+  }
+
+  private noiseBuffer(context: AudioContext, duration: number): AudioBuffer {
+    const length = Math.max(1, Math.floor(context.sampleRate * duration));
+    const key = `${context.sampleRate}:${length}`;
+    const entry = this.noiseBuffers.get(key) ?? { buffers: [], next: 0 };
+    this.noiseBuffers.delete(key);
+    this.noiseBuffers.set(key, entry);
+    if (this.noiseBuffers.size > MAX_NOISE_BUFFERS) this.noiseBuffers.delete(this.noiseBuffers.keys().next().value!);
+    const variant = entry.next;
+    entry.next = (entry.next + 1) % NOISE_VARIANTS;
+    if (!entry.buffers[variant]) {
+      const buffer = context.createBuffer(1, length, context.sampleRate);
+      const channel = buffer.getChannelData(0);
+      for (let index = 0; index < length; index += 1) channel[index] = (Math.random() * 2 - 1) * (1 - index / length);
+      entry.buffers[variant] = buffer;
+    }
+    return entry.buffers[variant];
+  }
+
   private tone(frequency: number, duration: number, wave: OscillatorType, volume: number, delay = 0, endFrequency?: number): void {
     const context = this.context;
     const master = this.master;
-    if (!context || !master) return;
+    if (!context || context.state !== "running" || !master || this.muted) return;
     const start = context.currentTime + delay;
     const oscillator = context.createOscillator();
     const gain = context.createGain();
-    oscillator.type = wave;
-    oscillator.frequency.setValueAtTime(frequency, start);
-    if (endFrequency) oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, endFrequency), start + duration);
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(volume, start + 0.008);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-    oscillator.connect(gain).connect(master);
-    oscillator.start(start);
-    oscillator.stop(start + duration + 0.02);
+    const release = this.trackVoice(oscillator, [gain]);
+    try {
+      oscillator.type = wave;
+      oscillator.frequency.setValueAtTime(frequency, start);
+      if (endFrequency) oscillator.frequency.exponentialRampToValueAtTime(Math.max(1, endFrequency), start + duration);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(volume, start + 0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      oscillator.connect(gain).connect(master);
+      oscillator.start(start);
+      oscillator.stop(start + duration + 0.02);
+    } catch {
+      try { oscillator.stop(); } catch {}
+      release();
+    }
   }
 
   private noise(duration: number, highPass: number, volume: number, delay = 0): void {
     const context = this.context;
     const master = this.master;
-    if (!context || !master) return;
-    const length = Math.max(1, Math.floor(context.sampleRate * duration));
-    const buffer = context.createBuffer(1, length, context.sampleRate);
-    const channel = buffer.getChannelData(0);
-    for (let index = 0; index < length; index += 1) channel[index] = (Math.random() * 2 - 1) * (1 - index / length);
+    if (!context || context.state !== "running" || !master || this.muted) return;
+    const buffer = this.noiseBuffer(context, duration);
     const source = context.createBufferSource();
     const filter = context.createBiquadFilter();
     const gain = context.createGain();
-    const start = context.currentTime + delay;
-    source.buffer = buffer;
-    filter.type = "highpass";
-    filter.frequency.value = highPass;
-    gain.gain.setValueAtTime(volume, start);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-    source.connect(filter).connect(gain).connect(master);
-    source.start(start);
+    const release = this.trackVoice(source, [filter, gain], () => { source.buffer = null; });
+    try {
+      const start = context.currentTime + delay;
+      source.buffer = buffer;
+      filter.type = "highpass";
+      filter.frequency.value = highPass;
+      gain.gain.setValueAtTime(volume, start);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      source.connect(filter).connect(gain).connect(master);
+      source.start(start);
+    } catch {
+      try { source.stop(); } catch {}
+      release();
+    }
   }
 
   private parry(): void {
