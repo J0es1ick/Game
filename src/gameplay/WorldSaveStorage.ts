@@ -2,6 +2,7 @@ import { normalizeWorldSave } from "./WorldSaveMigration";
 import { GameSave } from "./WorldTypes";
 import { assertRestorableWorldSave, InvalidWorldSaveError } from "./WorldSaveValidation";
 import { decodeWorldSaveStorage, encodeWorldSaveStorage, isCompressedWorldSave, worldSaveChecksum } from "./WorldSaveCodec";
+import { restoreBattleCheckpoint, serializeBattleCheckpoint } from "./WorldSaveBattleCheckpoint";
 
 export const WORLD_SAVE_EXPORT_FORMAT = "dust-and-crown-world-save";
 export const WORLD_SAVE_EXPORT_SCHEMA = 1;
@@ -30,6 +31,16 @@ export interface SafeWorldSaveParseResult {
   error?: Error;
 }
 
+export interface WorldSaveIdentity {
+  heroId: string;
+  worldDay: number;
+  cycle: number;
+}
+
+function saveIdentity(save: GameSave): WorldSaveIdentity {
+  return { heroId: save.hero.id, worldDay: save.worldDay, cycle: save.legacy.cycle };
+}
+
 function cloneSave(save: GameSave): GameSave {
   return JSON.parse(JSON.stringify(save)) as GameSave;
 }
@@ -41,6 +52,12 @@ function migratedClone(value: unknown): GameSave {
 
 export function serializeWorldSave(save: GameSave): string {
   return JSON.stringify(migratedClone(save));
+}
+
+export function normalizeSerializedWorldSave(serialized: string): string {
+  const value: unknown = JSON.parse(serialized);
+  assertRestorableWorldSave(value);
+  return JSON.stringify(normalizeWorldSave(value));
 }
 
 export function parseWorldSave(serialized: string): GameSave {
@@ -90,7 +107,13 @@ export function exportWorldSave(save: GameSave, now = Date.now()): string {
 export class WorldSaveRepository {
   public readonly backupKey: string;
   public readonly temporaryKey: string;
+  public readonly battleCheckpointKey: string;
   private verifiedPrimary: string | null = null;
+  private lastSerializedInput: string | null = null;
+  private lastPreparedSave: string | null = null;
+  private baseBattleId: string | undefined;
+  private baseIdentity: WorldSaveIdentity | undefined;
+  private baseChecksum: string | null = null;
 
   public constructor(
     private readonly storage: KeyValueStorage,
@@ -98,6 +121,7 @@ export class WorldSaveRepository {
   ) {
     this.backupKey = `${primaryKey}.backup`;
     this.temporaryKey = `${primaryKey}.temporary`;
+    this.battleCheckpointKey = `${primaryKey}.battle`;
   }
 
   public load(): LoadedWorldSave | null {
@@ -109,9 +133,9 @@ export class WorldSaveRepository {
         try {
           this.writePrimary(interrupted);
         } catch {
-          return { save: parsed.save, source: "temporary" };
+          return this.loaded(parsed.save, "temporary", interrupted);
         }
-        return { save: parsed.save, source: "temporary" };
+        return this.loaded(parsed.save, "temporary", interrupted);
       }
       this.storage.removeItem(this.temporaryKey);
     }
@@ -125,16 +149,47 @@ export class WorldSaveRepository {
       const parsed = safeParseWorldSave(serialized);
       if (parsed.save) {
         if (source === "primary") this.verifiedPrimary = serialized;
-        return { save: parsed.save, source };
+        return this.loaded(parsed.save, source, serialized);
       }
     }
     return null;
   }
 
   public save(save: GameSave): void {
-    const serialized = encodeWorldSaveStorage(serializeWorldSave(save));
+    const input = JSON.stringify(save);
+    const serialized = input === this.lastSerializedInput && this.lastPreparedSave
+      ? this.lastPreparedSave
+      : encodeWorldSaveStorage(normalizeSerializedWorldSave(input));
+    this.savePrepared(serialized, save.pendingBattle?.id, saveIdentity(save));
+    this.lastSerializedInput = input;
+    this.lastPreparedSave = serialized;
+  }
+
+  public savePrepared(serialized: string, pendingBattleId?: string, identity?: WorldSaveIdentity): void {
     this.compactStoredCopies();
     this.writePrimary(serialized);
+    this.storage.removeItem(this.battleCheckpointKey);
+    this.baseBattleId = pendingBattleId;
+    this.baseIdentity = identity;
+    this.baseChecksum = worldSaveChecksum(serialized);
+  }
+
+  public saveBattleProgress(save: GameSave): void {
+    const battle = save.pendingBattle;
+    if (!battle || this.baseBattleId !== battle.id || !this.baseChecksum || !this.baseIdentity
+      || this.baseIdentity.heroId !== save.hero.id || this.baseIdentity.worldDay !== save.worldDay
+      || this.baseIdentity.cycle !== save.legacy.cycle
+      || this.storage.getItem(this.primaryKey) !== this.verifiedPrimary) {
+      this.save(save);
+      return;
+    }
+    const checkpoint = serializeBattleCheckpoint(save, this.baseChecksum);
+    try {
+      this.storage.setItem(this.battleCheckpointKey, checkpoint);
+    } catch (error) {
+      if (!isStorageQuotaError(error)) throw storageWriteError(error);
+      this.save(save);
+    }
   }
 
   public import(serialized: string): GameSave {
@@ -147,6 +202,18 @@ export class WorldSaveRepository {
     const loaded = this.load();
     if (!loaded) throw new Error("Сохранение для экспорта не найдено.");
     return exportWorldSave(loaded.save, now);
+  }
+
+  private loaded(save: GameSave, source: LoadedWorldSave["source"], serialized: string): LoadedWorldSave {
+    const checksum = worldSaveChecksum(serialized);
+    const checkpoint = this.storage.getItem(this.battleCheckpointKey);
+    if (checkpoint) restoreBattleCheckpoint(save, checkpoint, checksum);
+    if (source === "primary" || this.verifiedPrimary === serialized) {
+      this.baseBattleId = save.pendingBattle?.id;
+      this.baseIdentity = saveIdentity(save);
+      this.baseChecksum = checksum;
+    }
+    return { save, source };
   }
 
   private compactStoredCopies(): void {

@@ -20,6 +20,18 @@ function expectInvalidAt(save: GameSave, path: string): void {
 }
 
 describe("deep world save validation", () => {
+  test("reports repeated identifiers once in their original duplicate order", () => {
+    const save = WorldGame.create("Duplicate validator", "Knight", 91_000).save;
+    const [first, second] = save.hero.inventory;
+    save.hero.inventory.push(structuredClone(first), structuredClone(second), structuredClone(first));
+    save.enemies.push(structuredClone(save.enemies[0]), structuredClone(save.enemies[0]));
+    const issues = validateWorldSave(save).issues;
+    expect(issues.find((issue) => issue.path === "$.items")?.message)
+      .toContain(`${first.id}, ${second.id}`);
+    expect(issues.find((issue) => issue.path === "$.enemies")?.message)
+      .toBe(`Идентификаторы бойцов должны быть уникальны: ${save.enemies[0].id}.`);
+  });
+
   test("accepts genuine duel and tournament continuation snapshots", () => {
     const duel = duelSave();
     expect(validateWorldSave(duel)).toEqual({ valid: true, issues: [] });

@@ -3,6 +3,7 @@ import {
   EquipmentSlot,
   GameSave,
   HeroClass,
+  PendingBattle,
   Rarity,
 } from "./WorldTypes";
 import { FACTIONS } from "../catalogs/WorldExpansionCatalog";
@@ -62,6 +63,16 @@ function isNonEmptyString(value: unknown): value is string {
 
 function isNonNegativeInteger(value: unknown): value is number {
   return isFiniteNumber(value) && Number.isInteger(value) && value >= 0;
+}
+
+function duplicateIds(ids: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  ids.forEach((id) => {
+    if (seen.has(id)) duplicates.add(id);
+    else seen.add(id);
+  });
+  return [...duplicates];
 }
 
 function validateStringList(
@@ -1321,15 +1332,15 @@ export function validateWorldSave(value: unknown): WorldSaveValidationResult {
       }
     });
   }
-  const duplicateItemIds = itemIds.filter((id, index) => itemIds.indexOf(id) !== index);
+  const duplicateItemIds = duplicateIds(itemIds);
   if (duplicateItemIds.length > 0) {
-    issues.push({ path: "$.items", message: `Идентификаторы предметов должны быть уникальны: ${[...new Set(duplicateItemIds)].join(", ")}.` });
+    issues.push({ path: "$.items", message: `Идентификаторы предметов должны быть уникальны: ${duplicateItemIds.join(", ")}.` });
   }
   if (Array.isArray(value.enemies)) {
     const enemyIds = value.enemies.filter(isRecord).map((enemy) => enemy.id).filter((id): id is string => typeof id === "string");
-    const duplicates = enemyIds.filter((id, index) => enemyIds.indexOf(id) !== index);
+    const duplicates = duplicateIds(enemyIds);
     if (duplicates.length > 0) {
-      issues.push({ path: "$.enemies", message: `Идентификаторы бойцов должны быть уникальны: ${[...new Set(duplicates)].join(", ")}.` });
+      issues.push({ path: "$.enemies", message: `Идентификаторы бойцов должны быть уникальны: ${duplicates.join(", ")}.` });
     }
     if (Array.isArray(value.eliteLeagueMemberIds)) {
       const knownFighters = new Set(["hero", ...enemyIds]);
@@ -1360,4 +1371,10 @@ export class InvalidWorldSaveError extends Error {
 export function assertRestorableWorldSave(value: unknown): asserts value is GameSave {
   const result = validateWorldSave(value);
   if (!result.valid) throw new InvalidWorldSaveError(result.issues);
+}
+
+export function assertRestorablePendingBattle(value: unknown): asserts value is PendingBattle {
+  const issues: WorldSaveValidationIssue[] = [];
+  validatePendingBattle(value, issues);
+  if (issues.length > 0) throw new InvalidWorldSaveError(issues);
 }

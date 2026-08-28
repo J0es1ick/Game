@@ -486,8 +486,9 @@ export function normalizeWorldSave(save: GameSave): GameSave {
   if (!save.migrations.includes(ENEMY_ARENA_CHAMPIONSHIP_MIGRATION)) {
     save.migrations.push(ENEMY_ARENA_CHAMPIONSHIP_MIGRATION);
   }
+  const enemiesById = new Map(save.enemies.map((enemy) => [enemy.id, enemy]));
   Object.values(hero.rivalries).forEach((record) => {
-    const memory = save.enemies.find((enemy) => enemy.id === record.enemyId)?.heroMemory;
+    const memory = enemiesById.get(record.enemyId)?.heroMemory;
     if (!memory) return;
     record.memoryStage ??= memory.stage;
     record.memoryFamiliarity ??= memory.familiarity;
