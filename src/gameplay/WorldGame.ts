@@ -22,6 +22,7 @@ import {
 } from "../catalogs/WorldCatalog";
 import { calculateItemPrice, createItem, createStarterItems, equipmentScore, ItemCreationOptions, itemPower } from "../factories/ItemFactory";
 import { equipmentItemsForLoadout, evaluateCombatantPower, findBestEquipmentLoadout } from "./EquipmentLoadout";
+import { buyTemperingMarks, temperingMarkPrice } from "./ShopSupplies";
 import {
   CLASS_RELIC_EPITHETS,
   DEFAULT_TACTICAL_PROFILES,
@@ -3197,6 +3198,14 @@ export class WorldGame {
     this.save.hero.inventory = this.save.hero.inventory.filter((item) => !ids.has(item.id));
     this.save.hero.gold += value;
     return { count: sellable.length, value };
+  }
+
+  public temperingMarkPrice(): number {
+    return temperingMarkPrice(this.save);
+  }
+
+  public buyTemperingMarks(quantity = 1): { quantity: number; cost: number } {
+    return buyTemperingMarks(this.save, quantity);
   }
 
   public buy(index: number): EquipmentItem {
