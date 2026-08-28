@@ -267,8 +267,8 @@ const EXPEDITION_SHRINE_CHOICES: readonly ExpeditionShrineChoice[] = [
     benefit: "+16% к защите и +12% к шансу целевой добычи",
   },
 ];
-const FINAL_ARENA_INTERVAL = ARENAS[ARENAS.length - 1]?.tournamentInterval ?? 14;
-const CROWN_LEAGUE_INTERVAL = FINAL_ARENA_INTERVAL * 2;
+const CROWN_LEAGUE_INTERVAL = 10;
+const CROWN_LEAGUE_SCHEDULE_MIGRATION = "crown-league-ten-day-schedule-v1";
 const CROWN_SET_ID = "crown-sovereign";
 const ARENA_POPULATION_TARGET = 16;
 const ARENA_POPULATION_BASE_FLOOR = 12;
@@ -336,7 +336,7 @@ export class WorldGame {
     const randomSnapshots = createWorldRandomSnapshots(tournamentRuleSeed);
     randomSnapshots.loot = starterRandom.snapshot();
     const save: GameSave = {
-      version: 3, migrations: [PROGRESSION_CURVE_MIGRATION, STAGED_WORLD_FEATURES_MIGRATION, ENEMY_ARENA_CHAMPIONSHIP_MIGRATION, PENDING_BATTLE_MIGRATION], hero, enemies: [], worldDay: 1, lastSimulatedAt: now,
+      version: 3, migrations: [PROGRESSION_CURVE_MIGRATION, STAGED_WORLD_FEATURES_MIGRATION, ENEMY_ARENA_CHAMPIONSHIP_MIGRATION, PENDING_BATTLE_MIGRATION, CROWN_LEAGUE_SCHEDULE_MIGRATION], hero, enemies: [], worldDay: 1, lastSimulatedAt: now,
       dungeonClears: {}, shopDay: 1, shopOffers: [],
       factionControl: createFactionControlState(1), mentors: [], worldRelics: [],
       npcLife: createNpcLifeWorldState(1),
@@ -370,6 +370,7 @@ export class WorldGame {
   public static restore(save: unknown): WorldGame {
     assertRestorableWorldSave(save);
     const game = new WorldGame(normalizeWorldSave(save));
+    game.migrateCrownLeagueSchedule();
     game.save.npcLife = normalizeNpcLifeWorldState(game.save.npcLife, game.save.enemies, game.save.worldDay);
     game.save.enemies.forEach((enemy) => { enemy.rating = game.enemyWorldRating(enemy); });
     game.ensureEliteLeague();
@@ -1321,11 +1322,25 @@ export class WorldGame {
   }
 
   public crownLeagueInterval(): number {
-    return this.hasEraLaw("crown-discord") ? Math.max(FINAL_ARENA_INTERVAL + 1, Math.round(CROWN_LEAGUE_INTERVAL * 0.75)) : CROWN_LEAGUE_INTERVAL;
+    return this.hasEraLaw("crown-discord") ? Math.round(CROWN_LEAGUE_INTERVAL * 0.75) : CROWN_LEAGUE_INTERVAL;
   }
 
   public registeredCrownLeagueDay(): number | undefined {
     return this.save.tournamentRegistrations["crown-league"];
+  }
+
+  private migrateCrownLeagueSchedule(): void {
+    const migrations = this.save.migrations ??= [];
+    if (migrations.includes(CROWN_LEAGUE_SCHEDULE_MIGRATION)) return;
+    const registeredDay = this.registeredCrownLeagueDay();
+    if (registeredDay !== undefined && registeredDay > this.save.worldDay) {
+      const nextDay = Math.min(registeredDay, this.nextCrownLeagueDay());
+      this.save.tournamentRegistrations["crown-league"] = nextDay;
+      if (nextDay !== registeredDay) {
+        this.event("tournament", `Запись в Лигу короны перенесена с дня ${registeredDay} на день ${nextDay}: турнир теперь проходит чаще.`);
+      }
+    }
+    migrations.push(CROWN_LEAGUE_SCHEDULE_MIGRATION);
   }
 
   public crownLeagueRegistrationAvailability(): ActivityAvailability {
@@ -2432,7 +2447,7 @@ export class WorldGame {
     if (lastLeagueDay === this.save.worldDay) {
       return {
         unlocked: false,
-        reason: `Сегодняшняя Лига уже завершена. Следующая — в день ${this.save.worldDay + this.crownLeagueInterval()}.`,
+        reason: `Сегодняшняя Лига уже завершена. Следующая — в день ${this.nextCrownLeagueDay()}.`,
       };
     }
     if (registeredDay === this.save.worldDay) {

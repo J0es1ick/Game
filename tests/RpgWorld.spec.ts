@@ -303,8 +303,8 @@ describe("постоянный RPG-мир", () => {
     game.save.enemies.filter((enemy) => eliteIds.has(enemy.id)).forEach((enemy) => {
       enemy.level = 1; enemy.equipment = []; enemy.equipped = {};
     });
-    const crownLeagueInterval = ARENAS[ARENAS.length - 1].tournamentInterval * 2;
-    game.save.worldDay = ARENAS[ARENAS.length - 1].tournamentInterval;
+    const crownLeagueInterval = 10;
+    game.save.worldDay = crownLeagueInterval - 1;
     expect(game.crownLeagueAvailability().unlocked).toBe(false);
     expect(game.crownLeagueAvailability().reason).toContain(`день ${crownLeagueInterval}`);
     expect(game.crownLeagueRegistrationAvailability().unlocked).toBe(true);
