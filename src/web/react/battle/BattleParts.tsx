@@ -178,15 +178,34 @@ export function TournamentBracket({
   if (!pending && !completed) return null;
   const participants =
     completed?.participantCount ?? pending!.participantIds.length;
-  const matches =
-    completed?.matches ??
-    pending!.matches.map((match) => ({
+  const resolvedMatches = pending?.matches.map((match) => ({
       ...match,
       firstName: nameForId(match.firstId),
       secondName: match.bye ? "Свободный проход" : nameForId(match.secondId),
       winnerName: nameForId(match.winnerId),
-    }));
-  const currentPair = pending?.pairs[pending.pairIndex];
+      pending: false,
+      live: false,
+    })) ?? [];
+  const matches = completed?.matches ?? (pending
+    ? [
+        ...resolvedMatches.filter((match) => match.round < pending.round),
+        ...pending.pairs.map(([firstId, secondId], index) => {
+          const resolved = resolvedMatches.find((match) => match.round === pending.round && match.match === index + 1);
+          return resolved ?? {
+            round: pending.round,
+            match: index + 1,
+            firstName: nameForId(firstId),
+            secondName: secondId ? nameForId(secondId) : "Свободный проход",
+            winnerName: "",
+            heroInvolved: firstId === "hero" || secondId === "hero",
+            bye: !secondId,
+            pending: true,
+            live: index === pending.pairIndex,
+          };
+        }),
+      ]
+    : []);
+  const completedCount = completed?.matches.length ?? resolvedMatches.filter((match) => !match.bye).length;
   return (
     <section
       className="tournament-panel"
@@ -195,7 +214,7 @@ export function TournamentBracket({
     >
       <header>
         <span>
-          {participants} УЧАСТНИКОВ · {matches.length} ЗАВЕРШЕНО
+          {participants} УЧАСТНИКОВ · {completedCount} ЗАВЕРШЕНО
         </span>
         <strong>
           {completed
@@ -211,7 +230,7 @@ export function TournamentBracket({
         {matches.map((match) => (
           <article
             key={`${match.round}-${match.match}`}
-            className={match.heroInvolved ? "hero-match" : ""}
+            className={`${match.heroInvolved ? "hero-match" : ""}${"live" in match && match.live ? " live-match" : ""}${"pending" in match && match.pending ? " pending-match" : ""}`}
           >
             <small>
               РАУНД {match.round} · БОЙ {match.match}
@@ -219,18 +238,15 @@ export function TournamentBracket({
             <span>
               {match.firstName} × {match.secondName}
             </span>
-            <strong>→ {match.winnerName}</strong>
+            <strong>
+              {"live" in match && match.live
+                ? "Идёт сейчас"
+                : "pending" in match && match.pending
+                  ? match.bye ? `→ ${match.firstName}` : "Схватка этого раунда"
+                  : `→ ${match.winnerName}`}
+            </strong>
           </article>
         ))}
-        {!completed && currentPair && (
-          <article className="hero-match live-match">
-            <small>РАУНД {pending!.round} · ИДЁТ СЕЙЧАС</small>
-            <span>
-              {nameForId(currentPair[0])} × {nameForId(currentPair[1])}
-            </span>
-            <strong>Исход ещё не записан</strong>
-          </article>
-        )}
       </div>
     </section>
   );

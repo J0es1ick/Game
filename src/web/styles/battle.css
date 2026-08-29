@@ -198,6 +198,14 @@
     12px "Courier New",
     monospace;
 }
+.bracket-strip article.pending-match:not(.live-match) {
+  border-style: dashed;
+  color: #686154;
+  background: #eee8dc;
+}
+.bracket-strip article.live-match {
+  box-shadow: inset 0 0 0 2px rgba(154, 73, 57, 0.2);
+}
 .battle-runtime {
   display: grid;
   gap: 4px;

@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { WorldGame } from "../src/gameplay/WorldGame";
+import type { PendingTournamentState } from "../src/gameplay/WorldTypes";
 import {
   BattleSkillList,
   CombatantCard,
@@ -65,6 +66,31 @@ describe("React battle presentation", () => {
     expect(
       renderToStaticMarkup(<TournamentBracket nameForId={() => "Участник"} />),
     ).toBe("");
+  });
+
+  test("shows every pairing in the current tournament round before its battles are resolved", () => {
+    const pending: PendingTournamentState = {
+      kind: "arena",
+      activityId: "stone-cup",
+      participantIds: ["hero", "a", "b", "c", "d", "e", "f", "g"],
+      initialSeeds: ["hero", "a", "b", "c", "d", "e", "f", "g"],
+      round: 1,
+      pairs: [["hero", "a"], ["b", "c"], ["d", "e"], ["f", "g"]],
+      pairIndex: 0,
+      roundWinners: [],
+      matches: [],
+      heroBattles: [],
+      heroPlacement: 8,
+      ruleIds: [],
+    };
+    const markup = renderToStaticMarkup(
+      <TournamentBracket pending={pending} nameForId={(id) => id ?? "—"} />,
+    );
+
+    expect(markup.match(/РАУНД 1 · БОЙ [1-4]</g)).toHaveLength(4);
+    expect(markup).toContain("hero × a");
+    expect(markup).toContain("f × g");
+    expect(markup.match(/Схватка этого раунда/g)).toHaveLength(3);
   });
 
   test("explains feature effects and uses positive and negative stat colors", () => {
