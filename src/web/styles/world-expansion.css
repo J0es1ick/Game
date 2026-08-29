@@ -161,7 +161,14 @@
 .world-careers .mentor-list,
 .world-careers .world-dynasty-list {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 12px;
+}
+.world-activities .living-world-list > article,
+.world-veterans .living-world-list > article,
+.world-careers .mentor-list > article,
+.world-careers .world-dynasty-list > article {
+  align-self: start;
 }
 .living-world-section .empty-copy { grid-column: 1 / -1; margin: 0; }
 .living-world-list article { display: grid; grid-template-columns: minmax(180px, .55fr) minmax(0, 1fr); gap: 14px; padding: 10px 11px; border-left: 4px solid var(--faction-accent); background: #e2dbcd; }
@@ -191,13 +198,13 @@
 .future-boss-list article.faction-hunter { --faction-accent: #914c43; background: #e5d2c8; }
 .future-boss-list p { margin: 3px 0 0; color: #625b50; font-size: 12px; line-height: 1.4; }
 .future-boss-action { width: 100%; min-height: 38px; margin-top: 7px; }
-.world-relic-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.world-relic-entry { display: grid; gap: 4px; padding: 12px; border: 1px solid #a69a83; border-left: 5px solid #8a6845; background: #e8dfcf; }
+.world-relic-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 8px; }
+.world-relic-entry { display: grid; align-self: start; gap: 4px; padding: 12px; border: 1px solid #a69a83; border-left: 5px solid #8a6845; background: #e8dfcf; }
 .world-relic-entry.lost { border-left-color: #6f6a61; }
 .world-relic-entry.shop { border-left-color: #a8813f; }
 .world-relic-entry small { color: #796344; font: 11px/1.35 "Courier New", monospace; }
 .world-relic-entry p { margin: 3px 0 0; color: var(--muted); font-size: 12px; line-height: 1.4; }
-.world-relic-mark { margin: 0; padding: 7px 9px; border-left: 3px solid #8a6845; color: #735b39; background: #e8dcc5; font: 11px/1.35 "Courier New", monospace; }
+.item-card .world-relic-mark { margin: 0; padding: 8px 10px; border: 1px solid #68a3a4; border-left: 4px solid #2f7d80; color: #225f61; background: linear-gradient(90deg, #d2e5df, #eee3c8); font: 11px/1.35 "Courier New", monospace; }
 .rivalry-world-intent,
 .rivalry-last-activity { display: block; margin-top: 4px; color: #6b6254; font-size: 12px; }
 .fighter-world-badge { display: inline-flex; margin-left: 8px; padding: 2px 5px; border: 1px solid var(--faction-accent); color: #50493e; background: color-mix(in srgb, var(--faction-accent) 15%, #eee7da); font: 9px/1.2 "Courier New", monospace; vertical-align: middle; }

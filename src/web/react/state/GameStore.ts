@@ -540,6 +540,7 @@ export class GameStore {
       }),
     );
     unlocks.forEach((unlock) => {
+      this.queueTutorial(unlock.tutorialId);
       this.notify({
         eyebrow: `НОВАЯ ВОЗМОЖНОСТЬ · ДЕНЬ ${unlock.day}`,
         title: unlock.title,
@@ -547,8 +548,12 @@ export class GameStore {
         symbol: "✦",
         tone: "legendary",
         sound: "reputation",
+        duration: 8000,
+        action: {
+          label: "Открыть обучение",
+          run: () => this.openDialog({ kind: "tutorial", id: unlock.tutorialId }),
+        },
       });
-      this.queueTutorial(unlock.tutorialId);
     });
     const defense = this.game.consumeAutomaticLegendDefense();
     if (defense)
@@ -700,8 +705,8 @@ export class GameStore {
       !this.game
     )
       return;
-    const id = this.tutorialQueue.shift();
-    if (id && !this.game.hasSeenTutorial(id))
-      this.openDialog({ kind: "tutorial", id });
+    let id = this.tutorialQueue.shift();
+    while (id && this.game.hasSeenTutorial(id)) id = this.tutorialQueue.shift();
+    if (id) this.openDialog({ kind: "tutorial", id });
   }
 }

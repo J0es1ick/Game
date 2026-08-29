@@ -224,6 +224,9 @@
 }
 .equipment-page .unequip-inline {
   flex: 0 0 auto;
+  min-width: 78px;
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 .equipment-pagination {
@@ -346,8 +349,16 @@
   transform: rotate(225deg);
 }
 .equipment-page .forge-grid {
-  align-items: start;
+  align-items: stretch;
   gap: 16px;
+}
+.equipment-page .forge-card {
+  height: 100%;
+  grid-template-rows: minmax(120px, 1fr) auto auto;
+  align-content: start;
+}
+.equipment-page .forge-card-copy {
+  align-self: start;
 }
 .equipment-page .forge-card-copy {
   min-width: 0;
@@ -553,6 +564,11 @@
 .react-modal-layer.equipment-picker-dialog .picker-current-line > div {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+.react-modal-layer.equipment-picker-dialog .picker-current-line .small-button {
+  min-width: 78px;
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 .react-modal-layer.equipment-picker-dialog .picker-current-line strong {
   font-size: 17px;
