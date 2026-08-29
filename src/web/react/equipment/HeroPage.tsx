@@ -102,7 +102,7 @@ export function HeroPage() {
   const snapshot = useMemo(() => combatantSnapshot(hero), [game, revision]);
   const features = game.fighterFeatures(hero);
   return (
-    <section className="page active" id="page-hero">
+    <section className="page active equipment-page" id="page-hero">
       <PageHeading eyebrow="ЭКИПИРОВКА ГЕРОЯ" title="Ваш герой">
         <p>
           Предметы отображаются на герое и снимаются независимо. Нажмите на

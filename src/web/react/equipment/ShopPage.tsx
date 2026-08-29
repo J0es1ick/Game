@@ -3,6 +3,7 @@ import { PageHeading } from "../components/common";
 import { useGame } from "../state/GameContext";
 import { ItemCard } from "./ItemCard";
 import { number } from "./model";
+import "./equipment-react.css";
 
 function ShopSupplies() {
   const { game, act, notify } = useGame();
@@ -90,7 +91,7 @@ export function ShopPage() {
   const { game } = useGame();
   const controller = game.shopController();
   return (
-    <section className="page active" id="page-shop">
+    <section className="page active equipment-page" id="page-shop">
       <PageHeading
         eyebrow="АССОРТИМЕНТ МЕНЯЕТСЯ РАЗ В ДВА ДНЯ"
         title="Лавка Ионы"

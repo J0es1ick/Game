@@ -2,7 +2,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 0.8fr);
   align-items: center;
-  gap: 24px 40px;
+  gap: 24px 32px;
   margin-bottom: 24px;
   border-top: 4px solid var(--yellow);
 }
@@ -32,6 +32,7 @@
   display: flex;
   align-items: baseline;
   gap: 10px;
+  min-width: 0;
 }
 
 .shop-supplies-totals dt {
@@ -47,22 +48,29 @@
 .shop-supplies-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  align-items: stretch;
+  gap: 10px;
 }
 
-.shop-supply-buy {
+.shop-supplies .button.shop-supply-buy {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 5px;
   min-width: 0;
-  padding: 12px;
-  font-size: 16px;
+  min-height: 72px;
+  padding: 12px 14px;
+  font-size: 15px;
+  line-height: 1.35;
+  text-align: left;
 }
 
 .shop-supply-cost {
   font-size: 15px;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .shop-supplies .shop-supplies-note {
@@ -76,6 +84,9 @@
   .shop-supplies {
     grid-template-columns: minmax(0, 1fr);
     gap: 20px;
+  }
+  .shop-supplies-totals {
+    gap: 10px 18px;
   }
 }
 

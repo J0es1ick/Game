@@ -198,7 +198,7 @@ export function ForgePage() {
   );
   const shown = pageSlice(ordered, page, 18);
   return (
-    <section className="page active" id="page-forge">
+    <section className="page active equipment-page" id="page-forge">
       <PageHeading eyebrow="ЗАКАЛКА И ПЕРЕКОВКА" title="Кузница">
         <p>
           Закаляйте вещи печатями или заменяйте одно свойство за монеты и

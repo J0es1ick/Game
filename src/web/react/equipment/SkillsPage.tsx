@@ -139,7 +139,7 @@ export function SkillsPage() {
   const classShown = pageSlice(relevant, classPage, 24);
   const gearShown = pageSlice(equipmentSkills, gearPage, 24);
   return (
-    <section className="page active" id="page-skills">
+    <section className="page active equipment-page" id="page-skills">
       <PageHeading eyebrow="ТАКТИКА И БИЛД" title="Книга навыков">
         <p>
           Выберите до четырёх активных приёмов или доверьте сборку герою.

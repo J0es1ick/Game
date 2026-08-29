@@ -28,7 +28,7 @@ export function LegacyPage() {
   const shown = pageSlice(relics, page, 18);
   if (!game.isFeatureUnlocked("equipment-legacy"))
     return (
-      <section className="page active" id="page-legacy">
+      <section className="page active equipment-page" id="page-legacy">
         <PageHeading eyebrow="ПОЗДНЕЕ РАЗВИТИЕ" title="Наследие" />
         <p className="empty-copy">
           Наследие снаряжения откроется по мере прохождения арен.
@@ -36,7 +36,7 @@ export function LegacyPage() {
       </section>
     );
   return (
-    <section className="page active" id="page-legacy">
+    <section className="page active equipment-page" id="page-legacy">
       <PageHeading eyebrow="ДОБЫЧА И ИСТОРИЯ СНАРЯЖЕНИЯ" title="Наследие">
         <p>
           Направляйте будущие находки и развивайте легендарные вещи, которые

@@ -1,3 +1,189 @@
+.equipment-page :is(select, input[type="search"]),
+.equipment-picker-dialog :is(select, input[type="search"]) {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  height: auto;
+  padding: 10px 12px;
+  border: 1px solid #aaa08d;
+  border-radius: 2px;
+  color: var(--ink);
+  background-color: var(--paper-light);
+  font:
+    14px/1.4 Inter,
+    sans-serif;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.equipment-page select {
+  appearance: none;
+  padding-right: 34px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #6e6658 50%),
+    linear-gradient(135deg, #6e6658 50%, transparent 50%);
+  background-position:
+    calc(100% - 17px) 50%,
+    calc(100% - 12px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.equipment-page :is(select, input[type="search"]):focus-visible {
+  border-color: var(--green);
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
+
+.equipment-page input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  margin: 0;
+  accent-color: var(--green);
+}
+
+:is(.equipment-page, .equipment-picker-dialog, .comparison-dialog)
+  :is(
+    .button,
+    .small-button,
+    .plain-button,
+    .filter-row > button,
+    .skill-select,
+    .tactic-mode-buttons > button
+  ):where(:not(.modal-close)) {
+  min-width: 0;
+  min-height: 42px;
+  height: auto;
+  padding: 10px 13px;
+  border-radius: 2px;
+  font-size: 14px;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+:is(.equipment-page, .equipment-picker-dialog, .comparison-dialog)
+  :is(.button, .small-button, .plain-button):disabled:not(.active) {
+  border-color: #b8af9e;
+  color: #70685b;
+  background: #e1dacc;
+  box-shadow: none;
+  filter: none;
+  opacity: 1;
+  transform: none;
+}
+
+.equipment-page :is(.auto-equip-toggle, .tactic-toggle) {
+  gap: 9px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.equipment-page .gear-actions {
+  gap: 12px;
+}
+.equipment-page .gear-actions.compact {
+  margin-top: 0;
+  padding-bottom: 18px;
+}
+.equipment-page .inventory-panel > header {
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 18px;
+  padding-bottom: 18px;
+}
+.equipment-page .inventory-sell-all {
+  flex: 0 1 auto;
+  gap: 4px;
+  max-width: 300px;
+  padding: 10px 13px;
+  box-shadow: none;
+}
+.equipment-page .inventory-panel > header small {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.equipment-page .inventory-sell-all > small {
+  font-family: Inter, sans-serif;
+  font-size: 12px;
+}
+.equipment-page .inventory-filter-stack {
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 14px;
+}
+.equipment-page .inventory-filter-stack .filter-row {
+  justify-content: flex-start;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.equipment-page
+  :is(.inventory-filter-stack, .loot-target-controls, .reforge-control-body)
+  label {
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+:is(.equipment-page, .equipment-picker-dialog) .item-grid,
+.equipment-picker-dialog .equipment-picker-grid {
+  gap: 14px;
+}
+:is(.equipment-page, .equipment-picker-dialog) .item-card {
+  min-width: 0;
+  padding: 16px;
+}
+:is(.equipment-page, .equipment-picker-dialog) .item-head {
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+:is(.equipment-page, .equipment-picker-dialog) .item-card h3 {
+  margin: 12px 0 6px;
+  font-size: 20px;
+  line-height: 1.2;
+}
+:is(.equipment-page, .equipment-picker-dialog) .item-card > small {
+  font-size: 14px;
+  line-height: 1.45;
+}
+:is(.equipment-page, .equipment-picker-dialog, .comparison-dialog) .item-stats {
+  padding: 9px 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+:is(.equipment-page, .equipment-picker-dialog)
+  .item-card
+  :is(.item-affix, .item-skill) {
+  margin: 0 0 9px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+:is(.equipment-page, .equipment-picker-dialog) .item-controls {
+  gap: 8px;
+  padding-top: 12px;
+}
+:is(.equipment-page, .equipment-picker-dialog) .item-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.equipment-page .equipment-slot {
+  min-width: 0;
+  padding: 12px;
+}
+.equipment-page .equipment-slot span {
+  font-size: 13px;
+}
+.equipment-page .set-progress,
+.equipment-page .stats-hint {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .worn-item-choice {
   display: flex;
   min-width: 0;
@@ -25,17 +211,37 @@
   font-size: 14px;
   line-height: 1.45;
 }
+.worn-item-choice .gear-swatch {
+  flex-shrink: 0;
+}
+.equipment-page .worn-item {
+  gap: 12px;
+  padding: 13px;
+}
+.equipment-page .worn-item strong {
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.equipment-page .unequip-inline {
+  flex: 0 0 auto;
+}
 
 .equipment-pagination {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   justify-content: center;
   align-items: center;
   gap: 14px;
-  margin: 16px 0;
+  margin: 18px 0;
+  padding: 12px 0;
+  border-block: 1px solid #c0b6a3;
 }
 
 .equipment-pagination > span {
   color: var(--muted);
   font-size: 14px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 .equipment-pagination button {
   min-height: 40px;
@@ -53,14 +259,38 @@
   outline-offset: 2px;
 }
 .collection-filters {
-  align-items: center;
-  gap: 18px;
-  margin: 18px 0;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 20px 0;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #b6ad9d;
 }
-.collection-filters input[type="search"] {
-  max-width: 260px;
-  min-height: 40px;
-  padding: 8px;
+.collection-filters > label:first-child {
+  display: grid;
+  flex: 0 1 340px;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.collection-filters .auto-equip-toggle {
+  min-height: 42px;
+}
+.equipment-page .collection-pieces :is(strong, small),
+.equipment-page .set-bonus-list li {
+  font-size: 13px;
+  line-height: 1.4;
+}
+.equipment-page .skill-node :is(.skill-level, .skill-meta) {
+  font-size: 13px;
+  line-height: 1.45;
+}
+.equipment-page .skill-node p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.equipment-page .tactical-profile-picker {
+  gap: 7px;
 }
 .tactical-profile-details {
   padding: 10px 0;
@@ -77,6 +307,133 @@
 .relic-gift-details > summary {
   cursor: pointer;
   font-weight: 600;
+}
+.equipment-page
+  :is(.reforge-control, .relic-gift-details, .relic-history)
+  > summary {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 9px 0;
+  color: #554c3f;
+  font-size: 14px;
+  line-height: 1.4;
+  list-style: none;
+  cursor: pointer;
+}
+.equipment-page
+  :is(.reforge-control, .relic-gift-details, .relic-history)
+  > summary::-webkit-details-marker {
+  display: none;
+}
+.equipment-page
+  :is(.reforge-control, .relic-gift-details, .relic-history)
+  > summary::after {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  margin-right: 3px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  content: "";
+  transform: rotate(45deg);
+}
+.equipment-page
+  :is(.reforge-control, .relic-gift-details, .relic-history)[open]
+  > summary::after {
+  transform: rotate(225deg);
+}
+.equipment-page .forge-grid {
+  align-items: start;
+  gap: 16px;
+}
+.equipment-page .forge-card-copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.equipment-page .forge-card-copy :is(small, p),
+.equipment-page .reforge-price {
+  font-size: 13px;
+  line-height: 1.45;
+}
+.equipment-page .reforge-control-body {
+  align-items: end;
+  gap: 12px 10px;
+  padding-top: 10px;
+}
+.equipment-page .relic-ready-list {
+  gap: 12px;
+}
+.equipment-page .relic-ready-card {
+  padding: 16px;
+}
+.equipment-page .relic-ready-copy {
+  flex: 1;
+}
+.equipment-page .relic-ready-card > div:last-child {
+  display: grid;
+  flex: 0 1 430px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.equipment-page .relic-path-option,
+.equipment-page .relic-path-option button {
+  min-width: 0;
+  width: 100%;
+}
+.equipment-page .relic-path-option button.active {
+  border-color: #4b6651;
+  color: #f5f1e6;
+  background: var(--green);
+  opacity: 1;
+}
+.equipment-page
+  :is(
+    .relic-item-kicker,
+    .relic-progress-copy,
+    .relic-salvage-stats,
+    .relic-salvage-state small
+  ) {
+  font-size: 13px;
+  line-height: 1.45;
+}
+.relic-workshop > .relic-gift-list {
+  grid-column: 1 / -1;
+}
+.equipment-page .relic-salvage-heading {
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.equipment-page .relic-salvage-bulk {
+  min-width: 0;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.equipment-page .relic-salvage-title {
+  margin-bottom: 4px;
+}
+.equipment-page .relic-salvage-list {
+  gap: 12px;
+}
+.equipment-page .relic-salvage-card {
+  grid-template-columns: 24px 54px minmax(0, 1fr);
+  gap: 8px 12px;
+  padding: 14px;
+}
+.equipment-page :is(.relic-salvage-selector, .relic-salvage-art) {
+  grid-row: 1 / 3;
+}
+.equipment-page .relic-salvage-state {
+  min-width: 0;
+  grid-column: 3;
+  justify-items: start;
+  text-align: left;
+}
+.equipment-page .relic-salvage-card:hover {
+  transform: none;
 }
 .relic-gift-details .relic-gift-row {
   margin-top: 12px;
@@ -107,10 +464,8 @@
   max-width: none;
   max-height: none;
   margin: 0;
-  padding: 16px;
   overflow: hidden;
   border: 0;
-  background: rgb(20 18 15 / 78%);
   box-shadow: none;
   place-items: center;
 }
@@ -124,24 +479,93 @@
 .react-modal-layer.comparison-dialog .comparison-actions {
   width: 100%;
   margin: 0;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.react-modal-layer.comparison-dialog .comparison-columns {
+  grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr);
+  gap: 14px;
+  margin: 0 0 20px;
+}
+.react-modal-layer.comparison-dialog .comparison-item {
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px;
+}
+.react-modal-layer.comparison-dialog .comparison-art {
+  width: 76px;
+  height: 112px;
+}
+.react-modal-layer.comparison-dialog .comparison-item h3 {
+  margin: 6px 0 10px;
+  font-size: 20px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.react-modal-layer.comparison-dialog
+  .comparison-item
+  :is(small, .item-affix, .item-skill) {
+  font-size: 13px;
+  line-height: 1.5;
 }
 .react-modal-layer.comparison-dialog .comparison-difference {
   grid-template-columns: minmax(0, 1fr);
 }
 .react-modal-layer.comparison-dialog .comparison-stat-list {
   grid-template-columns: repeat(auto-fit, minmax(min(145px, 100%), 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 .react-modal-layer.comparison-dialog .stat-comparison-values {
-  gap: 7px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 5px;
   white-space: normal;
   overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.react-modal-layer.comparison-dialog .stat-comparison-values > :last-child {
+  text-align: right;
 }
 .react-modal-layer.comparison-dialog .comparison-stat {
+  min-height: 108px;
+  gap: 9px;
+  padding: 12px;
   font-size: 14px;
+}
+.react-modal-layer.comparison-dialog .stat-comparison-delta {
+  min-width: 44px;
+  padding: 4px 8px;
+  font-size: 18px;
+  overflow-wrap: anywhere;
 }
 .react-modal-layer.comparison-dialog .comparison-note {
   font-size: 14px;
+}
+.react-modal-layer.equipment-picker-dialog .equipment-dialog-copy {
+  font-size: 15px;
+  line-height: 1.5;
+}
+.react-modal-layer.equipment-picker-dialog .picker-current {
+  padding: 14px 16px;
+}
+.react-modal-layer.equipment-picker-dialog .picker-current-line > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.react-modal-layer.equipment-picker-dialog .picker-current-line strong {
+  font-size: 17px;
+  line-height: 1.3;
+}
+.react-modal-layer.equipment-picker-dialog .picker-current-line small {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.react-modal-layer.equipment-picker-dialog .picker-current .empty-copy {
+  margin: 0;
+  padding: 4px 0;
+  text-align: left;
 }
 .react-modal-layer.new-chronicle-layer > .react-modal-paper {
   width: min(1050px, 100%);
@@ -166,8 +590,12 @@
 }
 .react-modal-layer.new-chronicle-layer .new-chronicle-actions {
   position: static;
+  z-index: auto;
   inset: auto;
   width: 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 10px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -186,11 +614,24 @@
   font-weight: 700;
 }
 
+@media (max-width: 900px) {
+  .equipment-page .relic-ready-card {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .equipment-page .relic-ready-card > div:last-child {
+    flex: auto;
+    width: 100%;
+  }
+}
+
 @media (max-width: 700px) {
-  .react-modal-layer.comparison-dialog,
-  .react-modal-layer.equipment-picker-dialog,
-  .react-modal-layer.new-chronicle-layer {
-    padding: 8px;
+  .react-modal-layer.comparison-dialog .comparison-columns {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .react-modal-layer.comparison-dialog .comparison-arrow {
+    display: none;
   }
   .react-modal-layer.new-chronicle-layer > .react-modal-paper {
     height: calc(100dvh - 16px);
@@ -204,6 +645,17 @@
   .react-modal-layer.equipment-picker-dialog .equipment-picker-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+  .equipment-page .inventory-panel > header {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .equipment-page .inventory-sell-all {
+    max-width: none;
+  }
+  .equipment-page .inventory-filter-stack {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 12px;
+  }
 }
 
 @media (max-width: 640px) {
@@ -211,7 +663,7 @@
     gap: 9px;
   }
   .worn-item-description {
-    font-size: 13px;
+    font-size: 14px;
   }
   .equipment-pagination {
     gap: 8px;
@@ -219,10 +671,37 @@
   .collection-filters {
     justify-content: start;
   }
-  .collection-filters input[type="search"] {
+  .collection-filters > label:first-child {
+    flex-basis: 100%;
     width: 100%;
   }
-  .comparison-stat-list {
+  .react-modal-layer.comparison-dialog .comparison-stat-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .equipment-page .relic-salvage-bulk {
+    width: 100%;
+    margin-left: 0;
+  }
+  .equipment-page .relic-ready-card > div:last-child {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .equipment-page .relic-salvage-card {
+    grid-template-columns: 24px 44px minmax(0, 1fr);
+    gap: 8px;
+    padding: 12px;
+  }
+  .equipment-page .relic-salvage-art {
+    width: 44px;
+    height: 60px;
+  }
+  .equipment-page :is(.relic-salvage-selector, .relic-salvage-art) {
+    grid-row: auto;
+  }
+  .equipment-page .relic-salvage-state {
+    grid-column: 1 / -1;
+    justify-items: stretch;
+  }
+  .equipment-page .reforge-control-body {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

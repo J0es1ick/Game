@@ -30,7 +30,7 @@ export function CollectionsPage() {
   );
   const shown = pageSlice(sets, page, 8);
   return (
-    <section className="page active" id="page-collections">
+    <section className="page active equipment-page" id="page-collections">
       <PageHeading
         eyebrow="ПОСТОЯННАЯ ИСТОРИЯ НАХОДОК"
         title="Коллекции и комплекты"

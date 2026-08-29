@@ -57,7 +57,7 @@ export function InventoryPage() {
     act((world) => world.sellUnequipped());
   };
   return (
-    <section className="page active" id="page-arsenal">
+    <section className="page active equipment-page" id="page-arsenal">
       <PageHeading eyebrow="СНАРЯЖЕНИЕ ГЕРОЯ" title="Инвентарь">
         <p>
           Сравнивайте характеристики и выбирайте вещи перед следующей
