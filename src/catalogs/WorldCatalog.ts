@@ -181,8 +181,8 @@ export const ENDGAME_ACTIVITIES: EndgameActivityDefinition[] = [
   },
 ];
 
-export const RARITY_ORDER: Rarity[] = ["common", "rare", "epic", "legendary", "mythic"];
-export const RARITY_LABELS: Record<Rarity, string> = { common: "Обычное", rare: "Редкое", epic: "Эпическое", legendary: "Легендарное", mythic: "Мифическое" };
+export const RARITY_ORDER: Rarity[] = ["common", "rare", "epic", "legendary", "mythic", "relic"];
+export const RARITY_LABELS: Record<Rarity, string> = { common: "Обычное", rare: "Редкое", epic: "Эпическое", legendary: "Легендарное", mythic: "Мифическое", relic: "Мировая реликвия" };
 export const SLOT_LABELS: Record<EquipmentSlot, string> = { weapon: "Оружие", offhand: "Вторая рука", head: "Голова", chest: "Корпус", hands: "Руки", feet: "Обувь" };
 
 const additionalSetSpecs: Array<{

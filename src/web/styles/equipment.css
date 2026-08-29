@@ -69,6 +69,11 @@
 .equipment-slot.mythic {
   border-left: 4px solid #a23a40;
 }
+.equipment-slot.relic {
+  border-left: 5px double #268b91;
+  background: linear-gradient(112deg, #d8e9e5, #eee3c8 58%, #d9e8e4);
+  box-shadow: inset 0 0 0 1px rgba(38, 139, 145, 0.2);
+}
 .equipment-slot small,
 .equipment-slot strong,
 .equipment-slot span {
@@ -244,6 +249,22 @@
   border-top-color: #a23a40;
   background: #eed7d0;
 }
+.item-card.relic {
+  position: relative;
+  border-color: #4f8f91;
+  border-top: 5px double #247f84;
+  background: linear-gradient(145deg, #d9ebe7, #f1e5c8 58%, #d5e6e3);
+  box-shadow: 0 3px 0 rgba(41, 96, 97, 0.2), inset 0 0 24px rgba(255, 255, 255, 0.45);
+}
+.item-card.relic::after {
+  position: absolute;
+  top: 8px;
+  right: 9px;
+  color: rgba(33, 112, 116, 0.34);
+  content: "✦";
+  font-size: 28px;
+  pointer-events: none;
+}
 .item-card.sold {
   filter: grayscale(1);
   opacity: 0.5;
@@ -289,6 +310,20 @@
 }
 .mythic .rarity-label {
   color: #913039;
+}
+.relic .rarity-label {
+  color: #176d72;
+  letter-spacing: 0.04em;
+}
+.world-relic-mark,
+.item-relic-property {
+  margin: 0 0 9px;
+  padding: 8px 9px;
+  border-left: 3px solid #2d898e;
+  color: #315f61;
+  background: rgba(218, 235, 231, 0.78);
+  font-size: 13px;
+  line-height: 1.4;
 }
 .item-card h3 {
   margin: 13px 0 3px;
@@ -808,6 +843,10 @@ body.ui-modal-open {
   font:
     700 14px "Inter Tight",
     sans-serif;
+}
+.picker-item.relic {
+  border-color: #268b91;
+  background: #d9e9e5;
 }
 .stat-comparison-label {
   grid-column: 1 / -1;

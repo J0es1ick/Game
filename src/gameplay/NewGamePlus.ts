@@ -766,8 +766,10 @@ export function rewardModifiers(
 }
 
 export function improveMinimumRarity(rarity: Rarity, steps: number): Rarity {
-  const index = RARITY_ORDER.indexOf(rarity);
-  return RARITY_ORDER[Math.min(RARITY_ORDER.length - 1, Math.max(0, index + nonNegativeInteger(steps)))];
+  if (rarity === "relic") return rarity;
+  const ordinaryRarities = RARITY_ORDER.filter((candidate) => candidate !== "relic");
+  const index = ordinaryRarities.indexOf(rarity);
+  return ordinaryRarities[Math.min(ordinaryRarities.length - 1, Math.max(0, index + nonNegativeInteger(steps)))];
 }
 
 export function inheritedSkillSupportsClass(item: EquipmentItem, targetClass: HeroClass): boolean {

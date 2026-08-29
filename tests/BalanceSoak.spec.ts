@@ -23,6 +23,7 @@ const rarityMultiplier: Record<Rarity, number> = {
   epic: 1.8,
   legendary: 2.35,
   mythic: 3.1,
+  relic: 3.75,
 };
 
 const tactics = {

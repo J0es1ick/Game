@@ -28,7 +28,7 @@ export const WORLD_FEATURE_DEFINITIONS: Readonly<Record<WorldFeatureId, WorldFea
   "equipment-legacy": {
     id: "equipment-legacy",
     title: "Открыто наследие снаряжения",
-    description: "Легендарные и мифические вещи теперь запоминают значимые победы, растут вместе с героем и могут обрести собственный путь.",
+    description: "Легендарные и мифические вещи теперь запоминают значимые победы, растут вместе с героем и могут стать мировыми реликвиями высшей редкости.",
     tutorialId: "equipment-legacy",
     arenaIndex: EQUIPMENT_LEGACY_UNLOCK_ARENA_INDEX,
   },

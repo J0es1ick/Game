@@ -21,7 +21,7 @@ export function LegacyPage() {
   const [page, setPage] = useEquipmentSessionState(game, "legacy.page", 0);
   const relics = sortLegacyPathCandidates(
     hero.inventory.filter(
-      (item) => item.rarity === "legendary" || item.rarity === "mythic",
+      (item) => item.rarity === "legendary" || item.rarity === "mythic" || item.rarity === "relic",
     ),
     equippedIds,
   );

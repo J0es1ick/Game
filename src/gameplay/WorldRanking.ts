@@ -4,6 +4,9 @@ import { EnemyProfile, HeroProfile, LeaderboardEntry } from "./WorldTypes";
 export interface LeaderboardEntryOptions {
   rating?: number;
   crownLeagueWins?: number;
+  schoolName?: string;
+  mentorName?: string;
+  isMentor?: boolean;
 }
 
 export function heroTournamentWins(hero: HeroProfile): number {
@@ -60,6 +63,9 @@ export function heroLeaderboardEntry(
     losses: hero.losses,
     kills: hero.kills,
     isHero: true,
+    schoolName: options.schoolName,
+    mentorName: options.mentorName,
+    isMentor: options.isMentor,
   };
 }
 
@@ -80,6 +86,9 @@ export function enemyLeaderboardEntry(
     kills: enemy.kills,
     isHero: false,
     carriedFromCycle: enemy.carriedFromCycle,
+    schoolName: options.schoolName,
+    mentorName: options.mentorName,
+    isMentor: options.isMentor,
   };
 }
 

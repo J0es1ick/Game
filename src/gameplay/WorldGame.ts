@@ -413,6 +413,19 @@ export class WorldGame {
     return [...(this.save.worldRelics ?? [])].sort((first, second) => second.createdDay - first.createdDay);
   }
 
+  public fighterSchool(fighterId: string): { name: string; mentorName: string; isMentor: boolean } | undefined {
+    const mentors = this.save.mentors ?? [];
+    const mentor = mentors.find((candidate) => candidate.fighterId === fighterId)
+      ?? mentors.find((candidate) => candidate.studentIds.includes(fighterId));
+    if (!mentor) return undefined;
+    const dynasty = this.save.npcLife?.dynasties.find((candidate) => candidate.id === mentor.dynastyId);
+    return {
+      name: mentor.schoolName ?? dynasty?.name ?? `Школа «${mentor.name}»`,
+      mentorName: mentor.name,
+      isMentor: mentor.fighterId === fighterId,
+    };
+  }
+
   public currentWorldSeason() {
     const season = this.save.worldSeason!;
     return {
@@ -838,6 +851,8 @@ export class WorldGame {
         retiredDay: 1,
         studentIds: students.map((student) => student.id),
         legacy: `${archiveInfluence.summary} ${archiveInfluence.mentor.schoolName}.`,
+        schoolName: archiveInfluence.mentor.schoolName,
+        competes: false,
         dynastyId: `legacy-school-${archive.cycle}`,
         role: "mentor",
       };
@@ -886,6 +901,8 @@ export class WorldGame {
         retiredDay: 1,
         studentIds: followers.map((fighter) => fighter.id),
         legacy: `${archiveInfluence.summary} Поручения этой традиции дают наследнику больше доверия и влияния.`,
+        schoolName: tradition.name,
+        competes: false,
         dynastyId: `legacy-tradition-${archive.cycle}`,
         role: "faction-founder",
       };
@@ -1197,7 +1214,7 @@ export class WorldGame {
     this.requireFeature("equipment-legacy");
     const item = this.save.hero.inventory.find((candidate) => candidate.id === itemId);
     if (!item) throw new Error("Предмет не найден.");
-    if (!rarityAtLeast(item.rarity, "legendary")) throw new Error("Историю могут обрести только легендарные и мифические вещи.");
+    if (!rarityAtLeast(item.rarity, "legendary")) throw new Error("Историю могут обрести только легендарные, мифические и мировые реликвии.");
     if ((item.relicTier ?? 0) < 1) throw new Error("Сначала предмет должен заслужить имя в боях.");
     if (item.relicPath) throw new Error("Путь этой реликвии уже выбран.");
     const path = RELIC_PATHS.find((candidate) => candidate.id === pathId);
@@ -3304,10 +3321,10 @@ export class WorldGame {
     const hero = this.save.hero;
     const eliteIds = new Set(this.save.eliteLeagueMemberIds);
     return [
-      ...(!eliteIds.has("hero") ? [heroLeaderboardEntry(hero)] : []),
+      ...(!eliteIds.has("hero") ? [this.leaderboardEntry("hero")!] : []),
       ...this.save.enemies
         .filter((enemy) => enemy.alive && !eliteIds.has(enemy.id))
-        .map((enemy) => enemyLeaderboardEntry(enemy)),
+        .map((enemy) => this.leaderboardEntry(enemy.id)!),
     ].sort(byLeaderboardPosition);
   }
 
@@ -3320,11 +3337,13 @@ export class WorldGame {
   }
 
   private leaderboardEntry(id: string, elite = false): LeaderboardEntry | undefined {
+    const school = this.fighterSchool(id);
     if (id === "hero") {
       const hero = this.save.hero;
       return heroLeaderboardEntry(hero, {
         rating: elite ? (this.save.eliteRatings[id] ?? hero.rating) : hero.rating,
         crownLeagueWins: hero.crownLeagueWins,
+        ...school && { schoolName: school.name, mentorName: school.mentorName, isMentor: school.isMentor },
       });
     }
     const enemy = this.enemyById(id);
@@ -3332,6 +3351,7 @@ export class WorldGame {
     return enemyLeaderboardEntry(enemy, {
       rating: elite ? (this.save.eliteRatings[id] ?? enemy.rating) : enemy.rating,
       crownLeagueWins: this.save.eliteCrownWins[id] ?? 0,
+      ...school && { schoolName: school.name, mentorName: school.mentorName, isMentor: school.isMentor },
     });
   }
 
@@ -4441,7 +4461,10 @@ export class WorldGame {
       enemy.losses += 1;
       if (!arenaMatch) enemy.duelLosses = (enemy.duelLosses ?? 0) + 1;
       if (died) {
-        enemy.alive = false; this.recordEnemyHistory(enemy, `Погиб в бою с ${this.save.hero.name} на арене «${ARENAS[enemy.arenaIndex].name}».`);
+        enemy.alive = false;
+        const mentor = this.save.mentors?.find((candidate) => candidate.fighterId === enemy.id);
+        if (mentor) mentor.competes = false;
+        this.recordEnemyHistory(enemy, `Погиб в бою с ${this.save.hero.name} на арене «${ARENAS[enemy.arenaIndex].name}».`);
         this.releaseWorldRelics(enemy, `День ${this.save.worldDay}: ${enemy.name} погиб в бою с ${this.save.hero.name}.`);
         this.event("death", `${enemy.name}, когда-то ${enemy.title}, погиб и больше не появится в мире.`, {
           kind: "death", fighterId: enemy.id, fighterName: enemy.name, killerId: "hero", killerName: this.save.hero.name,
@@ -4488,7 +4511,10 @@ export class WorldGame {
       if (lethal) {
         winner.kills += 1;
         this.recordEquipmentDeeds(winner, "lethal", loser.name);
-        loser.alive = false; this.recordEnemyHistory(loser, `Погиб в фоновом бою против ${winner.name}.`);
+        loser.alive = false;
+        const mentor = this.save.mentors?.find((candidate) => candidate.fighterId === loser.id);
+        if (mentor) mentor.competes = false;
+        this.recordEnemyHistory(loser, `Погиб в фоновом бою против ${winner.name}.`);
         this.releaseWorldRelics(loser, `День ${this.save.worldDay}: владелец ${loser.name} погиб на арене.`);
         if (recordEvents) this.event("death", `${winner.name} смертельно победил ${loser.name} на арене «${ARENAS[arenaIndex].name}».`, {
           kind: "death", fighterId: loser.id, fighterName: loser.name, killerId: winner.id, killerName: winner.name,
@@ -4756,7 +4782,6 @@ export class WorldGame {
     const chance = enemy.losses > enemy.wins ? 0.0015 : 0.00045;
     if (!this.random.world.chance(chance)) return;
     this.maybeAwakenWorldRelic(enemy, true);
-    enemy.alive = false;
     enemy.retiredDay = this.save.worldDay;
     const candidates = this.save.enemies
       .filter((candidate) => candidate.alive && candidate.id !== enemy.id
@@ -4768,7 +4793,12 @@ export class WorldGame {
       factionId: enemy.factionId ?? FACTIONS[0].id, goal: enemy.goal ?? "champion", level: enemy.level,
       rating: enemy.rating, retiredDay: this.save.worldDay, studentIds: candidates.map((candidate) => candidate.id),
       legacy: `${enemy.tournamentWins} турнирных побед, ${enemy.wins} побед в боях и ${enemy.kills} смертельных исходов.`,
+      schoolName: `Школа «${enemy.name.replace(/\s+[A-ZА-ЯЁ]\.\s*$/u, "").trim()}»`,
+      competes: (enemy.goal === "champion" || enemy.goal === "elite")
+        && enemy.level >= 24
+        && enemy.wins >= Math.max(8, Math.round(enemy.losses * 0.75)),
     };
+    enemy.alive = mentor.competes === true;
     candidates.forEach((candidate) => {
       candidate.mentorId = mentor.id;
       candidate.relationships ??= {};
@@ -4777,7 +4807,7 @@ export class WorldGame {
     this.save.mentors ??= [];
     this.save.mentors.unshift(mentor);
     this.save.mentors = this.save.mentors.slice(0, 40);
-    this.releaseWorldRelics(enemy, `День ${this.save.worldDay}: ${enemy.name} завершил карьеру и передал оружие миру.`);
+    if (!mentor.competes) this.releaseWorldRelics(enemy, `День ${this.save.worldDay}: ${enemy.name} завершил карьеру и передал оружие миру.`);
     this.recordEnemyHistory(enemy, `Завершил карьеру и стал наставником в день ${this.save.worldDay}.`);
     this.event("promotion", `${enemy.name} завершил карьеру бойца и стал наставником для ${candidates.length || "нового поколения"}.`);
   }
@@ -4797,7 +4827,7 @@ export class WorldGame {
     const created = createWorldRelicRecord(this.randomId("world-relic"), candidate, enemy.id, enemy.name, this.save.worldDay);
     const record = synchronizeWorldRelic(
       created,
-      candidate,
+      created.item,
       `${enemy.name}: ${enemy.tournamentWins} турнирных побед и ${enemy.kills} смертельных побед.`,
       this.save.worldDay,
     );
@@ -5052,19 +5082,20 @@ export class WorldGame {
       maxRetirements: 2,
     });
     career.transitions.forEach((transition) => {
-      const fighter = this.enemyById(transition.fighterId);
+      const fighter = this.save.enemies.find((candidate) => candidate.id === transition.fighterId);
       if (fighter) this.recordEnemyHistory(fighter, transition.description);
       this.event("promotion", transition.description);
-      if (transition.kind === "became-mentor" && fighter) {
+      const mentor = transition.mentorId ? mentors.find((candidate) => candidate.id === transition.mentorId) : undefined;
+      if (transition.kind === "became-mentor" && fighter && !mentor?.competes) {
         this.releaseWorldRelics(fighter, `День ${this.save.worldDay}: ${fighter.name} завершил карьеру и передал реликвии следующему поколению.`);
       }
     });
     career.mentorsCreated.forEach((mentor, index) => {
       const dynasty = career.dynastiesCreated.find((candidate) => candidate.founderId === mentor.fighterId);
       mentor.dynastyId = dynasty?.id;
-      mentor.role = index === 0 && season.number % 3 === 0
+      mentor.role = !mentor.competes && index === 0 && season.number % 3 === 0
         ? "shop-owner"
-        : index === 0 && season.number % 3 === 2
+        : !mentor.competes && index === 0 && season.number % 3 === 2
           ? "faction-founder"
           : "mentor";
       if (mentor.role === "shop-owner") {

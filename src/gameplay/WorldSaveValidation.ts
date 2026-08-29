@@ -21,7 +21,7 @@ export interface WorldSaveValidationResult {
 
 const HERO_CLASSES = new Set<HeroClass>(["Knight", "Archer", "Wizard", "Monk", "Gunsmith", "Swordsman"]);
 const EQUIPMENT_SLOTS = new Set<EquipmentSlot>(["weapon", "offhand", "head", "chest", "hands", "feet"]);
-const RARITIES = new Set<Rarity>(["common", "rare", "epic", "legendary", "mythic"]);
+const RARITIES = new Set<Rarity>(["common", "rare", "epic", "legendary", "mythic", "relic"]);
 const PENDING_BATTLE_KINDS = new Set([
   "dungeon", "expedition", "duel", "boss", "legacy-champion", "legend-hunt", "legend-defense",
   "arena-tournament", "crown-league", "world-encounter",
@@ -108,6 +108,10 @@ function validateItem(value: unknown, path: string, issues: WorldSaveValidationI
   }
   if (!RARITIES.has(value.rarity as Rarity)) {
     issues.push({ path: `${path}.rarity`, message: "Неизвестная редкость предмета." });
+  }
+  if (value.relicBaseRarity !== undefined
+    && (!RARITIES.has(value.relicBaseRarity as Rarity) || value.relicBaseRarity === "relic")) {
+    issues.push({ path: `${path}.relicBaseRarity`, message: "Исходная редкость мировой реликвии повреждена." });
   }
   if (!isFiniteNumber(value.level) || value.level < 1) {
     issues.push({ path: `${path}.level`, message: "Уровень предмета должен быть положительным числом." });
@@ -1201,6 +1205,12 @@ export function validateWorldSave(value: unknown): WorldSaveValidationResult {
       if (isRecord(mentor) && mentor.role !== undefined
         && !["mentor", "shop-owner", "faction-founder"].includes(String(mentor.role))) {
         issues.push({ path: `${path}.role`, message: "Роль наставника повреждена." });
+      }
+      if (isRecord(mentor) && mentor.schoolName !== undefined && !isNonEmptyString(mentor.schoolName)) {
+        issues.push({ path: `${path}.schoolName`, message: "Название школы повреждено." });
+      }
+      if (isRecord(mentor) && mentor.competes !== undefined && typeof mentor.competes !== "boolean") {
+        issues.push({ path: `${path}.competes`, message: "Статус участия наставника повреждён." });
       }
     });
   }

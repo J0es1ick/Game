@@ -145,6 +145,11 @@ function ComparisonItem({
                 {skillById(item.grantedSkillId)?.name ?? "Неизвестный навык"}
               </p>
             )}
+            {item.relicProperties?.map((property) => (
+              <p className="item-relic-property" key={`${property.name}-${property.stat}`}>
+                {property.name}: +{property.value} {statShortLabels[property.stat]}
+              </p>
+            ))}
           </div>
         </>
       ) : (

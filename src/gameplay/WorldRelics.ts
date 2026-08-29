@@ -1,5 +1,6 @@
 import { ITEM_TEMPLATES } from "../catalogs/WorldCatalog";
-import { EquipmentItem, EquipmentSlot, ItemAffix, Stats, WorldRelicRecord } from "./WorldTypes";
+import { calculateItemPrice } from "../factories/ItemFactory";
+import { BaseRarity, EquipmentItem, EquipmentSlot, ItemAffix, Stats, WorldRelicRecord } from "./WorldTypes";
 
 export type WorldRelicLegacyKind = "conquest" | "blood" | "journey";
 
@@ -44,6 +45,13 @@ const LEGACY_EPITHETS: Record<WorldRelicLegacyKind, [string, string, string]> = 
   journey: ["След прежних рук", "Странница эпох", "Вечный путь"],
 };
 const GENERATED_EPITHETS = new Set(Object.values(LEGACY_EPITHETS).flat());
+const RELIC_ASCENSION_SCALE: Record<BaseRarity, number> = {
+  common: 3.75,
+  rare: 3.75 / 1.28,
+  epic: 3.75 / 1.65,
+  legendary: 3.75 / 2,
+  mythic: 3.75 / 2.65,
+};
 
 function cloneItem(item: EquipmentItem): EquipmentItem {
   return {
@@ -115,6 +123,20 @@ function legacyProperty(kind: WorldRelicLegacyKind, stage: 1 | 2 | 3): ItemAffix
   return { name: "Память триумфа", description: "Громкие победы укрепили волю, заключённую в реликвии.", stat: "defense", value: 3 + stage * 3 };
 }
 
+function ascendantProperty(item: EquipmentItem, stage: 1 | 2 | 3): ItemAffix {
+  const template = ITEM_TEMPLATES.find((candidate) => candidate.id === item.templateId);
+  const stat = template?.primaryStat ?? (item.slot === "weapon" ? "attack" : item.slot === "chest" ? "health" : "defense");
+  const sourceRarity = item.relicBaseRarity ?? "mythic";
+  const baseValue = Math.max(1, Math.abs(item.stats[stat] ?? 0));
+  const stageBonus: Record<keyof Stats, number> = { health: 30, attack: 5, defense: 4, speed: 3, crit: 2 };
+  return {
+    name: "Воля мира",
+    description: "Высшая редкость поднимает главное свойство предмета выше предела мифического снаряжения.",
+    stat,
+    value: Math.ceil(baseValue * (RELIC_ASCENSION_SCALE[sourceRarity] - 1)) + stageBonus[stat] * stage,
+  };
+}
+
 export function isWorldRelicEligible(item: EquipmentItem): boolean {
   const template = ITEM_TEMPLATES.find((candidate) => candidate.id === item.templateId);
   return Boolean(template && !template.exclusiveToBoss && !template.exclusiveToElite && item.setId !== "crown-sovereign");
@@ -129,6 +151,9 @@ export function assertWorldRelicEligible(item: EquipmentItem): void {
 export function stripWorldRelicIdentity(item: EquipmentItem): EquipmentItem {
   const stripped = cloneItem(item);
   stripped.worldRelicId = undefined;
+  stripped.rarity = stripped.relicBaseRarity ?? (stripped.rarity === "relic" ? "mythic" : stripped.rarity);
+  stripped.relicBaseRarity = undefined;
+  stripped.relicProperties = (stripped.relicProperties ?? []).filter((property) => property.name !== "Воля мира" && !property.name.startsWith("Память "));
   return stripped;
 }
 
@@ -165,6 +190,13 @@ export function synchronizeWorldRelic(
   const history = uniqueLines([...record.history, ...(item.relicHistory ?? []), ...(historyEntry ? [historyEntry] : [])]);
   const canonical = cloneItem(item);
   canonical.worldRelicId = record.id;
+  if (canonical.rarity !== "relic") {
+    canonical.relicBaseRarity = canonical.rarity;
+  } else {
+    canonical.relicBaseRarity ??= "mythic";
+  }
+  canonical.rarity = "relic";
+  canonical.price = calculateItemPrice(canonical.level, "relic");
   canonical.relicHistory = history;
   const next: WorldRelicRecord = {
     ...record,
@@ -175,8 +207,9 @@ export function synchronizeWorldRelic(
   const legacy = deriveWorldRelicLegacy(next);
   next.item.relicName = legacy.name;
   next.item.relicProperties = [
-    ...(next.item.relicProperties ?? []).filter((property) => !property.name.startsWith("Память ")),
+    ...(next.item.relicProperties ?? []).filter((property) => property.name !== "Воля мира" && !property.name.startsWith("Память ")),
     { ...legacy.property },
+    ascendantProperty(next.item, legacy.stage),
   ];
   return {
     ...next,
@@ -255,19 +288,12 @@ export function normalizeWorldRelicRecord(record: WorldRelicRecord): WorldRelicR
     formerOwners: [...new Set(record.formerOwners ?? [])],
     history,
   };
-  const legacy = deriveWorldRelicLegacy(normalized);
-  normalized.item.relicName = legacy.name;
-  normalized.item.relicProperties = [
-    ...(normalized.item.relicProperties ?? []).filter((property) => !property.name.startsWith("Память ")),
-    { ...legacy.property },
-  ];
-  return {
-    ...normalized,
-    legacyKind: legacy.kind,
-    legacyStage: legacy.stage,
-    legacyProperty: { ...legacy.property },
-    lastSyncedDay: Math.max(1, Math.floor(Number(record.lastSyncedDay) || record.createdDay || 1)),
-  };
+  return synchronizeWorldRelic(
+    normalized,
+    normalized.item,
+    undefined,
+    Math.max(1, Math.floor(Number(record.lastSyncedDay) || record.createdDay || 1)),
+  );
 }
 
 export function deduplicateWorldRelicRecords(records: readonly WorldRelicRecord[]): WorldRelicRecord[] {

@@ -16,6 +16,7 @@ const RARITY_COST: Readonly<Record<Rarity, number>> = {
   epic: 1.8,
   legendary: 2.6,
   mythic: 3.7,
+  relic: 5.2,
 };
 
 const RARITY_VALUE: Readonly<Record<Rarity, number>> = {
@@ -24,6 +25,7 @@ const RARITY_VALUE: Readonly<Record<Rarity, number>> = {
   epic: 1.8,
   legendary: 2.35,
   mythic: 3.1,
+  relic: 3.75,
 };
 
 export interface ReforgeCost {
@@ -99,7 +101,7 @@ export function reforgeCost(item: EquipmentItem, attempt = 0): ReforgeCost {
   const rarity = RARITY_COST[item.rarity];
   const enhancement = Math.max(0, item.enhancement ?? 0);
   const gold = Math.round((110 + item.level * 42 + item.level ** 2 * 1.8) * rarity * (1 + enhancement * 0.12) * (1 + safeAttempt * 0.28));
-  const baseMarks = item.rarity === "common" ? 0 : item.rarity === "rare" ? 1 : item.rarity === "epic" ? 2 : item.rarity === "legendary" ? 3 : 5;
+  const baseMarks = item.rarity === "common" ? 0 : item.rarity === "rare" ? 1 : item.rarity === "epic" ? 2 : item.rarity === "legendary" ? 3 : item.rarity === "mythic" ? 5 : 7;
   return { gold, temperingMarks: baseMarks + Math.floor(safeAttempt / 3) };
 }
 

@@ -218,6 +218,7 @@ export function isPublicShopTemplate(template: ItemTemplate): boolean {
 }
 
 export function improveFactionMinimumRarity(rarity: Rarity, factionId: string): Rarity {
+  if (rarity === "relic") return rarity;
   const order: Rarity[] = ["common", "rare", "epic", "legendary", "mythic"];
   const index = order.indexOf(rarity);
   return order[Math.min(order.length - 1, Math.max(0, index + SHOP_POLICIES[normalizedFactionId(factionId)].minimumRaritySteps))];

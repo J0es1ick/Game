@@ -77,6 +77,44 @@ describe("world architecture helpers", () => {
     expect([first, second].sort(byLeaderboardPosition)[0]).toBe(second);
   });
 
+  it("keeps pupils and competitive mentors in the shared ranking with their school", () => {
+    const game = WorldGame.create("Летописец", "Knight", 1717);
+    const [mentor, pupil] = game.save.enemies.slice(0, 2);
+    game.save.eliteLeagueMemberIds = [];
+    mentor.alive = true;
+    pupil.alive = true;
+    mentor.rating = 99_999;
+    pupil.rating = 99_998;
+    pupil.mentorId = "mentor-visible";
+    game.save.mentors = [{
+      id: "mentor-visible",
+      fighterId: mentor.id,
+      name: mentor.name,
+      classId: mentor.classId,
+      factionId: mentor.factionId!,
+      goal: "champion",
+      level: mentor.level,
+      rating: mentor.rating,
+      retiredDay: game.save.worldDay,
+      studentIds: [pupil.id],
+      legacy: "Продолжает защищать имя школы.",
+      schoolName: "Школа Северного клинка",
+      competes: true,
+    }];
+
+    const ranking = game.leaderboard();
+    expect(ranking.find((entry) => entry.id === mentor.id)).toMatchObject({
+      schoolName: "Школа Северного клинка",
+      mentorName: mentor.name,
+      isMentor: true,
+    });
+    expect(ranking.find((entry) => entry.id === pupil.id)).toMatchObject({
+      schoolName: "Школа Северного клинка",
+      mentorName: mentor.name,
+      isMentor: false,
+    });
+  });
+
   it("shares deterministic shuffle and id formats without mutating inputs", () => {
     jest.spyOn(Math, "random").mockReturnValue(0);
     jest.spyOn(Date, "now").mockReturnValue(1234);

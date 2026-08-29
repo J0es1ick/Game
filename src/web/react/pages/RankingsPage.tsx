@@ -70,6 +70,7 @@ export function RankingsTable({
         "Титул",
         "Боец",
         "Класс",
+        "Школа",
         "Ур.",
         "Очки элиты",
         "Короны",
@@ -81,6 +82,7 @@ export function RankingsTable({
         "#",
         "Боец",
         "Класс",
+        "Школа",
         "Арена",
         "Ур.",
         "Турниры",
@@ -100,6 +102,7 @@ export function RankingsTable({
     elite
       ? [
           CLASS_DEFINITIONS[entry.classId].name,
+          entry.schoolName ?? "—",
           entry.level,
           entry.rating,
           game.save.eliteCrownWins[entry.id] ??
@@ -110,6 +113,7 @@ export function RankingsTable({
         ]
       : [
           CLASS_DEFINITIONS[entry.classId].name,
+          entry.schoolName ?? "—",
           ARENAS[entry.arenaIndex]?.name ?? "—",
           entry.level,
           entry.tournamentWins,
@@ -188,6 +192,16 @@ export function RankingsTable({
                       {faction.name}
                     </span>
                   )}
+                  {entry.schoolName && (
+                    <span
+                      className={`fighter-school-badge ${entry.isMentor ? "mentor" : "student"}`}
+                      title={entry.isMentor
+                        ? `Наставник школы «${entry.schoolName}» продолжает выступать`
+                        : `Ученик наставника ${entry.mentorName ?? "неизвестной школы"}`}
+                    >
+                      {entry.isMentor ? "наставник" : "ученик"}
+                    </span>
+                  )}
                   {hasPrevious &&
                     (previousRank === undefined ? (
                       <span
@@ -209,7 +223,12 @@ export function RankingsTable({
                     ))}
                 </td>
                 {cells(entry).map((value, cell) => (
-                  <td key={cell}>{value}</td>
+                  <td key={cell} className={cell === 1 ? "leader-school-cell" : undefined}>
+                    {value}
+                    {cell === 1 && entry.schoolName && (
+                      <small>{entry.isMentor ? "ведёт школу и выступает" : `наставник: ${entry.mentorName}`}</small>
+                    )}
+                  </td>
                 ))}
               </tr>
             );
@@ -233,7 +252,7 @@ export function RankingsPage({ elite = false }: { elite?: boolean }) {
         <p>
           {elite
             ? "Первые пять носят титулы легенд. Боритесь за корону в турнирах и последовательных вызовах."
-            : "Рейтинг отражает турнирные результаты. Бойцы развиваются, меняют экипировку и могут навсегда погибнуть."}
+            : "Рейтинг отражает турнирные результаты всего живого мира. Ученики представляют свои школы, а боевые наставники могут продолжать выступления."}
         </p>
       </PageHeading>
       <div

@@ -409,6 +409,38 @@
 .leader-name-cell {
   white-space: nowrap;
 }
+.leader-school-cell {
+  min-width: 180px;
+  max-width: 260px;
+  font-weight: 700;
+}
+.leader-school-cell small {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.leader-table tr.is-hero .leader-school-cell small {
+  color: inherit;
+  opacity: 0.8;
+}
+.fighter-school-badge {
+  display: inline-flex;
+  margin-left: 6px;
+  padding: 2px 5px;
+  border: 1px solid #6e806d;
+  color: #405943;
+  background: #dfe6d8;
+  font: 700 9px/1.2 "Courier New", monospace;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.fighter-school-badge.mentor {
+  border-color: #886c3b;
+  color: #6f531d;
+  background: #eee1bf;
+}
 .era-veteran-badge {
   display: inline-flex;
   align-items: center;

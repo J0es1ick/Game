@@ -813,6 +813,7 @@ const rarityTier: Record<Rarity, number> = {
   epic: 2,
   legendary: 3,
   mythic: 4,
+  relic: 5,
 };
 
 function stableHash(value: string): number {

@@ -18,7 +18,8 @@ export type HeroClass =
   | "Gunsmith"
   | "Swordsman";
 
-export type Rarity = "common" | "rare" | "epic" | "legendary" | "mythic";
+export type Rarity = "common" | "rare" | "epic" | "legendary" | "mythic" | "relic";
+export type BaseRarity = Exclude<Rarity, "relic">;
 export type LegacyBoonId = "masters-school" | "court-name" | "hunters-notes" | "old-map" | "forge-tradition";
 export type EraLawId = "age-of-steel" | "hungry-lands" | "bloody-arenas" | "mercenary-age" | "ancient-awakening" | "crown-discord";
 export type EquipmentSlot =
@@ -95,6 +96,7 @@ export interface EquipmentItem extends IEquipment<Partial<Stats>> {
   appearanceVariant?: string;
   inheritedFromCycle?: number;
   worldRelicId?: string;
+  relicBaseRarity?: BaseRarity;
   isVisualTestItem?: boolean;
 }
 
@@ -351,6 +353,8 @@ export interface MentorRecord {
   retiredDay: number;
   studentIds: string[];
   legacy: string;
+  schoolName?: string;
+  competes?: boolean;
   dynastyId?: string;
   role?: "mentor" | "shop-owner" | "faction-founder";
 }
@@ -850,6 +854,9 @@ export interface LeaderboardEntry {
   kills: number;
   isHero: boolean;
   carriedFromCycle?: number;
+  schoolName?: string;
+  mentorName?: string;
+  isMentor?: boolean;
 }
 
 export type PendingBattleKind =

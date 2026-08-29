@@ -4,15 +4,15 @@ import { FighterPowerCalculator } from "../gameplay/FighterPowerCalculator";
 import { nativeRandom, RandomSource } from "../gameplay/RandomSource";
 
 const rarityMultipliers: Record<Rarity, number> = {
-  common: 1, rare: 1.35, epic: 1.8, legendary: 2.35, mythic: 3.1,
+  common: 1, rare: 1.35, epic: 1.8, legendary: 2.35, mythic: 3.1, relic: 3.75,
 };
 
 const rarityPrefixes: Record<Rarity, string> = {
-  common: "", rare: "Добротный", epic: "Искусный", legendary: "Легендарный", mythic: "Мифический",
+  common: "", rare: "Добротный", epic: "Искусный", legendary: "Легендарный", mythic: "Мифический", relic: "Реликтовый",
 };
 
 export function calculateItemPrice(level: number, rarity: Rarity): number {
-  const rarityPrice: Record<Rarity, number> = { common: 1, rare: 2.4, epic: 6, legendary: 15, mythic: 36 };
+  const rarityPrice: Record<Rarity, number> = { common: 1, rare: 2.4, epic: 6, legendary: 15, mythic: 36, relic: 58 };
   const scaledLevel = Math.max(1, level);
   return Math.round((95 + scaledLevel * 38 + scaledLevel ** 2 * 2.6) * rarityPrice[rarity]);
 }
@@ -76,9 +76,9 @@ export function createItem(level: number, options: ItemCreationOptions = {}): Eq
 
   let affix: ItemAffix | undefined;
   let grantedSkillId: string | undefined;
-  if (rarity === "legendary" || rarity === "mythic") {
+  if (rarity === "legendary" || rarity === "mythic" || rarity === "relic") {
     const source = random.pick(affixes);
-    affix = { ...source, value: Math.round(source.base * (rarity === "mythic" ? 1.8 : 1) + scaledLevel * 0.4) };
+    affix = { ...source, value: Math.round(source.base * (rarity === "relic" ? 2.15 : rarity === "mythic" ? 1.8 : 1) + scaledLevel * 0.4) };
     const skills = SKILLS.filter((skill) => skill.equipmentOnly && (skill.classes === "all" || !options.classId || skill.classes.includes(options.classId)));
     grantedSkillId = random.pick(skills).id;
   }

@@ -43,6 +43,7 @@ export const rarityColors: Record<Rarity, string> = {
   epic: "#76519d",
   legendary: "#c58b2d",
   mythic: "#a13c43",
+  relic: "#288c91",
 };
 export const itemTemplates = new Map(
   ITEM_TEMPLATES.map((template) => [template.id, template]),

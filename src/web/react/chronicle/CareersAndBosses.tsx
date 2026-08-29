@@ -13,6 +13,9 @@ export function CareersPanel() {
     <section className="living-world-section world-careers paper-panel">
       <p className="eyebrow">КАРЬЕРЫ И НАСЛЕДИЕ</p>
       <h2>Школы и династии</h2>
+      <p className="world-section-intro">
+        Ученики ежедневно получают опыт школы и выступают под её именем в мировом рейтинге. Наставники с соревновательным характером продолжают участвовать в турнирах, остальные влияют на мир через учеников, фракции и лавку.
+      </p>
       <div className="world-career-columns">
         <section className="living-world-subsection">
           <h3>Наставники · {mentors.length}</h3>
@@ -39,6 +42,7 @@ export function CareersPanel() {
                         : "наставник"}{" "}
                     · учеников: {mentor.studentIds.length}
                   </small>
+                  <small>{mentor.schoolName ?? "Школа без закреплённого имени"} · {mentor.competes ? "продолжает выступать" : "сосредоточен на наставничестве"}</small>
                 </div>
                 <span>{mentor.legacy}</span>
               </article>

@@ -3,7 +3,7 @@ import { RARITY_LABELS, SLOT_LABELS } from "../../../catalogs/WorldCatalog";
 import { skillById } from "../../../gameplay/WorldGame";
 import { useGame } from "../state/GameContext";
 import { EquipmentArt } from "./Artwork";
-import { isCompatible, itemName, number, statsText } from "./model";
+import { isCompatible, itemName, number, statShortLabels, statsText } from "./model";
 
 export function ItemCard({
   item,
@@ -23,7 +23,7 @@ export function ItemCard({
   const protectedItem = !game.canSellItem(item);
   const legacy =
     game.isFeatureUnlocked("equipment-legacy") &&
-    (item.rarity === "legendary" || item.rarity === "mythic");
+    (item.rarity === "legendary" || item.rarity === "mythic" || item.rarity === "relic");
   const buy = () => {
     const bought = act((world) => world.buy(shopIndex!));
     if (bought)
@@ -64,7 +64,7 @@ export function ItemCard({
       <p className="item-stats">{statsText(item.stats)}</p>
       {item.worldRelicId && (
         <p className="world-relic-mark">
-          Мировая реликвия · история сохраняется при смене владельца
+          Высшая редкость · история, имя и сила сохраняются при смене владельца
         </p>
       )}
       {item.affix && (
@@ -77,6 +77,11 @@ export function ItemCard({
           Навык: {skillById(item.grantedSkillId)?.name ?? "Неизвестный навык"}
         </p>
       )}
+      {item.relicProperties?.map((property) => (
+        <p className="item-relic-property" key={`${property.name}-${property.stat}`}>
+          {property.name}: +{property.value} {statShortLabels[property.stat]} · {property.description}
+        </p>
+      ))}
       <div className="item-controls">
         <button
           className="small-button muted"

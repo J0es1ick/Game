@@ -438,6 +438,12 @@ function retirementChance(enemy: EnemyProfile, day: number): number {
   return clamp(0.04 + ageBonus + weariness + achievement, 0.04, 0.34);
 }
 
+function keepsCompetingAsMentor(enemy: EnemyProfile): boolean {
+  return (enemy.goal === "champion" || enemy.goal === "elite")
+    && enemy.level >= 24
+    && enemy.wins >= Math.max(8, Math.round(enemy.losses * 0.75));
+}
+
 export function createNpcLifeWorldState(day = 1): NpcLifeWorldState {
   return {
     version: 1,
@@ -805,6 +811,7 @@ export function advanceNpcCareerSeason(
   fighters.filter((fighter) => fighter.alive).forEach((fighter) => {
     const profile = profileFor(state, fighter.id);
     refreshNpcIdentity(state, fighter, context.day);
+    if (profile.career === "mentor") return;
     if (legends.has(fighter.id) && profile.career !== "legend") {
       profile.career = "legend";
       fighter.legendSinceDay ??= context.day;
@@ -822,9 +829,13 @@ export function advanceNpcCareerSeason(
       });
     }
   });
-  const assigned = new Set(mentors.flatMap((mentor) => mentor.studentIds));
+  const assigned = new Set([
+    ...mentors.map((mentor) => mentor.fighterId),
+    ...mentors.flatMap((mentor) => mentor.studentIds),
+  ]);
   const retirementCandidates = fighters
     .filter((fighter) => fighter.alive && !legends.has(fighter.id)
+      && profileFor(state, fighter.id).career !== "mentor"
       && context.day - (fighter.joinedDay ?? context.day) >= 90
       && fighter.level >= 18 && fighter.tournamentWins >= 2
       && random.chance(retirementChance(fighter, context.day)))
@@ -848,6 +859,9 @@ export function advanceNpcCareerSeason(
       retiredDay: context.day,
       studentIds: students.map((student) => student.id),
       legacy: `${fighter.tournamentWins} турнирных побед, прозвище «${profile.nickname ?? fighter.title}».`,
+      schoolName: dynastyName(fighter, profile),
+      competes: keepsCompetingAsMentor(fighter),
+      dynastyId,
     };
     const dynasty: NpcDynasty = {
       id: dynastyId,
@@ -859,7 +873,7 @@ export function advanceNpcCareerSeason(
       memberIds: [fighter.id, ...mentor.studentIds],
       prestige: Math.max(1, fighter.tournamentWins * 10 + fighter.kills * 5 + Math.round(fighter.rating / 100)),
     };
-    fighter.alive = false;
+    fighter.alive = mentor.competes === true;
     fighter.retiredDay = context.day;
     profile.career = "mentor";
     profile.dynastyId = dynasty.id;
@@ -889,6 +903,7 @@ export function advanceNpcCareerSeason(
   });
   fighters.filter((fighter) => fighter.alive).forEach((fighter) => {
     const profile = profileFor(state, fighter.id);
+    if (profile.career === "mentor") return;
     const archetype = futureBossArchetype(fighter, profile);
     if (!archetype || state.futureBosses.some((boss) => boss.fighterId === fighter.id && boss.status !== "defeated")) return;
     const boss: FutureBossRecord = {

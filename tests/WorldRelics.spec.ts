@@ -1,6 +1,7 @@
 import { ITEM_TEMPLATES } from "../src/catalogs/WorldCatalog";
 import { createItem } from "../src/factories/ItemFactory";
 import { createWorldRelicRecord } from "../src/gameplay/LivingWorld";
+import { FighterPowerCalculator } from "../src/gameplay/FighterPowerCalculator";
 import { considerNpcLoot, considerNpcLootDetailed } from "../src/gameplay/NpcEquipment";
 import { SeededRandom } from "../src/gameplay/RandomSource";
 import {
@@ -10,6 +11,7 @@ import {
   isWorldRelicEligible,
   reconcileWorldRelicRegistry,
   releaseWorldRelic,
+  stripWorldRelicIdentity,
   synchronizeWorldRelic,
   transferWorldRelic,
   worldRelicLegacyBonus,
@@ -74,6 +76,30 @@ describe("world relic invariants", () => {
     expect(released.record.status).toBe("lost");
     expect(released.record.currentOwnerId).toBeUndefined();
     expect(released.item.relicHistory?.[(released.item.relicHistory?.length ?? 1) - 1]).toContain("затерялась");
+  });
+
+  it("turns a remembered item into the unique highest rarity and restores its origin when released from the registry", () => {
+    const source = item("ascendant-source");
+    const mythic = createItem(18, {
+      classId: "Swordsman",
+      templateId: source.templateId,
+      rarity: "mythic",
+      randomSource: new SeededRandom("ascendant-source"),
+    });
+    const record = createWorldRelicRecord("relic-ascendant", source, "fighter-a", "Ада А.", 4);
+
+    expect(record.item.rarity).toBe("relic");
+    expect(record.item.relicBaseRarity).toBe("legendary");
+    expect(FighterPowerCalculator.item(record.item)).toBeGreaterThan(FighterPowerCalculator.item(mythic));
+    expect(record.item.relicProperties).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "Воля мира", stat: "attack" }),
+      expect.objectContaining({ name: "Память триумфа" }),
+    ]));
+
+    const stripped = stripWorldRelicIdentity(record.item);
+    expect(stripped.rarity).toBe("legendary");
+    expect(stripped.relicBaseRarity).toBeUndefined();
+    expect(stripped.relicProperties?.some((property) => property.name === "Воля мира")).toBe(false);
   });
 
   it("deduplicates records and reports duplicate physical placements", () => {

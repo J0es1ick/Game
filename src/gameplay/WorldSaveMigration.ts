@@ -73,6 +73,13 @@ function normalizeItemEvolution(item: EquipmentItem): void {
     && typeof property.description === "string"
     && ["health", "attack", "defense", "speed", "crit"].includes(property.stat)
     && Number.isFinite(property.value));
+  if (item.rarity === "relic") {
+    item.relicBaseRarity = ["common", "rare", "epic", "legendary", "mythic"].includes(item.relicBaseRarity ?? "")
+      ? item.relicBaseRarity
+      : "mythic";
+  } else {
+    item.relicBaseRarity = undefined;
+  }
 }
 
 function normalizeDungeonDiscoveries(save: GameSave): void {
@@ -479,6 +486,20 @@ export function normalizeWorldSave(save: GameSave): GameSave {
     ].style;
   });
   save.npcLife = normalizeNpcLifeWorldState(save.npcLife, save.enemies, save.worldDay);
+  const mentorFighters = new Map(save.enemies.map((enemy) => [enemy.id, enemy]));
+  save.mentors.forEach((mentor) => {
+    const fighter = mentorFighters.get(mentor.fighterId);
+    const dynasty = save.npcLife?.dynasties.find((candidate) => candidate.id === mentor.dynastyId);
+    mentor.schoolName ??= dynasty?.name ?? `Школа «${mentor.name.replace(/\s+[A-ZА-ЯЁ]\.\s*$/u, "").trim()}»`;
+    if (mentor.competes === undefined) {
+      mentor.competes = mentor.role !== "shop-owner" && mentor.role !== "faction-founder"
+        && Boolean(fighter)
+        && (mentor.goal === "champion" || mentor.goal === "elite")
+        && mentor.level >= 24
+        && (fighter?.wins ?? 0) >= Math.max(8, Math.round((fighter?.losses ?? 0) * 0.75));
+      if (mentor.competes && fighter?.retiredDay) fighter.alive = true;
+    }
+  });
   save.factionCampaigns = normalizeFactionCampaigns(save.factionCampaigns);
   if (save.pendingFactionHunterId && !save.enemies.some((enemy) => enemy.id === save.pendingFactionHunterId && enemy.alive)) {
     save.pendingFactionHunterId = undefined;

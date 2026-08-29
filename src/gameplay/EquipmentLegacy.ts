@@ -15,6 +15,7 @@ const DUST_BY_RARITY: Readonly<Record<Rarity, number>> = {
   epic: 4,
   legendary: 8,
   mythic: 14,
+  relic: 24,
 };
 
 const STATUS_ORDER: Readonly<Record<LegacySalvageStatus, number>> = {

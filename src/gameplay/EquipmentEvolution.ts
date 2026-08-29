@@ -39,7 +39,7 @@ export function recordEquipmentDeed(
   witness: string,
   day: number,
 ): EquipmentDeedResult {
-  if (source.rarity !== "legendary" && source.rarity !== "mythic") {
+  if (source.rarity !== "legendary" && source.rarity !== "mythic" && source.rarity !== "relic") {
     return { item: source, changed: false, growth: {} };
   }
   const definition = DEEDS[kind];
