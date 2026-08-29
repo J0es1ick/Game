@@ -3,6 +3,7 @@ import { WorldGame } from "../src/gameplay/WorldGame";
 import {
   BattlePlayback,
   battleTurnDetail,
+  battleTurnSummary,
 } from "../src/web/react/battle/BattlePlayback";
 import type { BattleTurn } from "../src/gameplay/WorldTypes";
 
@@ -169,5 +170,13 @@ describe("React battle playback transaction", () => {
     expect(copy).toContain("Напор");
     expect(copy).toContain("Оглушение");
     expect(copy).toContain("Цель ослаблена");
+    expect(battleTurnSummary(turn)).toBe(
+      "12 урона · +4 HP · критический удар · ресурс +2",
+    );
+    const repeatedReason = battleTurnDetail({
+      ...turn,
+      detail: "Парирование; Решение: Цель ослаблена",
+    });
+    expect(repeatedReason.match(/Цель ослаблена/g)).toHaveLength(1);
   });
 });

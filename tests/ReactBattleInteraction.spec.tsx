@@ -1,5 +1,7 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react/pure";
 import { WorldGame } from "../src/gameplay/WorldGame";
+import { ARENAS } from "../src/catalogs/WorldCatalog";
+import { pendingBattleReport } from "../src/web/PendingBattleUi";
 import { GameProvider } from "../src/web/react/state/GameContext";
 import { GameStore } from "../src/web/react/state/GameStore";
 import { BattleDialog } from "../src/web/react/battle/BattleDialog";
@@ -10,6 +12,7 @@ import { gameAudio } from "../src/web/GameAudio";
 jest.mock("../src/web/react/battle/battle-react.css", () => ({}));
 jest.mock("../src/web/react/basic/basic-react.css", () => ({}));
 jest.mock("../src/web/react/equipment/equipment-react.css", () => ({}));
+jest.mock("../src/web/react/components/notifications-react.css", () => ({}));
 
 class MemoryStorage {
   private entries = new Map<string, string>();
@@ -33,6 +36,20 @@ describe("interactive React battle screens", () => {
     dom = new JSDOM("<!doctype html><html><body></body></html>", {
       url: "http://localhost/Game/",
       pretendToBeVisual: true,
+    });
+    Object.defineProperty(dom.window.HTMLElement.prototype, "scrollTo", {
+      configurable: true,
+      writable: true,
+      value(
+        this: HTMLElement,
+        options: ScrollToOptions | number,
+        top?: number,
+      ) {
+        this.scrollTop =
+          typeof options === "number"
+            ? (top ?? this.scrollTop)
+            : (options.top ?? this.scrollTop);
+      },
     });
     const globals = {
       window: dom.window,
@@ -118,6 +135,86 @@ describe("interactive React battle screens", () => {
       jest.advanceTimersByTime(10_000);
     });
     expect(step).toHaveBeenCalledTimes(1);
+  });
+
+  test("battle results and the next round scroll only the modal body", () => {
+    const game = WorldGame.create("Прокрутка итогов", "Knight", 93205);
+    game.save.hero.combatMode = "manual";
+    game.save.worldDay = game.registerTournament(ARENAS[0].id);
+    const pending = game.beginTournament(ARENAS[0].id);
+    const next = structuredClone(pending);
+    next.id = `${pending.id}-next-round`;
+    next.session.nextActorId = "hero";
+    pending.session.winnerId = "hero";
+    pending.session.enemy.health = 0;
+    const battle = pendingBattleReport(pending);
+    jest.spyOn(game, "finalizePendingBattle").mockImplementation(() => {
+      game.save.pendingBattle = next;
+      return { status: "next-battle", battle, pendingBattle: next };
+    });
+    const bounds = dom.window.HTMLElement.prototype.getBoundingClientRect;
+    jest
+      .spyOn(dom.window.HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.classList.contains("react-modal-body"))
+          return {
+            ...bounds.call(this),
+            top: 100,
+            bottom: 600,
+            width: 800,
+            height: 500,
+          };
+        if (this.id === "battle-result")
+          return {
+            ...bounds.call(this),
+            top: 860,
+            bottom: 1010,
+            width: 800,
+            height: 150,
+          };
+        return bounds.call(this);
+      });
+    const modalScroll = jest.spyOn(
+      dom.window.HTMLElement.prototype,
+      "scrollTo",
+    );
+    const pageScroll = jest
+      .spyOn(window, "scrollTo")
+      .mockImplementation(() => undefined);
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: 1180,
+    });
+    const store = storeFor(game);
+    const ui = render(
+      <GameProvider store={store}>
+        <BattleDialog />
+      </GameProvider>,
+    );
+    const viewport = document.querySelector<HTMLElement>(".react-modal-body")!;
+    expect(ui.getByRole("button", { name: "Следующий бой" })).toBeTruthy();
+    expect(modalScroll).toHaveBeenLastCalledWith({
+      top: 760,
+      behavior: "instant",
+    });
+    expect(viewport.scrollTop).toBe(760);
+    expect(
+      modalScroll.mock.contexts.every((element) => element === viewport),
+    ).toBe(true);
+    expect(pageScroll).not.toHaveBeenCalled();
+    expect(window.scrollY).toBe(1180);
+    modalScroll.mockClear();
+    fireEvent.click(ui.getByRole("button", { name: "Следующий бой" }));
+    expect(document.querySelector(".react-modal-body")).toBe(viewport);
+    expect(document.getElementById("battle-result")).toBeNull();
+    expect(modalScroll).toHaveBeenCalledTimes(1);
+    expect(modalScroll).toHaveBeenCalledWith({ top: 0, behavior: "instant" });
+    expect(modalScroll.mock.contexts[0]).toBe(viewport);
+    expect(viewport.scrollTop).toBe(0);
+    expect(pageScroll).not.toHaveBeenCalled();
+    expect(window.scrollY).toBe(1180);
+    ui.unmount();
+    store.dispose();
   });
 
   test("all six loot notifications appear in order and pause while hovered", () => {

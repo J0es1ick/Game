@@ -114,8 +114,7 @@ function RouteMap({ onAdvance }: { onAdvance: (id: string) => void }) {
 }
 
 export function DungeonDialog() {
-  const { game, act, notify, closeDialog, openDialog, queueLoot, navigate } =
-    useGame();
+  const { game, act, notify, closeDialog, openDialog, queueLoot } = useGame();
   const [result, setResult] = useState<ExpeditionStepReport | null>(null);
   const [loot, setLoot] = useState<{
     items: EquipmentItem[];
@@ -170,7 +169,6 @@ export function DungeonDialog() {
 
   const closeRewards = () => {
     closeDialog();
-    navigate("map");
     if (loot?.items.length) queueLoot(loot.items, loot.equipped);
   };
 
@@ -187,7 +185,7 @@ export function DungeonDialog() {
       <Modal id="dungeon-layer" title="Поход завершён" onClose={closeDialog}>
         <p>Активной экспедиции сейчас нет.</p>
         <button className="button" onClick={closeDialog}>
-          Вернуться к карте
+          Продолжить игру
         </button>
       </Modal>
     );
@@ -213,12 +211,12 @@ export function DungeonDialog() {
       <section className="expedition-board" id="expedition-board">
         <header className="expedition-heading">
           <div>
-            <p className="eyebrow">ПОХОД ПРОДОЛЖАЕТСЯ</p>
-            <h3>{dungeon?.name}</h3>
-            <p>
+            <p className="eyebrow">СЛЕДУЮЩИЙ ШАГ</p>
+            <h3>
               Этап {Math.min(expedition.stage + 1, expedition.maxStages)} из{" "}
-              {expedition.maxStages}. Решение влияет на риск и объём добычи.
-            </p>
+              {expedition.maxStages}
+            </h3>
+            <p>Выберите маршрут. От него зависят риск и объём добычи.</p>
           </div>
           <div className="expedition-condition">
             <div

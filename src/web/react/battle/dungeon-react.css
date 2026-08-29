@@ -1,0 +1,168 @@
+.react-dungeon-dialog .react-modal-paper {
+  --dialog-accent: var(--blue);
+  width: min(1240px, calc(100vw - 32px));
+}
+
+.react-dungeon-dialog .expedition-board {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.react-dungeon-dialog .expedition-heading {
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.react-dungeon-dialog .expedition-heading h3 {
+  font-size: 25px;
+}
+
+.react-dungeon-dialog .expedition-heading p:not(.eyebrow) {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.react-dungeon-dialog .expedition-condition {
+  gap: 0 20px;
+  padding: 14px 18px;
+  background: #e5ddcc;
+}
+
+.react-dungeon-dialog .stat-row {
+  padding: 7px 0;
+  font-size: 14px;
+}
+
+.react-dungeon-dialog .stat-row strong {
+  font-size: 17px;
+}
+
+.react-dungeon-dialog .expedition-route-map {
+  padding: 0 4px 12px 0;
+}
+
+.react-dungeon-dialog .expedition-route-column {
+  min-width: 200px;
+}
+
+.react-dungeon-dialog .expedition-route-column > small,
+.react-dungeon-dialog .expedition-route-node small,
+.react-dungeon-dialog .expedition-choice small {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.react-dungeon-dialog .expedition-route-node p,
+.react-dungeon-dialog .expedition-route-node > span,
+.react-dungeon-dialog .expedition-node-state,
+.react-dungeon-dialog .expedition-path,
+.react-dungeon-dialog .expedition-shrine-option :is(p, span),
+.react-dungeon-dialog .expedition-merchant-option :is(p, span) {
+  font:
+    14px/1.5 "Inter",
+    sans-serif;
+}
+
+.react-dungeon-dialog .expedition-route-node {
+  padding: 15px;
+}
+
+.react-dungeon-dialog .expedition-route-node strong {
+  line-height: 1.25;
+}
+
+.react-dungeon-dialog .expedition-message {
+  padding: 12px 16px;
+  border-left: 3px solid var(--green);
+  background: #e1e5d8;
+}
+
+.react-dungeon-dialog .expedition-retreat {
+  margin-top: 12px;
+}
+
+.react-dungeon-dialog .dungeon-reward-view {
+  padding: 0;
+}
+
+.react-dungeon-dialog .expedition-reward-copy {
+  margin: 0 0 20px;
+  padding: 0;
+  font-size: 16px;
+}
+
+.react-dungeon-dialog .expedition-reward-stats {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  padding: 0 0 24px;
+  gap: 12px;
+}
+
+.react-dungeon-dialog .expedition-reward-stat {
+  padding: 14px 16px;
+}
+
+.react-dungeon-dialog .expedition-reward-stat small {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.react-dungeon-dialog .expedition-reward-stat strong {
+  font-size: 27px;
+}
+
+.react-dungeon-dialog .expedition-reward-loot {
+  padding: 22px 0 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+}
+
+.react-dungeon-dialog .expedition-reward-loot h3 {
+  font-size: 25px;
+}
+
+.react-dungeon-dialog .expedition-reward-item span:not(.equipment-art) {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.react-dungeon-dialog .expedition-reward-item small {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.react-dungeon-dialog .expedition-reward-item strong {
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.react-dungeon-dialog .react-modal-footer {
+  justify-content: space-between;
+}
+
+.react-dungeon-dialog .react-modal-footer p {
+  flex: 1 1 320px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+@media (max-width: 700px) {
+  .react-dungeon-dialog .react-modal-paper {
+    width: calc(100vw - 16px);
+  }
+  .react-dungeon-dialog .expedition-heading {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .react-dungeon-dialog .react-modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .react-dungeon-dialog .react-modal-footer p {
+    flex-basis: auto;
+  }
+}

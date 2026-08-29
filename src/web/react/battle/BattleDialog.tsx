@@ -15,7 +15,7 @@ import {
 } from "../components/common";
 import {
   BattlePlayback,
-  battleTurnDetail,
+  battleTurnSummary,
   battleTurnLogLine,
 } from "./BattlePlayback";
 import {
@@ -38,7 +38,6 @@ export function BattleDialog() {
     openDialog,
     closeDialog,
     queueLoot,
-    navigate,
     store,
   } = useGame();
   const [playback] = useState(() => new BattlePlayback(game));
@@ -51,6 +50,8 @@ export function BattleDialog() {
   const busy = useRef(false);
   const controller = useRef<AbortController | null>(null);
   const announced = useRef(new Set<string>());
+  const stageElement = useRef<HTMLDivElement>(null);
+  const resultElement = useRef<HTMLElement>(null);
   const report = playback.report;
   const snapshot = playback.snapshot;
   const completion = playback.completion;
@@ -65,6 +66,23 @@ export function BattleDialog() {
   const heroTurn = snapshot.nextActorId === "hero";
   const actions =
     !completion && heroTurn ? playback.session.availableActions() : [];
+
+  useEffect(() => {
+    if (!active || showRewards) return;
+    const viewport =
+      stageElement.current?.closest<HTMLElement>(".react-modal-body");
+    if (!viewport) return;
+    const result = resultElement.current;
+    viewport.scrollTo({
+      top:
+        completion && result
+          ? viewport.scrollTop +
+            result.getBoundingClientRect().top -
+            viewport.getBoundingClientRect().top
+          : 0,
+      behavior: "instant",
+    });
+  }, [active, completion, playback.id, showRewards]);
 
   useEffect(() => {
     alive.current = true;
@@ -228,7 +246,6 @@ export function BattleDialog() {
     const loot = playback.takeLoot();
     closeDialog();
     if (game.save.activeExpedition) openDialog({ kind: "dungeon" });
-    else navigate("map");
     if (loot) queueLoot(loot.items, loot.equipmentBefore);
   };
 
@@ -240,7 +257,6 @@ export function BattleDialog() {
         onClose={() => {
           const loot = playback.takeLoot();
           closeDialog();
-          navigate("map");
           if (loot) queueLoot(loot.items, loot.equipmentBefore);
         }}
       />
@@ -288,9 +304,42 @@ export function BattleDialog() {
                 ? "Посмотреть итоги похода"
                 : game.save.activeExpedition
                   ? "Продолжить поход"
-                  : "Вернуться на карту"}
+                  : "Продолжить игру"}
           </button>
-        ) : undefined
+        ) : (
+          <div className="battle-controls">
+            <label data-term="battleSpeed">
+              Скорость боя
+              <select
+                id="battle-speed"
+                value={speed}
+                onChange={(event) => setSpeed(Number(event.target.value))}
+              >
+                <option value={900}>Медленно</option>
+                <option value={450}>Обычно</option>
+                <option value={160}>Быстро</option>
+              </select>
+            </label>
+            <button
+              className="plain-button"
+              type="button"
+              aria-pressed={manual}
+              disabled={skipping}
+              onClick={() => setManual((value) => !value)}
+            >
+              {manual ? "Включить автобой" : "Управлять вручную"}
+            </button>
+            <button
+              className="plain-button"
+              id="skip-battle"
+              type="button"
+              disabled={skipping}
+              onClick={() => void skip()}
+            >
+              {skipping ? "Расчёт…" : "Пропустить бой"}
+            </button>
+          </div>
+        )
       }
     >
       <TournamentBracket
@@ -298,7 +347,7 @@ export function BattleDialog() {
         completed={tournament}
         nameForId={nameForId}
       />
-      <div className="battle-stage">
+      <div className="battle-stage" ref={stageElement}>
         <CombatantCard side="hero" fighter={snapshot.hero} turn={turn} />
         <div
           className="battle-action"
@@ -320,7 +369,7 @@ export function BattleDialog() {
             {skipping
               ? "Рассчитываем оставшиеся ходы…"
               : turn
-                ? battleTurnDetail(turn)
+                ? battleTurnSummary(turn)
                 : ""}
           </p>
         </div>
@@ -379,42 +428,12 @@ export function BattleDialog() {
           ))}
         </div>
       )}
-      {!completion && (
-        <div className="battle-controls">
-          <label data-term="battleSpeed">
-            Скорость боя
-            <select
-              id="battle-speed"
-              value={speed}
-              onChange={(event) => setSpeed(Number(event.target.value))}
-            >
-              <option value={900}>Медленно</option>
-              <option value={450}>Обычно</option>
-              <option value={160}>Быстро</option>
-            </select>
-          </label>
-          <button
-            className="plain-button"
-            type="button"
-            aria-pressed={manual}
-            disabled={skipping}
-            onClick={() => setManual((value) => !value)}
-          >
-            {manual ? "Включить автобой" : "Управлять вручную"}
-          </button>
-          <button
-            className="plain-button"
-            id="skip-battle"
-            type="button"
-            disabled={skipping}
-            onClick={() => void skip()}
-          >
-            {skipping ? "Расчёт…" : "Пропустить бой"}
-          </button>
-        </div>
-      )}
       {completion && (
-        <section className="battle-result" id="battle-result">
+        <section
+          className="battle-result"
+          id="battle-result"
+          ref={resultElement}
+        >
           <div>
             <h3>{title}</h3>
             {playback.awaitingNextRound ? (

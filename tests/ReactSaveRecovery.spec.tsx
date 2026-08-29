@@ -9,6 +9,7 @@ jest.mock("../src/web/react/battle/battle-react.css", () => ({}));
 jest.mock("../src/web/react/basic/basic-react.css", () => ({}));
 jest.mock("../src/web/react/dialogs/tutorial-react.css", () => ({}));
 jest.mock("../src/web/react/equipment/equipment-react.css", () => ({}));
+jest.mock("../src/web/react/components/notifications-react.css", () => ({}));
 
 const environment = createReactEnvironment();
 const { act, cleanup, fireEvent, render, waitFor } =

@@ -124,20 +124,28 @@ export class BattlePlayback {
   }
 }
 
-export function battleTurnDetail(turn: BattleTurn): string {
-  const lines = [
+export function battleTurnSummary(turn: BattleTurn): string {
+  return [
     turn.damage ? `${turn.damage} урона` : "без урона",
     ...(turn.healing ? [`+${turn.healing} HP`] : []),
     ...(turn.critical ? ["критический удар"] : []),
     ...(turn.resourceChange
       ? [`ресурс ${turn.resourceChange > 0 ? "+" : ""}${turn.resourceChange}`]
       : []),
+  ].join(" · ");
+}
+
+export function battleTurnDetail(turn: BattleTurn): string {
+  const lines = [
+    battleTurnSummary(turn),
     ...(turn.resourceTriggered ? [`сработало: ${turn.resourceTriggered}`] : []),
     ...(turn.statusComboIds?.length
       ? [`комбинация: ${turn.statusComboIds.join(", ")}`]
       : []),
     ...(turn.detail ? [turn.detail] : []),
-    ...(turn.decisionReason ? [`Выбор: ${turn.decisionReason}`] : []),
+    ...(turn.decisionReason && !turn.detail?.includes(turn.decisionReason)
+      ? [`Выбор: ${turn.decisionReason}`]
+      : []),
   ];
   return lines.join(" · ");
 }

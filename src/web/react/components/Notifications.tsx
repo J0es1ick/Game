@@ -5,6 +5,8 @@ import { gameAudio } from "../../GameAudio";
 import { useAppState, useGame, useGameStore } from "../state/GameContext";
 import { effectChannel, type EffectNotice } from "../state/NotificationState";
 import { useBeginBattle } from "../state/useBeginBattle";
+import { useNoticeLayout } from "./NotificationLayout";
+import "./notifications-react.css";
 
 function EffectCard({ effect }: { effect: EffectNotice }) {
   const store = useGameStore();
@@ -33,7 +35,7 @@ function EffectCard({ effect }: { effect: EffectNotice }) {
   }, [paused, effect.id, store]);
   return (
     <article
-      className={`world-effect-card ${effect.tone ?? "neutral"} effect-${effect.variant ?? "standard"}`}
+      className={`react-notice react-event-notice ${effect.tone ?? "neutral"} effect-${effect.variant ?? "standard"}`}
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}
@@ -42,15 +44,15 @@ function EffectCard({ effect }: { effect: EffectNotice }) {
           setFocused(false);
       }}
     >
-      <span className="world-effect-symbol" aria-hidden="true">
+      <span className="notice-symbol" aria-hidden="true">
         {effect.symbol ?? "✦"}
       </span>
-      <div>
-        <small>{effect.eyebrow}</small>
-        <h3>{effect.title}</h3>
+      <div className="notice-copy">
+        <small className="notice-eyebrow">{effect.eyebrow}</small>
+        <h3 className="notice-title">{effect.title}</h3>
         {effect.description && <p>{effect.description}</p>}
         {effect.stats?.length ? (
-          <div className="world-effect-stats">
+          <div className="notice-stats">
             {effect.stats.map((stat, index) => (
               <span key={index}>{stat}</span>
             ))}
@@ -58,7 +60,7 @@ function EffectCard({ effect }: { effect: EffectNotice }) {
         ) : null}
         {effect.action && (
           <button
-            className="world-effect-action"
+            className="notice-button notice-action"
             onClick={() => {
               effect.action!.run();
               store.dismissEffect(effect.id);
@@ -69,7 +71,7 @@ function EffectCard({ effect }: { effect: EffectNotice }) {
         )}
       </div>
       <button
-        className="world-effect-close"
+        className="notice-close"
         aria-label="Закрыть уведомление"
         onClick={() => store.dismissEffect(effect.id)}
       >
@@ -81,18 +83,26 @@ function EffectCard({ effect }: { effect: EffectNotice }) {
 
 export function NotificationDeck() {
   const { effects, mode, dialogs } = useAppState();
-  if (
-    mode !== "world" ||
-    dialogs.some((dialog) => dialog.kind === "new-chronicle")
-  )
-    return null;
+  const visible =
+    mode === "world" &&
+    !dialogs.some((dialog) => dialog.kind === "new-chronicle");
   const banner = effects.find((entry) => effectChannel(entry) === "banner");
   const corner = effects.find((entry) => effectChannel(entry) === "corner");
+  const bannerRef = useNoticeLayout<HTMLDivElement>(
+    "banner",
+    visible && Boolean(banner),
+  );
+  const cornerRef = useNoticeLayout<HTMLDivElement>(
+    "corner",
+    visible && Boolean(corner),
+  );
+  if (!visible) return null;
   return createPortal(
     <>
       <div
         id="world-effect-stage"
-        className="world-effect-stage"
+        ref={cornerRef}
+        className="react-notice-stage"
         aria-live="polite"
         aria-atomic="true"
       >
@@ -100,7 +110,8 @@ export function NotificationDeck() {
       </div>
       <div
         id="world-announcement-stage"
-        className="world-effect-stage world-announcement-stage"
+        ref={bannerRef}
+        className="react-notice-stage react-announcement-stage"
         aria-live="polite"
         aria-atomic="true"
       >
@@ -122,34 +133,39 @@ export function TournamentReminder() {
   );
   const crown = game.registeredCrownLeagueDay() === day;
   const key = `${day}:${arenas.map((arena) => arena.id).join(",")}:${crown}`;
-  if (
-    (!arenas.length && !crown) ||
-    dismissed === key ||
-    loot.length ||
-    dialogs.length
-  )
-    return null;
+  const visible =
+    (arenas.length > 0 || crown) &&
+    dismissed !== key &&
+    !loot.length &&
+    !dialogs.length;
+  const panelRef = useNoticeLayout<HTMLElement>("panel", visible);
+  if (!visible) return null;
   return createPortal(
     <aside
       id="tournament-reminder"
-      className="tournament-reminder"
+      ref={panelRef}
+      className="react-notice react-notice-panel react-tournament-reminder"
       aria-label="События сегодняшнего дня"
     >
-      <button
-        className="reminder-close"
-        aria-label="Скрыть напоминание"
-        onClick={() => setDismissed(key)}
-      >
-        ×
-      </button>
-      <p className="eyebrow">ДЕНЬ {day} · ВЫ ЗАПИСАНЫ</p>
-      <h3>Пора на турнир</h3>
-      <div className="tournament-reminder-list">
+      <header className="notice-heading">
+        <div>
+          <p className="notice-eyebrow">ДЕНЬ {day} · ВЫ ЗАПИСАНЫ</p>
+          <h3 className="notice-title">Пора на турнир</h3>
+        </div>
+        <button
+          className="notice-close"
+          aria-label="Скрыть напоминание"
+          onClick={() => setDismissed(key)}
+        >
+          ×
+        </button>
+      </header>
+      <div className="notice-tournament-list">
         {arenas.map((arena) => (
-          <div key={arena.id}>
+          <div className="notice-tournament-row" key={arena.id}>
             <strong>{arena.name}</strong>
             <button
-              className="button primary"
+              className="notice-button is-primary"
               onClick={() =>
                 begin((current) => current.beginTournament(arena.id))
               }
@@ -159,10 +175,10 @@ export function TournamentReminder() {
           </div>
         ))}
         {crown && (
-          <div>
+          <div className="notice-tournament-row">
             <strong>Лига короны</strong>
             <button
-              className="button primary"
+              className="notice-button is-primary"
               onClick={() => begin((current) => current.beginCrownLeague())}
             >
               Начать
@@ -171,13 +187,14 @@ export function TournamentReminder() {
         )}
       </div>
       <button
-        className="plain-button"
+        className="notice-button notice-calendar"
         onClick={() => {
           setDismissed(key);
           navigate("map", crown ? "endgame-section" : "tournaments-section");
         }}
       >
-        Открыть календарь
+        <span>Открыть календарь</span>
+        <span aria-hidden="true">↗</span>
       </button>
     </aside>,
     document.body,

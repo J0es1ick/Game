@@ -8,6 +8,7 @@ import {
 
 jest.mock("../src/web/react/battle/battle-react.css", () => ({}));
 jest.mock("../src/web/react/equipment/equipment-react.css", () => ({}));
+jest.mock("../src/web/react/components/notifications-react.css", () => ({}));
 
 const environment = createReactEnvironment();
 const { act, cleanup, fireEvent, render, within } =
@@ -28,6 +29,8 @@ const { ARENAS } =
   require("../src/catalogs/WorldCatalog") as typeof import("../src/catalogs/WorldCatalog");
 const { gameAudio } =
   require("../src/web/GameAudio") as typeof import("../src/web/GameAudio");
+const { fitNoticeHeights } =
+  require("../src/web/react/components/NotificationLayout") as typeof import("../src/web/react/components/NotificationLayout");
 
 function NativeNotices() {
   const { dialogs } = useAppState();
@@ -332,6 +335,171 @@ describe("native React notifications", () => {
     advance(5000);
     expect(store.getSnapshot().loot).toHaveLength(0);
     expect(document.getElementById("tournament-reminder")).not.toBeNull();
+  });
+
+  test("styles tournament controls independently of the application root", () => {
+    const game = enterWorld();
+    game.save.worldDay = game.registerTournament(ARENAS[0].id);
+    const stylesheet = document.createElement("style");
+    stylesheet.textContent = require("node:fs").readFileSync(
+      require.resolve("../src/web/react/components/notifications-react.css"),
+      "utf8",
+    );
+    document.head.append(stylesheet);
+    try {
+      const ui = mount(<TournamentReminder />);
+      const panel = document.getElementById("tournament-reminder")!;
+      const button = ui.getByRole("button", { name: "Начать" });
+      expect(getComputedStyle(panel).position).toBe("fixed");
+      expect(getComputedStyle(panel).backgroundColor).toBe(
+        "rgb(240, 235, 220)",
+      );
+      expect(getComputedStyle(button).minHeight).toBe("40px");
+      expect(getComputedStyle(button).fontSize).toBe("14px");
+      expect(getComputedStyle(button).backgroundColor).toBe("rgb(147, 75, 57)");
+      expect(
+        getComputedStyle(panel.querySelector(".notice-tournament-row")!)
+          .display,
+      ).toBe("grid");
+    } finally {
+      stylesheet.remove();
+    }
+  });
+
+  test.each([100, 248, 648, 1000])(
+    "fits simultaneous notices into %i pixels without overlap",
+    (available) => {
+      const natural = { panel: 520, corner: 180, banner: 180 };
+      const sizes = fitNoticeHeights(natural, available);
+      expect(
+        Object.values(sizes).reduce((sum, height) => sum + height, 0),
+      ).toBeLessThanOrEqual(available);
+      for (const slot of ["panel", "corner", "banner"] as const) {
+        expect(sizes[slot]).toBeGreaterThan(0);
+        expect(sizes[slot]).toBeLessThanOrEqual(natural[slot]);
+      }
+    },
+  );
+
+  test("stacks narrow-screen notices, remeasures the panel and cleans its observer", () => {
+    const width = environment.window.innerWidth;
+    const height = environment.window.innerHeight;
+    const previousObserver = Object.getOwnPropertyDescriptor(
+      environment.window,
+      "ResizeObserver",
+    );
+    const root = document.documentElement;
+    const previousTop = root.style.getPropertyValue("--announcement-top");
+    let panelHeight = 260;
+    let resize: () => void = () => undefined;
+    const disconnect = jest.fn();
+    const unobserve = jest.fn();
+    const removeListener = jest.spyOn(
+      environment.window,
+      "removeEventListener",
+    );
+    class Observer {
+      observe = jest.fn();
+      unobserve = unobserve;
+      disconnect = disconnect;
+      constructor(callback: ResizeObserverCallback) {
+        resize = () => callback([], this as unknown as ResizeObserver);
+      }
+    }
+    Object.defineProperty(environment.window, "ResizeObserver", {
+      configurable: true,
+      value: Observer,
+    });
+    Object.defineProperty(environment.window, "innerWidth", {
+      configurable: true,
+      value: 390,
+    });
+    Object.defineProperty(environment.window, "innerHeight", {
+      configurable: true,
+      value: 800,
+    });
+    root.style.setProperty("--announcement-top", "120px");
+    jest
+      .spyOn(environment.window.HTMLElement.prototype, "scrollHeight", "get")
+      .mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains("react-notice-panel")
+          ? panelHeight
+          : this.classList.contains("react-event-notice")
+            ? 140
+            : 0;
+      });
+    try {
+      const game = enterWorld();
+      game.save.worldDay = game.registerTournament(ARENAS[0].id);
+      const ui = mount(<NativeNotices />);
+      notify("Наследие изменилось", { duration: 5000 });
+      const corner = document.getElementById("world-effect-stage")!;
+      const panel = document.getElementById("tournament-reminder")!;
+      const card = ui.getByText("Наследие изменилось").closest("article");
+      expect(corner.style.bottom).toBe("284px");
+      panelHeight = 360;
+      act(() => resize());
+      advance(17);
+      expect(corner.style.bottom).toBe("384px");
+      expect(ui.getByText("Наследие изменилось").closest("article")).toBe(card);
+      notify("Начался новый сезон", { variant: "season", duration: 5000 });
+      Object.defineProperty(environment.window, "innerHeight", {
+        configurable: true,
+        value: 400,
+      });
+      fireEvent.resize(environment.window);
+      advance(17);
+      const banner = document.getElementById("world-announcement-stage")!;
+      const limit = (element: HTMLElement) =>
+        parseFloat(element.style.getPropertyValue("--notice-max-height"));
+      const cornerBottom = parseFloat(corner.style.bottom);
+      expect(cornerBottom).toBeGreaterThanOrEqual(
+        parseFloat(panel.style.bottom) + limit(panel) + 10,
+      );
+      expect(400 - cornerBottom - limit(corner)).toBeGreaterThanOrEqual(
+        parseFloat(banner.style.top) + limit(banner) + 10,
+      );
+      expect(limit(panel)).toBeLessThan(panelHeight);
+      expect(store.getSnapshot().effects).toHaveLength(2);
+      Object.defineProperty(environment.window, "innerWidth", {
+        configurable: true,
+        value: 1280,
+      });
+      fireEvent.resize(environment.window);
+      advance(17);
+      expect(corner.style.bottom).toBe("");
+      expect(panel.style.getPropertyValue("--notice-max-height")).toBe("");
+      ui.unmount();
+      expect(disconnect).toHaveBeenCalledTimes(1);
+      expect(unobserve).toHaveBeenCalledTimes(3);
+      expect(removeListener).toHaveBeenCalledWith(
+        "resize",
+        expect.any(Function),
+      );
+      expect(removeListener).toHaveBeenCalledWith(
+        "scroll",
+        expect.any(Function),
+      );
+    } finally {
+      Object.defineProperty(environment.window, "innerWidth", {
+        configurable: true,
+        value: width,
+      });
+      Object.defineProperty(environment.window, "innerHeight", {
+        configurable: true,
+        value: height,
+      });
+      if (previousObserver)
+        Object.defineProperty(
+          environment.window,
+          "ResizeObserver",
+          previousObserver,
+        );
+      else Reflect.deleteProperty(environment.window, "ResizeObserver");
+      if (previousTop)
+        root.style.setProperty("--announcement-top", previousTop);
+      else root.style.removeProperty("--announcement-top");
+    }
   });
 
   test("cleans active timers on unmount and ignores notices after disposal", () => {

@@ -13,7 +13,8 @@ import {
   statKeys,
 } from "../equipment/model";
 import { StatDelta } from "../equipment/shared";
-import "./battle-react.css";
+import { useNoticeLayout } from "../components/NotificationLayout";
+import "../components/notifications-react.css";
 
 export function LootNotifications() {
   const state = useAppState();
@@ -58,6 +59,10 @@ function LootNotification({
     [game, revision, item, equipped],
   );
   const paused = hovered || focused;
+  const panelRef = useNoticeLayout<HTMLElement>(
+    "panel",
+    Boolean(item && comparison),
+  );
   useEffect(() => {
     if (!item) store.dismissLoot(notice.id);
   }, [item, store, notice.id]);
@@ -81,13 +86,14 @@ function LootNotification({
   const compatible = isCompatible(item, game.save.hero.classId);
   const itemCard = (candidate: EquipmentItem | undefined, label: string) => (
     <article
+      className="notice-loot-item"
       style={css({
         "--rarity-color": candidate
           ? rarityColors[candidate.rarity]
           : undefined,
       })}
     >
-      <small>{label}</small>
+      <small className="notice-item-label">{label}</small>
       {candidate ? (
         <>
           <EquipmentArt
@@ -96,7 +102,7 @@ function LootNotification({
             classId={game.save.hero.classId}
           />
           <strong>{itemName(candidate)}</strong>
-          <span>
+          <span className="notice-item-meta">
             {RARITY_LABELS[candidate.rarity]} · ур. {candidate.level}
           </span>
         </>
@@ -108,7 +114,8 @@ function LootNotification({
   return createPortal(
     <aside
       id="loot-reminder"
-      className={`loot-reminder react-loot-reminder${paused ? " timer-paused" : ""}`}
+      ref={panelRef}
+      className={`react-notice react-notice-panel react-loot-reminder${paused ? " timer-paused" : ""}`}
       role="status"
       aria-live="polite"
       aria-labelledby="loot-reminder-title"
@@ -120,16 +127,18 @@ function LootNotification({
           setFocused(false);
       }}
     >
-      <header>
+      <header className="notice-heading">
         <div>
-          <p className="eyebrow">
+          <p className="notice-eyebrow">
             ПОЛУЧЕНА ДОБЫЧА
             {remainingCount > 1 ? ` · ЕЩЁ ${remainingCount - 1}` : ""}
           </p>
-          <h2 id="loot-reminder-title">Сравнить предмет</h2>
+          <h2 id="loot-reminder-title" className="notice-title">
+            Сравнить предмет
+          </h2>
         </div>
         <button
-          className="dialog-close"
+          className="notice-close"
           type="button"
           aria-label="Закрыть уведомление"
           onClick={() => store.dismissLoot(notice.id)}
@@ -137,24 +146,24 @@ function LootNotification({
           ×
         </button>
       </header>
-      <div className="loot-reminder-items">
+      <div className="notice-loot-items">
         {itemCard(equipped, "Было надето")}
         <span aria-hidden="true">→</span>
         {itemCard(item, "Новая находка")}
       </div>
-      <div className="loot-reminder-difference">
+      <div className="notice-loot-difference">
         {statKeys.map((stat) => (
           <StatDelta
             key={stat}
             stat={stat}
             current={comparison.current[stat]}
             candidate={comparison.candidate[stat]}
-            className="loot-reminder-stat"
+            className="notice-loot-stat"
           />
         ))}
       </div>
       <button
-        className="button primary"
+        className="notice-button is-primary notice-equip"
         type="button"
         disabled={alreadyEquipped || !compatible}
         onClick={() => {
@@ -173,7 +182,7 @@ function LootNotification({
             ? "Надеть"
             : "Не подходит классу"}
       </button>
-      <i className="loot-reminder-timebar" aria-hidden="true" />
+      <i className="notice-timebar" aria-hidden="true" />
     </aside>,
     document.body,
   );
