@@ -1,12 +1,24 @@
 import { Player } from "../abstract/Player";
-import { Archer, Gunsmith, Knight, Monk, Swordsman, Wizard } from "../classes";
+import {
+  Archer,
+  Gunsmith,
+  Knight,
+  Monk,
+  Swordsman,
+  Wizard,
+} from "../classes/index";
 import { createSkills } from "../catalogs/SkillCatalog";
 import { createRandomWeapon, WeaponType } from "../catalogs/WeaponCatalog";
 import { ISkill } from "../skills/ISkill";
-import { getRandomArrayElement, getRandomNumber, shuffleArray } from "../utils/randomization";
+import {
+  getRandomArrayElement,
+  getRandomNumber,
+  shuffleArray,
+} from "../utils/randomization/index";
 import { IWeapon } from "../weapon/IWeapon";
 
-export type PlayerClass = "Knight" | "Archer" | "Wizard" | "Monk" | "Gunsmith" | "Swordsman";
+export type PlayerClass =
+  "Knight" | "Archer" | "Wizard" | "Monk" | "Gunsmith" | "Swordsman";
 
 export interface PlayerBlueprint {
   className: PlayerClass;
@@ -18,18 +30,45 @@ export interface PlayerBlueprint {
 }
 
 const playerNames = [
-  "Эльдар", "Артур", "Гэндальф", "Вильямс", "Агатон", "Аполлон", "Артемида",
-  "Зевс", "Персей", "Феникс", "Элита", "Ирида", "Медея", "Орион", "Рафаэль",
-  "Себастиан", "Эмиль", "Аврора", "Веста", "Лилия", "Мира",
+  "Эльдар",
+  "Артур",
+  "Гэндальф",
+  "Вильямс",
+  "Агатон",
+  "Аполлон",
+  "Артемида",
+  "Зевс",
+  "Персей",
+  "Феникс",
+  "Элита",
+  "Ирида",
+  "Медея",
+  "Орион",
+  "Рафаэль",
+  "Себастиан",
+  "Эмиль",
+  "Аврора",
+  "Веста",
+  "Лилия",
+  "Мира",
 ];
 
-const classDefaults: Record<PlayerClass, { weapon: WeaponType; skills: string[] }> = {
+const classDefaults: Record<
+  PlayerClass,
+  { weapon: WeaponType; skills: string[] }
+> = {
   Knight: { weapon: "sword", skills: ["удар возмездия", "ледяные стрелы"] },
   Archer: { weapon: "bow", skills: ["ледяные стрелы", "огненные стрелы"] },
   Wizard: { weapon: "stick", skills: ["заворожение", "ледяные стрелы"] },
   Monk: { weapon: "fists", skills: ["удар возмездия", "огненные стрелы"] },
-  Gunsmith: { weapon: "pistols", skills: ["ледяные стрелы", "огненные стрелы"] },
-  Swordsman: { weapon: "dual-swords", skills: ["удар возмездия", "заворожение"] },
+  Gunsmith: {
+    weapon: "pistols",
+    skills: ["ледяные стрелы", "огненные стрелы"],
+  },
+  Swordsman: {
+    weapon: "dual-swords",
+    skills: ["удар возмездия", "заворожение"],
+  },
 };
 
 export class PlayerFactory {
@@ -44,28 +83,73 @@ export class PlayerFactory {
 
     switch (blueprint.className) {
       case "Knight":
-        return new Knight(blueprint.health, blueprint.strength, name, weapon, skills);
+        return new Knight(
+          blueprint.health,
+          blueprint.strength,
+          name,
+          weapon,
+          skills,
+        );
       case "Archer": {
-        const iceArrows = skills.find((skill) => skill.name === "ледяные стрелы");
+        const iceArrows = skills.find(
+          (skill) => skill.name === "ледяные стрелы",
+        );
         if (iceArrows && blueprint.skills === undefined) {
           iceArrows.usageCount = 2;
           iceArrows.initialSkillUsage = 2;
         }
-        return new Archer(blueprint.health, blueprint.strength, name, weapon, skills);
+        return new Archer(
+          blueprint.health,
+          blueprint.strength,
+          name,
+          weapon,
+          skills,
+        );
       }
       case "Wizard":
-        return new Wizard(blueprint.health, blueprint.strength, name, weapon, skills);
+        return new Wizard(
+          blueprint.health,
+          blueprint.strength,
+          name,
+          weapon,
+          skills,
+        );
       case "Monk":
-        return new Monk(blueprint.health, blueprint.strength, name, weapon, skills);
+        return new Monk(
+          blueprint.health,
+          blueprint.strength,
+          name,
+          weapon,
+          skills,
+        );
       case "Gunsmith":
-        return new Gunsmith(blueprint.health, blueprint.strength, name, weapon, skills);
+        return new Gunsmith(
+          blueprint.health,
+          blueprint.strength,
+          name,
+          weapon,
+          skills,
+        );
       case "Swordsman":
-        return new Swordsman(blueprint.health, blueprint.strength, name, weapon, skills);
+        return new Swordsman(
+          blueprint.health,
+          blueprint.strength,
+          name,
+          weapon,
+          skills,
+        );
     }
   }
 
   public createRandom(): Player {
-    const className = getRandomArrayElement<PlayerClass>(["Knight", "Archer", "Wizard", "Monk", "Gunsmith", "Swordsman"])!;
+    const className = getRandomArrayElement<PlayerClass>([
+      "Knight",
+      "Archer",
+      "Wizard",
+      "Monk",
+      "Gunsmith",
+      "Swordsman",
+    ])!;
     return this.create({
       className,
       health: getRandomNumber(125, 150),
@@ -74,7 +158,9 @@ export class PlayerFactory {
   }
 
   public createMany(amount: number): Player[] {
-    return Array.from({ length: Math.max(0, amount) }, () => this.createRandom());
+    return Array.from({ length: Math.max(0, amount) }, () =>
+      this.createRandom(),
+    );
   }
 
   private nextName(): string {

@@ -8,10 +8,17 @@ export class Monk extends Player {
   public readonly mechanic = {
     title: "Ритм открытой ладони",
     method: "Monk.modifyCombatAttack()",
-    description: "Каждый последовательный удар наращивает комбо, а часть атак монаха невозможно поймать.",
+    description:
+      "Каждый последовательный удар наращивает комбо, а часть атак монаха невозможно поймать.",
   };
 
-  constructor(health: number, strength: number, name: string, weapon: IWeapon, skills: ISkill[]) {
+  constructor(
+    health: number,
+    strength: number,
+    name: string,
+    weapon: IWeapon,
+    skills: ISkill[],
+  ) {
     super(health, strength, name, weapon, skills);
   }
 
@@ -29,15 +36,29 @@ export class Monk extends Player {
     return super.takeDamage(damage, skill);
   }
 
-  public override modifyCombatAttack(damage: number, context: CombatContext): CombatModifier {
+  public override modifyCombatAttack(
+    damage: number,
+    context: CombatContext,
+  ): CombatModifier {
     const combo = Math.min(5, context.combo + 1);
-    return { damage: damage * (1 + combo * 0.05), detail: `комбо ×${combo}`, combo };
+    return {
+      damage: damage * (1 + combo * 0.05),
+      detail: `комбо ×${combo}`,
+      combo,
+    };
   }
 
-  public override modifyCombatDefense(damage: number, context: CombatContext): CombatModifier {
+  public override modifyCombatDefense(
+    damage: number,
+    context: CombatContext,
+  ): CombatModifier {
     const dodge = 0.14 + ((context.setCounts.crane ?? 0) >= 4 ? 0.06 : 0);
     return (context.random?.() ?? Math.random()) < dodge
-      ? { damage: 0, detail: "монах уклонился", combo: (context.setCounts.crane ?? 0) >= 6 ? context.combo : 0 }
+      ? {
+          damage: 0,
+          detail: "монах уклонился",
+          combo: (context.setCounts.crane ?? 0) >= 6 ? context.combo : 0,
+        }
       : { damage, combo: 0 };
   }
 

@@ -1,6 +1,6 @@
 import type { IArena } from "../arenas/IArena";
 import { ISkill } from "../skills/ISkill";
-import { getRandomArrayElement } from "../utils/randomization";
+import { getRandomArrayElement } from "../utils/randomization/index";
 import { IWeapon } from "../weapon/IWeapon";
 
 export interface ClassMechanic {
@@ -191,15 +191,24 @@ export abstract class Player {
     return damage;
   }
 
-  public modifyCombatAttack(damage: number, context: CombatContext): CombatModifier {
+  public modifyCombatAttack(
+    damage: number,
+    context: CombatContext,
+  ): CombatModifier {
     return { damage };
   }
 
-  public modifyCombatDefense(damage: number, _context: CombatContext): CombatModifier {
+  public modifyCombatDefense(
+    damage: number,
+    _context: CombatContext,
+  ): CombatModifier {
     return { damage };
   }
 
-  public recoveryAfterSkill(_maxHealth: number, _currentHealth: number): number {
+  public recoveryAfterSkill(
+    _maxHealth: number,
+    _currentHealth: number,
+  ): number {
     return 0;
   }
 
@@ -265,7 +274,9 @@ export abstract class Player {
       this._experience -= this._experienceToNextLevel;
       this._level += 1;
       levelsGained += 1;
-      this._experienceToNextLevel = Math.round(this._experienceToNextLevel * 1.35);
+      this._experienceToNextLevel = Math.round(
+        this._experienceToNextLevel * 1.35,
+      );
       this._initialHealth += 10;
       this._initialStrength += 2;
     }

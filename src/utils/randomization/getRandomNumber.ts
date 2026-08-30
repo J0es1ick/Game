@@ -1,6 +1,10 @@
-import { nativeRandom, RandomSource } from "../../gameplay/RandomSource";
+import { nativeRandom, RandomSource } from "../../gameplay/core/RandomSource";
 
-export function getRandomNumber(min: number, max: number, random: RandomSource = nativeRandom): number {
+export function getRandomNumber(
+  min: number,
+  max: number,
+  random: RandomSource = nativeRandom,
+): number {
   if (min > max) {
     return -1;
   }

@@ -1,4 +1,4 @@
-import { getRandomArrayElement } from "../utils/randomization";
+import { getRandomArrayElement } from "../utils/randomization/index";
 import { AncientRuins } from "./AncientRuins";
 import { IArena } from "./IArena";
 import { TrainingGround } from "./TrainingGround";
@@ -20,6 +20,8 @@ export class ArenaPool {
     const selected = normalized
       ? this.arenas.find((arena) => arena.name.toLowerCase() === normalized)
       : undefined;
-    return selected ?? getRandomArrayElement(this.arenas) ?? new TrainingGround();
+    return (
+      selected ?? getRandomArrayElement(this.arenas) ?? new TrainingGround()
+    );
   }
 }

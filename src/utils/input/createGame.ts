@@ -1,4 +1,4 @@
-import { Game } from "../../gameplay/Game";
+import { Game } from "../../gameplay/core/Game";
 import { Logger } from "../output/Logger";
 import { readAnswer } from "../question/readAnswer";
 

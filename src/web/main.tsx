@@ -1,14 +1,14 @@
 import { createRoot } from "react-dom/client";
-import { App, AppErrorBoundary } from "./react/App";
-import { GameStore } from "./react/state/GameStore";
-import { GameProvider } from "./react/state/GameContext";
-import { createBrowserStorage } from "./react/state/BrowserStorage";
-import "./styles.css";
+import { App, AppErrorBoundary } from "./react/app/App";
+import { GameStore } from "./react/app/state/GameStore";
+import { GameProvider } from "./react/app/state/GameContext";
+import { createBrowserStorage } from "./react/app/state/BrowserStorage";
+import "./react/app/styles/index.css";
 
 const store = new GameStore(
   createBrowserStorage(),
   () =>
-    new Worker(new URL("../gameplay/WorldSaveWorker.ts", import.meta.url), {
+    new Worker(new URL("../gameplay/save/WorldSaveWorker", import.meta.url), {
       type: "module",
     }),
 );

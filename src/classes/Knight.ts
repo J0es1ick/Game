@@ -32,7 +32,10 @@ export class Knight extends Player {
     return super.takeDamage(reducedDamage, skill);
   }
 
-  public override modifyCombatDefense(damage: number, context: CombatContext): CombatModifier {
+  public override modifyCombatDefense(
+    damage: number,
+    context: CombatContext,
+  ): CombatModifier {
     if (context.healthRatio <= 0.25) return { damage };
     const reduction = (context.setCounts.bastion ?? 0) >= 4 ? 0.24 : 0.18;
     return {

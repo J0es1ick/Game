@@ -5,6 +5,8 @@ export interface IEquipment<TStats = Record<string, number>> {
   stats?: TStats;
 }
 
-export interface IArmor<TStats = Record<string, number>> extends IEquipment<TStats> {
+export interface IArmor<
+  TStats = Record<string, number>,
+> extends IEquipment<TStats> {
   defense?: number;
 }

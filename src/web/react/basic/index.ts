@@ -1,1 +1,0 @@
-export { BasicTournament } from "./BasicTournament";

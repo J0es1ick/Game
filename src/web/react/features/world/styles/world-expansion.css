@@ -1,0 +1,2145 @@
+.activity-rules {
+  margin: 12px 0 2px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--yellow);
+  color: #4f493e;
+  background: #e4dccb;
+  font:
+    600 11px/1.45 "Inter",
+    sans-serif;
+}
+
+.expedition-board {
+  margin: 18px 0 0;
+  border-top: 6px solid var(--blue);
+}
+
+.expedition-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.8fr);
+  gap: 28px;
+  align-items: end;
+  margin-bottom: 20px;
+}
+
+.expedition-heading h3,
+.active-contract h2,
+.relic-workshop h2 {
+  margin: 5px 0 7px;
+  font-size: 28px;
+}
+
+.expedition-heading p,
+.relic-workshop p,
+.active-contract p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.expedition-condition {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  border: 1px solid #a99f8c;
+  background: #dfd7c7;
+}
+
+.expedition-condition .stat-row {
+  padding: 9px 11px;
+}
+
+.expedition-stamina {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 1fr auto;
+  gap: 7px 12px;
+  padding: 10px 11px 9px;
+  border-bottom: 1px dotted #aaa08d;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.expedition-stamina strong {
+  color: var(--ink);
+  font:
+    700 15px "Inter Tight",
+    sans-serif;
+}
+.expedition-stamina-meter {
+  grid-column: 1 / -1;
+  height: 7px;
+  overflow: hidden;
+  background: #bdb4a4;
+}
+.expedition-stamina-meter i {
+  display: block;
+  height: 100%;
+  background: var(--green);
+}
+.expedition-stamina.low .expedition-stamina-meter i {
+  background: var(--yellow);
+}
+.expedition-stamina.critical .expedition-stamina-meter i {
+  background: var(--red);
+}
+
+.expedition-choices,
+.faction-grid,
+.contract-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.expedition-choice {
+  display: grid;
+  min-height: 210px;
+  padding: 17px;
+  border: 1px solid #a59a86;
+  border-top: 5px solid var(--green);
+  background: var(--paper-light);
+}
+
+.expedition-choice.risk {
+  border-top-color: var(--red);
+}
+.expedition-choice.rest {
+  border-top-color: var(--yellow);
+}
+.expedition-choice small {
+  color: var(--muted);
+  font:
+    10px "Courier New",
+    monospace;
+}
+.expedition-choice h4 {
+  margin: 14px 0 7px;
+  font-size: 21px;
+}
+.expedition-choice p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.expedition-choice > span {
+  align-self: end;
+  margin: 14px 0 10px;
+  font-size: 12px;
+}
+.expedition-choice .button {
+  width: 100%;
+}
+.expedition-path {
+  margin: 16px 0 8px;
+  color: var(--muted);
+  font:
+    12px "Courier New",
+    monospace;
+}
+
+.activity-controller {
+  display: grid;
+  gap: 3px;
+  margin: 12px 0 2px;
+  padding: 10px 11px;
+  border-left: 4px solid var(--faction-accent);
+  background: #dfd8c9;
+}
+
+.activity-controller small,
+.activity-controller span {
+  color: #6d6557;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.activity-controller strong {
+  font-size: 14px;
+}
+
+.world-control-board {
+  display: grid;
+  gap: 18px;
+  margin: 18px 0;
+  padding: 22px;
+  border-top: 5px solid #3d3a32;
+}
+.world-control-head {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.7fr) minmax(320px, 1fr);
+  gap: 28px;
+  align-items: end;
+}
+.world-control-head h2 {
+  margin: 5px 0 0;
+  font-size: 28px;
+}
+.world-control-copy {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.world-control-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.world-control-card {
+  display: grid;
+  gap: 6px;
+  padding: 15px;
+  border: 1px solid #a79d8a;
+  border-top: 4px solid var(--faction-accent);
+  background: #ece5d7;
+}
+.world-control-card > small {
+  color: #716959;
+  font:
+    10px/1.3 "Courier New",
+    monospace;
+}
+.world-control-card > strong {
+  font-size: 17px;
+}
+.world-control-card > p {
+  min-height: 38px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.faction-influence-bars {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+.faction-influence-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 70px 24px;
+  gap: 7px;
+  align-items: center;
+  font-size: 10px;
+}
+.faction-influence-row > div {
+  height: 5px;
+  overflow: hidden;
+  background: #c9c0af;
+}
+.faction-influence-row i {
+  display: block;
+  height: 100%;
+  background: var(--influence-color);
+}
+.faction-influence-row b {
+  text-align: right;
+}
+.faction-control-summary {
+  padding: 9px 10px;
+  border-left: 3px solid var(--faction-accent);
+  background: #dfd8c9;
+  font-size: 12px;
+}
+
+.shop-controller {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.6fr) minmax(300px, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 17px 20px;
+  border-left: 6px solid var(--faction-accent);
+}
+.shop-controller h2 {
+  margin: 4px 0 0;
+  font-size: 24px;
+}
+.shop-controller > p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.shop-price-index {
+  padding: 9px 12px;
+  border: 1px solid #9d927f;
+  background: #ded6c7;
+  white-space: nowrap;
+}
+
+.living-world-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+.living-world-section {
+  min-width: 0;
+  padding: 20px;
+  border-top: 5px solid #5b6c60;
+}
+.living-world-section h2 {
+  margin: 5px 0 14px;
+  font-size: 27px;
+}
+.living-world-section h3 {
+  margin: 0 0 9px;
+  font-size: 18px;
+}
+.living-world-section.world-season {
+  border-top-color: #a57a39;
+}
+.living-world-section.world-territories {
+  border-top-color: #44433b;
+}
+.living-world-section.future-bosses {
+  border-top-color: #914c43;
+}
+.living-world-section.world-relics {
+  border-top-color: #8a6845;
+}
+.world-season-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.6fr);
+  gap: 24px;
+  align-items: end;
+}
+.world-season-heading h2 {
+  margin-bottom: 6px;
+}
+.world-season-heading p:last-child {
+  max-width: 760px;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.world-season-controls {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.world-season-controls > button {
+  justify-self: end;
+}
+.world-season-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  border: 1px solid #aea38f;
+  background: #dfd7c8;
+}
+.world-season-stats .stat-row {
+  padding: 10px 12px;
+}
+.world-season-championships {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 17px;
+}
+.world-season-championships article {
+  display: grid;
+  flex: 1 1 22rem;
+  min-width: 0;
+  gap: 3px;
+  padding: 11px 12px;
+  border-left: 4px solid #a57a39;
+  background: #e5ddce;
+}
+.world-season-championships small {
+  color: #716858;
+  font:
+    10px/1.3 "Courier New",
+    monospace;
+  text-transform: uppercase;
+}
+.world-season-championships strong {
+  font-size: 14px;
+}
+.world-season-championships span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.world-season-history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.world-season-history p {
+  flex: 1 1 22rem;
+  min-width: 0;
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid #b5aa97;
+  color: #655e52;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.territory-ledger {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  max-height: 540px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+}
+.territory-ledger article {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 11px 12px;
+  border-left: 4px solid var(--faction-accent);
+  background: #e3dccd;
+}
+.territory-ledger small {
+  color: #716858;
+  font:
+    10px/1.3 "Courier New",
+    monospace;
+}
+.territory-ledger strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+}
+.territory-ledger span {
+  color: var(--faction-accent);
+  font-size: 12px;
+  font-weight: 700;
+}
+.territory-ledger p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.living-world-list {
+  display: grid;
+  gap: 7px;
+}
+.world-veterans .living-world-list,
+.world-careers .mentor-list,
+.world-careers .world-dynasty-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+}
+.world-veterans .living-world-list > article,
+.world-careers .mentor-list > article,
+.world-careers .world-dynasty-list > article {
+  align-self: start;
+}
+.world-activities .living-world-list,
+.world-relic-list {
+  display: block;
+}
+.world-activities .paged-list-columns,
+.world-relic-list .paged-list-columns {
+  display: grid;
+  grid-template-columns: repeat(var(--paged-list-columns, 2), minmax(0, 1fr));
+  align-items: start;
+  gap: 12px;
+}
+.world-activities .paged-list-item,
+.world-relic-list .paged-list-item {
+  min-width: 0;
+}
+.living-world-section .empty-copy {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+.living-world-list article {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.55fr) minmax(0, 1fr);
+  gap: 14px;
+  padding: 10px 11px;
+  border-left: 4px solid var(--faction-accent);
+  background: #e2dbcd;
+}
+.living-world-list article > div {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 2px;
+}
+.living-world-list article small,
+.living-world-list article > span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.living-world-story {
+  align-content: start;
+}
+.living-world-dossier-button {
+  justify-self: start;
+  margin-top: 7px;
+  padding: 5px 0;
+  border: 0;
+  color: #76551f;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.living-world-dossier-button:hover,
+.living-world-dossier-button:focus-visible {
+  color: #a34f3e;
+}
+.fighter-dossier-dialog .react-modal-paper {
+  width: min(760px, 100%);
+}
+.fighter-dossier-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.fighter-dossier-summary > div {
+  padding: 14px;
+  border: 1px solid #b1a793;
+  background: #e2dbcd;
+}
+.fighter-dossier-summary span {
+  display: block;
+  color: var(--muted);
+  font:
+    10px "Courier New",
+    monospace;
+  text-transform: uppercase;
+}
+.fighter-dossier-summary strong {
+  display: block;
+  margin-top: 5px;
+  font-size: 18px;
+}
+.fighter-dossier-summary p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.fighter-dossier-section {
+  margin-top: 18px;
+}
+.fighter-dossier-section h3 {
+  margin: 0 0 9px;
+  font-size: 18px;
+}
+.fighter-dossier-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.fighter-dossier-facts p,
+.fighter-dossier-history p {
+  margin: 0;
+  padding: 9px 11px;
+  border-left: 3px solid #a4874c;
+  background: #e8e1d4;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.fighter-dossier-history {
+  display: grid;
+  gap: 7px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.world-career-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+.living-world-subsection {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #b0a590;
+  background: #eee7da;
+}
+.world-dynasty-list,
+.future-boss-list {
+  display: grid;
+  gap: 7px;
+}
+.world-dynasty-list article,
+.future-boss-list article {
+  display: grid;
+  gap: 3px;
+  padding: 10px 11px;
+  border-left: 4px solid var(--faction-accent, #776e5f);
+  background: #ded7c8;
+}
+.world-dynasty-list span,
+.world-dynasty-list small,
+.future-boss-list span,
+.future-boss-list small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+.future-boss-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.future-boss-list article {
+  --faction-accent: #8e5146;
+}
+.future-boss-list article.dormant {
+  --faction-accent: #817765;
+}
+.future-boss-list article.defeated {
+  --faction-accent: #5e705f;
+  opacity: 0.76;
+}
+.future-boss-list article.faction-hunter {
+  --faction-accent: #914c43;
+  background: #e5d2c8;
+}
+.future-boss-list p {
+  margin: 3px 0 0;
+  color: #625b50;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.future-boss-action {
+  width: 100%;
+  min-height: 38px;
+  margin-top: 7px;
+}
+.world-relic-entry {
+  display: grid;
+  align-self: start;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid #a69a83;
+  border-left: 5px solid #8a6845;
+  background: #e8dfcf;
+}
+.world-relic-entry.lost {
+  border-left-color: #6f6a61;
+}
+.world-relic-entry.shop {
+  border-left-color: #a8813f;
+}
+.world-relic-entry small {
+  color: #796344;
+  font:
+    11px/1.35 "Courier New",
+    monospace;
+}
+.world-relic-entry p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.item-card .world-relic-mark {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #68a3a4;
+  border-left: 4px solid #2f7d80;
+  color: #225f61;
+  background: linear-gradient(90deg, #d2e5df, #eee3c8);
+  font:
+    11px/1.35 "Courier New",
+    monospace;
+}
+.rivalry-world-intent,
+.rivalry-last-activity {
+  display: block;
+  margin-top: 4px;
+  color: #6b6254;
+  font-size: 12px;
+}
+.fighter-world-badge {
+  display: inline-flex;
+  margin-left: 8px;
+  padding: 2px 5px;
+  border: 1px solid var(--faction-accent);
+  color: #50493e;
+  background: color-mix(in srgb, var(--faction-accent) 15%, #eee7da);
+  font:
+    9px/1.2 "Courier New",
+    monospace;
+  vertical-align: middle;
+}
+
+.expedition-route-shell {
+  display: grid;
+  gap: 16px;
+}
+.expedition-route-map {
+  display: grid;
+  grid-auto-columns: minmax(190px, 1fr);
+  grid-auto-flow: column;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 3px 12px;
+  scroll-snap-type: x proximity;
+}
+.expedition-route-column {
+  display: grid;
+  min-width: 190px;
+  align-content: start;
+  gap: 8px;
+  scroll-snap-align: start;
+}
+.expedition-route-column > small {
+  color: #746b5c;
+  font:
+    11px/1.3 "Courier New",
+    monospace;
+  letter-spacing: 0.08em;
+}
+.expedition-route-node {
+  display: grid;
+  min-height: 176px;
+  align-content: start;
+  gap: 7px;
+  padding: 14px;
+  border: 1px solid #9d927f;
+  border-top: 4px solid #817765;
+  background: #e9e2d4;
+}
+.expedition-route-node.reachable {
+  border-top-color: #55705d;
+  background: #f4eee2;
+  box-shadow: 4px 4px 0 rgba(66, 60, 48, 0.13);
+}
+.expedition-route-node.visited {
+  border-top-color: #b78a3e;
+  background: #ddd5c5;
+}
+.expedition-route-node.current {
+  outline: 2px solid #9d7140;
+  outline-offset: -5px;
+}
+.expedition-route-node.locked {
+  opacity: 0.64;
+}
+.expedition-route-node.elite,
+.expedition-route-node.boss {
+  border-top-color: #9c4c42;
+}
+.expedition-route-node.shrine {
+  border-top-color: #745b84;
+}
+.expedition-route-node.cache {
+  border-top-color: #b78a3e;
+}
+.expedition-route-node small {
+  color: #756b5c;
+  font:
+    10px/1.35 "Courier New",
+    monospace;
+  text-transform: uppercase;
+}
+.expedition-route-node strong {
+  font-size: 18px;
+  line-height: 1.12;
+}
+.expedition-route-node p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.expedition-route-node > span {
+  margin-top: auto;
+  color: #6c5d3d;
+  font-size: 12px;
+}
+.expedition-route-node .button {
+  width: 100%;
+  margin-top: 3px;
+}
+.expedition-node-state {
+  margin-top: auto;
+  color: #716858;
+  font:
+    11px/1.3 "Courier New",
+    monospace;
+  text-transform: uppercase;
+}
+.expedition-shrine-choice {
+  padding: 18px;
+  border: 1px solid #76657d;
+  border-left: 5px solid #745b84;
+  background: #ded6df;
+}
+.expedition-shrine-choice h4 {
+  margin: 5px 0 7px;
+  font-size: 22px;
+}
+.expedition-shrine-choice > p:not(.eyebrow) {
+  color: var(--muted);
+}
+.expedition-shrine-choice > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.expedition-shrine-option {
+  display: grid;
+  gap: 6px;
+  padding: 15px;
+  border: 1px solid #8d8174;
+  text-align: left;
+  background: #f0e8db;
+}
+.expedition-shrine-option strong {
+  font-size: 17px;
+}
+.expedition-shrine-option p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.expedition-shrine-option span {
+  font:
+    11px/1.4 "Courier New",
+    monospace;
+}
+.expedition-shrine-option span.positive {
+  color: #47664f;
+}
+.expedition-shrine-option span.negative {
+  color: #994c42;
+}
+.expedition-merchant-choice {
+  padding: 18px;
+  border: 1px solid #8d754d;
+  border-left: 5px solid #9a754b;
+  background: #e4d8c2;
+}
+.expedition-merchant-choice h4 {
+  margin: 5px 0 7px;
+  font-size: 22px;
+}
+.expedition-merchant-choice > p:not(.eyebrow) {
+  margin: 0;
+  color: var(--muted);
+}
+.expedition-merchant-choice > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin-top: 14px;
+}
+.expedition-merchant-option {
+  display: grid;
+  gap: 6px;
+  min-height: 118px;
+  padding: 14px;
+  border: 1px solid #958772;
+  text-align: left;
+  background: #f0e8da;
+}
+.expedition-merchant-option:hover:not(:disabled) {
+  color: #f4eddf;
+  background: #4b4439;
+}
+.expedition-merchant-option strong {
+  font-size: 16px;
+}
+.expedition-merchant-option p {
+  margin: 0;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0.78;
+}
+.expedition-merchant-option span {
+  align-self: end;
+  font:
+    11px/1.35 "Courier New",
+    monospace;
+}
+.expedition-merchant-option.unavailable {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.expedition-retreat {
+  margin-top: 5px;
+}
+
+.battle-analysis {
+  margin-top: 13px;
+  padding: 11px;
+  border: 1px solid #777061;
+  background: #2d2923;
+}
+.battle-analysis-heading small {
+  color: #c4b8a4;
+  font:
+    10px/1.3 "Courier New",
+    monospace;
+  letter-spacing: 0.08em;
+}
+.battle-analysis-heading h4 {
+  margin: 3px 0 0;
+  color: #f0e7d5;
+  font-size: 15px;
+}
+.battle-analysis .battle-analysis-summary {
+  margin: 7px 0 9px;
+  color: #c9c0ae;
+  line-height: 1.45;
+}
+.battle-analysis-fighters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+.battle-analysis-fighters article {
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  border-left: 4px solid #879b83;
+  background: #403a31;
+}
+.battle-analysis-fighters strong {
+  color: #f1e8d6;
+  font-size: 13px;
+}
+.battle-analysis-fighters span,
+.battle-analysis-fighters p,
+.battle-analysis-fighters small {
+  color: #c9c0ae;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.battle-analysis-fighters p {
+  margin: 0;
+}
+.battle-analysis-highlights {
+  display: grid;
+  gap: 4px;
+  margin: 9px 0 0;
+  padding-left: 18px;
+  color: #d8cdb8;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.battle-analysis-adaptation {
+  margin-top: 9px !important;
+  padding: 8px 9px;
+  border-left: 3px solid #bd6658;
+  background: #493830;
+}
+
+.legacy-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.loot-target-workshop {
+  display: grid;
+  grid-template-columns: minmax(250px, 1fr) minmax(360px, 1.25fr) minmax(
+      250px,
+      0.85fr
+    );
+  gap: 22px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 20px 22px;
+  border-left: 6px solid #9b7343;
+  background: #e8dfcf;
+}
+.legacy-layout .loot-target-workshop {
+  margin-bottom: 0;
+}
+.loot-target-copy h2 {
+  margin: 5px 0 8px;
+  font-size: 25px;
+}
+.loot-target-copy > p:last-child {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.loot-target-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.loot-target-controls label {
+  display: grid;
+  gap: 6px;
+  color: #6c6354;
+  font:
+    11px/1.3 "Courier New",
+    monospace;
+  text-transform: uppercase;
+}
+.loot-target-controls select {
+  width: 100%;
+  min-height: 43px;
+}
+.loot-target-actions {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+.loot-target-actions button {
+  min-height: 43px;
+}
+.loot-target-status {
+  display: grid;
+  border: 1px solid #b2a791;
+  background: #ded5c4;
+}
+.loot-target-status .stat-row {
+  padding: 8px 10px;
+}
+.loot-target-best-set {
+  margin: 0;
+  padding: 10px;
+  border-top: 1px dotted #aaa08d;
+  color: #526a58;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.reforge-control {
+  grid-column: 1 / -1;
+  border-top: 1px solid #b7ad9b;
+}
+.reforge-control > summary {
+  padding: 9px 2px 3px;
+  color: #6b5841;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+}
+.reforge-control-body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 9px;
+}
+.reforge-control-body label {
+  display: grid;
+  gap: 4px;
+  color: #756b5b;
+  font-size: 11px;
+}
+.reforge-control-body select {
+  min-width: 0;
+  min-height: 38px;
+  width: 100%;
+}
+.reforge-price {
+  align-self: center;
+  margin: 0;
+  color: #695d4a;
+  font:
+    11px/1.35 "Courier New",
+    monospace;
+}
+.reforge-control-body button {
+  width: 100%;
+  min-height: 38px;
+}
+
+.crown-season-overview {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(260px, 1fr) minmax(260px, 0.8fr) minmax(
+      300px,
+      1.1fr
+    );
+  gap: 20px;
+  align-items: center;
+  padding: 20px;
+  border-left: 6px solid #a77c36;
+  background: #eee3cc;
+}
+.crown-season-copy h3 {
+  margin: 5px 0 7px;
+  font-size: 27px;
+}
+.crown-season-copy > p:last-child {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.crown-season-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid #b2a58d;
+  background: #dfd3bc;
+}
+.crown-season-summary .stat-row {
+  padding: 8px 10px;
+}
+.crown-season-rules {
+  display: grid;
+  gap: 6px;
+}
+.crown-season-rules > strong {
+  margin-bottom: 2px;
+  font-size: 14px;
+}
+.crown-season-rules article {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-left: 3px solid #a77c36;
+  background: #e1d6c1;
+}
+.crown-season-rules b {
+  font-size: 12px;
+}
+.crown-season-rules span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.fighter-feature-list {
+  display: grid;
+  gap: 7px;
+  margin-top: 18px;
+  padding-top: 15px;
+  border-top: 1px solid #aaa08d;
+}
+
+.fighter-feature-list > strong {
+  font-size: 16px;
+}
+.fighter-feature-list > div {
+  padding: 9px;
+  border-left: 3px solid var(--green);
+  background: #ded6c7;
+}
+.fighter-feature-list > div.injury {
+  border-left-color: var(--red);
+  background: #e5d1c6;
+}
+.fighter-feature-list small,
+.fighter-feature-list b,
+.fighter-feature-list span {
+  display: block;
+}
+.fighter-feature-list small {
+  color: var(--muted);
+  font:
+    9px "Courier New",
+    monospace;
+}
+.fighter-feature-list b {
+  margin: 3px 0;
+  font-size: 13px;
+}
+.fighter-feature-list span {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.tactical-profile-picker {
+  display: grid;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid #aaa08d;
+}
+
+.tactical-profile-picker select {
+  min-height: 40px;
+}
+.tactical-profile-picker small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.active-contract {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 18px;
+  border-left: 6px solid var(--red);
+}
+
+.contract-progress {
+  width: min(520px, 100%);
+  height: 10px;
+  margin: 16px 0 7px;
+  border: 1px solid #9f9581;
+  background: #d4ccbc;
+}
+.contract-progress i {
+  display: block;
+  height: 100%;
+  background: var(--green);
+}
+
+.reputation-guide {
+  display: grid;
+  grid-template-columns: minmax(250px, 0.85fr) minmax(520px, 1.65fr);
+  gap: 22px;
+  margin-bottom: 18px;
+  border-left: 6px solid var(--green);
+}
+.reputation-guide-copy h2 {
+  margin: 5px 0 8px;
+  font-size: 22px;
+}
+.reputation-guide-copy > p:last-child {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.reputation-tier-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid #b5ab98;
+}
+.reputation-tier-list article {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  min-height: 96px;
+  padding: 12px;
+  border-left: 1px solid #b5ab98;
+  background: #e5ddcd;
+}
+.reputation-tier-list article:first-child {
+  border-left: 0;
+}
+.reputation-tier-list article:not(.base) {
+  box-shadow: inset 0 4px 0 var(--green);
+}
+.reputation-tier-list small {
+  color: var(--red);
+  font:
+    9px "Courier New",
+    monospace;
+  letter-spacing: 0.06em;
+}
+.reputation-tier-list strong {
+  font-size: 14px;
+}
+.reputation-tier-list span {
+  color: #526b58;
+  font:
+    700 10px/1.4 "Courier New",
+    monospace;
+}
+.faction-contract-benefit {
+  min-height: 0 !important;
+  margin: 10px 0 0;
+  padding-top: 9px;
+  border-top: 1px dotted #aaa08d;
+  color: #526b58 !important;
+  font-size: 11px;
+}
+.faction-perk-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 13px;
+  padding-top: 11px;
+  border-top: 1px solid #c1b6a3;
+}
+.faction-perk-list > strong {
+  font-size: 13px;
+}
+.faction-perk {
+  display: grid;
+  grid-template-columns: 85px minmax(0, 1fr);
+  gap: 2px 8px;
+  padding: 8px;
+  background: #e5ddce;
+}
+.faction-perk small {
+  grid-row: 1 / span 2;
+  color: #756b5c;
+  font:
+    10px/1.3 "Courier New",
+    monospace;
+}
+.faction-perk b {
+  font-size: 12px;
+}
+.faction-perk span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.faction-perk.unlocked {
+  border-left: 3px solid #58715d;
+  background: #dce4d7;
+}
+.faction-perk.locked {
+  opacity: 0.72;
+}
+
+.narrative-layer {
+  position: fixed;
+  z-index: 230;
+  inset: 0;
+  display: grid;
+  overflow-y: auto;
+  padding: clamp(18px, 5vw, 72px);
+  background: rgba(27, 24, 20, 0.78);
+  place-items: center;
+}
+.narrative-dialog {
+  width: min(920px, 100%);
+  overflow: hidden;
+  border: 1px solid #665d4e;
+  border-top: 7px solid #8c4f42;
+  background: #e9e1d1;
+  box-shadow: 14px 16px 0 rgba(20, 17, 13, 0.34);
+}
+.narrative-dialog > header {
+  padding: clamp(24px, 5vw, 48px);
+  border-bottom: 1px solid #aaa08d;
+  text-align: center;
+}
+.narrative-dialog h2 {
+  margin: 7px 0 12px;
+  font-size: clamp(34px, 6vw, 58px);
+  line-height: 0.98;
+}
+.narrative-dialog header > p:last-child {
+  max-width: 650px;
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.55;
+}
+.narrative-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1px;
+  background: #958b79;
+}
+.narrative-choice {
+  display: grid;
+  min-height: 260px;
+  align-content: start;
+  gap: 10px;
+  padding: 28px;
+  border: 0;
+  text-align: left;
+  background: #f1eadc;
+  transform-origin: 50% 110%;
+}
+.narrative-choice:not(:disabled):hover,
+.narrative-choice:not(:disabled):focus-visible {
+  z-index: 1;
+  background: #fff6e5;
+  box-shadow: inset 0 -5px 0 #9e5949;
+  transform: translateY(-5px) rotate(calc((var(--choice-index) - 1) * 0.45deg));
+}
+.narrative-choice small {
+  color: #9a5144;
+  font:
+    11px/1.3 "Courier New",
+    monospace;
+  letter-spacing: 0.1em;
+}
+.narrative-choice strong {
+  font-size: 24px;
+  line-height: 1.08;
+}
+.narrative-choice p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.narrative-consequence {
+  align-self: end;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid #bcb19e;
+  color: #536b59;
+  font:
+    12px/1.45 "Courier New",
+    monospace;
+}
+.narrative-choice:disabled .narrative-consequence {
+  color: #9c4c42;
+}
+
+.faction-card,
+.contract-card {
+  position: relative;
+  border-top: 5px solid var(--faction-accent);
+}
+.faction-card h3,
+.contract-card h3 {
+  margin: 8px 0;
+  font-size: 23px;
+}
+.faction-card blockquote {
+  margin: 12px 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--faction-accent);
+  color: #574f43;
+  font-style: italic;
+}
+.faction-card > p:not(.eyebrow),
+.contract-card > p {
+  min-height: 48px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.contract-grid {
+  margin-bottom: 32px;
+}
+.contract-rewards {
+  margin: 16px 0 12px;
+  padding: 10px;
+  background: #ded6c6;
+  font:
+    11px/1.45 "Courier New",
+    monospace;
+}
+.contract-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+.contract-actions .button {
+  width: 100%;
+  min-height: 45px;
+  padding: 8px;
+  font-size: 12px;
+}
+.contract-approach-option {
+  position: relative;
+  min-width: 0;
+}
+.contract-approach-tooltip {
+  position: absolute;
+  z-index: 24;
+  left: 50%;
+  bottom: calc(100% + 11px);
+  width: min(290px, calc(100vw - 38px));
+  padding: 13px 14px;
+  border: 1px solid #6e6556;
+  border-top: 4px solid var(--faction-accent, var(--green));
+  color: var(--ink);
+  background: #f1ebdf;
+  box-shadow: 6px 7px 0 rgba(43, 37, 29, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 7px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    visibility 140ms;
+  visibility: hidden;
+}
+.contract-approach-tooltip::after {
+  position: absolute;
+  top: 100%;
+  left: calc(50% - 7px);
+  width: 13px;
+  height: 13px;
+  border-right: 1px solid #6e6556;
+  border-bottom: 1px solid #6e6556;
+  background: #f1ebdf;
+  content: "";
+  transform: rotate(45deg) translateY(-7px);
+}
+.contract-approach-tooltip small,
+.contract-approach-tooltip strong,
+.contract-approach-tooltip p,
+.contract-approach-tooltip b {
+  display: block;
+}
+.contract-approach-tooltip small {
+  color: var(--red);
+  font:
+    9px "Courier New",
+    monospace;
+  letter-spacing: 0.08em;
+}
+.contract-approach-tooltip strong {
+  margin: 5px 0;
+  font-size: 15px;
+}
+.contract-approach-tooltip p {
+  margin: 0;
+  color: #5d5548;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.contract-approach-tooltip b {
+  margin-top: 8px;
+  color: #526b58;
+  font:
+    700 11px/1.45 "Courier New",
+    monospace;
+}
+.contract-approach-option:hover .contract-approach-tooltip,
+.contract-approach-option:focus-within .contract-approach-tooltip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  visibility: visible;
+}
+.contract-approach-option.honor .contract-approach-tooltip {
+  left: 0;
+  transform: translateY(7px);
+}
+.contract-approach-option.honor .contract-approach-tooltip::after {
+  left: 36px;
+}
+.contract-approach-option.profit .contract-approach-tooltip {
+  right: 0;
+  left: auto;
+  transform: translateY(7px);
+}
+.contract-approach-option.profit .contract-approach-tooltip::after {
+  right: 36px;
+  left: auto;
+}
+.contract-approach-option.honor:hover .contract-approach-tooltip,
+.contract-approach-option.honor:focus-within .contract-approach-tooltip,
+.contract-approach-option.profit:hover .contract-approach-tooltip,
+.contract-approach-option.profit:focus-within .contract-approach-tooltip {
+  transform: translateY(0);
+}
+
+.relic-workshop {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 22px;
+  margin: 18px 0;
+  border-left: 6px solid #8a5b93;
+}
+.legacy-layout .relic-workshop {
+  margin: 0;
+}
+.relic-ready-list {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+}
+.relic-ready-list article {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  border: 1px solid #aaa08e;
+  border-left: 5px solid var(--rarity-accent, #8a8172);
+  background: #e2dacb;
+}
+.relic-ready-list article.equipped {
+  border-color: #748975;
+  background: #dce3d6;
+  box-shadow: inset 0 0 0 1px rgba(83, 108, 86, 0.22);
+}
+.relic-ready-list article > div {
+  min-width: 0;
+}
+.relic-ready-list article > div:first-child {
+  overflow-wrap: anywhere;
+}
+.relic-ready-list strong,
+.relic-ready-list small {
+  display: block;
+}
+.relic-ready-list small {
+  margin-top: 3px;
+  color: var(--muted);
+}
+.relic-ready-list article > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.relic-ready-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.relic-ready-art {
+  flex: 0 0 48px;
+  width: 48px;
+  height: 60px;
+}
+.relic-ready-identity > div {
+  min-width: 0;
+}
+.relic-ready-identity strong {
+  font-size: 15px;
+  line-height: 1.25;
+}
+.relic-item-kicker {
+  color: #6d6457;
+  font:
+    11px/1.35 "Courier New",
+    monospace;
+  letter-spacing: 0.035em;
+  text-transform: uppercase;
+}
+.relic-progress-copy {
+  padding-left: 60px;
+  font-size: 12px;
+}
+.relic-item-status {
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 8px;
+  border: 1px solid currentColor;
+  font:
+    700 11px/1 "Courier New",
+    monospace;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.relic-item-status.equipped {
+  margin-left: auto;
+  color: #435e49;
+  background: #edf1e8;
+}
+.relic-item-status.protected {
+  color: #77564f;
+  background: #eee0db;
+}
+.relic-path-option {
+  position: relative;
+  display: inline-flex;
+}
+.relic-path-tooltip {
+  position: absolute;
+  z-index: 24;
+  left: 50%;
+  bottom: calc(100% + 11px);
+  width: min(270px, calc(100vw - 38px));
+  padding: 13px 14px;
+  border: 1px solid #6e6556;
+  border-top: 4px solid var(--green);
+  color: #332f28;
+  background: #f1ebdf;
+  box-shadow: 6px 7px 0 rgba(43, 37, 29, 0.22);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 7px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease,
+    visibility 140ms;
+  visibility: hidden;
+}
+.relic-path-tooltip::after {
+  position: absolute;
+  top: 100%;
+  left: calc(50% - 7px);
+  width: 13px;
+  height: 13px;
+  border-right: 1px solid #6e6556;
+  border-bottom: 1px solid #6e6556;
+  background: #f1ebdf;
+  content: "";
+  transform: rotate(45deg) translateY(-7px);
+}
+.relic-path-tooltip small,
+.relic-path-tooltip strong,
+.relic-path-tooltip span,
+.relic-path-tooltip p,
+.relic-path-tooltip b {
+  display: block;
+}
+.relic-path-tooltip small {
+  color: var(--red);
+  font:
+    9px "Courier New",
+    monospace;
+  letter-spacing: 0.08em;
+}
+.relic-path-tooltip strong {
+  margin: 5px 0;
+  font-size: 15px;
+}
+.relic-path-tooltip p {
+  margin: 0;
+  color: #5d5548;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.relic-path-tooltip .feature-stats {
+  margin-top: 8px;
+  color: #526b58;
+  font:
+    700 11px "Courier New",
+    monospace;
+}
+.relic-path-option:hover .relic-path-tooltip,
+.relic-path-option:focus-within .relic-path-tooltip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  visibility: visible;
+}
+.relic-path-option:first-child .relic-path-tooltip {
+  right: auto;
+  left: 0;
+  transform: translateY(7px);
+}
+.relic-path-option:first-child:hover .relic-path-tooltip,
+.relic-path-option:first-child:focus-within .relic-path-tooltip {
+  transform: translateY(0);
+}
+.relic-path-option:first-child .relic-path-tooltip::after {
+  right: auto;
+  left: 30px;
+}
+.relic-path-option:last-child .relic-path-tooltip {
+  right: 0;
+  left: auto;
+  transform: translateY(7px);
+}
+.relic-path-option:last-child:hover .relic-path-tooltip,
+.relic-path-option:last-child:focus-within .relic-path-tooltip {
+  transform: translateY(0);
+}
+.relic-path-option:last-child .relic-path-tooltip::after {
+  right: 30px;
+  left: auto;
+}
+.relic-salvage {
+  grid-column: 1 / -1;
+  padding-top: 18px;
+  border-top: 1px solid #a99e8b;
+}
+.relic-salvage-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 12px;
+  color: #453c31;
+}
+.relic-salvage-heading-copy {
+  display: grid;
+  gap: 3px;
+}
+.relic-salvage-title {
+  font-size: 19px;
+  font-weight: 800;
+}
+.relic-salvage-heading small {
+  color: #716858;
+  font:
+    12px/1.4 "Courier New",
+    monospace;
+}
+.relic-salvage-bulk {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.relic-salvage-selection {
+  max-width: 260px;
+  text-align: right;
+}
+.relic-salvage-bulk-button {
+  min-width: 210px;
+  min-height: 44px;
+}
+.relic-salvage-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.relic-salvage-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px 58px minmax(0, 1fr) auto;
+  min-width: 0;
+  min-height: 108px;
+  align-items: center;
+  gap: 11px;
+  padding: 12px;
+  border: 1px solid #a79d8a;
+  border-left: 5px solid var(--rarity-accent, #898478);
+  color: #332f29;
+  background: #eee8dc;
+  content-visibility: auto;
+  contain-intrinsic-size: 108px;
+  transition:
+    border-color 140ms ease,
+    background 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+.relic-salvage-card:hover {
+  border-color: #766d5e;
+  background: #f3ede2;
+  transform: translateY(-1px);
+}
+.relic-salvage-card.selected {
+  border-color: #8a5b3f;
+  background: #f3e7d5;
+  box-shadow: inset 0 0 0 1px rgba(138, 91, 63, 0.24);
+}
+.relic-salvage-card.status-equipped {
+  border-color: #748975;
+  border-left-color: #536f59;
+  background: #dce3d6;
+  cursor: default;
+}
+.relic-salvage-card.status-protected {
+  border-color: #a89089;
+  background: #e8ddd8;
+  cursor: default;
+}
+.relic-salvage-card.status-equipped:hover,
+.relic-salvage-card.status-protected:hover {
+  transform: none;
+}
+.relic-salvage-selector {
+  display: grid;
+  width: 28px;
+  height: 38px;
+  place-items: center;
+  cursor: pointer;
+}
+.relic-salvage-selector input {
+  width: 19px;
+  height: 19px;
+  margin: 0;
+  accent-color: #8a4c3c;
+  cursor: pointer;
+}
+.relic-salvage-selector input:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+.relic-salvage-selector span {
+  display: none;
+}
+.relic-salvage-art {
+  width: 54px;
+  height: 68px;
+}
+.relic-salvage-copy {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+.relic-salvage-copy strong {
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  line-height: 1.25;
+}
+.relic-salvage-stats {
+  color: #5e574d;
+  font:
+    12px/1.35 "Courier New",
+    monospace;
+}
+.relic-salvage-state {
+  display: grid;
+  min-width: 116px;
+  justify-items: end;
+  gap: 7px;
+  text-align: right;
+}
+.relic-salvage-state small {
+  color: #6f6657;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.relic-dust-yield {
+  color: #715a28;
+  font:
+    800 14px/1.2 "Courier New",
+    monospace;
+}
+.relic-salvage-button {
+  min-width: 148px;
+  min-height: 40px;
+  color: #3b342a;
+  background: #e9e2d5;
+  white-space: normal;
+}
+.relic-salvage-button:hover {
+  color: #f4eddf;
+  background: #4b4439;
+}
+.relic-salvage-list .empty-copy {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 16px;
+  border: 1px solid #aaa08e;
+}
+.forge-card-actions {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 6px;
+  width: 100%;
+}
+.forge-card-actions button {
+  width: 100%;
+  white-space: normal;
+}
+
+.battle-rules {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 10px 18px;
+  border-top: 1px solid #9d927e;
+  background: #dcd4c4;
+}
+.battle-rules[hidden] {
+  display: none;
+}
+.battle-rules span {
+  display: flex;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid #a79c88;
+  background: #eee7da;
+  color: #625b4e;
+  font-size: 11px;
+}
+.battle-rules b {
+  color: #833e34;
+}
+.rivalry-traits {
+  margin-top: 3px;
+  color: #5c705d;
+  font-size: 11px;
+}
+
+@media (max-width: 980px) {
+  .expedition-heading,
+  .reputation-guide,
+  .relic-workshop,
+  .loot-target-workshop,
+  .crown-season-overview {
+    grid-template-columns: 1fr;
+  }
+  .expedition-choices,
+  .faction-grid,
+  .contract-grid {
+    grid-template-columns: 1fr;
+  }
+  .world-control-head,
+  .shop-controller {
+    grid-template-columns: 1fr;
+  }
+  .world-season-heading,
+  .world-activities .living-world-list,
+  .world-veterans .living-world-list,
+  .world-careers .mentor-list,
+  .world-careers .world-dynasty-list {
+    grid-template-columns: 1fr;
+  }
+  .territory-ledger {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .world-control-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .relic-ready-list {
+    grid-column: 1;
+  }
+  .relic-salvage-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .fighter-dossier-summary,
+  .fighter-dossier-facts {
+    grid-template-columns: 1fr;
+  }
+  .expedition-shrine-choice > div,
+  .expedition-merchant-choice > div,
+  .loot-target-controls,
+  .reforge-control-body,
+  .crown-season-summary {
+    grid-template-columns: 1fr;
+  }
+  .loot-target-actions {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+  .relic-salvage-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .relic-salvage-bulk {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .relic-salvage-selection {
+    max-width: none;
+    text-align: left;
+  }
+  .relic-salvage-bulk-button {
+    width: 100%;
+  }
+  .relic-salvage-card {
+    grid-template-columns: 28px 48px minmax(0, 1fr);
+  }
+  .relic-salvage-art {
+    width: 48px;
+    height: 62px;
+  }
+  .relic-salvage-state {
+    grid-column: 1 / -1;
+    justify-items: stretch;
+    text-align: left;
+  }
+  .relic-salvage-button {
+    width: 100%;
+  }
+  .loot-target-workshop,
+  .crown-season-overview {
+    padding: 15px;
+  }
+  .expedition-route-map {
+    grid-auto-columns: minmax(240px, 82vw);
+  }
+  .reputation-tier-list {
+    grid-template-columns: 1fr 1fr;
+  }
+  .reputation-tier-list article:nth-child(3) {
+    border-left: 0;
+  }
+  .active-contract,
+  .relic-ready-list article {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .relic-progress-copy {
+    padding-left: 0;
+  }
+  .relic-ready-list article > div:last-child {
+    justify-content: flex-start;
+  }
+  .contract-actions {
+    grid-template-columns: 1fr;
+  }
+  .expedition-condition {
+    grid-template-columns: 1fr;
+  }
+  .world-control-grid,
+  .territory-ledger,
+  .future-boss-list,
+  .battle-analysis-fighters {
+    grid-template-columns: 1fr;
+  }
+  .world-activities .living-world-list,
+  .world-relic-list {
+    display: block;
+  }
+  .world-activities .paged-list-columns,
+  .world-relic-list .paged-list-columns {
+    grid-template-columns: 1fr;
+  }
+  .living-world-list article {
+    grid-template-columns: 1fr;
+  }
+  .world-season-controls > button {
+    justify-self: stretch;
+  }
+  .world-season-stats {
+    grid-template-columns: 1fr;
+  }
+}
+.relic-gift-list {
+  margin-block: 2rem;
+  border-top: 1px solid var(--line, #aaa28f);
+  padding-top: 1.5rem;
+}
+
+.relic-gift-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) minmax(180px, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding-block: 1rem;
+  border-bottom: 1px solid var(--line, #aaa28f);
+}
+
+.relic-gift-row select {
+  width: 100%;
+  min-width: 0;
+  font: inherit;
+}
+
+.relic-gift-row .equipment-art {
+  height: 76px;
+}
+.epoch-final-goal {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line, #aaa28f);
+}
+.epoch-final-goal p {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.goal-complete {
+  color: #426343;
+}
+
+@media (max-width: 700px) {
+  .relic-gift-row {
+    grid-template-columns: 54px minmax(0, 1fr);
+  }
+  .relic-gift-row select {
+    grid-column: 1 / -1;
+  }
+  .relic-gift-row button {
+    grid-column: 1 / -1;
+  }
+}
+.faction-campaign {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line, #aaa28f);
+}
+.faction-campaign h4,
+.faction-campaign p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.faction-campaign button {
+  white-space: normal;
+}
+.battle-equipment-resonance {
+  margin-top: 0.6rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.chronicle-scroll-list {
+  max-height: min(36rem, 65vh);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  padding-right: 0.6rem;
+  align-content: start;
+}
+
+.chronicle-scroll-list:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 4px;
+}
+
+.chronicle-scroll-list > article {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

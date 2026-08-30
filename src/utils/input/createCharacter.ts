@@ -1,7 +1,7 @@
 import { createSkill } from "../../catalogs/SkillCatalog";
 import { createRandomWeapon } from "../../catalogs/WeaponCatalog";
 import { PlayerClass, PlayerFactory } from "../../factories/PlayerFactory";
-import { Game } from "../../gameplay/Game";
+import { Game } from "../../gameplay/core/Game";
 import { ISkill } from "../../skills/ISkill";
 import { IWeapon } from "../../weapon/IWeapon";
 import { Logger } from "../output/Logger";
@@ -17,8 +17,22 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
 
   const playerSkills: ISkill[] = [];
   const playerFactory = new PlayerFactory();
-  const types: string[] = ["Knight", "Archer", "Wizard", "Monk", "Gunsmith", "Swordsman"];
-  const weapons: string[] = ["sword", "bow", "stick", "fists", "pistols", "dual-swords"];
+  const types: string[] = [
+    "Knight",
+    "Archer",
+    "Wizard",
+    "Monk",
+    "Gunsmith",
+    "Swordsman",
+  ];
+  const weapons: string[] = [
+    "sword",
+    "bow",
+    "stick",
+    "fists",
+    "pistols",
+    "dual-swords",
+  ];
   const skillNames: string[] = [
     "огненные стрелы",
     "ледяные стрелы",
@@ -94,9 +108,7 @@ export async function createCharacter(numberOfPlayers: number): Promise<void> {
       if (playerSkills.length >= 2) {
         console.log("У вас уже максимальное количество скиллов");
       } else {
-        playerSkills.push(
-          createSkill(skillNames[number - 1])!,
-        );
+        playerSkills.push(createSkill(skillNames[number - 1])!);
       }
       await askForSkills();
     } else if (number === 6) {

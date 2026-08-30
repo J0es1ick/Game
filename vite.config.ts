@@ -35,12 +35,12 @@ export default defineConfig({
             },
             {
               name: "character-art",
-              test: /[\\/]web[\\/]CharacterIllustration\.ts$/,
+              test: /[\\/]CharacterIllustration\.ts$/,
               includeDependenciesRecursively: false,
             },
             {
               name: "ui-support",
-              test: /[\\/]web[\\/](GameAudio|TutorialCatalog|UiRuntime)\.ts$/,
+              test: /[\\/](GameAudio|TutorialCatalog|UiRuntime)\.ts$/,
               includeDependenciesRecursively: false,
             },
           ],

@@ -10,16 +10,28 @@ export class Gunsmith extends Player {
     description: "После первого попадания оружейник стреляет из второй руки.",
   };
 
-  constructor(health: number, strength: number, name: string, weapon: IWeapon, skills: ISkill[]) {
+  constructor(
+    health: number,
+    strength: number,
+    name: string,
+    weapon: IWeapon,
+    skills: ISkill[],
+  ) {
     super(health, strength, name, weapon, skills);
   }
 
   protected override modifyOutgoingDamage(damage: number): number {
-    this.recordDispatch("Gunsmith.modifyOutgoingDamage()", "Вторая пистоль добавила ещё 55% урона.");
+    this.recordDispatch(
+      "Gunsmith.modifyOutgoingDamage()",
+      "Вторая пистоль добавила ещё 55% урона.",
+    );
     return Math.round(damage * 1.55);
   }
 
-  public override modifyCombatAttack(damage: number, context: CombatContext): CombatModifier {
+  public override modifyCombatAttack(
+    damage: number,
+    context: CombatContext,
+  ): CombatModifier {
     return {
       damage,
       secondaryDamageRatio: (context.setCounts.powder ?? 0) >= 4 ? 0.75 : 0.55,

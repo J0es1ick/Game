@@ -1,0 +1,30 @@
+.react-loading-screen,
+.react-loading-page {
+  display: grid;
+  min-height: 55dvh;
+  align-content: center;
+  justify-items: center;
+  gap: 16px;
+  color: var(--muted);
+}
+.react-loading-screen {
+  min-height: 100dvh;
+}
+.loading-mark {
+  display: inline-block;
+  color: var(--red);
+  font:
+    44px/1 Georgia,
+    serif;
+  animation: loading-turn 1.8s linear infinite;
+}
+@keyframes loading-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-mark {
+    animation: none;
+  }
+}

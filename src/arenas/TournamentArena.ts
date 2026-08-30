@@ -1,5 +1,5 @@
 import type { Player } from "../abstract/Player";
-import type { ArenaDefinition } from "../gameplay/WorldTypes";
+import type { ArenaDefinition } from "../gameplay/core/WorldTypes";
 import type { IArena } from "./IArena";
 
 export class TournamentArena implements IArena, ArenaDefinition {
@@ -9,9 +9,14 @@ export class TournamentArena implements IArena, ArenaDefinition {
 
   public constructor(definition: ArenaDefinition) {
     Object.assign(this, definition);
-    this.damageMultiplier = definition.prestige === "royal" ? 1.12
-      : definition.prestige === "grand" ? 1.06
-        : definition.id === "yard" ? 0.9 : 1;
+    this.damageMultiplier =
+      definition.prestige === "royal"
+        ? 1.12
+        : definition.prestige === "grand"
+          ? 1.06
+          : definition.id === "yard"
+            ? 0.9
+            : 1;
     this.experienceBonus = definition.rewardExperience;
   }
 
@@ -30,7 +35,11 @@ export class TournamentArena implements IArena, ArenaDefinition {
   public readonly prestige!: "local" | "regional" | "grand" | "royal";
   public readonly accent!: string;
 
-  public modifyDamage(damage: number, _attacker: Player, _defender: Player): number {
+  public modifyDamage(
+    damage: number,
+    _attacker: Player,
+    _defender: Player,
+  ): number {
     return Math.max(0, Math.round(damage * this.damageMultiplier));
   }
 }

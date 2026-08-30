@@ -20,7 +20,10 @@ export class Wizard extends Player {
     super(playerHealth, playerStrength, playerName, playerWeapon, playerSkills);
   }
 
-  public override useSkill(opponent: Player, skillName: string | null = null): boolean {
+  public override useSkill(
+    opponent: Player,
+    skillName: string | null = null,
+  ): boolean {
     const used = super.useSkill(opponent, skillName);
     if (used) {
       const healthBefore = this.health;
@@ -34,7 +37,10 @@ export class Wizard extends Player {
     return used;
   }
 
-  public override recoveryAfterSkill(maxHealth: number, currentHealth: number): number {
+  public override recoveryAfterSkill(
+    maxHealth: number,
+    currentHealth: number,
+  ): number {
     return Math.min(maxHealth - currentHealth, Math.round(maxHealth * 0.05));
   }
 }

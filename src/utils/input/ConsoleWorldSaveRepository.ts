@@ -5,8 +5,8 @@ import {
   exportWorldSave,
   parseWorldSave,
   safeParseWorldSave,
-} from "../../gameplay/WorldSaveStorage";
-import { GameSave } from "../../gameplay/WorldTypes";
+} from "../../gameplay/save/WorldSaveStorage";
+import { GameSave } from "../../gameplay/core/WorldTypes";
 
 export type ConsoleSaveSource = "primary" | "temporary" | "backup";
 
@@ -27,8 +27,9 @@ export class ConsoleWorldSaveRepository {
   }
 
   public exists(): boolean {
-    return [this.primaryPath, this.temporaryPath, this.backupPath]
-      .some((filePath) => fs.existsSync(filePath));
+    return [this.primaryPath, this.temporaryPath, this.backupPath].some(
+      (filePath) => fs.existsSync(filePath),
+    );
   }
 
   public load(): LoadedConsoleWorldSave | null {
@@ -55,9 +56,11 @@ export class ConsoleWorldSaveRepository {
     const serialized = exportWorldSave(save, now);
     this.writeDurably(this.temporaryPath, serialized);
     const verified = this.tryRead(this.temporaryPath);
-    if (!verified) throw new Error("Не удалось проверить временную копию сохранения.");
+    if (!verified)
+      throw new Error("Не удалось проверить временную копию сохранения.");
 
-    if (this.tryRead(this.primaryPath)) this.copyVerified(this.primaryPath, this.backupPath);
+    if (this.tryRead(this.primaryPath))
+      this.copyVerified(this.primaryPath, this.backupPath);
     this.writePrimaryFromVerifiedTemporary();
   }
 
@@ -77,7 +80,8 @@ export class ConsoleWorldSaveRepository {
     const destination = path.resolve(filePath);
     fs.mkdirSync(path.dirname(destination), { recursive: true });
     this.writeDurably(destination, this.export());
-    if (!this.tryRead(destination)) throw new Error("Экспортированное сохранение не прошло проверку.");
+    if (!this.tryRead(destination))
+      throw new Error("Экспортированное сохранение не прошло проверку.");
     return destination;
   }
 
@@ -104,13 +108,17 @@ export class ConsoleWorldSaveRepository {
   private copyVerified(source: string, destination: string): void {
     this.ensureDirectory();
     fs.copyFileSync(source, destination);
-    if (!this.tryRead(destination)) throw new Error("Не удалось создать проверенную резервную копию сохранения.");
+    if (!this.tryRead(destination))
+      throw new Error(
+        "Не удалось создать проверенную резервную копию сохранения.",
+      );
   }
 
   private writePrimaryFromVerifiedTemporary(): void {
     this.ensureDirectory();
     fs.copyFileSync(this.temporaryPath, this.primaryPath);
-    if (!this.tryRead(this.primaryPath)) throw new Error("Основной файл сохранения повреждён при записи.");
+    if (!this.tryRead(this.primaryPath))
+      throw new Error("Основной файл сохранения повреждён при записи.");
     this.removeIfPresent(this.temporaryPath);
   }
 

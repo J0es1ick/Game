@@ -1,0 +1,299 @@
+.sound-toggle {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  padding: 9px;
+}
+.sound-toggle svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+.sound-toggle .sound-off-line {
+  display: none;
+}
+.sound-toggle[aria-pressed="true"] .sound-waves {
+  display: none;
+}
+.sound-toggle[aria-pressed="true"] .sound-off-line {
+  display: block;
+}
+
+.world-effect-stage {
+  position: fixed;
+  z-index: 80;
+  inset: auto auto 22px 22px;
+  width: min(410px, calc(100vw - 44px));
+  pointer-events: none;
+}
+body.battle-open .world-effect-stage {
+  z-index: 170;
+}
+.world-effect-card {
+  --effect: #756b59;
+  display: grid;
+  grid-template-columns: 62px minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid #5f574a;
+  border-left: 7px solid var(--effect);
+  color: #eae2d1;
+  background: #2c2923;
+  box-shadow: 10px 12px 0 rgba(17, 14, 10, 0.34);
+  animation: world-effect-arrive 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  pointer-events: auto;
+}
+.world-effect-card.positive {
+  --effect: #7f9d73;
+}
+.world-effect-card.negative {
+  --effect: #a95142;
+}
+.world-effect-card.legendary {
+  --effect: #d0a646;
+}
+.world-effect-card.leaving {
+  animation: world-effect-leave 360ms ease-in both;
+}
+.world-effect-symbol {
+  display: grid;
+  min-height: 100%;
+  color: #201d18;
+  background: var(--effect);
+  font:
+    27px/1 Georgia,
+    serif;
+  place-items: center;
+}
+.world-effect-card > div {
+  padding: 16px 18px 17px;
+}
+.world-effect-card small {
+  display: block;
+  color: #c8bda8;
+  font:
+    10px/1.25 "Courier New",
+    monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.world-effect-card h3 {
+  margin: 5px 0 4px;
+  color: #fff7e6;
+  font-size: 21px;
+}
+.world-effect-card p {
+  margin: 0;
+  color: #d3c9b6;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.world-effect-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 10px;
+}
+.world-effect-stats span {
+  padding: 4px 7px;
+  border: 1px solid #726959;
+  color: #f4ead4;
+  font:
+    11px "Courier New",
+    monospace;
+}
+
+.world-announcement-stage {
+  inset: var(
+      --announcement-top,
+      calc(
+        var(--game-header-height, 76px) + var(--main-nav-height, 82px) + 12px
+      )
+    )
+    auto auto 50%;
+  width: min(660px, calc(100vw - 32px));
+  transform: translateX(-50%);
+}
+.world-announcement-stage .world-effect-card {
+  position: relative;
+  grid-template-columns: 58px minmax(0, 1fr);
+  max-height: min(360px, calc(100dvh - var(--announcement-top, 170px) - 20px));
+  overflow-y: auto;
+  border: 1px solid #6f6655;
+  border-bottom: 4px solid var(--effect);
+  box-shadow: 0 8px 22px rgba(17, 14, 10, 0.28);
+  animation: announcement-arrive 320ms ease-out both;
+}
+.world-announcement-stage .world-effect-card.leaving {
+  animation: announcement-leave 360ms ease-in both;
+}
+.world-announcement-stage .world-effect-symbol {
+  color: var(--effect);
+  background: #25221d;
+  border-right: 1px solid #4d473c;
+  font-size: 32px;
+}
+.world-announcement-stage .world-effect-card > div {
+  padding: 16px 48px 17px 20px;
+}
+.world-announcement-stage h3 {
+  font-size: 25px;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+.world-announcement-stage p {
+  font-size: 14px;
+}
+.world-effect-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  color: #ded4c1;
+  background: transparent;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+.world-effect-close:hover,
+.world-effect-close:focus-visible {
+  border-color: #847763;
+  background: #423a30;
+  color: #fff7e6;
+}
+.world-effect-action {
+  margin-top: 12px;
+  padding: 9px 14px;
+  border: 1px solid var(--effect);
+  background: #3b3429;
+  color: #ffedc2;
+  font:
+    600 14px/1.3 "Inter",
+    sans-serif;
+  cursor: pointer;
+}
+.world-effect-action:hover,
+.world-effect-action:focus-visible {
+  background: #d0a646;
+  color: #282219;
+}
+
+.term-help {
+  position: relative;
+  color: #76551f;
+  text-decoration: none;
+}
+.term-help::after {
+  content: none;
+}
+.game-shell [data-term],
+.react-modal-layer [data-term],
+.term-help {
+  color: #76551f;
+  text-decoration: none;
+  cursor: help;
+  transition: color 120ms ease;
+}
+.game-shell [data-term]:is(:hover, :focus-visible),
+.react-modal-layer [data-term]:is(:hover, :focus-visible),
+.term-help:is(:hover, :focus-visible) {
+  color: #a34f3e;
+}
+.term-tooltip {
+  position: fixed;
+  z-index: 260;
+  box-sizing: border-box;
+  padding: 13px 15px;
+  border: 1px solid #655d50;
+  border-top: 4px solid #b78c3c;
+  color: #eae1cf;
+  background: #2b2822;
+  box-shadow: 7px 8px 0 rgba(20, 17, 12, 0.28);
+  pointer-events: none;
+}
+.term-tooltip strong,
+.term-tooltip span {
+  display: block;
+}
+.term-tooltip strong {
+  margin-bottom: 5px;
+  color: #fff6e4;
+  font-size: 14px;
+}
+.term-tooltip span {
+  color: #cbc0ad;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@keyframes world-effect-arrive {
+  from {
+    opacity: 0;
+    transform: translate3d(50px, -12px, 0) rotate(1.5deg);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0);
+  }
+}
+@keyframes world-effect-leave {
+  to {
+    opacity: 0;
+    transform: translate3d(30px, -8px, 0) scale(0.97);
+  }
+}
+@keyframes announcement-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes announcement-leave {
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+@media (max-width: 720px) {
+  .world-effect-stage {
+    inset: auto 12px 16px;
+    width: auto;
+  }
+  .world-effect-card {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+  .world-announcement-stage {
+    inset: var(--announcement-top, calc(var(--main-nav-height, 82px) + 12px))
+      auto auto 50%;
+    width: calc(100vw - 24px);
+  }
+  .world-announcement-stage .world-effect-card {
+    grid-template-columns: 42px minmax(0, 1fr);
+  }
+  .world-announcement-stage .world-effect-card > div {
+    padding: 13px 42px 14px 13px;
+  }
+  .world-announcement-stage h3 {
+    font-size: 21px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .world-effect-card,
+  .world-effect-card.leaving,
+  .world-announcement-stage .world-effect-card,
+  .world-announcement-stage .world-effect-card.leaving {
+    animation-duration: 1ms;
+  }
+}
