@@ -1,8 +1,8 @@
 import { ARENAS, CLASS_DEFINITIONS, DUEL_TIERS, ITEM_TEMPLATES } from "../src/catalogs/WorldCatalog";
-import { resolveCombat } from "../src/gameplay/AdvancedBattle";
-import { cumulativeHeroExperience } from "../src/gameplay/ProgressionBalance";
-import { SeededRandom } from "../src/gameplay/RandomSource";
-import { calculateEnemyWorldRating, calculateHeroWorldRating } from "../src/gameplay/WorldRanking";
+import { resolveCombat } from "../src/gameplay/combat/AdvancedBattle";
+import { cumulativeHeroExperience } from "../src/gameplay/progression/ProgressionBalance";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
+import { calculateEnemyWorldRating, calculateHeroWorldRating } from "../src/gameplay/world/WorldRanking";
 import type {
   EnemyProfile,
   EquipmentItem,
@@ -11,7 +11,7 @@ import type {
   HeroProfile,
   Rarity,
   Stats,
-} from "../src/gameplay/WorldTypes";
+} from "../src/gameplay/core/WorldTypes";
 
 const classes = Object.keys(CLASS_DEFINITIONS) as HeroClass[];
 const levels = [1, 10, 20, 30, 40] as const;

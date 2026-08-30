@@ -1,6 +1,6 @@
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { WorldSaveRepository, type KeyValueStorage } from "../src/gameplay/WorldSaveStorage";
-import { SaveTransferController } from "../src/web/SaveTransferController";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { WorldSaveRepository, type KeyValueStorage } from "../src/gameplay/save/WorldSaveStorage";
+import { SaveTransferController } from "../src/web/react/app/state/SaveTransferController";
 
 class MemoryStorage implements KeyValueStorage {
   private readonly values = new Map<string, string>();

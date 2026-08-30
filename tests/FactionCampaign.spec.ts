@@ -1,10 +1,10 @@
 import { FACTION_ITEM_TEMPLATES } from "../src/catalogs/FactionEquipmentCatalog";
 import { createItem } from "../src/factories/ItemFactory";
-import { SeededRandom } from "../src/gameplay/RandomSource";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
 import {
   claimFactionCampaignReward, factionCampaignViews, factionMentorAccess,
   normalizeFactionCampaigns, recordFactionCampaignEvent,
-} from "../src/gameplay/FactionCampaign";
+} from "../src/gameplay/world/FactionCampaign";
 
 describe("faction campaigns", () => {
   test("requires reputation and only counts contracts of the matching faction", () => {

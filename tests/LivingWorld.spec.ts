@@ -4,9 +4,9 @@ import {
   createWorldRelicRecord,
   normalizeFactionControlState,
   normalizeWorldRelics,
-} from "../src/gameplay/LivingWorld";
-import { SeededRandom } from "../src/gameplay/RandomSource";
-import { WorldGame } from "../src/gameplay/WorldGame";
+} from "../src/gameplay/world/LivingWorld";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
 import { ARENAS, DUNGEONS } from "../src/catalogs/WorldCatalog";
 import { FACTIONS } from "../src/catalogs/WorldExpansionCatalog";
 

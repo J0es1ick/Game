@@ -2,28 +2,28 @@ import { createElement, act as reactAct, type ComponentType } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { readFileSync } from "fs";
 import { resolve } from "path";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { compareEquipment } from "../src/gameplay/EquipmentComparison";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { compareEquipment } from "../src/gameplay/equipment/EquipmentComparison";
 import {
   EquipmentComparisonDialog,
   EquipmentPickerDialog,
-} from "../src/web/react/equipment/EquipmentDialogs";
-import { NewChronicleDialog } from "../src/web/react/dialogs/NewChronicleDialog";
-import { DialogVisibility } from "../src/web/react/components/common";
-import { rarityColors, statKeys } from "../src/web/react/equipment/model";
+} from "../src/web/react/features/equipment/components/EquipmentDialogs/EquipmentDialogs";
+import { NewChronicleDialog } from "../src/web/react/features/progression/NewChronicleDialog/NewChronicleDialog";
+import { DialogVisibility } from "../src/web/react/shared/ui/common";
+import { rarityColors, statKeys } from "../src/web/react/features/equipment/utils/model";
 
-jest.mock("../src/web/react/equipment/equipment-react.css", () => ({}));
-jest.mock("../src/web/react/state/GameContext", () => ({
+jest.mock("../src/web/react/features/equipment/styles/components.css", () => ({}));
+jest.mock("../src/web/react/app/state/GameContext", () => ({
   useGame: () => mockContext,
 }));
 
 const { JSDOM } = require("jsdom");
 const postcss = require("postcss");
 const stylesheet = [
-  "src/web/styles/equipment.css",
-  "src/web/styles/new-chronicle.css",
-  "src/web/styles/react-ui.css",
-  "src/web/react/equipment/equipment-react.css",
+  "src/web/react/features/equipment/styles/equipment.css",
+  "src/web/react/features/progression/NewChronicleDialog/NewChronicleDialog.css",
+  "src/web/react/app/styles/react-ui.css",
+  "src/web/react/features/equipment/styles/components.css",
 ]
   .map((path) =>
     postcss

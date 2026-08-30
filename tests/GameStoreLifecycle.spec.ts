@@ -1,9 +1,9 @@
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { createWorldSavePreparer, type WorldSavePreparationRequest, type WorldSavePreparationResponse } from "../src/gameplay/WorldSavePreparation";
-import { parseWorldSave, type KeyValueStorage } from "../src/gameplay/WorldSaveStorage";
-import type { WorldSaveWorkerPort } from "../src/gameplay/WorldSaveWriter";
-import type { GameSave } from "../src/gameplay/WorldTypes";
-import { GameStore, MODE_KEY } from "../src/web/react/state/GameStore";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { createWorldSavePreparer, type WorldSavePreparationRequest, type WorldSavePreparationResponse } from "../src/gameplay/save/WorldSavePreparation";
+import { parseWorldSave, type KeyValueStorage } from "../src/gameplay/save/WorldSaveStorage";
+import type { WorldSaveWorkerPort } from "../src/gameplay/save/WorldSaveWriter";
+import type { GameSave } from "../src/gameplay/core/WorldTypes";
+import { GameStore, MODE_KEY } from "../src/web/react/app/state/GameStore";
 
 class MemoryStorage implements KeyValueStorage {
   public readonly values = new Map<string, string>();
@@ -247,6 +247,31 @@ describe("React save lifecycle", () => {
     store.dispose();
   });
 
+  test("offline progress appears once as a dismissible world overview notice", () => {
+    const { store, storage, game } = setup(false);
+    game.save.lastSimulatedAt = Date.now() - 20 * 60_000;
+    store.repository.save(game.save);
+    storage.setItem(MODE_KEY, "world");
+
+    store.initialize();
+
+    const notice = store
+      .getSnapshot()
+      .effects.find((effect) => effect.replaceKey === "offline-world-progress");
+    expect(notice).toMatchObject({
+      eyebrow: "ПОКА ВАС НЕ БЫЛО",
+      title: "Мир прожил ещё 2 дн.",
+      variant: "season",
+      duration: 8000,
+    });
+    expect(notice?.description).toContain("В обзоре мира");
+    notice?.action?.run();
+    expect(store.getSnapshot().page).toBe("chronicle");
+    store.dismissEffect(notice!.id);
+    expect(store.getSnapshot().effects).toHaveLength(0);
+    store.dispose();
+  });
+
   test.each(["battle", "dungeon"] as const)("backup recovery reopens a pending %s", (kind) => {
     const { store, game } = setup();
     const previous = gameFor("Возобновлённый");
@@ -301,9 +326,9 @@ describe("React save lifecycle", () => {
 
   test("navigation waits for the matching rendered route and ignores stale completion", () => {
     const { store } = setup();
-    store.navigate("chronicle", "epoch-history-view");
+    store.navigate("history", "epoch-history-view");
     const first = store.getSnapshot().navigation!;
-    expect(first).toMatchObject({ page: "chronicle", anchor: "epoch-history-view" });
+    expect(first).toMatchObject({ page: "history", anchor: "epoch-history-view" });
     store.navigate("shop");
     const second = store.getSnapshot().navigation!;
     expect(second.id).not.toBe(first.id);

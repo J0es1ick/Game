@@ -2,8 +2,8 @@ import {
   BattleEffectPipeline,
   createClassResource,
   EffectFighter,
-} from "../src/gameplay/CombatEffects";
-import type { HeroClass } from "../src/gameplay/WorldTypes";
+} from "../src/gameplay/combat/CombatEffects";
+import type { HeroClass } from "../src/gameplay/core/WorldTypes";
 
 function fighter(id: string, classId: HeroClass): EffectFighter {
   return { id, classId, health: 70, maxHealth: 100, statuses: [], resource: createClassResource(classId) };

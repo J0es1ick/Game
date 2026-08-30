@@ -3,9 +3,9 @@ import {
   buildLegacySalvageEntries,
   relicDustYield,
   sortLegacyPathCandidates,
-} from "../src/gameplay/EquipmentLegacy";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { EquipmentItem, Rarity } from "../src/gameplay/WorldTypes";
+} from "../src/gameplay/equipment/EquipmentLegacy";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { EquipmentItem, Rarity } from "../src/gameplay/core/WorldTypes";
 
 function equipment(id: string, rarity: Rarity, level: number, enhancement = 0): EquipmentItem {
   return {

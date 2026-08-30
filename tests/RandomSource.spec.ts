@@ -1,5 +1,5 @@
-import { FixedGameClock } from "../src/gameplay/GameClock";
-import { PersistentSeededRandom, RandomSnapshot, SeededRandom } from "../src/gameplay/RandomSource";
+import { FixedGameClock } from "../src/gameplay/core/GameClock";
+import { PersistentSeededRandom, RandomSnapshot, SeededRandom } from "../src/gameplay/core/RandomSource";
 import { createItem } from "../src/factories/ItemFactory";
 
 describe("SeededRandom", () => {

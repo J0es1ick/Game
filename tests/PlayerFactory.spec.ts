@@ -1,4 +1,4 @@
-import { Archer, Gunsmith, Knight, Monk, Swordsman, Wizard } from "../src/classes";
+import { Archer, Gunsmith, Knight, Monk, Swordsman, Wizard } from "../src/classes/index";
 import { PlayerFactory } from "../src/factories/PlayerFactory";
 
 describe("PlayerFactory", () => {

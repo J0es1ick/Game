@@ -1,8 +1,8 @@
-import { BattleSession } from "../src/gameplay/AdvancedBattle";
-import { combatActionRate, combatArmorMultiplier, combatPressure, MAX_DIRECT_DAMAGE_SHARE, skillHealing } from "../src/gameplay/CombatBalance";
-import { SeededRandom } from "../src/gameplay/RandomSource";
+import { BattleSession } from "../src/gameplay/combat/AdvancedBattle";
+import { combatActionRate, combatArmorMultiplier, combatPressure, MAX_DIRECT_DAMAGE_SHARE, skillHealing } from "../src/gameplay/combat/CombatBalance";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
 import { SKILLS } from "../src/catalogs/WorldCatalog";
-import type { CombatantSnapshot } from "../src/gameplay/WorldTypes";
+import type { CombatantSnapshot } from "../src/gameplay/core/WorldTypes";
 
 describe("Combat balance", () => {
   test("speed stays useful but has a bounded diminishing return", () => {

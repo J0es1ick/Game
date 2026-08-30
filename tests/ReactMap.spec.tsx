@@ -1,34 +1,34 @@
 import { readFileSync } from "fs";
-import type { GameStore as GameStoreType } from "../src/web/react/state/GameStore";
-import type { WorldGame as WorldGameType } from "../src/gameplay/WorldGame";
+import type { GameStore as GameStoreType } from "../src/web/react/app/state/GameStore";
+import type { WorldGame as WorldGameType } from "../src/gameplay/core/WorldGame";
 import {
   createReactEnvironment,
   ReactMemoryStorage,
 } from "./helpers/ReactEnvironment";
 
-jest.mock("../src/web/react/map/map-react.css", () => ({}));
+jest.mock("../src/web/react/features/map/styles/components.css", () => ({}));
 
 const environment = createReactEnvironment();
 const { act, cleanup, fireEvent, render, within } =
   require("@testing-library/react/pure") as typeof import("@testing-library/react/pure");
 const { WorldGame } =
-  require("../src/gameplay/WorldGame") as typeof import("../src/gameplay/WorldGame");
+  require("../src/gameplay/core/WorldGame") as typeof import("../src/gameplay/core/WorldGame");
 const { ARENAS, DUNGEONS, ENDGAME_ACTIVITIES } =
   require("../src/catalogs/WorldCatalog") as typeof import("../src/catalogs/WorldCatalog");
 const { GameStore } =
-  require("../src/web/react/state/GameStore") as typeof import("../src/web/react/state/GameStore");
+  require("../src/web/react/app/state/GameStore") as typeof import("../src/web/react/app/state/GameStore");
 const { GameProvider } =
-  require("../src/web/react/state/GameContext") as typeof import("../src/web/react/state/GameContext");
+  require("../src/web/react/app/state/GameContext") as typeof import("../src/web/react/app/state/GameContext");
 const { MapPage } =
-  require("../src/web/react/pages/MapPage") as typeof import("../src/web/react/pages/MapPage");
+  require("../src/web/react/features/map/pages/MapPage/MapPage") as typeof import("../src/web/react/features/map/pages/MapPage/MapPage");
 const { MapShortcuts, mapShortcuts } =
-  require("../src/web/react/map/MapShortcuts") as typeof import("../src/web/react/map/MapShortcuts");
+  require("../src/web/react/features/map/components/MapShortcuts/MapShortcuts") as typeof import("../src/web/react/features/map/components/MapShortcuts/MapShortcuts");
 const { ActivityCard } =
-  require("../src/web/react/map/ActivityCard") as typeof import("../src/web/react/map/ActivityCard");
+  require("../src/web/react/features/map/components/ActivityCard/ActivityCard") as typeof import("../src/web/react/features/map/components/ActivityCard/ActivityCard");
 const { EndgameActivityCard, LegendDefenseCard } =
-  require("../src/web/react/map/EliteChallenges") as typeof import("../src/web/react/map/EliteChallenges");
+  require("../src/web/react/features/map/components/EliteChallenges/EliteChallenges") as typeof import("../src/web/react/features/map/components/EliteChallenges/EliteChallenges");
 const { NewChronicleStatus } =
-  require("../src/web/react/map/NewChronicleStatus") as typeof import("../src/web/react/map/NewChronicleStatus");
+  require("../src/web/react/features/map/components/NewChronicleStatus/NewChronicleStatus") as typeof import("../src/web/react/features/map/components/NewChronicleStatus/NewChronicleStatus");
 
 describe("React world map", () => {
   let game: WorldGameType;
@@ -272,7 +272,10 @@ describe("React world map", () => {
   });
 
   test("sticky offsets and anchor scrolling use measured navigation height and exclude the mobile header", () => {
-    const stylesheet = readFileSync("src/web/react/map/map-react.css", "utf8");
+    const stylesheet = readFileSync(
+      "src/web/react/features/map/styles/components.css",
+      "utf8",
+    );
     expect(stylesheet).toContain(
       "--map-header-offset: var(--game-header-height, 76px)",
     );

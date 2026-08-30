@@ -1,4 +1,4 @@
-import { combatantSnapshot, resolveCombat } from "../src/gameplay/AdvancedBattle";
+import { combatantSnapshot, resolveCombat } from "../src/gameplay/combat/AdvancedBattle";
 import type {
   EnemyProfile,
   EquipmentItem,
@@ -6,7 +6,7 @@ import type {
   HeroClass,
   HeroProfile,
   Stats,
-} from "../src/gameplay/WorldTypes";
+} from "../src/gameplay/core/WorldTypes";
 
 const balancedTactics = {
   id: "balanced",

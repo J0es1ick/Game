@@ -1,7 +1,7 @@
 import { ARENAS } from "../src/catalogs/WorldCatalog";
-import type { RandomSource } from "../src/gameplay/RandomSource";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import type { EraLawId } from "../src/gameplay/WorldTypes";
+import type { RandomSource } from "../src/gameplay/core/RandomSource";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import type { EraLawId } from "../src/gameplay/core/WorldTypes";
 
 const scheduleMigration = "crown-league-ten-day-schedule-v1";
 

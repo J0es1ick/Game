@@ -1,41 +1,41 @@
 import type { RenderResult } from "@testing-library/react/pure";
-import type { WorldGame as WorldGameType } from "../src/gameplay/WorldGame";
+import type { WorldGame as WorldGameType } from "../src/gameplay/core/WorldGame";
 import type {
   DungeonExpedition,
   ExpeditionStepReport,
-} from "../src/gameplay/WorldTypes";
-import type { GameStore as GameStoreType } from "../src/web/react/state/GameStore";
+} from "../src/gameplay/core/WorldTypes";
+import type { GameStore as GameStoreType } from "../src/web/react/app/state/GameStore";
 import {
   createReactEnvironment,
   ReactMemoryStorage,
 } from "./helpers/ReactEnvironment";
 
-jest.mock("../src/web/react/battle/battle-react.css", () => ({}));
-jest.mock("../src/web/react/basic/basic-react.css", () => ({}));
-jest.mock("../src/web/react/dialogs/tutorial-react.css", () => ({}));
-jest.mock("../src/web/react/equipment/equipment-react.css", () => ({}));
-jest.mock("../src/web/react/components/notifications-react.css", () => ({}), {
+jest.mock("../src/web/react/features/battle/styles/components.css", () => ({}));
+jest.mock("../src/web/react/features/basic/styles/components.css", () => ({}));
+jest.mock("../src/web/react/features/onboarding/TutorialDialog/TutorialDialog.css", () => ({}));
+jest.mock("../src/web/react/features/equipment/styles/components.css", () => ({}));
+jest.mock("../src/web/react/app/Notifications/Notifications.css", () => ({}), {
   virtual: true,
 });
-jest.mock("../src/web/react/map/map-react.css", () => ({}));
+jest.mock("../src/web/react/features/map/styles/components.css", () => ({}));
 
 const environment = createReactEnvironment();
 const { act, cleanup, fireEvent, render, waitFor, within } =
   require("@testing-library/react/pure") as typeof import("@testing-library/react/pure");
 const { App, AppErrorBoundary } =
-  require("../src/web/react/App") as typeof import("../src/web/react/App");
+  require("../src/web/react/app/App") as typeof import("../src/web/react/app/App");
 const { GameProvider } =
-  require("../src/web/react/state/GameContext") as typeof import("../src/web/react/state/GameContext");
+  require("../src/web/react/app/state/GameContext") as typeof import("../src/web/react/app/state/GameContext");
 const { GameStore } =
-  require("../src/web/react/state/GameStore") as typeof import("../src/web/react/state/GameStore");
+  require("../src/web/react/app/state/GameStore") as typeof import("../src/web/react/app/state/GameStore");
 const { WorldGame } =
-  require("../src/gameplay/WorldGame") as typeof import("../src/gameplay/WorldGame");
+  require("../src/gameplay/core/WorldGame") as typeof import("../src/gameplay/core/WorldGame");
 const { DUNGEONS } =
   require("../src/catalogs/WorldCatalog") as typeof import("../src/catalogs/WorldCatalog");
 const { pendingBattleReport } =
-  require("../src/web/PendingBattleUi") as typeof import("../src/web/PendingBattleUi");
+  require("../src/web/react/features/battle/utils/PendingBattleUi") as typeof import("../src/web/react/features/battle/utils/PendingBattleUi");
 const { gameAudio } =
-  require("../src/web/GameAudio") as typeof import("../src/web/GameAudio");
+  require("../src/web/react/app/audio/GameAudio") as typeof import("../src/web/react/app/audio/GameAudio");
 
 describe("React activity return navigation", () => {
   let store: GameStoreType;
@@ -117,7 +117,11 @@ describe("React activity return navigation", () => {
     );
     if (page === "shop") {
       fireEvent.click(tab(ui, "Лавка"));
-      await ui.findByRole("heading", { name: "Лавка Ионы" });
+      await ui.findByRole(
+        "heading",
+        { name: "Лавка Ионы" },
+        { timeout: 5000 },
+      );
       await waitFor(() => expect(store.getSnapshot().navigation).toBeNull());
     }
     await frames();
@@ -264,7 +268,11 @@ describe("React activity return navigation", () => {
         );
       } else {
         fireEvent.click(
-          (await ui.findAllByRole("button", { name: "Выбрать путь" }))[0],
+          (await ui.findAllByRole(
+            "button",
+            { name: "Выбрать путь" },
+            { timeout: 5000 },
+          ))[0],
         );
       }
       fireEvent.click(

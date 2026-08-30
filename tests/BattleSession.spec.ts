@@ -1,12 +1,12 @@
-import { BattleSession, resolveCombat } from "../src/gameplay/AdvancedBattle";
-import { RandomSource, SeededRandom } from "../src/gameplay/RandomSource";
+import { BattleSession, resolveCombat } from "../src/gameplay/combat/AdvancedBattle";
+import { RandomSource, SeededRandom } from "../src/gameplay/core/RandomSource";
 import type {
   EnemyProfile,
   EquipmentItem,
   EquipmentSlot,
   HeroClass,
   HeroProfile,
-} from "../src/gameplay/WorldTypes";
+} from "../src/gameplay/core/WorldTypes";
 
 const tactics = {
   id: "balanced",

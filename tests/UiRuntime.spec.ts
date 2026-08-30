@@ -1,4 +1,4 @@
-import { pageFromHash, pageHash } from "../src/web/UiRuntime";
+import { pageFromHash, pageHash } from "../src/web/react/app/routing/UiRuntime";
 
 describe("static application routes", () => {
   const pages = ["map", "inventory", "elite"] as const;

@@ -3,9 +3,9 @@ import {
   reforgeCost,
   reforgeProperty,
   rollTargetedLoot,
-} from "../src/gameplay/LootProgression";
-import { RandomSource, SeededRandom } from "../src/gameplay/RandomSource";
-import type { EquipmentItem, EquipmentSlot } from "../src/gameplay/WorldTypes";
+} from "../src/gameplay/equipment/LootProgression";
+import { RandomSource, SeededRandom } from "../src/gameplay/core/RandomSource";
+import type { EquipmentItem, EquipmentSlot } from "../src/gameplay/core/WorldTypes";
 
 function item(id: string, slot: EquipmentSlot, overrides: Partial<EquipmentItem> = {}): EquipmentItem {
   return {

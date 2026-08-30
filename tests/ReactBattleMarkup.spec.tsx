@@ -1,12 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import type { PendingTournamentState } from "../src/gameplay/WorldTypes";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import type { PendingTournamentState } from "../src/gameplay/core/WorldTypes";
 import {
   BattleSkillList,
   CombatantCard,
   FeatureChanges,
   TournamentBracket,
-} from "../src/web/react/battle/BattleParts";
+} from "../src/web/react/features/battle/components/BattleParts/BattleParts";
 
 describe("React battle presentation", () => {
   test("shows real resources and health with accessible limits", () => {

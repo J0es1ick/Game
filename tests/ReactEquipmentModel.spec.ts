@@ -3,9 +3,9 @@ import {
   filteredInventory,
   isProtected,
   pageSlice,
-} from "../src/web/react/equipment/model";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import type { EquipmentItem } from "../src/gameplay/WorldTypes";
+} from "../src/web/react/features/equipment/utils/model";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import type { EquipmentItem } from "../src/gameplay/core/WorldTypes";
 import { ITEM_TEMPLATES } from "../src/catalogs/WorldCatalog";
 
 describe("React equipment list selectors", () => {

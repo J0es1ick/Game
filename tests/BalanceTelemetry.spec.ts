@@ -1,5 +1,5 @@
-import { balanceWarnings, combatBalanceMetrics, worldBalanceSnapshot } from "../src/gameplay/BalanceTelemetry";
-import type { BattleReport, GameSave, LeaderboardEntry } from "../src/gameplay/WorldTypes";
+import { balanceWarnings, combatBalanceMetrics, worldBalanceSnapshot } from "../src/gameplay/combat/BalanceTelemetry";
+import type { BattleReport, GameSave, LeaderboardEntry } from "../src/gameplay/core/WorldTypes";
 
 function battle(turnCount: number, heroWon = true): BattleReport {
   const snapshot = { id: "hero", name: "Hero", classId: "Knight" as const, level: 10, maxHealth: 100, health: 100, attack: 10, defense: 10, speed: 10, crit: 5, equipmentScore: 10, skills: [] };

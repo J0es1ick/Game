@@ -1,5 +1,5 @@
-﻿import { Knight, Wizard } from "../src/classes";
-import { Game } from "../src/gameplay/Game";
+﻿import { Knight, Wizard } from "../src/classes/index";
+import { Game } from "../src/gameplay/core/Game";
 import { Logger } from "../src/utils/output/Logger";
 import { createRandomWeapon, createWeapon } from "../src/catalogs/WeaponCatalog";
 import { createSkill } from "../src/catalogs/SkillCatalog";

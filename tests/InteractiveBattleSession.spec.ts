@@ -1,6 +1,6 @@
-import { BattleSession } from "../src/gameplay/AdvancedBattle";
-import type { CombatantSnapshot } from "../src/gameplay/WorldTypes";
-import { SeededRandom } from "../src/gameplay/RandomSource";
+import { BattleSession } from "../src/gameplay/combat/AdvancedBattle";
+import type { CombatantSnapshot } from "../src/gameplay/core/WorldTypes";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
 
 const snapshot = (id: string, speed: number): CombatantSnapshot => ({
   id,

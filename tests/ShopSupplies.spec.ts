@@ -1,14 +1,14 @@
 import { createItem } from "../src/factories/ItemFactory";
-import { reforgeCost } from "../src/gameplay/LootProgression";
-import { SeededRandom } from "../src/gameplay/RandomSource";
+import { reforgeCost } from "../src/gameplay/equipment/LootProgression";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
 import {
   TEMPERING_MARK_BASE_PRICE,
   buyTemperingMarks,
   temperingMarkPrice,
-} from "../src/gameplay/ShopSupplies";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { exportWorldSave, parseWorldSave } from "../src/gameplay/WorldSaveStorage";
-import type { GameSave, Stats } from "../src/gameplay/WorldTypes";
+} from "../src/gameplay/equipment/ShopSupplies";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { exportWorldSave, parseWorldSave } from "../src/gameplay/save/WorldSaveStorage";
+import type { GameSave, Stats } from "../src/gameplay/core/WorldTypes";
 
 const NOW = 1_760_000_000_000;
 let initialSave: GameSave;

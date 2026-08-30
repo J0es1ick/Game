@@ -1,9 +1,9 @@
 import { ARENAS } from "../src/catalogs/WorldCatalog";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { auditWorldRelicRegistry, WorldRelicPlacement } from "../src/gameplay/WorldRelics";
-import { parseWorldSave } from "../src/gameplay/WorldSaveStorage";
-import { validateWorldSave } from "../src/gameplay/WorldSaveValidation";
-import { EquipmentItem, GameSave } from "../src/gameplay/WorldTypes";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { auditWorldRelicRegistry, WorldRelicPlacement } from "../src/gameplay/equipment/WorldRelics";
+import { parseWorldSave } from "../src/gameplay/save/WorldSaveStorage";
+import { validateWorldSave } from "../src/gameplay/save/WorldSaveValidation";
+import { EquipmentItem, GameSave } from "../src/gameplay/core/WorldTypes";
 
 function copy(save: GameSave): GameSave {
   return JSON.parse(JSON.stringify(save)) as GameSave;

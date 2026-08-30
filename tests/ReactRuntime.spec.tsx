@@ -1,4 +1,4 @@
-import type { GameStore as Store } from "../src/web/react/state/GameStore";
+import type { GameStore as Store } from "../src/web/react/app/state/GameStore";
 import {
   createReactEnvironment,
   ReactMemoryStorage,
@@ -8,13 +8,13 @@ const environment = createReactEnvironment();
 const { act, cleanup, fireEvent, render } =
   require("@testing-library/react/pure") as typeof import("@testing-library/react/pure");
 const { GameProvider, useAppSelector, useGame } =
-  require("../src/web/react/state/GameContext") as typeof import("../src/web/react/state/GameContext");
+  require("../src/web/react/app/state/GameContext") as typeof import("../src/web/react/app/state/GameContext");
 const { GameStore } =
-  require("../src/web/react/state/GameStore") as typeof import("../src/web/react/state/GameStore");
+  require("../src/web/react/app/state/GameStore") as typeof import("../src/web/react/app/state/GameStore");
 const { WorldGame } =
-  require("../src/gameplay/WorldGame") as typeof import("../src/gameplay/WorldGame");
+  require("../src/gameplay/core/WorldGame") as typeof import("../src/gameplay/core/WorldGame");
 const { PagedList, LazyDetails, Modal, DialogVisibility } =
-  require("../src/web/react/components/common") as typeof import("../src/web/react/components/common");
+  require("../src/web/react/shared/ui/common") as typeof import("../src/web/react/shared/ui/common");
 
 describe("React update boundaries and long lists", () => {
   let store: Store;

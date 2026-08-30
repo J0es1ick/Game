@@ -1,9 +1,9 @@
 import { ITEM_TEMPLATES } from "../src/catalogs/WorldCatalog";
 import { createItem } from "../src/factories/ItemFactory";
-import { relicDustYield } from "../src/gameplay/EquipmentLegacy";
-import { createWorldRelicRecord } from "../src/gameplay/LivingWorld";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import type { EquipmentItem } from "../src/gameplay/WorldTypes";
+import { relicDustYield } from "../src/gameplay/equipment/EquipmentLegacy";
+import { createWorldRelicRecord } from "../src/gameplay/world/LivingWorld";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import type { EquipmentItem } from "../src/gameplay/core/WorldTypes";
 
 function extraItem(game: WorldGame, id: string, price = 100): EquipmentItem {
   return { ...game.save.hero.inventory[0], id, price, stats: { ...game.save.hero.inventory[0].stats } };
@@ -59,12 +59,14 @@ describe("equipment operations", () => {
     const expectedValue = extras.reduce((sum, item) => sum + Math.max(1, Math.round(item.price * 0.45)), 0);
     const goldBefore = game.save.hero.gold;
     const find = jest.spyOn(game.save.hero.inventory, "find");
+    const quote = game.sellUnequippedQuote();
 
     const result = game.sellUnequipped();
 
     expect(find).not.toHaveBeenCalled();
     find.mockRestore();
-    expect(result).toEqual({ count: extras.length, value: expectedValue });
+    expect(quote).toEqual({ count: extras.length, value: expectedValue });
+    expect(result).toEqual(quote);
     expect(game.save.hero.gold).toBe(goldBefore + expectedValue);
     expect(game.save.hero.equipped).toEqual(equippedBefore);
     expect(game.save.hero.inventory.map((item) => item.id)).toEqual([...equippedIds, crown.id]);
@@ -73,7 +75,7 @@ describe("equipment operations", () => {
     expect(game.sellUnequipped()).toEqual({ count: 0, value: 0 });
   });
 
-  test("selling world relics returns them to circulation with their history intact", () => {
+  test("an intentional direct sale returns a world relic to circulation with its history intact", () => {
     const game = WorldGame.create("Хранитель", "Knight", 42_204);
     const relic = createItem(20, { classId: "Knight", rarity: "legendary", templateId: "wanderer-blade" });
     relic.relicTier = 1;
@@ -83,13 +85,65 @@ describe("equipment operations", () => {
     game.save.hero.inventory.push(record.item);
     const previousHistory = [...record.history];
 
-    expect(game.sellUnequipped().count).toBe(1);
+    expect(game.sellUnequipped()).toEqual({ count: 0, value: 0 });
+    expect(game.sell(record.item.id)).toBeGreaterThan(0);
     const released = game.save.worldRelics[0];
     expect(released.status).toBe("lost");
     expect(released.currentOwnerId).toBeUndefined();
     expect(released.history).toEqual(expect.arrayContaining(previousHistory));
-    expect(released.history.some((line) => line.includes("покинула инвентарь"))).toBe(true);
+    expect(released.history.some((line) => line.includes("продал реликвию"))).toBe(true);
     expect(game.save.hero.inventory.some((item) => item.worldRelicId === record.id)).toBe(false);
+  });
+
+  test("bulk sale protects an unequipped world relic and keeps its quote stable when protected equipment swaps slots", () => {
+    const game = WorldGame.create("Хранитель", "Knight", 42_208);
+    const crownTemplate = ITEM_TEMPLATES.find((template) => template.exclusiveToElite && template.slot === "weapon")!;
+    const crown = createItem(30, {
+      classId: "Knight",
+      templateId: crownTemplate.id,
+      rarity: "mythic",
+    });
+    const source = createItem(30, { classId: "Knight", slot: "weapon", rarity: "legendary" });
+    const record = createWorldRelicRecord("bulk-protected-world-relic", source, "hero", game.save.hero.name, game.save.worldDay);
+    game.save.worldRelics = [record];
+    game.save.hero.inventory = [record.item, crown];
+    game.save.hero.equipped = { weapon: record.item.id };
+
+    expect(game.canSellItem(record.item)).toBe(true);
+    expect(game.canBulkSellItem(record.item)).toBe(false);
+    expect(game.canBulkSellItem({ ...record.item, worldRelicId: undefined })).toBe(false);
+    expect(game.canBulkSellItem(crown)).toBe(false);
+    expect(game.sellUnequippedQuote()).toEqual({ count: 0, value: 0 });
+
+    game.save.hero.equipped = { weapon: crown.id };
+
+    expect(game.sellUnequippedQuote()).toEqual({ count: 0, value: 0 });
+    expect(game.sellUnequipped()).toEqual({ count: 0, value: 0 });
+    expect(game.save.hero.inventory.map((entry) => entry.id)).toEqual([record.item.id, crown.id]);
+    expect(game.save.worldRelics[0].status).toBe("wielded");
+
+    expect(game.sell(record.item.id)).toBeGreaterThan(0);
+    expect(game.save.worldRelics[0].status).toBe("lost");
+  });
+
+  test("upgrading a world relic keeps the inventory item and canonical registry copy identical", () => {
+    const game = WorldGame.create("Кузнец реликвий", "Knight", 42_209);
+    const source = createItem(30, { classId: "Knight", slot: "weapon", rarity: "legendary" });
+    const record = createWorldRelicRecord("upgraded-world-relic", source, "hero", game.save.hero.name, game.save.worldDay);
+    game.save.worldRelics = [record];
+    game.save.hero.inventory = [record.item];
+    game.save.hero.equipped = { weapon: record.item.id };
+    game.save.hero.temperingMarks = 100;
+
+    const upgraded = game.upgradeItem(record.item.id);
+    const canonical = game.save.worldRelics[0].item;
+
+    expect(upgraded).toEqual(canonical);
+    expect(upgraded.enhancement).toBe(1);
+    expect(upgraded.relicProperties).toEqual(canonical.relicProperties);
+    expect(canonical.relicHistory).toEqual(expect.arrayContaining([
+      expect.stringContaining("закалил реликвию до +1"),
+    ]));
   });
 
   test("bulk salvage indexes the inventory once and counts duplicate choices once", () => {

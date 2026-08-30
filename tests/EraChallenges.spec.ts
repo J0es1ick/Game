@@ -7,8 +7,8 @@ import {
   resolveEnemyMutation,
   SelectedEnemyMutation,
   createEraChallengeProgress,
-} from "../src/gameplay/EraChallenges";
-import { WorldGame } from "../src/gameplay/WorldGame";
+} from "../src/gameplay/world/EraChallenges";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
 
 function mutation(id: string): SelectedEnemyMutation {
   const definition = ENEMY_CLASS_MUTATIONS.find((candidate) => candidate.id === id)!;

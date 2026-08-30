@@ -1,7 +1,7 @@
 import { ARENAS } from "../src/catalogs/WorldCatalog";
-import { calculateEnemyWorldRating } from "../src/gameplay/WorldRanking";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { WorldEvent } from "../src/gameplay/WorldTypes";
+import { calculateEnemyWorldRating } from "../src/gameplay/world/WorldRanking";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { WorldEvent } from "../src/gameplay/core/WorldTypes";
 
 describe("critical world invariants", () => {
   it("returns newly prepended events even when the journal is already capped", () => {
@@ -77,5 +77,40 @@ describe("critical world invariants", () => {
     expect(firstReport.battle?.winnerId).toBe(secondReport.battle?.winnerId);
     expect(firstReport.battle?.turns).toEqual(secondReport.battle?.turns);
     expect(first.save.randomSnapshots.combat).toEqual(second.save.randomSnapshots.combat);
+  });
+
+  it("does not consume an expedition node before its pending battle starts", () => {
+    let game: WorldGame | undefined;
+    let nodeId: string | undefined;
+    for (let seed = 1; seed <= 20 && !nodeId; seed += 1) {
+      const candidate = WorldGame.create("Следопыт", "Knight", seed);
+      candidate.save.worldDay = 2;
+      candidate.save.hero.level = 40;
+      candidate.save.hero.highestArena = ARENAS.length - 1;
+      const expedition = candidate.startExpedition("cellar");
+      const combatNode = candidate.reachableExpeditionNodes().find((node) =>
+        ["battle", "elite", "rival", "boss", "alternate-boss"].includes(node.kind));
+      if (combatNode) {
+        game = candidate;
+        nodeId = combatNode.id;
+        expect(expedition.visitedNodeIds).not.toContain(nodeId);
+      }
+    }
+    expect(game).toBeDefined();
+    expect(nodeId).toBeDefined();
+    const expedition = game!.save.activeExpedition!;
+    const suppliesBefore = expedition.supplies;
+    const discoveryBefore = [...game!.dungeonDiscovery("cellar").discoveredNodeIds];
+
+    game!.beginExpeditionNode(nodeId!);
+
+    expect(game!.save.pendingBattle).toBeDefined();
+    expect(expedition.supplies).toBe(suppliesBefore);
+    expect(expedition.visitedNodeIds).not.toContain(nodeId);
+    expect(game!.dungeonDiscovery("cellar").discoveredNodeIds).toEqual(discoveryBefore);
+    game!.abortPendingBattle();
+    expect(game!.save.pendingBattle).toBeUndefined();
+    expect(expedition.supplies).toBe(suppliesBefore);
+    expect(game!.reachableExpeditionNodes().map((node) => node.id)).toContain(nodeId);
   });
 });

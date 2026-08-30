@@ -1,4 +1,4 @@
-import { eventReferencesFighter, formatStructuredWorldEvent } from "../src/gameplay/WorldEvents";
+import { eventReferencesFighter, formatStructuredWorldEvent } from "../src/gameplay/world/WorldEvents";
 
 describe("structured world events", () => {
   test("finds fighters by stable id rather than by text", () => {

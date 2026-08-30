@@ -9,8 +9,8 @@ import {
   resolveDungeonTrap,
   selectPersistentDungeonRival,
   visibleDungeonNodes,
-} from "../src/gameplay/DungeonRoute";
-import { SeededRandom } from "../src/gameplay/RandomSource";
+} from "../src/gameplay/dungeons/DungeonRoute";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
 
 describe("dungeon route", () => {
   test("creates a deterministic route with persistent encounters and two endings", () => {

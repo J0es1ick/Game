@@ -1,17 +1,18 @@
 import { createElement, act as reactAct, type ComponentType } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { WorldGame } from "../src/gameplay/WorldGame";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
 import { EQUIPMENT_SETS, SLOT_LABELS } from "../src/catalogs/WorldCatalog";
-import type { EquipmentItem } from "../src/gameplay/WorldTypes";
-import { InventoryPage } from "../src/web/react/equipment/InventoryPage";
-import { ForgePage } from "../src/web/react/equipment/ForgePage";
-import { SkillsPage } from "../src/web/react/equipment/SkillsPage";
-import { ShopPage } from "../src/web/react/equipment/ShopPage";
-import { LegacySalvage } from "../src/web/react/equipment/LegacySalvage";
-import { LegacyPage } from "../src/web/react/equipment/LegacyPage";
+import type { EquipmentItem } from "../src/gameplay/core/WorldTypes";
+import { InventoryPage } from "../src/web/react/features/equipment/pages/InventoryPage/InventoryPage";
+import { ForgePage } from "../src/web/react/features/equipment/pages/ForgePage/ForgePage";
+import { SkillsPage } from "../src/web/react/features/equipment/pages/SkillsPage/SkillsPage";
+import { ShopPage } from "../src/web/react/features/equipment/pages/ShopPage/ShopPage";
+import { LegacySalvage } from "../src/web/react/features/equipment/components/LegacySalvage/LegacySalvage";
+import { LegacyPage } from "../src/web/react/features/equipment/pages/LegacyPage/LegacyPage";
+import { HeroPage } from "../src/web/react/features/equipment/pages/HeroPage/HeroPage";
 
-jest.mock("../src/web/react/equipment/equipment-react.css", () => ({}));
-jest.mock("../src/web/react/state/GameContext", () => ({
+jest.mock("../src/web/react/features/equipment/styles/components.css", () => ({}));
+jest.mock("../src/web/react/app/state/GameContext", () => ({
   useGame: () => mockContext,
 }));
 
@@ -143,6 +144,44 @@ describe("React equipment updates", () => {
     click(buttons(soldCard, "Продать")[0]);
     expect(container.contains(soldCard)).toBe(false);
     expect(container.contains(other)).toBe(true);
+  });
+
+  it("uses the bulk-sale quote and keeps world relics protected", () => {
+    const unused = addItem("bulk-unused", { price: 200 });
+    const relic = addItem("bulk-world-relic", {
+      price: 2_000,
+      rarity: "relic",
+      worldRelicId: "world-relic-protected",
+    });
+    const quote = mockContext.game.sellUnequippedQuote();
+    expect(quote).toEqual({ count: 1, value: 90 });
+
+    render(InventoryPage);
+    const control = container.querySelector<HTMLButtonElement>(
+      "#inventory-sell-unequipped",
+    )!;
+    expect(control.disabled).toBe(false);
+    expect(control.textContent).toContain("Продать неиспользуемое · 1");
+    expect(control.textContent).toContain("90 ¤ · реликвии останутся");
+
+    click(control);
+
+    expect(dom.window.confirm).toHaveBeenCalledWith(
+      "Продать 1 неиспользуемых предметов за 90 ¤? Надетые вещи, регалии короны и мировые реликвии останутся у героя.",
+    );
+    expect(
+      mockContext.game.save.hero.inventory.some(
+        (item) => item.id === unused.id,
+      ),
+    ).toBe(false);
+    expect(
+      mockContext.game.save.hero.inventory.some((item) => item.id === relic.id),
+    ).toBe(true);
+    expect(control.disabled).toBe(true);
+    expect(control.textContent).toContain("Нет неиспользуемых вещей");
+    expect(control.textContent).toContain(
+      "Надетое, регалии и реликвии защищены",
+    );
   });
 
   it("bounds inventory pages and reaches items beyond the first page", () => {
@@ -312,6 +351,7 @@ describe("React equipment updates", () => {
     const legacyItem =
       container.querySelector<HTMLElement>(".relic-ready-card")!.dataset
         .relicReadyItemId;
+    click(buttons(container, "Разобрать")[0]);
     const salvage = container.querySelector("#legacy-salvage")!;
     click(buttons(salvage, "Далее")[0]);
     const checkbox = salvage.querySelector<HTMLInputElement>(
@@ -321,10 +361,6 @@ describe("React equipment updates", () => {
     const selectedName = checkbox.getAttribute("aria-label");
     render(Away);
     render(LegacyPage);
-    expect(
-      container.querySelector<HTMLElement>(".relic-ready-card")!.dataset
-        .relicReadyItemId,
-    ).toBe(legacyItem);
     const restored = container.querySelector("#legacy-salvage")!;
     expect(
       restored.querySelector(".equipment-pagination [role=status]")!
@@ -336,6 +372,32 @@ describe("React equipment updates", () => {
       )!.checked,
     ).toBe(true);
     expect(restored.textContent).toContain("Выбрано: 1");
+    click(buttons(container, "Развивать")[0]);
+    expect(
+      container.querySelector<HTMLElement>(".relic-ready-card")!.dataset
+        .relicReadyItemId,
+    ).toBe(legacyItem);
+  });
+
+  it("renders hero equipment, history and class change as stable pages", () => {
+    const HistoryPage = () => createElement(HeroPage, { section: "history" });
+    const ClassPage = () => createElement(HeroPage, { section: "class" });
+    render(HeroPage);
+    expect(container.querySelector("#paper-doll")).not.toBeNull();
+    expect(container.querySelector(".hero-history-grid")).toBeNull();
+    expect(container.querySelector("#class-change-panel")).toBeNull();
+
+    render(HistoryPage);
+    expect(container.querySelector("#paper-doll")).toBeNull();
+    expect(container.querySelector(".hero-history-grid")).not.toBeNull();
+
+    render(ClassPage);
+    expect(container.querySelector(".hero-history-grid")).toBeNull();
+    expect(container.querySelector("#class-change-panel")).not.toBeNull();
+
+    render(Away);
+    render(ClassPage);
+    expect(container.querySelector("#class-change-panel")).not.toBeNull();
   });
 
   it("does not carry filters from the previous world into a new game", () => {

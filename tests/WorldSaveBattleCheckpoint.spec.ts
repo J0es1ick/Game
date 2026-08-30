@@ -1,7 +1,7 @@
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { parseWorldSave, WorldSaveRepository, type KeyValueStorage } from "../src/gameplay/WorldSaveStorage";
-import { worldSaveChecksum } from "../src/gameplay/WorldSaveCodec";
-import type { GameSave } from "../src/gameplay/WorldTypes";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { parseWorldSave, WorldSaveRepository, type KeyValueStorage } from "../src/gameplay/save/WorldSaveStorage";
+import { worldSaveChecksum } from "../src/gameplay/save/WorldSaveCodec";
+import type { GameSave } from "../src/gameplay/core/WorldTypes";
 
 class MemoryStorage implements KeyValueStorage {
   public readonly values = new Map<string, string>();

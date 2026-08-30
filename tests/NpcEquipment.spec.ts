@@ -1,8 +1,8 @@
 import { ITEM_TEMPLATES } from "../src/catalogs/WorldCatalog";
 import { createItem } from "../src/factories/ItemFactory";
-import { considerNpcLoot } from "../src/gameplay/NpcEquipment";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { EquipmentItem, GameSave } from "../src/gameplay/WorldTypes";
+import { considerNpcLoot } from "../src/gameplay/equipment/NpcEquipment";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { EquipmentItem, GameSave } from "../src/gameplay/core/WorldTypes";
 
 function cloneItem(item: EquipmentItem, id: string): EquipmentItem {
   return {

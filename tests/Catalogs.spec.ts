@@ -2,7 +2,7 @@ import { createSkill } from "../src/catalogs/SkillCatalog";
 import { EQUIPMENT_SETS, ITEM_TEMPLATES } from "../src/catalogs/WorldCatalog";
 import { createRandomWeapon, createWeapon } from "../src/catalogs/WeaponCatalog";
 import { createItem } from "../src/factories/ItemFactory";
-import { EquipmentSlot, HeroClass, Stats } from "../src/gameplay/WorldTypes";
+import { EquipmentSlot, HeroClass, Stats } from "../src/gameplay/core/WorldTypes";
 
 const NEW_CLASS_SETS: Record<string, HeroClass> = {
   verdigris: "Knight",

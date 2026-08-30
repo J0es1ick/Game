@@ -1,7 +1,7 @@
 import { ARENAS, DUNGEONS } from "../src/catalogs/WorldCatalog";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { validateWorldSave } from "../src/gameplay/WorldSaveValidation";
-import { GameSave } from "../src/gameplay/WorldTypes";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { validateWorldSave } from "../src/gameplay/save/WorldSaveValidation";
+import { GameSave } from "../src/gameplay/core/WorldTypes";
 
 function copy(save: GameSave): GameSave {
   return JSON.parse(JSON.stringify(save)) as GameSave;

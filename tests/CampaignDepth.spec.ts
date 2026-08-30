@@ -1,9 +1,9 @@
-import { createEnemyStyleMemory, readEnemyStyleMemory } from "../src/gameplay/EnemyMemory";
-import { awardCrownSeasonPoints, createCrownSeason, seedThirtyFighterOpeningRound } from "../src/gameplay/CrownSeason";
-import { availableNarrativeEvents } from "../src/gameplay/NarrativeEvents";
-import { SeededRandom } from "../src/gameplay/RandomSource";
-import { buildRivalScoutingReport, rivalryStatus } from "../src/gameplay/RivalrySystem";
-import { applyFactionAllegiance, unlockedFactionPerks } from "../src/gameplay/FactionSystem";
+import { createEnemyStyleMemory, readEnemyStyleMemory } from "../src/gameplay/combat/EnemyMemory";
+import { awardCrownSeasonPoints, createCrownSeason, seedThirtyFighterOpeningRound } from "../src/gameplay/world/CrownSeason";
+import { availableNarrativeEvents } from "../src/gameplay/world/NarrativeEvents";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
+import { buildRivalScoutingReport, rivalryStatus } from "../src/gameplay/combat/RivalrySystem";
+import { applyFactionAllegiance, unlockedFactionPerks } from "../src/gameplay/world/FactionSystem";
 
 describe("campaign depth systems", () => {
   test("seeds a fair 30 fighter opening without random byes", () => {

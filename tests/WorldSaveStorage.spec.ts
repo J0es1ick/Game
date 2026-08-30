@@ -1,15 +1,15 @@
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { normalizeWorldSave } from "../src/gameplay/WorldSaveMigration";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { normalizeWorldSave } from "../src/gameplay/save/WorldSaveMigration";
 import {
   exportWorldSave,
   parseWorldSave,
   safeParseWorldSave,
   WorldSaveRepository,
-} from "../src/gameplay/WorldSaveStorage";
-import { GameSave } from "../src/gameplay/WorldTypes";
+} from "../src/gameplay/save/WorldSaveStorage";
+import { GameSave } from "../src/gameplay/core/WorldTypes";
 import { createItem } from "../src/factories/ItemFactory";
-import { createWorldRelicRecord } from "../src/gameplay/LivingWorld";
-import { SeededRandom } from "../src/gameplay/RandomSource";
+import { createWorldRelicRecord } from "../src/gameplay/world/LivingWorld";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
 
 class MemoryStorage {
   private readonly values = new Map<string, string>();

@@ -16,11 +16,11 @@ import {
   evolveNpcRelationships,
   refreshFutureBossAvailability,
   refreshNpcIdentity,
-} from "../src/gameplay/NpcLifeSimulation";
-import { RandomSource, SeededRandom } from "../src/gameplay/RandomSource";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { combatantSnapshot } from "../src/gameplay/AdvancedBattle";
-import { EnemyProfile, MentorRecord } from "../src/gameplay/WorldTypes";
+} from "../src/gameplay/world/NpcLifeSimulation";
+import { RandomSource, SeededRandom } from "../src/gameplay/core/RandomSource";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { combatantSnapshot } from "../src/gameplay/combat/AdvancedBattle";
+import { EnemyProfile, MentorRecord } from "../src/gameplay/core/WorldTypes";
 
 const fixedRandom: RandomSource = {
   next: () => 0,
@@ -364,6 +364,67 @@ describe("NpcLifeSimulation", () => {
     expect(refreshFutureBossAvailability(state, 73)).toHaveLength(0);
     expect(refreshFutureBossAvailability(state, 74)).toHaveLength(1);
     expect(state.futureBosses[0].status).toBe("available");
+  });
+
+  test("does not recreate a defeated future boss in a later season", () => {
+    const [fighter, rival] = fighters(2);
+    fighter.kills = 12;
+    fighter.relationships = {
+      [rival.id]: { fighterId: rival.id, kind: "rival", intensity: 82, lastChangedDay: 50 },
+    };
+    fighter.joinedDay = 50;
+    const state = createNpcLifeWorldState(1);
+    advanceNpcCareerSeason([fighter, rival], [], state, {
+      day: 60,
+      eliteIds: [],
+      seasonLength: 28,
+      random: fixedRandom,
+    });
+    state.futureBosses[0].status = "defeated";
+
+    const normalized = normalizeNpcLifeWorldState(state, [fighter, rival], 88);
+    const result = advanceNpcCareerSeason([fighter, rival], [], normalized, {
+      day: 88,
+      eliteIds: [],
+      seasonLength: 28,
+      random: fixedRandom,
+    });
+
+    expect(normalized.futureBosses).toHaveLength(1);
+    expect(normalized.futureBosses[0].status).toBe("defeated");
+    expect(normalized.profiles[fighter.id].futureBossId).toBeUndefined();
+    expect(normalized.profiles[fighter.id].career).toBe("active");
+    expect(result.futureBossesCreated).toHaveLength(0);
+  });
+
+  test("collapses duplicate persisted future bosses and preserves their terminal state", () => {
+    const [fighter] = fighters(1);
+    const base = createNpcLifeWorldState(1);
+    base.profiles[fighter.id] = {
+      fighterId: fighter.id,
+      career: "future-boss",
+      futureBossId: "old-boss",
+      seasonsActive: 1,
+    };
+    base.futureBosses = [
+      {
+        id: "old-boss", fighterId: fighter.id, name: fighter.name, classId: fighter.classId,
+        archetype: "nemesis", reason: "Старая вражда", status: "defeated",
+        createdDay: 20, earliestAppearanceDay: 30, powerLevel: 20,
+      },
+      {
+        id: "duplicate-boss", fighterId: fighter.id, name: fighter.name, classId: fighter.classId,
+        archetype: "nemesis", reason: "Старая вражда", status: "available",
+        createdDay: 40, earliestAppearanceDay: 50, powerLevel: 30,
+      },
+    ];
+
+    const normalized = normalizeNpcLifeWorldState(base, [fighter], 60);
+
+    expect(normalized.futureBosses).toHaveLength(1);
+    expect(normalized.futureBosses[0]).toMatchObject({ fighterId: fighter.id, status: "defeated" });
+    expect(normalized.profiles[fighter.id]).toMatchObject({ career: "active" });
+    expect(normalized.profiles[fighter.id].futureBossId).toBeUndefined();
   });
 
   test("normalizes persisted life state against the current roster", () => {

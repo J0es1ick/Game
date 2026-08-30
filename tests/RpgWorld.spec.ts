@@ -1,10 +1,10 @@
-import { MAX_ACTIVE_SKILLS, combatantSnapshot, resolveCombat, unlockedSkills } from "../src/gameplay/AdvancedBattle";
+import { MAX_ACTIVE_SKILLS, combatantSnapshot, resolveCombat, unlockedSkills } from "../src/gameplay/combat/AdvancedBattle";
 import { ARENAS, CLASS_DEFINITIONS, DUEL_BOSSES, DUEL_TIERS, DUNGEONS, ENDGAME_ACTIVITIES, EQUIPMENT_SETS, ITEM_TEMPLATES, SKILLS } from "../src/catalogs/WorldCatalog";
 import { calculateItemPrice, createItem } from "../src/factories/ItemFactory";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { enemyExperienceRequirement, heroExperienceRequirement } from "../src/gameplay/ProgressionBalance";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { enemyExperienceRequirement, heroExperienceRequirement } from "../src/gameplay/progression/ProgressionBalance";
 import { TournamentArena } from "../src/arenas/TournamentArena";
-import { SeededRandom } from "../src/gameplay/RandomSource";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
 
 describe("постоянный RPG-мир", () => {
   test("содержит шесть игровых классов и десятки навыков", () => {

@@ -2,7 +2,7 @@ import {
   expeditionBattleExertion,
   expeditionStaminaAfterBattle,
   normalizeExpeditionStamina,
-} from "../src/gameplay/ExpeditionStamina";
+} from "../src/gameplay/dungeons/ExpeditionStamina";
 
 describe("expedition stamina", () => {
   test("normalizes legacy and damaged values without inverting valid stamina", () => {

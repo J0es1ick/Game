@@ -1,7 +1,7 @@
 import { ARENAS, DUNGEONS } from "../src/catalogs/WorldCatalog";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { placeWorldRelicInShop } from "../src/gameplay/WorldRelics";
-import type { BattleReport } from "../src/gameplay/WorldTypes";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { placeWorldRelicInShop } from "../src/gameplay/equipment/WorldRelics";
+import type { BattleReport } from "../src/gameplay/core/WorldTypes";
 
 function world(): WorldGame {
   return WorldGame.create("Испытатель", "Knight", 1_800_000_000_000);

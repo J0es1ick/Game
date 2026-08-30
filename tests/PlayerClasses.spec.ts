@@ -1,4 +1,4 @@
-import { Archer, Gunsmith, Knight, Monk, Swordsman, Wizard } from "../src/classes";
+import { Archer, Gunsmith, Knight, Monk, Swordsman, Wizard } from "../src/classes/index";
 import { createSkill } from "../src/catalogs/SkillCatalog";
 import { createWeapon } from "../src/catalogs/WeaponCatalog";
 

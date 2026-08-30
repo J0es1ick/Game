@@ -1,6 +1,6 @@
-import { worldBalanceSnapshot } from "../src/gameplay/BalanceTelemetry";
+import { worldBalanceSnapshot } from "../src/gameplay/combat/BalanceTelemetry";
 import { ARENAS } from "../src/catalogs/WorldCatalog";
-import { WorldGame } from "../src/gameplay/WorldGame";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
 
 const DAY_MS = 600_000;
 

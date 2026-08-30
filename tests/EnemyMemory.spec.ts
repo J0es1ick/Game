@@ -1,19 +1,19 @@
-import { combatantSnapshot, resolveCombat } from "../src/gameplay/AdvancedBattle";
+import { combatantSnapshot, resolveCombat } from "../src/gameplay/combat/AdvancedBattle";
 import {
   createEnemyStyleMemory,
   decayEnemyStyleMemory,
   heroLoadoutSignature,
   readEnemyStyleMemory,
   recordEnemyStyleMemory,
-} from "../src/gameplay/EnemyMemory";
-import { WorldGame } from "../src/gameplay/WorldGame";
+} from "../src/gameplay/combat/EnemyMemory";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
 import type {
   BattleTurn,
   EnemyProfile,
   HeroClass,
   HeroProfile,
   TacticalStyle,
-} from "../src/gameplay/WorldTypes";
+} from "../src/gameplay/core/WorldTypes";
 
 const tactics = (style: TacticalStyle) => ({
   id: style,

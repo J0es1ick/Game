@@ -2,7 +2,7 @@ import {
   decodeWorldSaveStorage,
   encodeWorldSaveStorage,
   isCompressedWorldSave,
-} from "../src/gameplay/WorldSaveCodec";
+} from "../src/gameplay/save/WorldSaveCodec";
 
 describe("world save compression", () => {
   const payload = JSON.stringify({

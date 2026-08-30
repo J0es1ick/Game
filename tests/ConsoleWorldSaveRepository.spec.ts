@@ -2,8 +2,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { exportWorldSave } from "../src/gameplay/WorldSaveStorage";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { exportWorldSave } from "../src/gameplay/save/WorldSaveStorage";
 import { ConsoleWorldSaveRepository } from "../src/utils/input/ConsoleWorldSaveRepository";
 
 describe("ConsoleWorldSaveRepository", () => {

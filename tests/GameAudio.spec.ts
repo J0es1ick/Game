@@ -1,7 +1,7 @@
-import type { HeroClass } from "../src/gameplay/WorldTypes";
+import type { HeroClass } from "../src/gameplay/core/WorldTypes";
 import { FakeAudioContext, FakeAudioNode } from "./helpers/FakeAudioContext";
 
-type AudioController = typeof import("../src/web/GameAudio").gameAudio;
+type AudioController = typeof import("../src/web/react/app/audio/GameAudio").gameAudio;
 
 describe("Game audio lifetime", () => {
   const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
@@ -24,7 +24,7 @@ describe("Game audio lifetime", () => {
 
   const load = (): AudioController => {
     let audio: AudioController;
-    jest.isolateModules(() => { audio = require("../src/web/GameAudio").gameAudio; });
+    jest.isolateModules(() => { audio = require("../src/web/react/app/audio/GameAudio").gameAudio; });
     return audio!;
   };
   const context = () => FakeAudioContext.instances[FakeAudioContext.instances.length - 1];

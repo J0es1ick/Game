@@ -1,17 +1,17 @@
 import { EQUIPMENT_SETS } from "../src/catalogs/WorldCatalog";
 import { createItem } from "../src/factories/ItemFactory";
-import { BattleSession, combatantSnapshot } from "../src/gameplay/AdvancedBattle";
+import { BattleSession, combatantSnapshot } from "../src/gameplay/combat/AdvancedBattle";
 import {
   equipmentResonance,
   recordEquipmentDeed,
   resonanceCooldownCadence,
   resonanceDamageMultiplier,
   resonanceGuardMultiplier,
-} from "../src/gameplay/EquipmentEvolution";
-import { FighterPowerCalculator } from "../src/gameplay/FighterPowerCalculator";
-import { SeededRandom } from "../src/gameplay/RandomSource";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import type { CombatantSnapshot, EquipmentItem, EquipmentResonance } from "../src/gameplay/WorldTypes";
+} from "../src/gameplay/equipment/EquipmentEvolution";
+import { FighterPowerCalculator } from "../src/gameplay/combat/FighterPowerCalculator";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import type { CombatantSnapshot, EquipmentItem, EquipmentResonance } from "../src/gameplay/core/WorldTypes";
 
 function relic(id: string): EquipmentItem {
   const item = createItem(20, { classId: "Knight", rarity: "legendary", randomSource: new SeededRandom(id) });

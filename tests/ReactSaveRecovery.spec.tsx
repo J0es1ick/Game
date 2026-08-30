@@ -1,33 +1,33 @@
-import type { GameSave } from "../src/gameplay/WorldTypes";
-import type { GameStore as Store } from "../src/web/react/state/GameStore";
+import type { GameSave } from "../src/gameplay/core/WorldTypes";
+import type { GameStore as Store } from "../src/web/react/app/state/GameStore";
 import {
   createReactEnvironment,
   ReactMemoryStorage,
 } from "./helpers/ReactEnvironment";
 
-jest.mock("../src/web/react/battle/battle-react.css", () => ({}));
-jest.mock("../src/web/react/basic/basic-react.css", () => ({}));
-jest.mock("../src/web/react/dialogs/tutorial-react.css", () => ({}));
-jest.mock("../src/web/react/equipment/equipment-react.css", () => ({}));
-jest.mock("../src/web/react/components/notifications-react.css", () => ({}));
+jest.mock("../src/web/react/features/battle/styles/components.css", () => ({}));
+jest.mock("../src/web/react/features/basic/styles/components.css", () => ({}));
+jest.mock("../src/web/react/features/onboarding/TutorialDialog/TutorialDialog.css", () => ({}));
+jest.mock("../src/web/react/features/equipment/styles/components.css", () => ({}));
+jest.mock("../src/web/react/app/Notifications/Notifications.css", () => ({}));
 
 const environment = createReactEnvironment();
 const { act, cleanup, fireEvent, render, waitFor } =
   require("@testing-library/react/pure") as typeof import("@testing-library/react/pure");
 const { App, AppErrorBoundary } =
-  require("../src/web/react/App") as typeof import("../src/web/react/App");
+  require("../src/web/react/app/App") as typeof import("../src/web/react/app/App");
 const { GameProvider, useGame } =
-  require("../src/web/react/state/GameContext") as typeof import("../src/web/react/state/GameContext");
+  require("../src/web/react/app/state/GameContext") as typeof import("../src/web/react/app/state/GameContext");
 const { GameStore } =
-  require("../src/web/react/state/GameStore") as typeof import("../src/web/react/state/GameStore");
+  require("../src/web/react/app/state/GameStore") as typeof import("../src/web/react/app/state/GameStore");
 const { createBrowserStorage } =
-  require("../src/web/react/state/BrowserStorage") as typeof import("../src/web/react/state/BrowserStorage");
+  require("../src/web/react/app/state/BrowserStorage") as typeof import("../src/web/react/app/state/BrowserStorage");
 const { SaveActions } =
-  require("../src/web/react/components/Header") as typeof import("../src/web/react/components/Header");
+  require("../src/web/react/app/Header/Header") as typeof import("../src/web/react/app/Header/Header");
 const { SaveRecovery } =
-  require("../src/web/react/components/ModeScreens") as typeof import("../src/web/react/components/ModeScreens");
+  require("../src/web/react/features/onboarding/ModeScreens/ModeScreens") as typeof import("../src/web/react/features/onboarding/ModeScreens/ModeScreens");
 const { WorldGame } =
-  require("../src/gameplay/WorldGame") as typeof import("../src/gameplay/WorldGame");
+  require("../src/gameplay/core/WorldGame") as typeof import("../src/gameplay/core/WorldGame");
 
 describe("React recovery controls", () => {
   let initial: GameSave;

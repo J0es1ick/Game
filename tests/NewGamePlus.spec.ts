@@ -1,5 +1,5 @@
 import { ERA_LAWS, LEGACY_BOONS } from "../src/catalogs/NewGamePlusCatalog";
-import { WorldGame } from "../src/gameplay/WorldGame";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
 import {
   buildLegacyArchive,
   describeLegacyArchiveInfluence,
@@ -14,12 +14,12 @@ import {
   normalizeLegacyState,
   prepareInheritedItem,
   rewardModifiers,
-} from "../src/gameplay/NewGamePlus";
+} from "../src/gameplay/progression/NewGamePlus";
 import { ARENAS } from "../src/catalogs/WorldCatalog";
-import { GameSave, HeroClass, NewGamePlusOptions } from "../src/gameplay/WorldTypes";
-import { SeededRandom } from "../src/gameplay/RandomSource";
-import { createWorldRelicRecord } from "../src/gameplay/LivingWorld";
-import { heroLoadoutSignature, readEnemyStyleMemory } from "../src/gameplay/EnemyMemory";
+import { GameSave, HeroClass, NewGamePlusOptions } from "../src/gameplay/core/WorldTypes";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
+import { createWorldRelicRecord } from "../src/gameplay/world/LivingWorld";
+import { heroLoadoutSignature, readEnemyStyleMemory } from "../src/gameplay/combat/EnemyMemory";
 
 function makeEligible(game: WorldGame): void {
   const last = ARENAS.length - 1;
@@ -40,6 +40,19 @@ function transitionOptions(game: WorldGame, classId: HeroClass = game.save.hero.
     lawIds: ERA_LAWS.slice(0, status.lawLimit).map((law) => law.id),
     heirloomItemId: game.heirloomCandidates(classId)[0]?.id,
   };
+}
+
+function makeEligibleForNextChronicle(game: WorldGame): void {
+  makeEligible(game);
+  const goal = game.epochFinalGoalProgress();
+  goal?.objectives.forEach((objective) => objective.objective.requirements.forEach((requirement) => {
+    game.save.eraChallengeProgress.metrics[requirement.metric] = Math.max(
+      game.save.eraChallengeProgress.metrics[requirement.metric] ?? 0,
+      requirement.target,
+    );
+  }));
+  game.save.defeatedLegacyCycles = game.save.legacy.archives.map((archive) => archive.cycle);
+  expect(game.newGamePlusStatus().unlocked).toBe(true);
 }
 
 describe("Новая летопись", () => {
@@ -371,18 +384,23 @@ describe("Новая летопись", () => {
     const source = game.heirloomCandidates()[0]!;
     const relic = createWorldRelicRecord("world-relic-era", source, "hero", game.save.hero.name, game.save.worldDay);
     game.save.worldRelics = [relic];
+    const mentorFighter = game.save.enemies[0];
+    const students = game.save.enemies.slice(1, 9);
+    mentorFighter.retiredDay = 80;
+    students.forEach((student) => { student.mentorId = "mentor-era"; });
     game.save.mentors = [{
       id: "mentor-era",
-      fighterId: game.save.enemies[0].id,
-      name: game.save.enemies[0].name,
-      classId: game.save.enemies[0].classId,
-      factionId: game.save.enemies[0].factionId!,
+      fighterId: mentorFighter.id,
+      name: mentorFighter.name,
+      classId: mentorFighter.classId,
+      factionId: mentorFighter.factionId!,
       goal: "champion",
       level: 24,
       rating: 2_400,
       retiredDay: 80,
-      studentIds: [game.save.enemies[1].id],
+      studentIds: students.map((student) => student.id),
       legacy: "Основал школу после побед на арене.",
+      competes: true,
     }];
     const options = transitionOptions(game);
     options.heirloomItemId = source.id;
@@ -392,10 +410,19 @@ describe("Новая летопись", () => {
     const carriedRelic = next.save.worldRelics!.find((record) => record.id === relic.id)!;
 
     expect(inherited).toBeDefined();
+    expect(inherited.rarity).toBe("relic");
     expect(carriedRelic.currentOwnerId).toBe("hero");
     expect(carriedRelic.currentOwnerName).toBe("Наследник");
+    expect(carriedRelic.item.id).toBe(inherited.id);
+    expect(carriedRelic.item.rarity).toBe("relic");
+    expect(carriedRelic.item.stats).toEqual(inherited.stats);
     expect(carriedRelic.history[carriedRelic.history.length - 1]).toContain("принял реликвию");
-    expect(next.save.mentors![0].studentIds).toEqual([]);
+    const carriedMentor = next.save.mentors![0];
+    expect(carriedMentor.studentIds.length).toBeGreaterThan(0);
+    carriedMentor.studentIds.forEach((studentId) => {
+      expect(next.save.enemies.find((enemy) => enemy.id === studentId)?.mentorId).toBe(carriedMentor.id);
+    });
+    expect(carriedMentor.competes).toBe(next.save.enemies.some((enemy) => enemy.id === mentorFighter.id));
     expect(next.save.mentors![0].legacy).toContain("пережила смену эпохи");
   });
 
@@ -420,6 +447,11 @@ describe("Новая летопись", () => {
     });
     const next = game.beginNewChronicle(transitionOptions(game), 4_501);
     expect(next.save.legacy.archives[0].worldRole).toBe(role);
+    const newSchool = next.save.mentors!.find((mentor) => mentor.fighterId === "legacy-hero-1")!;
+    newSchool.studentIds.forEach((studentId) => {
+      expect(next.save.mentors!.filter((mentor) => mentor.studentIds.includes(studentId))).toHaveLength(1);
+      expect(next.save.npcLife!.dynasties.filter((dynasty) => dynasty.memberIds.includes(studentId)).map((dynasty) => dynasty.id)).toEqual([newSchool.dynastyId]);
+    });
     let restored = WorldGame.restore(JSON.parse(JSON.stringify(next.save)));
     for (let day = 0; day < 3; day += 1) restored.train();
     restored = WorldGame.restore(JSON.parse(JSON.stringify(restored.save)));
@@ -571,6 +603,75 @@ describe("Новая летопись", () => {
     expect(veterans.some((enemy) => enemy.name === fallen.name)).toBe(false);
     expect(veterans.some((enemy) => enemy.name === survivor.name)).toBe(true);
     expect(next.save.legacy.archives[0].fallenNames).toContain(fallen.name);
+  });
+
+  test("новая эпоха сохраняет около 80 процентов живого состава и заменяет остальных", () => {
+    const game = WorldGame.create("Хранитель поколений", "Knight", 8_700);
+    makeEligibleForNextChronicle(game);
+    const previousIds = new Set(game.save.enemies.filter((enemy) => enemy.alive).map((enemy) => enemy.id));
+    const previousPopulation = previousIds.size;
+
+    const next = game.beginNewChronicle(transitionOptions(game), 8_701);
+    const returning = next.save.enemies.filter((enemy) => previousIds.has(enemy.id));
+    const newcomers = next.save.enemies.filter((enemy) => !previousIds.has(enemy.id));
+
+    expect(returning.length / previousPopulation).toBeGreaterThanOrEqual(0.77);
+    expect(returning.length / previousPopulation).toBeLessThanOrEqual(0.82);
+    expect(newcomers.length).toBeGreaterThan(0);
+    expect(new Set(next.save.enemies.map((enemy) => enemy.id)).size).toBe(next.save.enemies.length);
+    expect(returning.every((enemy) => enemy.carriedFromCycle === 1)).toBe(true);
+    expect(returning.every((enemy) => enemy.history.some((entry) => entry.includes("Пережил эпоху 1")))).toBe(true);
+    expect(next.save.eliteLeagueMemberIds).toHaveLength(30);
+    ARENAS.forEach((arena, arenaIndex) => {
+      const eliteIds = new Set(next.save.eliteLeagueMemberIds);
+      const population = next.save.enemies.filter((enemy) => enemy.alive
+        && enemy.arenaIndex === arenaIndex
+        && !eliteIds.has(enemy.id));
+      expect(population.length).toBeGreaterThanOrEqual(arena.participants);
+    });
+  });
+
+  test("часть бойцов первой эпохи доживает до седьмой при случайной смене меньшинства", () => {
+    let game = WorldGame.create("Семь эпох", "Swordsman", 8_800);
+    const firstEpochIds = new Set(game.save.enemies.map((enemy) => enemy.id));
+    const churn: number[] = [];
+
+    for (let targetCycle = 2; targetCycle <= 7; targetCycle += 1) {
+      makeEligibleForNextChronicle(game);
+      const previousIds = new Set(game.save.enemies.map((enemy) => enemy.id));
+      const next = game.beginNewChronicle(transitionOptions(game), 8_800 + targetCycle);
+      const returningCount = next.save.enemies.filter((enemy) => previousIds.has(enemy.id)).length;
+      churn.push(1 - returningCount / previousIds.size);
+      game = next;
+    }
+
+    const oldestVeterans = game.save.enemies.filter((enemy) =>
+      firstEpochIds.has(enemy.id) && enemy.carriedFromCycle === 1);
+    expect(oldestVeterans.length).toBeGreaterThan(0);
+    expect(oldestVeterans.some((enemy) =>
+      enemy.history.filter((entry) => entry.includes("продолжил путь в новой летописи")).length >= 6)).toBe(true);
+    churn.forEach((share) => {
+      expect(share).toBeGreaterThan(0.15);
+      expect(share).toBeLessThan(0.27);
+    });
+  });
+
+  test("сохранение старого формата без метки поколения продолжает смену эпох", () => {
+    let game = WorldGame.create("Старая летопись", "Monk", 8_900);
+    makeEligibleForNextChronicle(game);
+    game = game.beginNewChronicle(transitionOptions(game), 8_901);
+    const legacySave = JSON.parse(JSON.stringify(game.save)) as GameSave;
+    legacySave.enemies.forEach((enemy) => { delete enemy.carriedFromCycle; });
+    const restored = WorldGame.restore(legacySave);
+    makeEligibleForNextChronicle(restored);
+    const previousIds = new Set(restored.save.enemies.map((enemy) => enemy.id));
+
+    const next = restored.beginNewChronicle(transitionOptions(restored), 8_902);
+    const returning = next.save.enemies.filter((enemy) => previousIds.has(enemy.id));
+
+    expect(returning.length).toBeGreaterThan(0);
+    expect(returning.every((enemy) => enemy.carriedFromCycle === 2)).toBe(true);
+    expect(new Set(next.save.enemies.map((enemy) => enemy.id)).size).toBe(next.save.enemies.length);
   });
 
   test("исторический чемпион побеждается один раз и учитывает закон древних", () => {

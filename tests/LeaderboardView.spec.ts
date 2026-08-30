@@ -2,7 +2,7 @@ import {
   eraVeteranBadgeCopy,
   loadRankingSnapshot,
   saveRankingSnapshot,
-} from "../src/web/LeaderboardView";
+} from "../src/web/react/features/rankings/utils/LeaderboardView";
 
 describe("leaderboard presentation data", () => {
   let original: PropertyDescriptor | undefined;
@@ -29,6 +29,10 @@ describe("leaderboard presentation data", () => {
     expect(eraVeteranBadgeCopy(3)).toEqual({
       text: "эп. 3",
       label: "Ветеран, перенесённый из эпохи 3",
+    });
+    expect(eraVeteranBadgeCopy(1, 7)).toEqual({
+      text: "эп. 1",
+      label: "Ветеран из эпохи 1 · эпох в строю: 7",
     });
     expect(eraVeteranBadgeCopy(undefined)).toBeUndefined();
     expect(eraVeteranBadgeCopy(0)).toBeUndefined();

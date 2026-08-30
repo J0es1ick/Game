@@ -2,8 +2,8 @@ import {
   createEquipmentIcon,
   type DollEquipmentState,
   renderCharacterIllustration,
-} from "../src/web/CharacterIllustration";
-import type { EquipmentSlot, HeroClass, Rarity } from "../src/gameplay/WorldTypes";
+} from "../src/web/react/features/equipment/artwork/CharacterIllustration";
+import type { EquipmentSlot, HeroClass, Rarity } from "../src/gameplay/core/WorldTypes";
 
 interface FakeElement {
   className: string;

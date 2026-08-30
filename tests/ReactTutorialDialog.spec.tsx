@@ -1,12 +1,12 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react/pure";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { baseTutorialSteps } from "../src/web/TutorialCatalog";
-import { DialogVisibility } from "../src/web/react/components/common";
-import { TutorialDialog } from "../src/web/react/dialogs/TutorialDialog";
-import { GameProvider, useAppState } from "../src/web/react/state/GameContext";
-import { GameStore } from "../src/web/react/state/GameStore";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { baseTutorialSteps } from "../src/web/react/features/onboarding/TutorialDialog/TutorialCatalog";
+import { DialogVisibility } from "../src/web/react/shared/ui/common";
+import { TutorialDialog } from "../src/web/react/features/onboarding/TutorialDialog/TutorialDialog";
+import { GameProvider, useAppState } from "../src/web/react/app/state/GameContext";
+import { GameStore } from "../src/web/react/app/state/GameStore";
 
-jest.mock("../src/web/react/dialogs/tutorial-react.css", () => ({}));
+jest.mock("../src/web/react/features/onboarding/TutorialDialog/TutorialDialog.css", () => ({}));
 
 class MemoryStorage {
   private entries = new Map<string, string>();

@@ -1,5 +1,5 @@
-import { SeededRandom } from "../src/gameplay/RandomSource";
-import { TournamentEngine } from "../src/gameplay/TournamentEngine";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
+import { TournamentEngine } from "../src/gameplay/tournaments/TournamentEngine";
 
 describe("TournamentEngine", () => {
   const fighters = (count: number) => Array.from({ length: count }, (_, index) => ({ id: `f-${index + 1}`, name: `F ${index + 1}`, power: count - index }));

@@ -5,11 +5,11 @@ import type {
   HeroClass,
   Rarity,
   Stats,
-} from "../src/gameplay/WorldTypes";
+} from "../src/gameplay/core/WorldTypes";
 import {
   renderCharacterIllustration,
   type DollEquipmentState,
-} from "../src/web/CharacterIllustration";
+} from "../src/web/react/features/equipment/artwork/CharacterIllustration";
 
 const SLOTS: EquipmentSlot[] = [
   "weapon",

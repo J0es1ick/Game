@@ -1,11 +1,11 @@
-import type { BattleAction } from "../src/gameplay/AdvancedBattle";
-import type { PendingBattle, PendingBattleFinalization } from "../src/gameplay/WorldTypes";
+import type { BattleAction } from "../src/gameplay/combat/AdvancedBattle";
+import type { PendingBattle, PendingBattleFinalization } from "../src/gameplay/core/WorldTypes";
 import {
   PendingBattleUiController,
   pendingBattleActivity,
   pendingBattleReport,
   type PendingBattleGamePort,
-} from "../src/web/PendingBattleUi";
+} from "../src/web/react/features/battle/utils/PendingBattleUi";
 
 function pendingFixture(kind: PendingBattle["kind"] = "duel", activityId = "sparring"): PendingBattle {
   return {

@@ -1,18 +1,18 @@
 import { act, cleanup, fireEvent, render } from "@testing-library/react/pure";
-import { WorldGame } from "../src/gameplay/WorldGame";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
 import { ARENAS } from "../src/catalogs/WorldCatalog";
-import { pendingBattleReport } from "../src/web/PendingBattleUi";
-import { GameProvider } from "../src/web/react/state/GameContext";
-import { GameStore } from "../src/web/react/state/GameStore";
-import { BattleDialog } from "../src/web/react/battle/BattleDialog";
-import { LootNotifications } from "../src/web/react/battle/LootNotifications";
-import { BasicTournament } from "../src/web/react/basic/BasicTournament";
-import { gameAudio } from "../src/web/GameAudio";
+import { pendingBattleReport } from "../src/web/react/features/battle/utils/PendingBattleUi";
+import { GameProvider } from "../src/web/react/app/state/GameContext";
+import { GameStore } from "../src/web/react/app/state/GameStore";
+import { BattleDialog } from "../src/web/react/features/battle/dialogs/BattleDialog/BattleDialog";
+import { LootNotifications } from "../src/web/react/features/battle/components/LootNotifications/LootNotifications";
+import { BasicTournament } from "../src/web/react/features/basic/pages/BasicTournament/BasicTournament";
+import { gameAudio } from "../src/web/react/app/audio/GameAudio";
 
-jest.mock("../src/web/react/battle/battle-react.css", () => ({}));
-jest.mock("../src/web/react/basic/basic-react.css", () => ({}));
-jest.mock("../src/web/react/equipment/equipment-react.css", () => ({}));
-jest.mock("../src/web/react/components/notifications-react.css", () => ({}));
+jest.mock("../src/web/react/features/battle/styles/components.css", () => ({}));
+jest.mock("../src/web/react/features/basic/styles/components.css", () => ({}));
+jest.mock("../src/web/react/features/equipment/styles/components.css", () => ({}));
+jest.mock("../src/web/react/app/Notifications/Notifications.css", () => ({}));
 
 class MemoryStorage {
   private entries = new Map<string, string>();

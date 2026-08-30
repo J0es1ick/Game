@@ -1,5 +1,5 @@
-import { FighterPowerCalculator } from "../src/gameplay/FighterPowerCalculator";
-import type { EquipmentItem } from "../src/gameplay/WorldTypes";
+import { FighterPowerCalculator } from "../src/gameplay/combat/FighterPowerCalculator";
+import type { EquipmentItem } from "../src/gameplay/core/WorldTypes";
 
 function item(overrides: Partial<EquipmentItem> = {}): EquipmentItem {
   return {

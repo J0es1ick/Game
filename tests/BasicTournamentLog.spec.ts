@@ -2,7 +2,7 @@ import {
   appendTournamentLog,
   BASIC_TOURNAMENT_LOG_LIMIT,
   type BasicLogEntry,
-} from "../src/web/react/basic/BasicTournamentLog";
+} from "../src/web/react/features/basic/utils/BasicTournamentLog";
 
 function entry(id: number): BasicLogEntry {
   return {

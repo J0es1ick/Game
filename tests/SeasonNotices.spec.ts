@@ -1,10 +1,10 @@
 import { ARENAS } from "../src/catalogs/WorldCatalog";
 import { TOURNAMENT_RULES } from "../src/catalogs/WorldExpansionCatalog";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { SeededRandom } from "../src/gameplay/RandomSource";
-import { createWorldSeason } from "../src/gameplay/WorldSeason";
-import type { GameSave } from "../src/gameplay/WorldTypes";
-import { currentWorldSeasonNotice, SeasonNoticeTracker } from "../src/web/SeasonNotices";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
+import { createWorldSeason } from "../src/gameplay/world/WorldSeason";
+import type { GameSave } from "../src/gameplay/core/WorldTypes";
+import { currentWorldSeasonNotice, SeasonNoticeTracker } from "../src/web/react/features/world/utils/SeasonNotices";
 
 let initial: GameSave;
 beforeAll(() => { initial = WorldGame.create("Хронист", "Knight", 15_300).save; });

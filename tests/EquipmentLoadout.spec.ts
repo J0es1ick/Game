@@ -1,7 +1,7 @@
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { compareEquipment } from "../src/gameplay/EquipmentComparison";
-import { evaluateEquipmentLoadout, findBestEquipmentLoadout } from "../src/gameplay/EquipmentLoadout";
-import type { EquipmentItem } from "../src/gameplay/WorldTypes";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { compareEquipment } from "../src/gameplay/equipment/EquipmentComparison";
+import { evaluateEquipmentLoadout, findBestEquipmentLoadout } from "../src/gameplay/equipment/EquipmentLoadout";
+import type { EquipmentItem } from "../src/gameplay/core/WorldTypes";
 
 function item(id: string, slot: EquipmentItem["slot"], stats: EquipmentItem["stats"]): EquipmentItem {
   return { id, name: id, templateId: id, slot, stats, level: 40, rarity: "mythic", allowedClasses: "all", price: 1 };
@@ -40,5 +40,28 @@ describe("effective equipment loadouts", () => {
     hero.inventory = [old, item("same", "weapon", { attack: 20 }), { ...item("wrong", "weapon", { attack: 999 }), allowedClasses: ["Wizard"] }];
     hero.equipped = { weapon: old.id };
     expect(findBestEquipmentLoadout(hero).weapon).toBe(old.id);
+  });
+
+  test("does not sacrifice a stronger world-relic loadout merely to maximize set piece count", () => {
+    const hero = WorldGame.create("Тест", "Knight", 755).save.hero;
+    const slots: EquipmentItem["slot"][] = ["weapon", "offhand", "head", "chest", "hands", "feet"];
+    const relics = slots.map((slot, index) => ({
+      ...item(`relic-${slot}`, slot, { attack: 80 + index }),
+      rarity: "relic" as const,
+      worldRelicId: `world-relic-${slot}`,
+    }));
+    const set = slots.map((slot) => ({
+      ...item(`set-${slot}`, slot, { attack: 1 }),
+      setId: "crown-sovereign",
+    }));
+    hero.inventory = [...relics, ...set];
+    hero.equipped = Object.fromEntries(relics.map((entry) => [entry.slot, entry.id]));
+
+    const selected = findBestEquipmentLoadout(hero, "set");
+
+    expect(selected).toEqual(hero.equipped);
+    expect(evaluateEquipmentLoadout(hero, selected)).toBeGreaterThan(
+      evaluateEquipmentLoadout(hero, Object.fromEntries(set.map((entry) => [entry.slot, entry.id]))),
+    );
   });
 });

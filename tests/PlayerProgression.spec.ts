@@ -1,4 +1,4 @@
-﻿import { Archer } from "../src/classes";
+﻿import { Archer } from "../src/classes/index";
 import { createRandomWeapon, createWeapon } from "../src/catalogs/WeaponCatalog";
 
 describe("Player progression tests", () => {

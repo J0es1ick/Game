@@ -1,8 +1,8 @@
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { importantNpcBattle, resolveNpcCombat, type NpcCombatContext } from "../src/gameplay/NpcCombat";
-import { SeededRandom } from "../src/gameplay/RandomSource";
-import type { EnemyProfile } from "../src/gameplay/WorldTypes";
-import { BattleSession, combatantSnapshot } from "../src/gameplay/AdvancedBattle";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { importantNpcBattle, resolveNpcCombat, type NpcCombatContext } from "../src/gameplay/combat/NpcCombat";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
+import type { EnemyProfile } from "../src/gameplay/core/WorldTypes";
+import { BattleSession, combatantSnapshot } from "../src/gameplay/combat/AdvancedBattle";
 import { SKILLS } from "../src/catalogs/WorldCatalog";
 
 let templates: EnemyProfile[];

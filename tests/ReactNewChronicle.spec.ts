@@ -2,11 +2,11 @@ import { createElement, act as reactAct } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { ERA_LAWS } from "../src/catalogs/NewGamePlusCatalog";
 import { ARENAS } from "../src/catalogs/WorldCatalog";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { NewChronicleDialog } from "../src/web/react/dialogs/NewChronicleDialog";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { NewChronicleDialog } from "../src/web/react/features/progression/NewChronicleDialog/NewChronicleDialog";
 
-jest.mock("../src/web/react/equipment/equipment-react.css", () => ({}));
-jest.mock("../src/web/react/state/GameContext", () => ({
+jest.mock("../src/web/react/features/equipment/styles/components.css", () => ({}));
+jest.mock("../src/web/react/app/state/GameContext", () => ({
   useGame: () => mockContext,
 }));
 

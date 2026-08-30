@@ -1,8 +1,8 @@
 import { ARENAS } from "../src/catalogs/WorldCatalog";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { awardWorldEliteSeasonPoints, awardWorldSeasonPoints, closeWorldSeason, createWorldSeason, normalizeWorldSeason, rememberWorldSeasonFighters, UNKNOWN_SEASON_FIGHTER_NAME, worldEliteSeasonStandings, worldSeasonStandings } from "../src/gameplay/WorldSeason";
-import { SeededRandom } from "../src/gameplay/RandomSource";
-import type { EnemyProfile } from "../src/gameplay/WorldTypes";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { awardWorldEliteSeasonPoints, awardWorldSeasonPoints, closeWorldSeason, createWorldSeason, normalizeWorldSeason, rememberWorldSeasonFighters, UNKNOWN_SEASON_FIGHTER_NAME, worldEliteSeasonStandings, worldSeasonStandings } from "../src/gameplay/world/WorldSeason";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
+import type { EnemyProfile } from "../src/gameplay/core/WorldTypes";
 
 let source: EnemyProfile;
 beforeAll(() => { source = WorldGame.create("Хронист", "Knight", 15_300).save.enemies[0]; });

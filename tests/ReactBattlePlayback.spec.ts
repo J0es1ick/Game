@@ -1,11 +1,11 @@
 import { ARENAS } from "../src/catalogs/WorldCatalog";
-import { WorldGame } from "../src/gameplay/WorldGame";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
 import {
   BattlePlayback,
   battleTurnDetail,
   battleTurnSummary,
-} from "../src/web/react/battle/BattlePlayback";
-import type { BattleTurn } from "../src/gameplay/WorldTypes";
+} from "../src/web/react/features/battle/utils/BattlePlayback";
+import type { BattleTurn } from "../src/gameplay/core/WorldTypes";
 
 function winCurrentRound(playback: BattlePlayback): void {
   playback.snapshot.enemy.health = 1;

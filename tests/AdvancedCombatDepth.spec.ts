@@ -1,16 +1,16 @@
 import { SKILLS } from "../src/catalogs/WorldCatalog";
-import { BattleSession } from "../src/gameplay/AdvancedBattle";
-import { chooseTacticalSkill, TacticalFighterView } from "../src/gameplay/BattleTactics";
-import { BattleEffectPipeline, createClassResource, EffectFighter } from "../src/gameplay/CombatEffects";
+import { BattleSession } from "../src/gameplay/combat/AdvancedBattle";
+import { chooseTacticalSkill, TacticalFighterView } from "../src/gameplay/combat/BattleTactics";
+import { BattleEffectPipeline, createClassResource, EffectFighter } from "../src/gameplay/combat/CombatEffects";
 import {
   createEnemyStyleMemory,
   heroBattleSignature,
   readEnemyStyleMemory,
   recordEnemyStyleMemory,
   styleSimilarity,
-} from "../src/gameplay/EnemyMemory";
-import { SeededRandom } from "../src/gameplay/RandomSource";
-import type { BattleTurn, CombatantSnapshot, HeroProfile, TacticalProfile } from "../src/gameplay/WorldTypes";
+} from "../src/gameplay/combat/EnemyMemory";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
+import type { BattleTurn, CombatantSnapshot, HeroProfile, TacticalProfile } from "../src/gameplay/core/WorldTypes";
 
 const tactics: TacticalProfile = {
   id: "deep-tactics",

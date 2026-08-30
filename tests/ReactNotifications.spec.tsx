@@ -1,36 +1,36 @@
 import type { ReactNode } from "react";
-import type { GameStore as Store } from "../src/web/react/state/GameStore";
-import type { WorldEffectPresentation } from "../src/web/react/state/NotificationState";
+import type { GameStore as Store } from "../src/web/react/app/state/GameStore";
+import type { WorldEffectPresentation } from "../src/web/react/app/state/NotificationState";
 import {
   createReactEnvironment,
   ReactMemoryStorage,
 } from "./helpers/ReactEnvironment";
 
-jest.mock("../src/web/react/battle/battle-react.css", () => ({}));
-jest.mock("../src/web/react/equipment/equipment-react.css", () => ({}));
-jest.mock("../src/web/react/components/notifications-react.css", () => ({}));
+jest.mock("../src/web/react/features/battle/styles/components.css", () => ({}));
+jest.mock("../src/web/react/features/equipment/styles/components.css", () => ({}));
+jest.mock("../src/web/react/app/Notifications/Notifications.css", () => ({}));
 
 const environment = createReactEnvironment();
 const { act, cleanup, fireEvent, render, within } =
   require("@testing-library/react/pure") as typeof import("@testing-library/react/pure");
 const { GameStore } =
-  require("../src/web/react/state/GameStore") as typeof import("../src/web/react/state/GameStore");
+  require("../src/web/react/app/state/GameStore") as typeof import("../src/web/react/app/state/GameStore");
 const { GameProvider, useAppState } =
-  require("../src/web/react/state/GameContext") as typeof import("../src/web/react/state/GameContext");
+  require("../src/web/react/app/state/GameContext") as typeof import("../src/web/react/app/state/GameContext");
 const { NotificationDeck, TournamentReminder } =
-  require("../src/web/react/components/Notifications") as typeof import("../src/web/react/components/Notifications");
+  require("../src/web/react/app/Notifications/Notifications") as typeof import("../src/web/react/app/Notifications/Notifications");
 const { LootNotifications } =
-  require("../src/web/react/battle/LootNotifications") as typeof import("../src/web/react/battle/LootNotifications");
+  require("../src/web/react/features/battle/components/LootNotifications/LootNotifications") as typeof import("../src/web/react/features/battle/components/LootNotifications/LootNotifications");
 const { BattleDialog } =
-  require("../src/web/react/battle/BattleDialog") as typeof import("../src/web/react/battle/BattleDialog");
+  require("../src/web/react/features/battle/dialogs/BattleDialog/BattleDialog") as typeof import("../src/web/react/features/battle/dialogs/BattleDialog/BattleDialog");
 const { WorldGame } =
-  require("../src/gameplay/WorldGame") as typeof import("../src/gameplay/WorldGame");
+  require("../src/gameplay/core/WorldGame") as typeof import("../src/gameplay/core/WorldGame");
 const { ARENAS } =
   require("../src/catalogs/WorldCatalog") as typeof import("../src/catalogs/WorldCatalog");
 const { gameAudio } =
-  require("../src/web/GameAudio") as typeof import("../src/web/GameAudio");
+  require("../src/web/react/app/audio/GameAudio") as typeof import("../src/web/react/app/audio/GameAudio");
 const { fitNoticeHeights } =
-  require("../src/web/react/components/NotificationLayout") as typeof import("../src/web/react/components/NotificationLayout");
+  require("../src/web/react/app/Notifications/NotificationLayout") as typeof import("../src/web/react/app/Notifications/NotificationLayout");
 
 function NativeNotices() {
   const { dialogs } = useAppState();
@@ -342,7 +342,10 @@ describe("native React notifications", () => {
     game.save.worldDay = game.registerTournament(ARENAS[0].id);
     const stylesheet = document.createElement("style");
     stylesheet.textContent = require("node:fs").readFileSync(
-      require.resolve("../src/web/react/components/notifications-react.css"),
+      require("node:path").resolve(
+        __dirname,
+        "../src/web/react/app/Notifications/Notifications.css",
+      ),
       "utf8",
     );
     document.head.append(stylesheet);

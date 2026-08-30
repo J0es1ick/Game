@@ -1,5 +1,5 @@
-import { WorldGame } from "../src/gameplay/WorldGame";
-import type { DungeonRoute } from "../src/gameplay/DungeonRoute";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import type { DungeonRoute } from "../src/gameplay/dungeons/DungeonRoute";
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;

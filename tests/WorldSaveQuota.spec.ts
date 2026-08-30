@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { decodeWorldSaveStorage, encodeWorldSaveStorage, isCompressedWorldSave } from "../src/gameplay/WorldSaveCodec";
-import { parseWorldSave, serializeWorldSave, WorldSaveRepository, type KeyValueStorage } from "../src/gameplay/WorldSaveStorage";
-import type { GameSave } from "../src/gameplay/WorldTypes";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { decodeWorldSaveStorage, encodeWorldSaveStorage, isCompressedWorldSave } from "../src/gameplay/save/WorldSaveCodec";
+import { parseWorldSave, serializeWorldSave, WorldSaveRepository, type KeyValueStorage } from "../src/gameplay/save/WorldSaveStorage";
+import type { GameSave } from "../src/gameplay/core/WorldTypes";
 
 class QuotaStorage implements KeyValueStorage {
   public readonly values = new Map<string, string>();

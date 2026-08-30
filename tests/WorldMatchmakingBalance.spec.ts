@@ -1,6 +1,6 @@
 import { DUEL_TIERS } from "../src/catalogs/WorldCatalog";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { DuelDefinition, EnemyProfile, EquipmentItem } from "../src/gameplay/WorldTypes";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { DuelDefinition, EnemyProfile, EquipmentItem } from "../src/gameplay/core/WorldTypes";
 
 interface MatchmakingAccess {
   createDungeonEnemy(levels: [number, number], name: string): EnemyProfile;

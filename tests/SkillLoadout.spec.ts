@@ -1,5 +1,5 @@
-import { recommendedSkills, selectActiveSkills } from "../src/gameplay/SkillLoadout";
-import type { HeroProfile, SkillDefinition, TacticalStyle } from "../src/gameplay/WorldTypes";
+import { recommendedSkills, selectActiveSkills } from "../src/gameplay/combat/SkillLoadout";
+import type { HeroProfile, SkillDefinition, TacticalStyle } from "../src/gameplay/core/WorldTypes";
 
 function skill(id: string, kind: SkillDefinition["kind"], priority = 10): SkillDefinition {
   return { id, name: id, description: id, kind, priority, power: kind === "heal" ? 100 : 2, cooldown: 3, classes: "all", unlockLevel: 1 };

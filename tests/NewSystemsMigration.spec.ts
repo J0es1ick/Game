@@ -1,9 +1,9 @@
-import { normalizeFactionCampaigns } from "../src/gameplay/FactionCampaign";
-import { normalizeWorldSave } from "../src/gameplay/WorldSaveMigration";
-import { validateWorldSave } from "../src/gameplay/WorldSaveValidation";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import type { GameSave } from "../src/gameplay/WorldTypes";
-import { parseWorldSave, serializeWorldSave } from "../src/gameplay/WorldSaveStorage";
+import { normalizeFactionCampaigns } from "../src/gameplay/world/FactionCampaign";
+import { normalizeWorldSave } from "../src/gameplay/save/WorldSaveMigration";
+import { validateWorldSave } from "../src/gameplay/save/WorldSaveValidation";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import type { GameSave } from "../src/gameplay/core/WorldTypes";
+import { parseWorldSave, serializeWorldSave } from "../src/gameplay/save/WorldSaveStorage";
 
 describe("new systems migration regressions", () => {
   test("roundtrips elite season champions and retains histories predating the field", () => {

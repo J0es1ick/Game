@@ -1,5 +1,5 @@
-import { combatantSnapshot } from "../src/gameplay/AdvancedBattle";
-import { WorldGame } from "../src/gameplay/WorldGame";
+import { combatantSnapshot } from "../src/gameplay/combat/AdvancedBattle";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
 import { createItem } from "../src/factories/ItemFactory";
 
 describe("расширение живого мира", () => {

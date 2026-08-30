@@ -1,17 +1,17 @@
-import { WorldGame } from "../src/gameplay/WorldGame";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
 import {
   byLeaderboardPosition,
   calculateEnemyWorldRating,
   calculateHeroWorldRating,
   enemyLeaderboardEntry,
   heroLeaderboardEntry,
-} from "../src/gameplay/WorldRanking";
+} from "../src/gameplay/world/WorldRanking";
 import {
   normalizeWorldSave,
   PROGRESSION_CURVE_MIGRATION,
-} from "../src/gameplay/WorldSaveMigration";
-import { GameSave } from "../src/gameplay/WorldTypes";
-import { createRandomId, shuffleArray } from "../src/utils/randomization";
+} from "../src/gameplay/save/WorldSaveMigration";
+import { GameSave } from "../src/gameplay/core/WorldTypes";
+import { createRandomId, shuffleArray } from "../src/utils/randomization/index";
 
 describe("world architecture helpers", () => {
   afterEach(() => {

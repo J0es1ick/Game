@@ -1,10 +1,10 @@
 import { ARENAS, ITEM_TEMPLATES } from "../src/catalogs/WorldCatalog";
 import { createItem } from "../src/factories/ItemFactory";
-import * as NpcCombat from "../src/gameplay/NpcCombat";
-import * as NpcLifeSimulation from "../src/gameplay/NpcLifeSimulation";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { calculateEnemyWorldRating } from "../src/gameplay/WorldRanking";
-import type { EnemyProfile, ExpeditionStepReport } from "../src/gameplay/WorldTypes";
+import * as NpcCombat from "../src/gameplay/combat/NpcCombat";
+import * as NpcLifeSimulation from "../src/gameplay/world/NpcLifeSimulation";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { calculateEnemyWorldRating } from "../src/gameplay/world/WorldRanking";
+import type { EnemyProfile, ExpeditionStepReport } from "../src/gameplay/core/WorldTypes";
 
 interface WorldSimulation {
   simulateNpcAgencyDay(): void;

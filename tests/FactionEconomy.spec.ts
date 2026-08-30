@@ -13,8 +13,8 @@ import {
   improveFactionMinimumRarity,
   isPublicShopTemplate,
   resolveFactionControlCycle,
-} from "../src/gameplay/FactionEconomy";
-import { createFactionControlState, normalizeFactionControlState } from "../src/gameplay/LivingWorld";
+} from "../src/gameplay/world/FactionEconomy";
+import { createFactionControlState, normalizeFactionControlState } from "../src/gameplay/world/LivingWorld";
 
 describe("faction economy", () => {
   it("preserves rare arena influence until its tournament window has completed", () => {

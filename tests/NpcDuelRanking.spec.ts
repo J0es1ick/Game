@@ -1,9 +1,9 @@
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { calculateEnemyWorldRating } from "../src/gameplay/WorldRanking";
-import { createNpcLifeWorldState, recordNpcEncounter } from "../src/gameplay/NpcLifeSimulation";
-import { normalizeWorldSave } from "../src/gameplay/WorldSaveMigration";
-import { validateWorldSave } from "../src/gameplay/WorldSaveValidation";
-import { parseWorldSave } from "../src/gameplay/WorldSaveStorage";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { calculateEnemyWorldRating } from "../src/gameplay/world/WorldRanking";
+import { createNpcLifeWorldState, recordNpcEncounter } from "../src/gameplay/world/NpcLifeSimulation";
+import { normalizeWorldSave } from "../src/gameplay/save/WorldSaveMigration";
+import { validateWorldSave } from "../src/gameplay/save/WorldSaveValidation";
+import { parseWorldSave } from "../src/gameplay/save/WorldSaveStorage";
 
 describe("NPC duel statistics and arena rating", () => {
   test("a personal duel changes neither fighter's arena rating", () => {

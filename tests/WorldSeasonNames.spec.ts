@@ -1,10 +1,10 @@
 import { ARENAS } from "../src/catalogs/WorldCatalog";
-import { WorldGame } from "../src/gameplay/WorldGame";
-import { restoreWorldSeasonNames } from "../src/gameplay/WorldSeasonNames";
-import { closeWorldSeason, UNKNOWN_SEASON_FIGHTER_NAME, worldSeasonStandings } from "../src/gameplay/WorldSeason";
-import { parseWorldSave } from "../src/gameplay/WorldSaveStorage";
-import { validateWorldSave } from "../src/gameplay/WorldSaveValidation";
-import type { GameSave } from "../src/gameplay/WorldTypes";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
+import { restoreWorldSeasonNames } from "../src/gameplay/world/WorldSeasonNames";
+import { closeWorldSeason, UNKNOWN_SEASON_FIGHTER_NAME, worldSeasonStandings } from "../src/gameplay/world/WorldSeason";
+import { parseWorldSave } from "../src/gameplay/save/WorldSaveStorage";
+import { validateWorldSave } from "../src/gameplay/save/WorldSaveValidation";
+import type { GameSave } from "../src/gameplay/core/WorldTypes";
 
 let original: GameSave;
 beforeAll(() => { original = WorldGame.create("Хронист", "Knight", 16_420).save; });

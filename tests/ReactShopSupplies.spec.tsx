@@ -1,26 +1,26 @@
 import type { RenderResult } from "@testing-library/react/pure";
-import type { WorldGame as WorldGameType } from "../src/gameplay/WorldGame";
-import type { GameStore as GameStoreType } from "../src/web/react/state/GameStore";
+import type { WorldGame as WorldGameType } from "../src/gameplay/core/WorldGame";
+import type { GameStore as GameStoreType } from "../src/web/react/app/state/GameStore";
 import {
   createReactEnvironment,
   ReactMemoryStorage,
 } from "./helpers/ReactEnvironment";
 
-jest.mock("../src/web/react/equipment/equipment-react.css", () => ({}));
+jest.mock("../src/web/react/features/equipment/styles/components.css", () => ({}));
 
 const environment = createReactEnvironment();
 const { cleanup, fireEvent, render, within, act } =
   require("@testing-library/react/pure") as typeof import("@testing-library/react/pure");
 const { WorldGame } =
-  require("../src/gameplay/WorldGame") as typeof import("../src/gameplay/WorldGame");
+  require("../src/gameplay/core/WorldGame") as typeof import("../src/gameplay/core/WorldGame");
 const { GameStore } =
-  require("../src/web/react/state/GameStore") as typeof import("../src/web/react/state/GameStore");
+  require("../src/web/react/app/state/GameStore") as typeof import("../src/web/react/app/state/GameStore");
 const { GameProvider } =
-  require("../src/web/react/state/GameContext") as typeof import("../src/web/react/state/GameContext");
+  require("../src/web/react/app/state/GameContext") as typeof import("../src/web/react/app/state/GameContext");
 const { ShopPage } =
-  require("../src/web/react/equipment/ShopPage") as typeof import("../src/web/react/equipment/ShopPage");
+  require("../src/web/react/features/equipment/pages/ShopPage/ShopPage") as typeof import("../src/web/react/features/equipment/pages/ShopPage/ShopPage");
 const { GlossaryProvider } =
-  require("../src/web/react/components/GlossaryProvider") as typeof import("../src/web/react/components/GlossaryProvider");
+  require("../src/web/react/app/GlossaryProvider/GlossaryProvider") as typeof import("../src/web/react/app/GlossaryProvider/GlossaryProvider");
 
 describe("React shop supplies", () => {
   let store: GameStoreType;
@@ -114,6 +114,24 @@ describe("React shop supplies", () => {
     expect(suppliesEffects()).toHaveLength(1);
     expect(suppliesEffects()[0].aggregation?.count).toBe(6);
     expect(suppliesEffects()[0].aggregation?.totals.cost).toBe(120_000);
+  });
+
+  test("introduces Iona and the current shop cycle before suppliers and purchases", () => {
+    const { ui } = page();
+    const intro = ui.container.querySelector<HTMLElement>("#shop-intro")!;
+    const controller = ui.container.querySelector<HTMLElement>("#shop-controller")!;
+    const supplies = ui.container.querySelector<HTMLElement>("#shop-supplies")!;
+    const stockHeading = ui.container.querySelector<HTMLElement>("#shop-stock-heading")!;
+    const stock = ui.container.querySelector<HTMLElement>("#shop-grid")!;
+    expect(intro.textContent).toContain("ИОНА · ХОЗЯЙКА ЛАВКИ");
+    expect(intro.textContent).toContain(`с ${game.save.shopDay}-го дня`);
+    for (const [first, second] of [
+      [intro, controller],
+      [controller, supplies],
+      [supplies, stockHeading],
+      [stockHeading, stock],
+    ])
+      expect(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   test("disables unaffordable quantities at the exact balance boundary and updates them after spending or receiving gold", () => {

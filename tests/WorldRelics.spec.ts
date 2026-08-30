@@ -1,9 +1,9 @@
 import { ITEM_TEMPLATES } from "../src/catalogs/WorldCatalog";
 import { createItem } from "../src/factories/ItemFactory";
-import { createWorldRelicRecord } from "../src/gameplay/LivingWorld";
-import { FighterPowerCalculator } from "../src/gameplay/FighterPowerCalculator";
-import { considerNpcLoot, considerNpcLootDetailed } from "../src/gameplay/NpcEquipment";
-import { SeededRandom } from "../src/gameplay/RandomSource";
+import { createWorldRelicRecord } from "../src/gameplay/world/LivingWorld";
+import { FighterPowerCalculator } from "../src/gameplay/combat/FighterPowerCalculator";
+import { considerNpcLoot, considerNpcLootDetailed } from "../src/gameplay/equipment/NpcEquipment";
+import { SeededRandom } from "../src/gameplay/core/RandomSource";
 import {
   auditWorldRelicRegistry,
   deduplicateWorldRelicRecords,
@@ -15,8 +15,8 @@ import {
   synchronizeWorldRelic,
   transferWorldRelic,
   worldRelicLegacyBonus,
-} from "../src/gameplay/WorldRelics";
-import { EnemyProfile, EquipmentItem } from "../src/gameplay/WorldTypes";
+} from "../src/gameplay/equipment/WorldRelics";
+import { EnemyProfile, EquipmentItem } from "../src/gameplay/core/WorldTypes";
 
 function item(id: string, slot: EquipmentItem["slot"] = "weapon"): EquipmentItem {
   const created = createItem(18, { classId: "Swordsman", slot, rarity: "legendary", randomSource: new SeededRandom(id) });

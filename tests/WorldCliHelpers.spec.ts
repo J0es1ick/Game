@@ -1,4 +1,4 @@
-import { WorldGame } from "../src/gameplay/WorldGame";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
 import {
   compatibleWithHero,
   equippedItemFor,

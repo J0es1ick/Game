@@ -1,7 +1,7 @@
-import { WorldGame } from "../src/gameplay/WorldGame";
+import { WorldGame } from "../src/gameplay/core/WorldGame";
 import { ARENAS, DUNGEONS } from "../src/catalogs/WorldCatalog";
-import { createEraChallengeProgress, eraChallengeFor } from "../src/gameplay/EraChallenges";
-import type { DungeonRoute } from "../src/gameplay/DungeonRoute";
+import { createEraChallengeProgress, eraChallengeFor } from "../src/gameplay/world/EraChallenges";
+import type { DungeonRoute } from "../src/gameplay/dungeons/DungeonRoute";
 
 function finishPending(game: WorldGame, firstHeroSkill?: string) {
   let chosen = false;
