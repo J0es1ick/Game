@@ -179,22 +179,16 @@ React управляет обоими режимами, навигацией, о
 - `src/catalogs/WorldExpansionCatalog.ts` — черты, шрамы, тактики, правила турниров, фракции и пути реликвий.
 - `src/catalogs/NewGamePlusCatalog.ts` — наследие, законы эпох и титулы новой игры+.
 - `src/factories/ItemFactory.ts` — генерация предметов, редкостей и легендарных свойств.
-- `src/gameplay/Game.ts` — быстрый базовый турнир из исходной версии игры.
-- `src/gameplay/AdvancedBattle.ts` и `src/gameplay/WorldGame.ts` — автоматический бой, постоянный прогресс и фоновая симуляция расширенного режима.
-- `src/gameplay/WorldSaveMigration.ts`, `src/gameplay/WorldRanking.ts` и `src/gameplay/WorldRules.ts` — совместимость сохранений, правила мирового рейтинга и общие ограничения доменной модели.
-- `src/gameplay/NewGamePlus.ts` — переход между эпохами, архив летописей и модификаторы новой игры+.
-- `src/gameplay/WorldSeason.ts` и `src/gameplay/NpcLifeSimulation.ts` — сезоны, цели, связи и карьерные переходы NPC.
-- `src/gameplay/FactionCampaign.ts` — этапы фракционных заданий, награды и доступ к наставникам.
-- `src/gameplay/DungeonRoute.ts` — узлы походов, связи маршрута и сохранённые открытия.
-- `src/gameplay/EquipmentEvolution.ts` — подвиги предметов и резонанс развитых комплектов.
-- `src/web/main.tsx` и `src/web/react/App.tsx` — точка входа React, выбор режима, навигация и загрузка экранов.
-- `src/web/react/state/` — связь с игровым движком, независимые подписки на состояние игры и интерфейса, сохранение и восстановление.
-- `src/web/react/pages/`, `map/`, `chronicle/`, `contracts/` — карта, рейтинги, летопись и фракции.
-- `src/web/react/equipment/` — герой, инвентарь, кузница, наследие, навыки, коллекции, лавка и сравнение предметов.
-- `src/web/react/battle/`, `basic/`, `dialogs/` — бои, походы, быстрый турнир, обучение и переход в новую эпоху.
-- `src/gameplay/WorldSaveWriter.ts`, `WorldSaveWorker.ts` и `WorldSaveBattleCheckpoint.ts` — фоновая подготовка сохранений и лёгкие контрольные снимки боя.
-- `src/web/CharacterIllustration.ts` — составная 2D-визуализация героя и предметов.
-- `src/web/styles/` — стили, разделённые по режимам и экранам; `styles.css` только задаёт порядок их подключения.
+- `src/gameplay/core/` — главный движок, часы, типы и генераторы случайности.
+- `src/gameplay/combat/` — бой, тактики, аналитика, баланс и память соперников.
+- `src/gameplay/equipment/` — подбор, развитие, сравнение и наследие снаряжения.
+- `src/gameplay/world/` — фракции, сезоны, рейтинги, события и самостоятельная жизнь NPC.
+- `src/gameplay/progression/`, `dungeons/`, `tournaments/` — переходы эпох, походы и турнирные сетки.
+- `src/gameplay/save/` — проверка, миграция, сжатие и фоновая запись сохранений.
+- `src/web/main.tsx` — минимальная точка входа браузерной версии.
+- `src/web/react/app/` — каркас приложения, маршрутизация, состояние, глобальные сервисы и общие стили.
+- `src/web/react/features/` — самостоятельные игровые области: карта, экипировка, бои, мир, рейтинги, контракты, прогрессия и обучение. Стили каждой области хранятся рядом с ней.
+- `src/web/react/shared/` — переиспользуемые UI-элементы и небольшие утилиты без игровой логики.
 
 ## Ограничение текущей версии
 
