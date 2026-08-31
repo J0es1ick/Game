@@ -1,7 +1,8 @@
 import type { InterfaceSound } from "../audio/GameAudio";
 
 export type WorldEffectTone = "positive" | "negative" | "neutral" | "legendary";
-export type WorldEffectVariant = "standard" | "victory" | "defeat" | "season";
+export type WorldEffectVariant =
+  "standard" | "victory" | "defeat" | "season" | "era";
 
 interface WorldEffectAggregation {
   key: string;
@@ -39,6 +40,7 @@ export function effectChannel(
 }
 
 function priority(effect: WorldEffectPresentation): number {
+  if (effect.variant === "era") return 50;
   if (effect.variant === "season") return 40;
   if (effect.tone === "negative") return 30;
   if (effect.tone === "legendary") return 20;

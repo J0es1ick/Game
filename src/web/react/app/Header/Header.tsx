@@ -171,14 +171,18 @@ export function SaveActions({ recovery = false }: { recovery?: boolean }) {
   );
 }
 
-const groups: Array<{ label: string; page: WorldPageId }> = [
-  { label: "Карта", page: "map" },
-  { label: "Герой", page: "hero" },
-  { label: "Снаряжение", page: "arsenal" },
-  { label: "Лавка", page: "shop" },
-  { label: "Рейтинги", page: "leaders" },
-  { label: "Мир", page: "chronicle" },
-];
+const groups = [
+  { label: "Карта", page: "map", icon: "✦" },
+  { label: "Герой", page: "hero", icon: "♟" },
+  { label: "Снаряжение", page: "arsenal", icon: "◈" },
+  { label: "Лавка", page: "shop", icon: "¤" },
+  { label: "Рейтинги", page: "leaders", icon: "♜" },
+  { label: "Мир", page: "chronicle", icon: "◎" },
+] as const satisfies ReadonlyArray<{
+  label: string;
+  page: WorldPageId;
+  icon: string;
+}>;
 const labels: Record<WorldPageId, string> = {
   map: "Карта окрестностей",
   hero: "Снаряжение и облик",
@@ -208,6 +212,20 @@ const pageDescriptions: Partial<Record<WorldPageId, string>> = {
   history: "Итоги завершённых эпох",
 };
 
+function itemCount(count: number): string {
+  const hundred = count % 100;
+  const ten = count % 10;
+  const noun =
+    hundred >= 11 && hundred <= 14
+      ? "предметов"
+      : ten === 1
+        ? "предмет"
+        : ten >= 2 && ten <= 4
+          ? "предмета"
+          : "предметов";
+  return `${count} ${noun}`;
+}
+
 export function Header() {
   const { game, navigate, openDialog, store } = useGame();
   const page = useAppSelector((state) => state.page);
@@ -216,6 +234,14 @@ export function Header() {
   const hero = game.save.hero;
   const eliteRank = game.heroEliteRank();
   const group = WORLD_PAGE_NAV_GROUP[page];
+  const primaryStatus: Record<(typeof groups)[number]["page"], string> = {
+    map: "5 направлений",
+    hero: `ур. ${hero.level}`,
+    arsenal: itemCount(hero.inventory.length),
+    shop: `${hero.gold.toLocaleString("ru-RU")} ¤`,
+    leaders: eliteRank ? `элита #${eliteRank}` : `место #${game.heroRank()}`,
+    chronicle: `день ${game.save.worldDay}`,
+  };
   useLayoutEffect(() => {
     let frame = 0;
     const measure = () => {
@@ -255,18 +281,21 @@ export function Header() {
   return (
     <>
       <header className="game-header" ref={header}>
-        <a
-          className="wordmark"
-          href="#/map"
-          onClick={(event) => {
-            event.preventDefault();
-            navigate("map");
-          }}
-        >
-          <span>Пыль</span>
-          <i>&amp;</i>
-          <span>Корона</span>
-        </a>
+        <div className="header-brand">
+          <a
+            className="wordmark"
+            href="#/map"
+            onClick={(event) => {
+              event.preventDefault();
+              navigate("map");
+            }}
+          >
+            <span>Пыль</span>
+            <i>&amp;</i>
+            <span>Корона</span>
+          </a>
+          <small>{labels[page]}</small>
+        </div>
         <div className="hero-summary">
           <div
             className="portrait"
@@ -343,20 +372,28 @@ export function Header() {
               aria-current={
                 WORLD_PAGE_NAV_GROUP[entry.page] === group ? "page" : undefined
               }
+              aria-label={entry.label}
               onClick={() => navigate(entry.page)}
             >
-              {entry.label}
+              <span className="nav-icon" aria-hidden="true">
+                {entry.icon}
+              </span>
+              <span className="nav-copy">
+                <b>{entry.label}</b>
+                <small aria-hidden="true">{primaryStatus[entry.page]}</small>
+              </span>
             </button>
           ))}
         </div>
         <div
           className="nav-secondary"
           data-group={group}
-          hidden={group === "shop"}
+          hidden={group === "shop" || group === "map"}
         >
           {WORLD_PAGE_IDS.filter(
             (id) =>
               id !== "shop" &&
+              id !== "class-change" &&
               WORLD_PAGE_NAV_GROUP[id] === group &&
               isWorldPageAvailable(id, (feature) =>
                 game.isFeatureUnlocked(feature),

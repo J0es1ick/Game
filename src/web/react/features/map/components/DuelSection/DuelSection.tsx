@@ -75,9 +75,30 @@ function BossCard({ boss }: { boss: BossDefinition }) {
   );
 }
 
-export function DuelSection() {
+export function DuelSection({
+  view = "all",
+}: {
+  view?: "all" | "duels" | "bosses";
+}) {
   const { game } = useGame();
   const hero = game.save.hero;
+
+  if (view === "bosses")
+    return (
+      <RouteSection
+        id="bosses-section"
+        number="02"
+        title="Особые противники"
+        copy="Одноразовые испытания с собственными условиями доступа и уникальной добычей."
+        className="duel-section boss-section"
+      >
+        <div className="activity-route boss-route" id="boss-route">
+          {DUEL_BOSSES.map((boss) => (
+            <BossCard key={boss.id} boss={boss} />
+          ))}
+        </div>
+      </RouteSection>
+    );
 
   return (
     <RouteSection
@@ -92,14 +113,18 @@ export function DuelSection() {
           <DuelCard key={duel.id} duel={duel} index={index} />
         ))}
       </div>
-      <h3 className="boss-heading" id="bosses-section">
-        Особые противники
-      </h3>
-      <div className="activity-route boss-route" id="boss-route">
-        {DUEL_BOSSES.map((boss) => (
-          <BossCard key={boss.id} boss={boss} />
-        ))}
-      </div>
+      {view === "all" && (
+        <>
+          <h3 className="boss-heading" id="bosses-section">
+            Особые противники
+          </h3>
+          <div className="activity-route boss-route" id="boss-route">
+            {DUEL_BOSSES.map((boss) => (
+              <BossCard key={boss.id} boss={boss} />
+            ))}
+          </div>
+        </>
+      )}
     </RouteSection>
   );
 }

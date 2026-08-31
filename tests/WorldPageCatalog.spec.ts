@@ -14,7 +14,10 @@ import {
   isWorldPageAvailable,
 } from "../src/web/react/app/routing/WorldPageCatalog";
 
-jest.mock("../src/web/react/features/equipment/styles/components.css", () => ({}));
+jest.mock(
+  "../src/web/react/features/equipment/styles/components.css",
+  () => ({}),
+);
 
 const environment = createReactEnvironment();
 const { createElement } = require("react") as typeof import("react");
@@ -151,7 +154,7 @@ describe("world page markup", () => {
     ).toBe("page");
   });
 
-  it("keeps equipment, career, class change and skills as separate hero pages", () => {
+  it("keeps class change inside the hero preview instead of a separate page", () => {
     store.setPage("career");
     const ui = show(Header);
     const labels = Array.from(
@@ -160,12 +163,7 @@ describe("world page markup", () => {
       ),
       (button) => button.textContent?.trim(),
     );
-    expect(labels).toEqual([
-      "Снаряжение и облик",
-      "Карьера",
-      "Смена класса",
-      "Навыки",
-    ]);
+    expect(labels).toEqual(["Снаряжение и облик", "Карьера", "Навыки"]);
     expect(
       ui.container
         .querySelector('[data-page="career"]')

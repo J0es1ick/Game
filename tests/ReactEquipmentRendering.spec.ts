@@ -11,7 +11,10 @@ import { LegacySalvage } from "../src/web/react/features/equipment/components/Le
 import { LegacyPage } from "../src/web/react/features/equipment/pages/LegacyPage/LegacyPage";
 import { HeroPage } from "../src/web/react/features/equipment/pages/HeroPage/HeroPage";
 
-jest.mock("../src/web/react/features/equipment/styles/components.css", () => ({}));
+jest.mock(
+  "../src/web/react/features/equipment/styles/components.css",
+  () => ({}),
+);
 jest.mock("../src/web/react/app/state/GameContext", () => ({
   useGame: () => mockContext,
 }));
@@ -379,25 +382,17 @@ describe("React equipment updates", () => {
     ).toBe(legacyItem);
   });
 
-  it("renders hero equipment, history and class change as stable pages", () => {
+  it("renders class change inside hero equipment and keeps history separate", () => {
     const HistoryPage = () => createElement(HeroPage, { section: "history" });
-    const ClassPage = () => createElement(HeroPage, { section: "class" });
     render(HeroPage);
     expect(container.querySelector("#paper-doll")).not.toBeNull();
     expect(container.querySelector(".hero-history-grid")).toBeNull();
-    expect(container.querySelector("#class-change-panel")).toBeNull();
+    expect(container.querySelector("#class-change-panel")).not.toBeNull();
 
     render(HistoryPage);
     expect(container.querySelector("#paper-doll")).toBeNull();
     expect(container.querySelector(".hero-history-grid")).not.toBeNull();
-
-    render(ClassPage);
-    expect(container.querySelector(".hero-history-grid")).toBeNull();
-    expect(container.querySelector("#class-change-panel")).not.toBeNull();
-
-    render(Away);
-    render(ClassPage);
-    expect(container.querySelector("#class-change-panel")).not.toBeNull();
+    expect(container.querySelector("#class-change-panel")).toBeNull();
   });
 
   it("does not carry filters from the previous world into a new game", () => {

@@ -8,10 +8,26 @@ import {
 import type { WorldGame } from "../../../../../../gameplay/core/WorldGame";
 import { useGame } from "../../../../app/state/GameContext";
 
+export const MAP_SECTION_IDS = [
+  "duels-section",
+  "bosses-section",
+  "tournaments-section",
+  "dungeons-section",
+  "endgame-section",
+] as const;
+
+export type MapSectionId = (typeof MAP_SECTION_IDS)[number];
+
 interface MapShortcut {
-  id: string;
+  id: MapSectionId;
   name: string;
   status: string;
+}
+
+export function isMapSectionId(
+  value: string | undefined,
+): value is MapSectionId {
+  return MAP_SECTION_IDS.includes(value as MapSectionId);
 }
 
 function endgameStatus(game: WorldGame): string {
@@ -38,14 +54,6 @@ export function mapShortcuts(game: WorldGame): MapShortcut[] {
 
   return [
     {
-      id: "daily-actions-section",
-      name: "Тренировка",
-      status:
-        game.save.hero.level >= game.trainingLevelCap()
-          ? "Достигнут предел"
-          : "Безопасный опыт",
-    },
-    {
       id: "duels-section",
       name: "Дуэли",
       status: `${DUEL_TIERS.filter((duel) => game.availability(duel).unlocked).length} доступно`,
@@ -70,14 +78,16 @@ export function mapShortcuts(game: WorldGame): MapShortcut[] {
         ? "Поход продолжается"
         : `${DUNGEONS.filter((dungeon) => game.availability(dungeon).unlocked).length} доступно`,
     },
-    { id: "endgame-section", name: "Эндгейм", status: endgameStatus(game) },
+    { id: "endgame-section", name: "Корона", status: endgameStatus(game) },
   ];
 }
 
 export function MapShortcuts({
   navigationRef,
+  activeId,
 }: {
   navigationRef?: Ref<HTMLElement>;
+  activeId?: MapSectionId;
 }) {
   const { game, navigate } = useGame();
 
@@ -87,12 +97,14 @@ export function MapShortcuts({
       aria-label="Быстрый доступ к активностям"
       ref={navigationRef}
     >
-      <span>Быстрый переход</span>
       {mapShortcuts(game).map(({ id, name, status }) => (
         <button
           type="button"
           key={id}
           data-scroll-target={id}
+          className={activeId === id ? "active" : ""}
+          aria-pressed={activeId === id}
+          aria-controls="map-activity-panel"
           onClick={() => navigate("map", id)}
         >
           <b>{name}</b>

@@ -30,15 +30,17 @@ export function Training() {
   };
 
   return (
-    <div className="daily-actions" id="daily-actions-section">
-      <article>
-        <span>КАЖДЫЙ ДЕНЬ</span>
-        <h2>Тренировочная площадка</h2>
-        <p>
-          {blocked
-            ? `Предел тренировок для текущей арены достигнут: ${cap} уровень. Продвиньтесь в следующую турнирную лигу.`
-            : `Безопасный опыт до ${cap} уровня. Дальше потребуется продвижение на арене.`}
-        </p>
+    <section className="training-strip" id="daily-actions-section">
+      <div>
+        <span>БЫСТРОЕ ДЕЙСТВИЕ · 1 ДЕНЬ</span>
+        <h2>Тренировка</h2>
+      </div>
+      <p>
+        {blocked
+          ? `Достигнут предел ${cap} ур. Продвиньтесь в следующую турнирную лигу.`
+          : `Безопасный опыт до ${cap} уровня без риска поражения.`}
+      </p>
+      <div>
         <button
           type="button"
           className="button"
@@ -48,7 +50,7 @@ export function Training() {
         >
           {blocked ? "Достигнут предел" : "Тренироваться"}
         </button>
-      </article>
-    </div>
+      </div>
+    </section>
   );
 }

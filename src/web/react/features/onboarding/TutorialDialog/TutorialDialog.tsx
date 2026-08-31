@@ -66,7 +66,12 @@ export function TutorialDialog({
 
   useEffect(() => {
     if (!active || !step) return;
-    store.setPage(step.page as WorldPageId);
+    const anchor =
+      step.page === "map" && /^#[a-z-]+-section$/.test(step.target)
+        ? step.target.slice(1)
+        : undefined;
+    if (anchor) store.navigate("map", anchor);
+    else store.setPage(step.page as WorldPageId);
     window.history.replaceState(null, "", `#/${step.page}`);
   }, [active, index, step, store]);
 

@@ -19,11 +19,13 @@ function ActivitySurface({
   locked,
   reason,
   action,
+  meta,
 }: ActivityCardProps & {
   children: ReactNode;
   locked: boolean;
   reason: string;
   action: ReactNode;
+  meta?: ReactNode;
 }) {
   return (
     <article
@@ -35,7 +37,10 @@ function ActivitySurface({
         <span className="activity-number">
           {String(index + 1).padStart(2, "0")}
         </span>
-        <small>{activity.place}</small>
+        <div>
+          <small title={activity.place}>{activity.place}</small>
+          {meta}
+        </div>
       </div>
       <h3>{activity.name}</h3>
       <p>{activity.description}</p>
@@ -70,6 +75,10 @@ function TournamentCard({
       : registeredDay
         ? `Записан на день ${registeredDay}`
         : `Записаться на день ${nextDay}`;
+  const tournamentContext = [
+    `${controller.name}: ${controller.effect}`,
+    ...rules.map((rule) => `${rule.name}: ${rule.description}`),
+  ].join("\n");
 
   const start = () => {
     if (today) {
@@ -94,6 +103,15 @@ function TournamentCard({
       index={index}
       locked={!availability.unlocked}
       reason={availability.reason}
+      meta={
+        <span
+          className="tournament-context-link"
+          title={tournamentContext}
+          tabIndex={0}
+        >
+          Условия
+        </span>
+      }
       action={
         <button
           type="button"
@@ -105,24 +123,6 @@ function TournamentCard({
         </button>
       }
     >
-      <div
-        className="activity-controller"
-        style={css({ "--faction-accent": controller.accent })}
-      >
-        <small>АРЕНОЙ УПРАВЛЯЕТ</small>
-        <strong>{controller.name}</strong>
-        <span>{controller.effect}</span>
-      </div>
-      {rules.length > 0 && (
-        <div
-          className="activity-rules"
-          title={rules
-            .map((rule) => `${rule.name}: ${rule.description}`)
-            .join("\n")}
-        >
-          {rules.map((rule) => rule.name).join(" · ")}
-        </div>
-      )}
       <div className="activity-levels">
         Сетка: {arena.participants} · каждые {arena.tournamentInterval} дн. ·
         приз {arena.rewardGold} ¤

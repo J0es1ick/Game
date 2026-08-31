@@ -5,7 +5,10 @@ import { ARENAS } from "../src/catalogs/WorldCatalog";
 import { WorldGame } from "../src/gameplay/core/WorldGame";
 import { NewChronicleDialog } from "../src/web/react/features/progression/NewChronicleDialog/NewChronicleDialog";
 
-jest.mock("../src/web/react/features/equipment/styles/components.css", () => ({}));
+jest.mock(
+  "../src/web/react/features/equipment/styles/components.css",
+  () => ({}),
+);
 jest.mock("../src/web/react/app/state/GameContext", () => ({
   useGame: () => mockContext,
 }));
@@ -17,7 +20,7 @@ let mockContext: {
   closeDialog: jest.Mock;
   notify: jest.Mock;
   act: jest.Mock;
-  store: { replaceGame: jest.Mock };
+  store: { replaceGame: jest.Mock; navigate: jest.Mock };
 };
 
 describe("React new chronicle", () => {
@@ -59,7 +62,7 @@ describe("React new chronicle", () => {
       closeDialog: jest.fn(),
       notify: jest.fn(),
       act: jest.fn(),
-      store: { replaceGame: jest.fn() },
+      store: { replaceGame: jest.fn(), navigate: jest.fn() },
     };
   });
 
@@ -207,8 +210,17 @@ describe("React new chronicle", () => {
     expect(replacement.save.hero.level).toBe(1);
     expect(replacement.save.legacy.inheritedItemId).toBeDefined();
     expect(JSON.stringify(previous.save)).toBe(before);
+    expect(mockContext.store.navigate).toHaveBeenCalledWith("map");
     expect(mockContext.notify).toHaveBeenCalledWith(
-      expect.objectContaining({ title: "Началась эпоха 2" }),
+      expect.objectContaining({
+        title: "Добро пожаловать в эпоху 2",
+        variant: "era",
+        stats: expect.arrayContaining([
+          expect.stringMatching(/^Наследие:/),
+          expect.stringMatching(/^Предмет:/),
+          `Законы мира: ${ERA_LAWS[1].name}`,
+        ]),
+      }),
     );
   });
 

@@ -50,6 +50,40 @@ function StageHeading({
   );
 }
 
+function EraChallengeSummary() {
+  const { game } = useGame();
+  const challenge = game.currentEraChallenge();
+  if (!challenge) return null;
+
+  return (
+    <section className="era-challenge-panel">
+      <header>
+        <small>ИСПЫТАНИЕ ЭПОХИ {challenge.cycle}</small>
+        <strong>{challenge.name}</strong>
+      </header>
+      <div className="era-objective-list">
+        {game.eraObjectiveProgress().map((entry) => (
+          <article
+            key={entry.objective.id}
+            className={entry.completed ? "complete" : ""}
+          >
+            <div>
+              <b>{entry.objective.name}</b>
+              <span>
+                {entry.current}/{entry.target}
+              </span>
+            </div>
+            <p>{entry.objective.description}</p>
+            <div className="era-objective-meter">
+              <i style={{ width: `${Math.round(entry.ratio * 100)}%` }} />
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Choice({
   id,
   selected,
@@ -252,15 +286,30 @@ export function NewChronicleDialog() {
         lawIds,
         heirloomItemId: itemId ?? undefined,
       });
+      const boonName = selectedBoon?.name ?? "без наследия";
+      const inheritedItem = selectedItem
+        ? itemName(selectedItem)
+        : "чистое начало";
+      const laws = lawIds
+        .map((id) => ERA_LAWS.find((law) => law.id === id)?.name)
+        .filter((law): law is string => Boolean(law))
+        .join(", ");
       store.replaceGame(next);
+      store.navigate("map");
       notify({
-        eyebrow: "НОВАЯ ЛЕТОПИСЬ",
-        title: `Началась эпоха ${next.save.legacy.cycle}`,
-        description: `${next.save.hero.name} принимает мир с новыми законами. Большинство знакомых бойцов продолжает карьеру, а освободившиеся места занимают новички.`,
-        symbol: "Ⅱ",
+        eyebrow: `НОВАЯ ЛЕТОПИСЬ · ЭПОХА ${next.save.legacy.cycle}`,
+        title: `Добро пожаловать в эпоху ${next.save.legacy.cycle}`,
+        description: `${next.save.hero.name} начинает новую главу. Выбранные условия останутся неизменными до следующего завершения летописи.`,
+        symbol: String(next.save.legacy.cycle),
+        stats: [
+          `Наследие: ${boonName}`,
+          `Предмет: ${inheritedItem}`,
+          `Законы мира: ${laws}`,
+        ],
         tone: "legendary",
+        variant: "era",
         sound: "reputation",
-        duration: 3600,
+        duration: 10000,
       });
     } catch (cause) {
       transitionStarted.current = false;
@@ -347,6 +396,7 @@ export function NewChronicleDialog() {
                 </li>
               ))}
             </ul>
+            <EraChallengeSummary />
           </>
         ) : (
           <>

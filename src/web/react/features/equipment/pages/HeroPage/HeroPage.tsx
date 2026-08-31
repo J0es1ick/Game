@@ -15,7 +15,8 @@ import type {
   HeroClass,
 } from "../../../../../../gameplay/core/WorldTypes";
 import { useGame } from "../../../../app/state/GameContext";
-import { PageHeading } from "../../../../shared/ui/common";
+import { Modal, PageHeading } from "../../../../shared/ui/common";
+import { classIcons } from "../../../../shared/utils/gameLabels";
 import { CharacterArt, EquipmentArt } from "../../components/Artwork/Artwork";
 import { HeroHistory } from "../../components/HeroHistory/HeroHistory";
 import { itemName, number, statsText } from "../../utils/model";
@@ -25,9 +26,9 @@ import {
   useEquipment,
 } from "../../components/EquipmentShared/EquipmentShared";
 
-type HeroSection = "equipment" | "history" | "class";
+type HeroSection = "equipment" | "history";
 
-function ClassChange() {
+function ClassChangeDialog({ onClose }: { onClose: () => void }) {
   const { game, act, notify, queueLoot } = useGame();
   const hero = game.save.hero;
   const [selected, setSelected] = useState<HeroClass>(
@@ -40,12 +41,6 @@ function ClassChange() {
     classes.find((entry) => entry.id === selected)?.id ?? classes[0].id;
   const availability = game.classChangeAvailability();
   const change = () => {
-    if (
-      !window.confirm(
-        `Сменить класс на «${CLASS_DEFINITIONS[choice].name}» за ${number.format(CLASS_CHANGE_GOLD_COST)} ¤ и ${CLASS_CHANGE_MARK_COST} печатей?`,
-      )
-    )
-      return;
     const previousIds = new Set(hero.inventory.map((item) => item.id));
     const equipmentBefore = { ...hero.equipped };
     const completed = act((world) => {
@@ -66,21 +61,44 @@ function ClassChange() {
         tone: "legendary",
         sound: "reputation",
       });
+      onClose();
     }
   };
   return (
-    <section className="class-change-panel paper-panel" id="class-change-panel">
-      <div>
-        <p className="eyebrow">ПОЗДНЯЯ СПЕЦИАЛИЗАЦИЯ</p>
-        <h2>Смена класса</h2>
+    <Modal
+      id="class-change-layer"
+      className="class-change-layer"
+      title="Сменить класс"
+      eyebrow="НОВАЯ СПЕЦИАЛИЗАЦИЯ"
+      onClose={onClose}
+      footer={
+        <div className="class-change-dialog-actions">
+          <button type="button" className="button" onClick={onClose}>
+            Отмена
+          </button>
+          <button
+            className="button primary"
+            type="button"
+            disabled={!availability.unlocked}
+            onClick={change}
+          >
+            Сменить за {number.format(CLASS_CHANGE_GOLD_COST)} ¤ ·{" "}
+            {CLASS_CHANGE_MARK_COST} печ.
+          </button>
+        </div>
+      }
+    >
+      <div className="class-change-dialog-copy">
         <p>
           Уровень, рейтинг, история и инвентарь сохраняются. Несовместимые
           предметы снимаются, навыки нового класса подбираются заново.
         </p>
-        <small>{availability.reason}</small>
+        <strong>{availability.reason}</strong>
       </div>
       <div className="class-change-controls">
+        <label htmlFor="hero-class-choice">Новый класс</label>
         <select
+          id="hero-class-choice"
           value={choice}
           aria-label="Новый класс"
           onChange={(event) => setSelected(event.target.value as HeroClass)}
@@ -91,15 +109,49 @@ function ClassChange() {
             </option>
           ))}
         </select>
-        <button
-          className="button primary"
-          type="button"
-          disabled={!availability.unlocked}
-          onClick={change}
-        >
-          Сменить класс
+        <article>
+          <span aria-hidden="true">{classIcons[choice]}</span>
+          <div>
+            <strong>{CLASS_DEFINITIONS[choice].epithet}</strong>
+            <p>{CLASS_DEFINITIONS[choice].passive}</p>
+          </div>
+        </article>
+      </div>
+    </Modal>
+  );
+}
+
+function HeroClassSummary({ onChange }: { onChange: () => void }) {
+  const { game } = useGame();
+  const { hero } = game.save;
+  const definition = CLASS_DEFINITIONS[hero.classId];
+  const availability = game.classChangeAvailability();
+
+  return (
+    <section className="hero-class-summary paper-panel" id="class-change-panel">
+      <div className="hero-class-emblem" aria-hidden="true">
+        {classIcons[hero.classId]}
+      </div>
+      <div className="hero-class-identity">
+        <strong>{hero.name}</strong>
+        <span>
+          {definition.name} · уровень {hero.level}
+        </span>
+      </div>
+      <div className="hero-specialization">
+        <small>СПЕЦИАЛИЗАЦИЯ</small>
+        <strong>{definition.epithet}</strong>
+        <p>{definition.passive}</p>
+      </div>
+      <div className="hero-class-action">
+        <button type="button" className="button" onClick={onChange}>
+          ⇄ Сменить класс
         </button>
-        <small>Смен класса: {hero.classChanges}</small>
+        <small>
+          {availability.unlocked
+            ? `Смен класса: ${hero.classChanges}`
+            : availability.reason}
+        </small>
       </div>
     </section>
   );
@@ -109,6 +161,7 @@ export function HeroPage({ section = "equipment" }: { section?: HeroSection }) {
   const { game, revision, act, openDialog } = useGame();
   const { hero, equipped, byId } = useEquipment();
   const snapshot = useMemo(() => combatantSnapshot(hero), [game, revision]);
+  const [classChangeOpen, setClassChangeOpen] = useState(false);
   const features = game.fighterFeatures(hero);
   const heading =
     section === "history"
@@ -117,17 +170,11 @@ export function HeroPage({ section = "equipment" }: { section?: HeroSection }) {
           title: "Карьера и соперники",
           copy: "Достижения, личные противостояния и последствия прожитых боёв.",
         }
-      : section === "class"
-        ? {
-            eyebrow: "НОВАЯ СПЕЦИАЛИЗАЦИЯ",
-            title: "Смена класса",
-            copy: "Измените боевой стиль, сохранив уровень, рейтинг, историю и найденные вещи.",
-          }
-        : {
-            eyebrow: "ЭКИПИРОВКА ГЕРОЯ",
-            title: "Ваш герой",
-            copy: "Настройте облик, подберите снаряжение и сразу увидьте итоговые характеристики.",
-          };
+      : {
+          eyebrow: "ЭКИПИРОВКА ГЕРОЯ",
+          title: "Ваш герой",
+          copy: "Настройте облик, подберите снаряжение и сразу увидьте итоговые характеристики.",
+        };
   return (
     <section className="page active equipment-page" id="page-hero">
       <PageHeading eyebrow={heading.eyebrow} title={heading.title}>
@@ -135,6 +182,10 @@ export function HeroPage({ section = "equipment" }: { section?: HeroSection }) {
       </PageHeading>
       {section === "equipment" && (
         <>
+          <HeroClassSummary onChange={() => setClassChangeOpen(true)} />
+          {classChangeOpen && (
+            <ClassChangeDialog onClose={() => setClassChangeOpen(false)} />
+          )}
           <GearActions id="hero-gear-actions" />
           <div className="hero-visual-layout">
             <section className="character-showcase">
@@ -276,7 +327,6 @@ export function HeroPage({ section = "equipment" }: { section?: HeroSection }) {
         </>
       )}
       {section === "history" && <HeroHistory />}
-      {section === "class" && <ClassChange />}
     </section>
   );
 }

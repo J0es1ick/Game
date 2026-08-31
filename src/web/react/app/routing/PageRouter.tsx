@@ -101,15 +101,7 @@ export const PageRouter = memo(function PageRouter({
 }) {
   const equipmentPage =
     page === "hero" || page === "career" || page === "class-change" ? (
-      <HeroPage
-        section={
-          page === "career"
-            ? "history"
-            : page === "class-change"
-              ? "class"
-              : "equipment"
-        }
-      />
+      <HeroPage section={page === "career" ? "history" : "equipment"} />
     ) : page === "arsenal" ? (
       <InventoryPage />
     ) : page === "forge" ? (

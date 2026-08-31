@@ -102,6 +102,12 @@ describe("React application integration", () => {
     ).getByRole("button", { name: new RegExp(`^${name}(?: \\d+)?$`) });
   }
 
+  function mapDirection(ui: RenderResult, name: string) {
+    return within(
+      ui.getByRole("navigation", { name: "Быстрый доступ к активностям" }),
+    ).getByRole("button", { name: new RegExp(`^${name}(?:\\s|$)`) });
+  }
+
   test("creates a hero through the real mode chooser, skips onboarding and reloads the saved campaign", async () => {
     const ui = application();
     expect(ui.getByRole("heading", { name: "Выберите режим" })).toBeTruthy();
@@ -171,28 +177,16 @@ describe("React application integration", () => {
     expect(window.location.hash).toBe("#/history");
   }, 15000);
 
-  test("training updates the world while retaining the lower activity cards and selected control", async () => {
+  test("training updates the world while retaining the selected map direction and control", async () => {
     const { game, ui } = await loadedWorld();
     const day = game.save.worldDay;
-    const route = document.getElementById("arena-route");
-    const cards = Array.from(
-      document.querySelectorAll(
-        "#arena-route .activity-card, #dungeon-route .activity-card, #duel-route .activity-card",
-      ),
-    );
+    const activity = document.getElementById("daily-actions-section");
     const button = ui.getByRole("button", { name: "Тренироваться" });
     button.focus();
     fireEvent.click(button);
     expect(game.save.worldDay).toBe(day + 1);
-    expect(document.getElementById("arena-route")).toBe(route);
-    expect(
-      Array.from(
-        document.querySelectorAll(
-          "#arena-route .activity-card, #dungeon-route .activity-card, #duel-route .activity-card",
-        ),
-      ),
-    ).toEqual(cards);
-    cards.forEach((card) => expect(card.isConnected).toBe(true));
+    expect(document.getElementById("daily-actions-section")).toBe(activity);
+    expect(mapDirection(ui, "Дуэли").getAttribute("aria-pressed")).toBe("true");
     expect(document.activeElement).toBe(button);
     expect(store.repository.load()?.save.worldDay).toBe(day + 1);
   }, 15000);
@@ -251,6 +245,7 @@ describe("React application integration", () => {
   test("registers for a tournament and launches the reserved bracket from its day reminder", async () => {
     const { game, ui } = await loadedWorld();
     const arena = ARENAS[0];
+    fireEvent.click(mapDirection(ui, "Турниры"));
     const card = ui
       .getByRole("heading", { name: arena.name, level: 3 })
       .closest("article")!;

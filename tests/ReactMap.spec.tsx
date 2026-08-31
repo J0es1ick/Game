@@ -55,17 +55,15 @@ describe("React world map", () => {
     game.save.eliteLeagueMemberIds[rank - 1] = game.save.hero.id;
   }
 
-  test("quick navigation reports reserved events today, training limits and the correct targets", () => {
+  test("quick navigation reports reserved events today and the correct targets", () => {
     game.save.tournamentRegistrations[ARENAS[0].id] = game.save.worldDay;
     game.save.tournamentRegistrations["crown-league"] = game.save.worldDay;
-    game.save.hero.level = game.trainingLevelCap();
     const shortcuts = mapShortcuts(game);
     expect(
       shortcuts.find((entry) => entry.id === "tournaments-section")?.status,
     ).toBe("2 сегодня");
-    expect(
-      shortcuts.find((entry) => entry.id === "daily-actions-section")?.status,
-    ).toBe("Достигнут предел");
+    expect(shortcuts).toHaveLength(5);
+    expect(shortcuts[shortcuts.length - 1]?.name).toBe("Корона");
     const ui = render(
       <GameProvider store={store}>
         <MapShortcuts />
@@ -76,6 +74,32 @@ describe("React world map", () => {
       page: "map",
       anchor: "tournaments-section",
     });
+  });
+
+  test("map directions switch in place while keeping every activity available", () => {
+    const ui = render(
+      <GameProvider store={store}>
+        <MapPage />
+      </GameProvider>,
+    );
+    expect(ui.getByRole("heading", { name: "Дуэльный круг" })).toBeTruthy();
+    expect(ui.getByRole("heading", { name: "Тренировка" })).toBeTruthy();
+    fireEvent.click(ui.getByRole("button", { name: /Турниры/ }));
+    expect(
+      ui.getByRole("heading", { name: "Календарь турниров" }),
+    ).toBeTruthy();
+    ARENAS.forEach((arena) =>
+      expect(
+        ui.getByRole("heading", { name: arena.name, level: 3 }),
+      ).toBeTruthy(),
+    );
+    const conditionLinks = ui.getAllByText("Условия");
+    expect(conditionLinks).toHaveLength(ARENAS.length);
+    expect(conditionLinks[0].getAttribute("title")).toContain(
+      game.factionController(ARENAS[0].id).name,
+    );
+    expect(ui.queryByText("АРЕНОЙ УПРАВЛЯЕТ")).toBeNull();
+    expect(ui.getByRole("heading", { name: "Тренировка" })).toBeTruthy();
   });
 
   test("quick endgame status includes pending defense, available hunt and future league registration", () => {
@@ -183,7 +207,7 @@ describe("React world map", () => {
     expect(store.getSnapshot().dialogs).toContainEqual({ kind: "battle" });
   });
 
-  test("new chronicle status keeps all requirements visible and disables transition before qualification", () => {
+  test("new chronicle status opens the detailed requirements before qualification", () => {
     const status = game.newGamePlusStatus();
     const ui = render(
       <GameProvider store={store}>
@@ -191,16 +215,14 @@ describe("React world map", () => {
       </GameProvider>,
     );
     expect(status.unlocked).toBe(false);
+    const completed = status.requirements.filter((entry) => entry.met).length;
     expect(
-      ui
-        .getByRole("button", { name: "Путь ещё не завершён" })
-        .hasAttribute("disabled"),
-    ).toBe(true);
-    status.requirements.forEach((requirement) =>
-      expect(ui.getByText(requirement.label)).toBeTruthy(),
-    );
-    fireEvent.click(ui.getByRole("button", { name: "Путь ещё не завершён" }));
-    expect(store.getSnapshot().dialogs).toHaveLength(0);
+      ui.getByText(`${completed} из ${status.requirements.length} условий`),
+    ).toBeTruthy();
+    fireEvent.click(ui.getByRole("button", { name: "Условия эпохи" }));
+    expect(store.getSnapshot().dialogs).toContainEqual({
+      kind: "new-chronicle",
+    });
   });
 
   test("measures shortcut height independently of world renders and disconnects its observers on exit", () => {
