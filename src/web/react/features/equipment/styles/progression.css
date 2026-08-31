@@ -467,6 +467,12 @@
   text-align: left;
   text-transform: uppercase;
 }
+.leader-table th[data-term] {
+  color: #f2d28f;
+}
+.leader-table th[data-term]:is(:hover, :focus-visible) {
+  color: #fff3d5;
+}
 .leader-table td {
   padding: 11px 12px;
   border-bottom: 1px solid #d2cabb;

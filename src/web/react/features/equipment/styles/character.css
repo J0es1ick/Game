@@ -1,13 +1,12 @@
 .hero-visual-layout {
   display: grid;
   grid-template-columns: minmax(520px, 1.25fr) minmax(350px, 0.85fr) 250px;
-  align-items: stretch;
+  align-items: start;
   gap: 18px;
 }
 .hero-visual-layout > :is(.character-showcase, .worn-designs, .visual-stats) {
   box-sizing: border-box;
   min-width: 0;
-  height: 100%;
 }
 .character-showcase {
   position: relative;
@@ -924,7 +923,7 @@
 .visual-stats {
   position: sticky;
   top: 142px;
-  align-self: stretch;
+  align-self: start;
 }
 .appearance-editor {
   display: grid;

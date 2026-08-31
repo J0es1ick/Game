@@ -21,6 +21,9 @@
 }
 
 @media (max-width: 1180px) {
+  .map-utilities {
+    grid-template-columns: 1fr;
+  }
   .game-header {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }
@@ -31,6 +34,14 @@
     width: 100%;
     padding-top: 8px;
     border-top: 1px solid #4e483d;
+  }
+  .nav-primary button {
+    padding-inline: 9px;
+  }
+  .nav-primary .nav-icon {
+    width: 24px;
+    height: 24px;
+    font-size: 15px;
   }
   .map-layout {
     grid-template-columns: 220px minmax(0, 1fr);
@@ -60,6 +71,15 @@
   }
   .hero-visual-layout {
     grid-template-columns: minmax(380px, 1fr) 1fr;
+  }
+  .hero-class-summary {
+    grid-template-columns: auto minmax(150px, 0.45fr) minmax(240px, 1fr);
+  }
+  .hero-class-action {
+    grid-column: 1 / -1;
+    grid-template-columns: minmax(180px, 0.35fr) minmax(0, 1fr);
+    align-items: center;
+    text-align: left;
   }
   .visual-stats {
     position: static;
@@ -91,9 +111,25 @@
 }
 
 @media (max-width: 820px) {
-  .class-change-panel,
-  .endgame-route {
+  .hero-class-summary,
+  .endgame-route,
+  .endgame-legacy-actions {
     grid-template-columns: 1fr;
+  }
+  .hero-class-emblem {
+    display: none;
+  }
+  .hero-specialization {
+    padding: 11px 0 0;
+    border-top: 1px solid #b1a693;
+    border-left: 0;
+  }
+  .hero-class-action {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+  .endgame-legacy-actions > div:last-child {
+    justify-content: flex-start;
   }
   .skill-tactics {
     grid-template-columns: 1fr;
@@ -178,6 +214,15 @@
   .main-nav {
     top: 0;
   }
+  .nav-primary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .nav-secondary {
+    grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+  }
+  .nav-primary button:nth-child(-n + 3) {
+    border-bottom: 1px solid #a99f8c;
+  }
   .hero-summary {
     grid-row: 2;
     grid-column: 1 / -1;
@@ -209,10 +254,8 @@
     position: sticky;
     top: calc(var(--main-nav-height, 82px) + 8px);
     width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     margin: -10px 0 20px;
-  }
-  .map-shortcuts > span {
-    margin-right: auto;
   }
   .map-layout,
   .arsenal-layout {
@@ -228,7 +271,14 @@
   .next-goal {
     position: static;
   }
+  .map-tab-panel {
+    order: 1;
+  }
+  .next-goal {
+    order: 2;
+  }
   .hero-card {
+    order: 3;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 0 20px;
@@ -261,6 +311,23 @@
 }
 
 @media (max-width: 560px) {
+  .class-change-dialog-actions {
+    width: 100%;
+    flex-direction: column-reverse;
+  }
+  .map-quick-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+  .map-quick-actions > div {
+    grid-column: 1 / -1;
+  }
+  .training-strip {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+  .training-strip .button {
+    width: 100%;
+  }
   .creation-paper {
     padding: 28px 16px;
   }
@@ -348,6 +415,7 @@
   }
   .resources {
     grid-row: 4;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .wordmark {
     font-size: 18px;
@@ -357,16 +425,26 @@
   }
   .nav-primary,
   .nav-secondary {
-    padding: 0 max(18px, env(safe-area-inset-right)) 0
-      max(8px, env(safe-area-inset-left));
-    scroll-padding-inline: 8px;
+    padding-inline: max(8px, env(safe-area-inset-left))
+      max(8px, env(safe-area-inset-right));
   }
   .nav-primary button {
-    min-width: 104px;
-    justify-content: center;
+    grid-template-columns: 22px minmax(0, 1fr);
+    gap: 6px;
+    padding: 6px;
+  }
+  .nav-primary .nav-icon {
+    width: 22px;
+    height: 22px;
+  }
+  .nav-copy b {
+    font-size: 12px;
+  }
+  .nav-copy small {
+    font-size: 9px;
   }
   .main-nav button {
-    padding: 0 13px;
+    padding-inline: 9px;
   }
   .tournament-reminder {
     top: 10px;
@@ -402,20 +480,15 @@
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .map-shortcuts {
-    display: flex;
-    overflow-x: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     padding: 6px;
-    scroll-snap-type: x proximity;
-  }
-  .map-shortcuts > span {
-    display: none;
   }
   .map-shortcuts button {
-    width: 150px;
-    min-width: 150px;
-    max-width: 150px;
-    scroll-snap-align: start;
+    width: auto;
+    min-width: 0;
+    max-width: none;
   }
   .hero-card {
     display: block;
@@ -610,7 +683,7 @@
     padding-bottom: 14px;
   }
   .page-heading h1 {
-    font-size: clamp(40px, 4vw, 49px);
+    font-size: clamp(34px, 3.3vw, 42px);
   }
   .skill-tactics {
     margin-bottom: 16px;

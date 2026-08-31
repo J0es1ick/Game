@@ -68,8 +68,10 @@ button:not(:disabled):active,
 }
 
 .page.active .map-shortcuts,
+.page.active .map-utilities,
+.page.active .training-strip,
 .page.active .gear-actions,
-.page.active .class-change-panel,
+.page.active .hero-class-summary,
 .page.active .collection-overview,
 .page.active .shopkeeper,
 .page.active .leader-summary,
@@ -80,6 +82,16 @@ button:not(:disabled):active,
 .page.active .hero-visual-layout,
 .page.active .arsenal-layout {
   animation: ui-section-in 300ms var(--motion-ease) both;
+}
+
+.page.active .map-shortcuts,
+.page.active .gear-actions,
+.page.active .training-strip {
+  animation-delay: 45ms;
+}
+
+.page.active .map-tab-panel .route-section {
+  animation: ui-section-in 240ms var(--motion-ease) both;
 }
 
 .activity-route > .activity-card,
