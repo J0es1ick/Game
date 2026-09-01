@@ -82,6 +82,14 @@ describe("React world map", () => {
         <MapPage />
       </GameProvider>,
     );
+    expect(
+      (ui.getByRole("button", { name: /Кузница/ }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false);
+    expect(
+      (ui.getByRole("button", { name: /Контракты/ }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
     expect(ui.getByRole("heading", { name: "Дуэльный круг" })).toBeTruthy();
     expect(ui.getByRole("heading", { name: "Тренировка" })).toBeTruthy();
     fireEvent.click(ui.getByRole("button", { name: /Турниры/ }));
@@ -100,6 +108,19 @@ describe("React world map", () => {
     );
     expect(ui.queryByText("АРЕНОЙ УПРАВЛЯЕТ")).toBeNull();
     expect(ui.getByRole("heading", { name: "Тренировка" })).toBeTruthy();
+  });
+
+  test("quick actions open forge and unlocked contracts", () => {
+    game.save.hero.arenaWins[0] = 1;
+    const ui = render(
+      <GameProvider store={store}>
+        <MapPage />
+      </GameProvider>,
+    );
+    fireEvent.click(ui.getByRole("button", { name: /Кузница/ }));
+    expect(store.getSnapshot().page).toBe("forge");
+    fireEvent.click(ui.getByRole("button", { name: /Контракты/ }));
+    expect(store.getSnapshot().page).toBe("contracts");
   });
 
   test("quick endgame status includes pending defense, available hunt and future league registration", () => {

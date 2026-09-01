@@ -317,9 +317,11 @@
   }
   .map-quick-actions {
     grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
   }
   .map-quick-actions > div {
     grid-column: 1 / -1;
+    grid-row: auto;
   }
   .training-strip {
     grid-template-columns: 1fr;

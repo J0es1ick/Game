@@ -1012,6 +1012,7 @@
 .map-quick-actions {
   display: grid;
   grid-template-columns: minmax(145px, 0.8fr) repeat(2, minmax(125px, 1fr));
+  grid-template-rows: repeat(2, minmax(60px, 1fr));
   gap: 7px;
   padding: 8px;
   border: 1px solid #9a8f7b;
@@ -1019,6 +1020,7 @@
 }
 .map-quick-actions > div {
   display: grid;
+  grid-row: 1 / span 2;
   align-content: center;
   gap: 3px;
   padding: 5px 8px;
@@ -1034,6 +1036,7 @@
   align-content: center;
   gap: 2px 8px;
   min-width: 0;
+  min-height: 60px;
   padding: 9px 11px;
   border: 1px solid #9d927e;
   background: #eee7d9;
@@ -1044,6 +1047,16 @@
   border-color: var(--green);
   background: #f6f0e4;
   outline: none;
+}
+.map-quick-actions button:disabled {
+  border-color: #aaa18f;
+  color: #756e62;
+  background: #d4cdbf;
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+.map-quick-actions button:disabled > span {
+  color: #756e62;
 }
 .map-quick-actions button > span {
   grid-row: 1 / span 2;
