@@ -1,6 +1,6 @@
 .hero-visual-layout {
   display: grid;
-  grid-template-columns: minmax(520px, 1.25fr) minmax(350px, 0.85fr) 250px;
+  grid-template-columns: minmax(390px, 1fr) minmax(330px, 0.9fr) 250px;
   align-items: start;
   gap: 18px;
 }
@@ -10,7 +10,7 @@
 }
 .character-showcase {
   position: relative;
-  min-height: 730px;
+  min-height: 500px;
   overflow: hidden;
   border: 1px solid #958a77;
   background: #cbc1ad;
@@ -61,10 +61,10 @@
 .paper-doll {
   position: absolute;
   z-index: 2;
-  top: 72px;
+  top: 55px;
   left: 50%;
-  width: min(430px, 92%);
-  height: 590px;
+  width: min(300px, 86%);
+  height: 405px;
   transform: translateX(-50%);
 }
 .character-illustration {
@@ -843,12 +843,12 @@
   gap: 8px;
 }
 .worn-designs > h2 {
-  margin-bottom: 8px;
-  font-size: 24px;
+  margin-bottom: 4px;
+  font-size: 21px;
 }
 .worn-item {
   display: flex;
-  min-height: 88px;
+  min-height: 68px;
   align-items: center;
   gap: 12px;
   padding: 11px;
@@ -881,8 +881,8 @@
 }
 .gear-swatch {
   display: grid;
-  width: 54px;
-  height: 81px;
+  width: 42px;
+  height: 58px;
   flex: 0 0 auto;
   border: 1px solid #61594b;
   color: #fff;
@@ -892,6 +892,12 @@
     serif;
   box-shadow: 3px 3px 0 #c4baa8;
   place-items: center;
+}
+.gear-swatch.empty-slot::before {
+  width: 13px;
+  height: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  content: "";
 }
 .gear-swatch.equipment-art {
   background-color: transparent;
@@ -923,7 +929,10 @@
 .visual-stats {
   position: sticky;
   top: 142px;
+  max-height: 500px;
   align-self: start;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 .appearance-editor {
   display: grid;

@@ -253,6 +253,9 @@
   text-align: left;
   cursor: pointer;
 }
+.worn-item-readonly {
+  cursor: default;
+}
 
 .worn-item-choice > span:last-child {
   min-width: 0;
@@ -273,6 +276,14 @@
 .equipment-page .worn-item {
   gap: 12px;
   padding: 13px;
+}
+.hero-visual-layout .worn-item {
+  min-height: 68px;
+  padding: 6px 9px;
+}
+.hero-visual-layout .worn-item-description {
+  font-size: 11.5px;
+  line-height: 1.35;
 }
 .equipment-page .worn-item strong {
   line-height: 1.3;

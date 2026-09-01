@@ -382,12 +382,14 @@ describe("React equipment updates", () => {
     ).toBe(legacyItem);
   });
 
-  it("renders class change inside hero equipment and keeps history separate", () => {
+  it("keeps hero identity read-only and career history separate", () => {
     const HistoryPage = () => createElement(HeroPage, { section: "history" });
     render(HeroPage);
     expect(container.querySelector("#paper-doll")).not.toBeNull();
     expect(container.querySelector(".hero-history-grid")).toBeNull();
     expect(container.querySelector("#class-change-panel")).not.toBeNull();
+    expect(container.querySelector("#hero-gear-actions")).toBeNull();
+    expect(container.querySelector("#worn-designs button")).toBeNull();
 
     render(HistoryPage);
     expect(container.querySelector("#paper-doll")).toBeNull();

@@ -21,12 +21,15 @@ import { CharacterArt, EquipmentArt } from "../../components/Artwork/Artwork";
 import { HeroHistory } from "../../components/HeroHistory/HeroHistory";
 import { itemName, number, statsText } from "../../utils/model";
 import {
-  GearActions,
   StatRow,
   useEquipment,
 } from "../../components/EquipmentShared/EquipmentShared";
 
 type HeroSection = "equipment" | "history";
+
+function sentenceCase(value: string): string {
+  return value ? `${value[0].toUpperCase()}${value.slice(1)}` : value;
+}
 
 function ClassChangeDialog({ onClose }: { onClose: () => void }) {
   const { game, act, notify, queueLoot } = useGame();
@@ -105,14 +108,14 @@ function ClassChangeDialog({ onClose }: { onClose: () => void }) {
         >
           {classes.map((definition) => (
             <option key={definition.id} value={definition.id}>
-              {definition.name} — {definition.epithet}
+              {definition.name} — {sentenceCase(definition.epithet)}
             </option>
           ))}
         </select>
         <article>
           <span aria-hidden="true">{classIcons[choice]}</span>
           <div>
-            <strong>{CLASS_DEFINITIONS[choice].epithet}</strong>
+            <strong>{sentenceCase(CLASS_DEFINITIONS[choice].epithet)}</strong>
             <p>{CLASS_DEFINITIONS[choice].passive}</p>
           </div>
         </article>
@@ -140,7 +143,7 @@ function HeroClassSummary({ onChange }: { onChange: () => void }) {
       </div>
       <div className="hero-specialization">
         <small>СПЕЦИАЛИЗАЦИЯ</small>
-        <strong>{definition.epithet}</strong>
+        <strong>{sentenceCase(definition.epithet)}</strong>
         <p>{definition.passive}</p>
       </div>
       <div className="hero-class-action">
@@ -158,7 +161,7 @@ function HeroClassSummary({ onChange }: { onChange: () => void }) {
 }
 
 export function HeroPage({ section = "equipment" }: { section?: HeroSection }) {
-  const { game, revision, act, openDialog } = useGame();
+  const { game, revision, act } = useGame();
   const { hero, equipped, byId } = useEquipment();
   const snapshot = useMemo(() => combatantSnapshot(hero), [game, revision]);
   const [classChangeOpen, setClassChangeOpen] = useState(false);
@@ -171,9 +174,9 @@ export function HeroPage({ section = "equipment" }: { section?: HeroSection }) {
           copy: "Достижения, личные противостояния и последствия прожитых боёв.",
         }
       : {
-          eyebrow: "ЭКИПИРОВКА ГЕРОЯ",
+          eyebrow: "ОБЛИК И ХАРАКТЕР",
           title: "Ваш герой",
-          copy: "Настройте облик, подберите снаряжение и сразу увидьте итоговые характеристики.",
+          copy: "Класс, внешность, боевые особенности и текущее снаряжение героя.",
         };
   return (
     <section className="page active equipment-page" id="page-hero">
@@ -186,7 +189,6 @@ export function HeroPage({ section = "equipment" }: { section?: HeroSection }) {
           {classChangeOpen && (
             <ClassChangeDialog onClose={() => setClassChangeOpen(false)} />
           )}
-          <GearActions id="hero-gear-actions" />
           <div className="hero-visual-layout">
             <section className="character-showcase">
               <div className="character-backdrop">
@@ -222,14 +224,9 @@ export function HeroPage({ section = "equipment" }: { section?: HeroSection }) {
                 return (
                   <article
                     key={slot}
-                    className={`worn-item selectable ${item?.rarity ?? "empty"}`}
+                    className={`worn-item ${item?.rarity ?? "empty"}`}
                   >
-                    <button
-                      type="button"
-                      className="worn-item-choice"
-                      onClick={() => openDialog({ kind: "equipment", slot })}
-                      aria-label={`Выбрать предмет: ${SLOT_LABELS[slot]}`}
-                    >
+                    <div className="worn-item-choice worn-item-readonly">
                       {item ? (
                         <EquipmentArt
                           item={item}
@@ -238,7 +235,7 @@ export function HeroPage({ section = "equipment" }: { section?: HeroSection }) {
                           className="gear-swatch equipment-art"
                         />
                       ) : (
-                        <span className="gear-swatch">—</span>
+                        <span className="gear-swatch empty-slot" />
                       )}
                       <span>
                         <small>{SLOT_LABELS[slot]}</small>
@@ -251,23 +248,14 @@ export function HeroPage({ section = "equipment" }: { section?: HeroSection }) {
                             : "Слот не даёт характеристик."}
                         </span>
                       </span>
-                    </button>
-                    {item && (
-                      <button
-                        className="small-button unequip-inline"
-                        type="button"
-                        onClick={() => act((world) => world.unequip(slot))}
-                      >
-                        Снять
-                      </button>
-                    )}
+                    </div>
                   </article>
                 );
               })}
             </section>
             <aside className="paper-panel visual-stats" id="visual-stats">
               <p className="eyebrow">ОБРАЗ В БОЮ</p>
-              <h2>{CLASS_DEFINITIONS[hero.classId].epithet}</h2>
+              <h2>{sentenceCase(CLASS_DEFINITIONS[hero.classId].epithet)}</h2>
               <StatRow label="Сила вещей" value={snapshot.equipmentScore} />
               <StatRow label="Крит. шанс" value={`${snapshot.crit}%`} />
               <StatRow label="Скорость" value={snapshot.speed} />

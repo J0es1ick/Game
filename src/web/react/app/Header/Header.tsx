@@ -185,7 +185,7 @@ const groups = [
 }>;
 const labels: Record<WorldPageId, string> = {
   map: "Карта окрестностей",
-  hero: "Снаряжение и облик",
+  hero: "Облик и класс",
   career: "Карьера",
   "class-change": "Смена класса",
   arsenal: "Инвентарь",

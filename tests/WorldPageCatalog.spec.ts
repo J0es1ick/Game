@@ -154,7 +154,7 @@ describe("world page markup", () => {
     ).toBe("page");
   });
 
-  it("keeps class change inside the hero preview instead of a separate page", () => {
+  it("keeps identity pages under hero and build pages under equipment", () => {
     store.setPage("career");
     const ui = show(Header);
     const labels = Array.from(
@@ -163,12 +163,26 @@ describe("world page markup", () => {
       ),
       (button) => button.textContent?.trim(),
     );
-    expect(labels).toEqual(["Снаряжение и облик", "Карьера", "Навыки"]);
+    expect(labels).toEqual(["Облик и класс", "Карьера"]);
     expect(
       ui.container
         .querySelector('[data-page="career"]')
         ?.getAttribute("aria-current"),
     ).toBe("page");
+    ui.unmount();
+    store.setPage("skills");
+    const equipmentUi = show(Header);
+    const equipmentLabels = Array.from(
+      equipmentUi.container.querySelectorAll<HTMLButtonElement>(
+        '.nav-secondary[data-group="equipment"] button',
+      ),
+      (button) => button.textContent?.trim(),
+    );
+    expect(equipmentLabels.slice(0, 3)).toEqual([
+      expect.stringMatching(/^Инвентарь/),
+      "Навыки",
+      "Кузница",
+    ]);
   });
 
   it("does not offer legacy navigation before the required milestone", () => {
