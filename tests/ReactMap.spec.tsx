@@ -63,7 +63,7 @@ describe("React world map", () => {
       shortcuts.find((entry) => entry.id === "tournaments-section")?.status,
     ).toBe("2 сегодня");
     expect(shortcuts).toHaveLength(5);
-    expect(shortcuts[shortcuts.length - 1]?.name).toBe("Корона");
+    expect(shortcuts[shortcuts.length - 1]?.name).toBe("Лига короны");
     const ui = render(
       <GameProvider store={store}>
         <MapShortcuts />

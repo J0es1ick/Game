@@ -117,7 +117,7 @@
   width: 17px;
   height: 17px;
   border: 1px solid #938977;
-  content: "·";
+  content: "";
   font:
     700 12px/1 "Courier New",
     monospace;

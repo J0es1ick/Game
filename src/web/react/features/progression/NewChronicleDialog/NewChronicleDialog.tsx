@@ -389,10 +389,13 @@ export function NewChronicleDialog() {
             >
               {status.reason}
             </StageHeading>
-            <ul>
+            <ul className="chronicle-requirements">
               {status.requirements.map((requirement) => (
-                <li key={requirement.id}>
-                  {requirement.met ? "✓" : "—"} {requirement.label}
+                <li
+                  key={requirement.id}
+                  className={`chronicle-requirement ${requirement.met ? "complete" : "locked"}`}
+                >
+                  {requirement.label}
                 </li>
               ))}
             </ul>

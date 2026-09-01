@@ -78,7 +78,7 @@ export function mapShortcuts(game: WorldGame): MapShortcut[] {
         ? "Поход продолжается"
         : `${DUNGEONS.filter((dungeon) => game.availability(dungeon).unlocked).length} доступно`,
     },
-    { id: "endgame-section", name: "Корона", status: endgameStatus(game) },
+    { id: "endgame-section", name: "Лига короны", status: endgameStatus(game) },
   ];
 }
 

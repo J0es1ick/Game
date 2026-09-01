@@ -87,6 +87,7 @@ export function MapPage() {
           вашим командам.
         </p>
       </PageHeading>
+      <NextGoalCard />
       <MapUtilities />
       <MapShortcuts navigationRef={shortcuts} activeId={activeSection} />
       <div className="map-layout">
@@ -101,7 +102,6 @@ export function MapPage() {
           <Training />
           {activity}
         </div>
-        <NextGoalCard />
       </div>
     </div>
   );

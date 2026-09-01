@@ -56,34 +56,60 @@ export function HeroSummaryCard() {
 }
 
 export function NextGoalCard() {
-  const { game } = useGame();
+  const { game, navigate } = useGame();
   const hero = game.save.hero;
   const next = nextSkills(hero.classId, hero.level)[0];
   const arena = ARENAS[hero.highestArena];
+  const wins = hero.arenaWins[hero.highestArena] ?? 0;
+  const progress = Math.min(
+    100,
+    (wins / Math.max(1, arena.winsToAdvance)) * 100,
+  );
+  const registeredDay = game.registeredTournamentDay(arena.id);
+  const availability = game.availability(arena);
+  const tournamentAction =
+    registeredDay === game.save.worldDay
+      ? "Начать турнир"
+      : registeredDay
+        ? `Турнир в день ${registeredDay}`
+        : availability.unlocked
+          ? "Записаться на турнир"
+          : "Открыть турниры";
 
   return (
-    <aside className="next-goal" id="next-goal" aria-label="Ближайшие цели">
-      <p className="eyebrow">БЛИЖАЙШИЕ ЦЕЛИ</p>
-      <h2>{arena.name}</h2>
-      <StatRow
-        label="Победы"
-        value={`${hero.arenaWins[hero.highestArena]}/${arena.winsToAdvance}`}
-      />
-      {next && (
-        <div className="next-skill">
-          <small>НАВЫК НА {next.unlockLevel} УРОВНЕ</small>
-          <strong>{next.name}</strong>
-          <p>{next.description}</p>
-        </div>
-      )}
-      <div className="mini-events">
-        <h3>Сейчас в мире</h3>
-        {game.save.events.slice(0, 3).map((event) => (
-          <p key={event.id}>
-            День {event.day}. {event.message}
-          </p>
-        ))}
+    <section
+      className="next-goal map-priority"
+      id="next-goal"
+      aria-label="Ближайшая цель"
+    >
+      <div className="next-goal-copy">
+        <p className="eyebrow">БЛИЖАЙШАЯ ЦЕЛЬ</p>
+        <h2>{arena.name}</h2>
+        <p>{availability.reason}</p>
       </div>
-    </aside>
+      <div className="next-goal-progress">
+        <div>
+          <span>Победы для продвижения</span>
+          <strong>
+            {wins} из {arena.winsToAdvance}
+          </strong>
+        </div>
+        <div className="goal-progress-line" aria-hidden="true">
+          <i style={{ width: `${progress}%` }} />
+        </div>
+        {next && (
+          <small>
+            На {next.unlockLevel} уровне откроется «{next.name}»
+          </small>
+        )}
+      </div>
+      <button
+        className="button primary next-goal-action"
+        type="button"
+        onClick={() => navigate("map", "tournaments-section")}
+      >
+        {tournamentAction}
+      </button>
+    </section>
   );
 }
