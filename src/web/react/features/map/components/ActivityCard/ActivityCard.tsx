@@ -1,11 +1,11 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type {
   ArenaDefinition,
   DungeonDefinition,
 } from "../../../../../../gameplay/core/WorldTypes";
 import { useGame } from "../../../../app/state/GameContext";
 import { useBeginBattle } from "../../../../app/state/useBeginBattle";
-import { css } from "../../../../shared/ui/common";
+import { css, Modal } from "../../../../shared/ui/common";
 
 interface ActivityCardProps {
   activity: ArenaDefinition | DungeonDefinition;
@@ -60,6 +60,7 @@ function TournamentCard({
 }) {
   const { game, act, notify } = useGame();
   const begin = useBeginBattle();
+  const [showRules, setShowRules] = useState(false);
   const availability = game.availability(arena);
   const registeredDay = game.registeredTournamentDay(arena.id);
   const today = registeredDay === game.save.worldDay;
@@ -75,10 +76,6 @@ function TournamentCard({
       : registeredDay
         ? `Записан на день ${registeredDay}`
         : `Записаться на день ${nextDay}`;
-  const tournamentContext = [
-    `${controller.name}: ${controller.effect}`,
-    ...rules.map((rule) => `${rule.name}: ${rule.description}`),
-  ].join("\n");
 
   const start = () => {
     if (today) {
@@ -98,36 +95,73 @@ function TournamentCard({
   };
 
   return (
-    <ActivitySurface
-      activity={arena}
-      index={index}
-      locked={!availability.unlocked}
-      reason={availability.reason}
-      meta={
-        <span
-          className="tournament-context-link"
-          title={tournamentContext}
-          tabIndex={0}
+    <>
+      <ActivitySurface
+        activity={arena}
+        index={index}
+        locked={!availability.unlocked}
+        reason={availability.reason}
+        meta={
+          <button
+            type="button"
+            className="tournament-context-link"
+            aria-label={`Условия турнира «${arena.name}»`}
+            aria-haspopup="dialog"
+            onClick={() => setShowRules(true)}
+          >
+            Условия
+          </button>
+        }
+        action={
+          <button
+            type="button"
+            className="button activity-button"
+            disabled={disabled}
+            onClick={start}
+          >
+            {label}
+          </button>
+        }
+      >
+        <div className="activity-levels">
+          Сетка: {arena.participants} · каждые {arena.tournamentInterval} дн. ·
+          приз {arena.rewardGold} ¤
+        </div>
+      </ActivitySurface>
+      {showRules && (
+        <Modal
+          id={`tournament-rules-${arena.id}`}
+          title={`Условия: ${arena.name}`}
+          eyebrow={`${arena.place} · день ${nextDay}`}
+          onClose={() => setShowRules(false)}
+          footer={
+            <button
+              type="button"
+              className="button"
+              onClick={() => setShowRules(false)}
+            >
+              Понятно
+            </button>
+          }
         >
-          Условия
-        </span>
-      }
-      action={
-        <button
-          type="button"
-          className="button activity-button"
-          disabled={disabled}
-          onClick={start}
-        >
-          {label}
-        </button>
-      }
-    >
-      <div className="activity-levels">
-        Сетка: {arena.participants} · каждые {arena.tournamentInterval} дн. ·
-        приз {arena.rewardGold} ¤
-      </div>
-    </ActivitySurface>
+          <div className="tournament-rules">
+            <section>
+              <h3>Ареной управляет {controller.name}</h3>
+              <p>{controller.effect}</p>
+            </section>
+            {rules.map((rule) => (
+              <section key={rule.id}>
+                <h3>{rule.name}</h3>
+                <p>{rule.description}</p>
+              </section>
+            ))}
+            {rules.length === 0 && (
+              <p>Дополнительных ограничений в этом турнире нет.</p>
+            )}
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }
 

@@ -99,7 +99,8 @@
     monospace;
 }
 .equipment-slot.empty {
-  opacity: 0.6;
+  background: #e6dece;
+  border-style: dashed;
 }
 #set-bonuses {
   margin-top: 21px;

@@ -133,7 +133,12 @@ export function TerritoriesPanel() {
       <h2 data-term="factionControl" tabIndex={0}>
         Кто распоряжается миром
       </h2>
-      <div className="territory-ledger">
+      <div
+        className="territory-ledger"
+        role="region"
+        aria-label="Владения фракций"
+        tabIndex={0}
+      >
         {territories.map((territory) => (
           <article
             key={territory.id}

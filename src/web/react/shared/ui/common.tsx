@@ -63,6 +63,8 @@ export function Empty({ children }: { children: ReactNode }) {
 
 let modalCount = 0;
 let previousOverflow = "";
+let previousRootState:
+  { root: HTMLElement; inert: boolean; ariaHidden: string | null } | undefined;
 export const DialogVisibility = createContext(true);
 export const useDialogActive = () => useContext(DialogVisibility);
 
@@ -94,6 +96,16 @@ export function Modal({
     if (modalCount++ === 0) {
       previousOverflow = document.body.style.overflow;
       document.body.style.overflow = "hidden";
+      const root = document.getElementById("root");
+      if (root) {
+        previousRootState = {
+          root,
+          inert: root.inert,
+          ariaHidden: root.getAttribute("aria-hidden"),
+        };
+        root.inert = true;
+        root.setAttribute("aria-hidden", "true");
+      }
     }
     document.body.classList.add("ui-modal-open");
     panel.current?.focus({ preventScroll: true });
@@ -101,6 +113,13 @@ export function Modal({
       if (--modalCount === 0) {
         document.body.style.overflow = previousOverflow;
         document.body.classList.remove("ui-modal-open");
+        if (previousRootState) {
+          const { root, inert, ariaHidden } = previousRootState;
+          root.inert = inert;
+          if (ariaHidden === null) root.removeAttribute("aria-hidden");
+          else root.setAttribute("aria-hidden", ariaHidden);
+          previousRootState = undefined;
+        }
       }
       if (focus?.isConnected) focus.focus({ preventScroll: true });
     };

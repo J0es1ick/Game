@@ -61,7 +61,10 @@ describe("React world map", () => {
     const shortcuts = mapShortcuts(game);
     expect(
       shortcuts.find((entry) => entry.id === "tournaments-section")?.status,
-    ).toBe("2 сегодня");
+    ).toBe("1 сегодня");
+    expect(
+      shortcuts.find((entry) => entry.id === "endgame-section")?.status,
+    ).toBe("Лига сегодня");
     expect(shortcuts).toHaveLength(5);
     expect(shortcuts[shortcuts.length - 1]?.name).toBe("Лига короны");
     const ui = render(
@@ -69,7 +72,7 @@ describe("React world map", () => {
         <MapShortcuts />
       </GameProvider>,
     );
-    fireEvent.click(ui.getByRole("button", { name: "Турниры 2 сегодня" }));
+    fireEvent.click(ui.getByRole("button", { name: "Турниры 1 сегодня" }));
     expect(store.getSnapshot().navigation).toMatchObject({
       page: "map",
       anchor: "tournaments-section",
@@ -103,9 +106,24 @@ describe("React world map", () => {
     );
     const conditionLinks = ui.getAllByText("Условия");
     expect(conditionLinks).toHaveLength(ARENAS.length);
-    expect(conditionLinks[0].getAttribute("title")).toContain(
-      game.factionController(ARENAS[0].id).name,
-    );
+    conditionLinks[0].focus();
+    fireEvent.click(conditionLinks[0]);
+    const dialog = ui.getByRole("dialog", {
+      name: `Условия: ${ARENAS[0].name}`,
+    });
+    expect(
+      within(dialog).getByText(
+        `Ареной управляет ${game.factionController(ARENAS[0].id).name}`,
+      ),
+    ).toBeTruthy();
+    game
+      .tournamentRules(ARENAS[0].id, game.nextTournamentDay(ARENAS[0].id))
+      .forEach((rule) => {
+        expect(within(dialog).getByText(rule.description)).toBeTruthy();
+      });
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(ui.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(conditionLinks[0]);
     expect(ui.queryByText("АРЕНОЙ УПРАВЛЯЕТ")).toBeNull();
     expect(ui.getByRole("heading", { name: "Тренировка" })).toBeTruthy();
   });

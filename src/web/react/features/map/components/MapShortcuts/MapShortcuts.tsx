@@ -31,6 +31,8 @@ export function isMapSectionId(
 }
 
 function endgameStatus(game: WorldGame): string {
+  if (game.registeredCrownLeagueDay() === game.save.worldDay)
+    return "Лига сегодня";
   if (game.pendingLegendChallenge()) return "Защитите титул";
   if (game.newGamePlusStatus().unlocked)
     return `Эпоха ${game.save.legacy.cycle + 1} готова`;
@@ -43,9 +45,9 @@ function endgameStatus(game: WorldGame): string {
 
 export function mapShortcuts(game: WorldGame): MapShortcut[] {
   const today = game.save.worldDay;
-  const tournamentsToday =
-    ARENAS.filter((arena) => game.registeredTournamentDay(arena.id) === today)
-      .length + Number(game.registeredCrownLeagueDay() === today);
+  const tournamentsToday = ARENAS.filter(
+    (arena) => game.registeredTournamentDay(arena.id) === today,
+  ).length;
   const bosses = DUEL_BOSSES.filter(
     (boss) =>
       !game.save.defeatedBosses.includes(boss.id) &&

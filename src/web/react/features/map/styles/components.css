@@ -34,3 +34,18 @@
     --map-header-offset: 0px;
   }
 }
+.tournament-rules {
+  display: grid;
+  gap: 16px;
+}
+.tournament-rules section + section {
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.tournament-rules h3 {
+  margin: 0 0 6px;
+}
+.tournament-rules p {
+  margin: 0;
+  color: var(--muted);
+}

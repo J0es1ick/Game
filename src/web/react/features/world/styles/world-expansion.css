@@ -342,7 +342,7 @@
   background: #e5ddce;
 }
 .world-season-championships small {
-  color: #716858;
+  color: var(--muted);
   font:
     10px/1.3 "Courier New",
     monospace;
@@ -388,7 +388,7 @@
   background: #e3dccd;
 }
 .territory-ledger small {
-  color: #716858;
+  color: var(--muted);
   font:
     10px/1.3 "Courier New",
     monospace;
@@ -398,7 +398,7 @@
   font-size: 14px;
 }
 .territory-ledger span {
-  color: var(--faction-accent);
+  color: var(--ink);
   font-size: 12px;
   font-weight: 700;
 }
