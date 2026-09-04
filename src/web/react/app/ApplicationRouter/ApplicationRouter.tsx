@@ -16,13 +16,17 @@ const BasicTournament = lazy(() =>
   ),
 );
 
-export function ApplicationRouter() {
+export function ApplicationRouter({
+  initialMode,
+}: {
+  initialMode?: "basic" | "world";
+}) {
   const store = useGameStore();
   const mode = useAppSelector((state) => state.mode);
   const error = useAppSelector((state) => state.error);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => store.initialize(), 0);
+    const timer = window.setTimeout(() => store.initialize(initialMode), 0);
     const saveOnLeave = () => store.flush();
     const saveWhenHidden = () => {
       if (document.visibilityState === "hidden") store.flush();
@@ -34,7 +38,7 @@ export function ApplicationRouter() {
       window.removeEventListener("pagehide", saveOnLeave);
       document.removeEventListener("visibilitychange", saveWhenHidden);
     };
-  }, [store]);
+  }, [store, initialMode]);
 
   if (mode === "choose") return <ModeScreen />;
   if (mode === "loading") return <LoadingScreen full />;

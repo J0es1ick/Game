@@ -1,51 +1,19 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { CLASS_DEFINITIONS } from "../../../../../catalogs/WorldCatalog";
 import type { HeroClass } from "../../../../../gameplay/core/WorldTypes";
 import { useAppSelector, useGameStore } from "../../../app/state/GameContext";
 import { css } from "../../../shared/ui/common";
 import { classIcons } from "../../../shared/utils/gameLabels";
 import { SaveActions } from "../../../app/Header/Header";
+import { ModeChoice } from "../ModeChoice/ModeChoice";
 
 export function ModeScreen() {
   const store = useGameStore();
-  const hasSave = store.hasSavedGame();
   return (
-    <main className="mode-screen" id="mode-screen">
-      <div className="mode-paper">
-        <p className="eyebrow">ДВА СПОСОБА ИГРАТЬ</p>
-        <h1>Выберите режим</h1>
-        <p>
-          Оба режима используют одни классы бойцов и боевые правила, но
-          отличаются масштабом и длительностью партии.
-        </p>
-        <div className="mode-choice">
-          <button
-            className="mode-card"
-            onClick={() => store.chooseMode("basic")}
-          >
-            <span>Короткая партия</span>
-            <strong>Базовый турнир</strong>
-            <p>
-              Соберите участников, разыграйте турнирную сетку и наблюдайте за
-              каждым ходом. Без сохранения и мета-прогрессии.
-            </p>
-            <b>Запустить турнир →</b>
-          </button>
-          <button
-            className="mode-card featured"
-            onClick={() => store.chooseMode("world")}
-          >
-            <span>Постоянная кампания</span>
-            <strong>Живой мир</strong>
-            <p>
-              Создайте героя, собирайте экипировку, записывайтесь на турниры и
-              следите за развитием соперников.
-            </p>
-            <b>{hasSave ? "Продолжить летопись →" : "Создать героя →"}</b>
-          </button>
-        </div>
-      </div>
-    </main>
+    <ModeChoice
+      hasSave={store.hasSavedGame()}
+      onChoose={(mode) => store.chooseMode(mode)}
+    />
   );
 }
 
@@ -58,6 +26,8 @@ export function CreationScreen() {
   const [name, setName] = useState("");
   const [classId, setClassId] = useState<HeroClass>("Knight");
   const [hair, setHair] = useState<0 | 1 | 2>(0);
+  const classes = Object.values(CLASS_DEFINITIONS);
+  const classButtons = useRef<(HTMLButtonElement | null)[]>([]);
   return (
     <main className="creation-screen" id="creation-screen">
       <form
@@ -111,15 +81,38 @@ export function CreationScreen() {
           role="radiogroup"
           aria-label="Класс героя"
         >
-          {Object.values(CLASS_DEFINITIONS).map((definition) => (
+          {classes.map((definition, index) => (
             <button
               type="button"
               role="radio"
               aria-checked={classId === definition.id}
+              tabIndex={classId === definition.id ? 0 : -1}
+              ref={(button) => {
+                classButtons.current[index] = button;
+              }}
               className={`class-option${classId === definition.id ? " selected" : ""}`}
               style={css({ "--class-accent": definition.accent })}
               key={definition.id}
               onClick={() => setClassId(definition.id)}
+              onKeyDown={(event) => {
+                const offset =
+                  event.key === "ArrowRight" || event.key === "ArrowDown"
+                    ? 1
+                    : event.key === "ArrowLeft" || event.key === "ArrowUp"
+                      ? -1
+                      : 0;
+                if (!offset && event.key !== "Home" && event.key !== "End")
+                  return;
+                event.preventDefault();
+                const next =
+                  event.key === "Home"
+                    ? 0
+                    : event.key === "End"
+                      ? classes.length - 1
+                      : (index + offset + classes.length) % classes.length;
+                setClassId(classes[next].id);
+                classButtons.current[next]?.focus();
+              }}
             >
               <span>{classIcons[definition.id]}</span>
               <strong>{definition.name}</strong>

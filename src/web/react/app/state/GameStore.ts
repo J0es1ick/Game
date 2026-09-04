@@ -66,8 +66,8 @@ export interface AppSnapshot {
   navigation: { id: number; page: WorldPageId; anchor?: string } | null;
 }
 
-export const SAVE_KEY = "dust-and-crown-save-v2";
-export const MODE_KEY = "dust-and-crown-mode";
+import { SAVE_KEY, MODE_KEY } from "./StorageKeys";
+export { SAVE_KEY, MODE_KEY } from "./StorageKeys";
 const rankingKeys = [
   "dust-and-crown-leader-snapshot-v1",
   "dust-and-crown-elite-snapshot-v1",
@@ -182,11 +182,11 @@ export class GameStore {
     this.listeners.forEach((listener) => listener());
   };
 
-  public initialize(): void {
+  public initialize(initialMode?: "basic" | "world"): void {
     if (this.disposed || this.initialized) return;
     this.initialized = true;
     try {
-      const mode = this.storage.getItem(MODE_KEY);
+      const mode = initialMode ?? this.storage.getItem(MODE_KEY);
       if (mode === "basic") this.chooseMode("basic");
       else if (mode === "world") this.chooseMode("world");
     } catch {

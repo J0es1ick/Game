@@ -130,7 +130,13 @@ describe("world page markup", () => {
     );
     expect(bootstrap).toContain('from "react-dom/client"');
     expect(bootstrap).toContain("root.render(");
-    expect(bootstrap).toContain("<GameProvider");
+    expect(bootstrap).toContain("<GameBootstrap");
+    expect(bootstrap).not.toContain("GameStore");
+    const runtime = readFileSync(
+      "src/web/react/app/GameBootstrap/GameApplication.tsx",
+      "utf8",
+    );
+    expect(runtime).toContain("<GameProvider");
   });
 
   it("renders shop only in primary navigation and legacy in equipment navigation", () => {

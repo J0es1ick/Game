@@ -1,14 +1,14 @@
 :root {
   color-scheme: light;
   --ink: #28271f;
-  --muted: #625f55;
+  --muted: #544f44;
   --paper: #e9e3d3;
   --paper-light: #f4f0e5;
   --paper-dark: #d2c8b2;
   --line: #9f9682;
   --shell: #201d18;
   --shell-light: #302b23;
-  --red: #a34738;
+  --red: #843528;
   --red-dark: #702e27;
   --green: #526f59;
   --yellow: #c6943d;
@@ -150,7 +150,7 @@ h3 {
 }
 .mode-card p {
   min-height: 78px;
-  color: #635d50;
+  color: var(--muted);
   font-size: 12px;
   line-height: 1.55;
 }
