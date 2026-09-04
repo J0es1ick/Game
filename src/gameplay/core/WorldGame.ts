@@ -1,19 +1,8 @@
 import {
-  BattleAction,
-  BattleActionOption,
-  BattleSession,
-  CombatOptions,
-  combatantSnapshot,
-  resolveCombat,
-  unlockedSkills,
-} from "../combat/AdvancedBattle";
-import {
   ARENAS,
-  CLASS_DEFINITIONS,
   DUEL_BOSSES,
   DUEL_TIERS,
   DUNGEONS,
-  ENDGAME_ACTIVITIES,
   EQUIPMENT_SETS,
   ITEM_TEMPLATES,
   RARITY_LABELS,
@@ -21,43 +10,164 @@ import {
   SKILLS,
 } from "../../catalogs/WorldCatalog";
 import {
-  calculateItemPrice,
-  createItem,
-  createStarterItems,
-  equipmentScore,
-  ItemCreationOptions,
-  itemPower,
-} from "../../factories/ItemFactory";
-import {
-  equipmentItemsForLoadout,
-  evaluateCombatantPower,
-  findBestEquipmentLoadout,
-} from "../equipment/EquipmentLoadout";
-import {
-  buyTemperingMarks,
-  temperingMarkPrice,
-} from "../equipment/ShopSupplies";
-import {
-  CLASS_RELIC_EPITHETS,
   DEFAULT_TACTICAL_PROFILES,
-  EXPEDITION_CHOICES,
   FACTIONS,
-  factionReputationTier,
   FIGHTER_SCARS,
   FIGHTER_TRAITS,
-  RELIC_PATHS,
   RELIC_TIER_THRESHOLDS,
   TOURNAMENT_RULES,
 } from "../../catalogs/WorldExpansionCatalog";
+import {
+  createItem,
+  equipmentScore,
+  ItemCreationOptions,
+} from "../../factories/ItemFactory";
+import {
+  BattleAction,
+  BattleActionOption,
+  BattleSession,
+  combatantSnapshot,
+  CombatOptions,
+  unlockedSkills,
+} from "../combat/AdvancedBattle";
+import { BattleFinalizationService } from "../combat/BattleFinalizationService";
+import {
+  countermeasureDefinition,
+  createEnemyStyleMemory,
+  decayEnemyStyleMemory,
+  EnemyMemoryCombatRead,
+  heroLoadoutSignature,
+  memoryStageDefinition,
+  readEnemyStyleMemory,
+  recordEnemyStyleMemory,
+} from "../combat/EnemyMemory";
+import {
+  buildRivalScoutingReport,
+  RivalScoutingReport,
+} from "../combat/RivalrySystem";
+import { DungeonRouteNode } from "../dungeons/DungeonRoute";
+import { ExpeditionService } from "../dungeons/ExpeditionService";
+import {
+  EquipmentDeedKind,
+  recordEquipmentDeed,
+} from "../equipment/EquipmentEvolution";
+import { evaluateCombatantPower } from "../equipment/EquipmentLoadout";
+import { HeroEquipmentService } from "../equipment/HeroEquipmentService";
+import {
+  BestEquipmentEvaluation,
+  LootTarget,
+  ReforgeRequest,
+  ReforgeResult,
+  rollTargetedLoot,
+} from "../equipment/LootProgression";
+import { considerNpcLoot } from "../equipment/NpcEquipment";
+import { ShopService } from "../equipment/ShopService";
+import { synchronizeWorldRelic } from "../equipment/WorldRelics";
+import { beginNewChronicle } from "../progression/ChronicleTransition";
+import {
+  defaultLegacyState,
+  describeLegacyArchiveInfluence,
+  epochDifficultyModifiers,
+  epochFinalGoalProgress,
+  eraLawModifiers,
+  improveMinimumRarity,
+  inheritArchiveStyleMemory,
+  inheritedSkillSupportsClass,
+  newGamePlusStatus,
+  normalizeLegacyState,
+  RewardContext,
+  rewardModifiers,
+} from "../progression/NewGamePlus";
+import { heroExperienceRequirement } from "../progression/ProgressionBalance";
+import {
+  ENEMY_ARENA_CHAMPIONSHIP_MIGRATION,
+  normalizeWorldSave,
+  PENDING_BATTLE_MIGRATION,
+  PROGRESSION_CURVE_MIGRATION,
+  STAGED_WORLD_FEATURES_MIGRATION,
+} from "../save/WorldSaveMigration";
+import { assertRestorableWorldSave } from "../save/WorldSaveValidation";
+import { TournamentService } from "../tournaments/TournamentService";
+import { ContractService } from "../world/ContractService";
+import {
+  awardCrownSeasonPoints,
+  createCrownSeason,
+  CrownSeasonResult,
+  CrownSeasonState,
+} from "../world/CrownSeason";
+import {
+  createEraChallengeProgress,
+  EraChallenge,
+  eraChallengeFor,
+  EraObjectiveProgress,
+  evaluateEraObjective,
+  recordEraMetric,
+} from "../world/EraChallenges";
+import { claimFactionCampaignReward } from "../world/FactionCampaign";
+import {
+  factionArenaReward,
+  improveFactionMinimumRarity,
+} from "../world/FactionEconomy";
+import { factionModifier, unlockedFactionPerks } from "../world/FactionSystem";
+import { createFactionControlState } from "../world/LivingWorld";
+import {
+  availableNarrativeEvents,
+  NarrativeChoice,
+  NarrativeEventDefinition,
+} from "../world/NarrativeEvents";
+import {
+  createNpcLifeWorldState,
+  normalizeNpcLifeWorldState,
+  type FutureBossRecord,
+  type NpcLifeProfile,
+} from "../world/NpcLifeSimulation";
+import { NpcSimulationService } from "../world/NpcSimulationService";
+import { SeasonService } from "../world/SeasonService";
+import { StructuredWorldEventPayload } from "../world/WorldEvents";
+import {
+  createWorldFeatureUnlock,
+  WORLD_FEATURE_IDS,
+  worldFeatureAvailability,
+} from "../world/WorldFeatureProgression";
+import { WorldPopulationService } from "../world/WorldPopulationService";
+import * as worldQueries from "../world/WorldQueries";
+import {
+  byLeaderboardPosition,
+  calculateEnemyWorldRating,
+  calculateHeroWorldRating,
+  enemyLeaderboardEntry,
+  heroLeaderboardEntry,
+} from "../world/WorldRanking";
+import {
+  awardWorldEliteSeasonPoints,
+  createWorldSeason,
+  worldSeasonRule,
+  type WorldSeasonResult,
+  type WorldSeasonStanding,
+} from "../world/WorldSeason";
+import { SeededRandom } from "./RandomSource";
+import { starterEquipment } from "./WorldCreation";
+import {
+  ACTIVE_INJURY_CHANCE,
+  CROWN_LEAGUE_INTERVAL,
+  CROWN_LEAGUE_SCHEDULE_MIGRATION,
+  CROWN_SET_ID,
+  ELITE_SIZE,
+  ENEMY_NAMES,
+  HERO_CLASSES,
+  LEGEND_COUNT,
+  VISUAL_TEST_CATALOG_CLEANUP_MIGRATION,
+} from "./WorldGameConfig";
+import { createWorldRandomSnapshots, WorldRandomStreams } from "./WorldRandom";
 import {
   ActivityAvailability,
   ActivityDefinition,
   ArenaDefinition,
   BattleReport,
   BossDefinition,
+  ContextualTutorialId,
   ContractObjective,
   ContractOffer,
-  ContextualTutorialId,
   DailyActivityReport,
   DuelDefinition,
   DungeonDefinition,
@@ -73,8 +183,8 @@ import {
   GameSave,
   HeroClass,
   HeroProfile,
-  LegacyHeroRecord,
   LeaderboardEntry,
+  LegacyHeroRecord,
   MentorRecord,
   NewGamePlusOptions,
   NewGamePlusStatus,
@@ -83,239 +193,222 @@ import {
   PendingBattleFinalization,
   PendingTournamentState,
   Rarity,
-  ShopOffer,
   SkillDefinition,
   Stats,
   TacticalProfile,
   TournamentMatch,
   TournamentReport,
+  WorldEvent,
   WorldFeatureId,
   WorldFeatureUnlock,
-  WorldEvent,
   WorldRelicRecord,
 } from "./WorldTypes";
-import {
-  enemyExperienceRequirement,
-  heroExperienceRequirement,
-} from "../progression/ProgressionBalance";
-import {
-  buildLegacyArchive,
-  defaultLegacyState,
-  describeLegacyArchiveInfluence,
-  epochDifficultyModifiers,
-  epochFinalGoalProgress,
-  eraLawModifiers,
-  improveMinimumRarity,
-  inheritedSkillSupportsClass,
-  inheritArchiveStyleMemory,
-  newGamePlusStatus,
-  normalizeLegacyState,
-  prepareInheritedItem,
-  rewardModifiers,
-  RewardContext,
-} from "../progression/NewGamePlus";
-import { ERA_LAWS, LEGACY_BOONS } from "../../catalogs/NewGamePlusCatalog";
-import {
-  byLeaderboardPosition,
-  calculateEnemyWorldRating,
-  calculateHeroWorldRating,
-  enemyLeaderboardEntry,
-  heroLeaderboardEntry,
-} from "../world/WorldRanking";
-import {
-  ENEMY_ARENA_CHAMPIONSHIP_MIGRATION,
-  normalizeWorldSave,
-  PENDING_BATTLE_MIGRATION,
-  PROGRESSION_CURVE_MIGRATION,
-  STAGED_WORLD_FEATURES_MIGRATION,
-} from "../save/WorldSaveMigration";
-import { considerNpcLoot } from "../equipment/NpcEquipment";
-import { assertRestorableWorldSave } from "../save/WorldSaveValidation";
-import { createWorldRandomSnapshots, WorldRandomStreams } from "./WorldRandom";
-import { RandomSource, SeededRandom } from "./RandomSource";
-import { TournamentEngine } from "../tournaments/TournamentEngine";
-import { pendingOpeningRound } from "../tournaments/TournamentBracket";
-import {
-  eventReferencesFighter,
-  StructuredWorldEventPayload,
-} from "../world/WorldEvents";
-import {
-  completeDungeonExploration,
-  createDungeonDiscoveryState,
-  dungeonMerchantTerms,
-  DungeonRouteNode,
-  generateDungeonRoute,
-  normalizeDungeonDiscoveryState,
-  reachableDungeonNodes,
-  recordDungeonNodeVisit,
-  resolveDungeonTrap,
-  selectPersistentDungeonRival,
-} from "../dungeons/DungeonRoute";
-import {
-  availableNarrativeEvents,
-  NARRATIVE_EVENTS,
-  NarrativeChoice,
-  NarrativeEventDefinition,
-} from "../world/NarrativeEvents";
-import {
-  awardCrownSeasonPoints,
-  createCrownSeason,
-  CrownSeasonResult,
-  CrownSeasonState,
-} from "../world/CrownSeason";
-import { factionModifier, unlockedFactionPerks } from "../world/FactionSystem";
-import {
-  expeditionBattleExertion,
-  expeditionStaminaAfterBattle,
-} from "../dungeons/ExpeditionStamina";
-import { relicDustYield } from "../equipment/EquipmentLegacy";
-import {
-  BestEquipmentEvaluation,
-  evaluateBestEquipment,
-  LootTarget,
-  ReforgeRequest,
-  ReforgeResult,
-  reforgeCost,
-  reforgeProperty,
-  rollTargetedLoot,
-} from "../equipment/LootProgression";
-import {
-  buildRivalScoutingReport,
-  RivalScoutingReport,
-} from "../combat/RivalrySystem";
-import {
-  createEraChallengeProgress,
-  eraChallengeFor,
-  EraChallenge,
-  EraObjectiveProgress,
-  evaluateEraObjective,
-  recordEraMetric,
-} from "../world/EraChallenges";
-import { MAX_ACTIVE_SKILLS } from "../world/WorldRules";
-import {
-  createFactionControlState,
-  createWorldRelicRecord,
-  FACTION_CONTROL_EFFECTS,
-  normalizeWorldRelics,
-  NPC_ACTIVITIES,
-  NPC_GOALS,
-} from "../world/LivingWorld";
-import {
-  countermeasureDefinition,
-  createEnemyStyleMemory,
-  decayEnemyStyleMemory,
-  EnemyMemoryCombatRead,
-  heroLoadoutSignature,
-  memoryStageDefinition,
-  memoryStageFor,
-  readEnemyStyleMemory,
-  recordEnemyStyleMemory,
-} from "../combat/EnemyMemory";
-import {
-  createWorldFeatureUnlock,
-  WORLD_FEATURE_IDS,
-  worldFeatureAvailability,
-} from "../world/WorldFeatureProgression";
-import {
-  advanceNpcCareerSeason,
-  chooseNpcArenaOpponent,
-  cleanupNpcLifeReferences,
-  createNpcLifeWorldState,
-  createNpcPlanningContext,
-  evolveNpcRelationships,
-  normalizeNpcLifeWorldState,
-  npcReferenceRetentionIds,
-  planNpcDay,
-  recordNpcAlliance,
-  recordNpcEncounter,
-  recordNpcPlanOutcome,
-  refreshFutureBossAvailability,
-  refreshNpcIdentity,
-  type FutureBossRecord,
-  type NpcLifeProfile,
-} from "../world/NpcLifeSimulation";
-import {
-  awardWorldEliteSeasonPoints,
-  awardWorldSeasonPoints,
-  closeWorldSeason,
-  createWorldSeason,
-  rememberWorldSeasonFighters,
-  worldSeasonRule,
-  worldSeasonStandings as calculateWorldSeasonStandings,
-  type WorldSeasonResult,
-  type WorldSeasonStanding,
-} from "../world/WorldSeason";
-import {
-  applyFactionReputationChange,
-  changeFactionInfluence,
-  factionArenaReward,
-  factionDungeonReward,
-  factionHostility,
-  factionShopPrice,
-  improveFactionMinimumRarity,
-  resolveFactionControlCycle,
-} from "../world/FactionEconomy";
-import {
-  assertWorldRelicEligible,
-  deriveWorldRelicLegacy,
-  isWorldRelicEligible,
-  placeWorldRelicInShop,
-  releaseWorldRelic,
-  synchronizeWorldRelic,
-  transferWorldRelic,
-} from "../equipment/WorldRelics";
-import {
-  EquipmentDeedKind,
-  recordEquipmentDeed,
-} from "../equipment/EquipmentEvolution";
-import { resolveNpcCombat } from "../combat/NpcCombat";
-import {
-  claimFactionCampaignReward,
-  recordFactionCampaignEvent,
-  type FactionCampaignEventKind,
-} from "../world/FactionCampaign";
-import * as worldQueries from "../world/WorldQueries";
-import {
-  ACTIVE_INJURY_CHANCE,
-  ARENA_POPULATION_BASE_FLOOR,
-  ARENA_POPULATION_RESERVE,
-  ARENA_POPULATION_TARGET,
-  BACKGROUND_LETHALITY_SCALE,
-  CLASS_CHANGE_GOLD_COST,
-  CLASS_CHANGE_MARK_COST,
-  CONTRACT_LIFETIME,
-  CROSS_ERA_RETURNING_SHARE,
-  CROWN_LEAGUE_INTERVAL,
-  CROWN_LEAGUE_SCHEDULE_MIGRATION,
-  CROWN_SET_ID,
-  ELITE_SIZE,
-  ENEMY_NAMES,
-  ENEMY_ORIGINS,
-  ENEMY_TITLES,
-  EXPEDITION_SHRINE_CHOICES,
-  HERO_CLASSES,
-  LEGEND_COUNT,
-  TEMPERING_MARK_COSTS,
-  VISUAL_TEST_CATALOG_CLEANUP_MIGRATION,
-} from "./WorldGameConfig";
-import { starterEquipment } from "./WorldCreation";
 
 export {
   CLASS_CHANGE_GOLD_COST,
   CLASS_CHANGE_MARK_COST,
 } from "./WorldGameConfig";
 
-let eliteRegaliaTemplateIds: ReadonlySet<string> | undefined;
-
 export class WorldGame {
   public readonly save: GameSave;
   private readonly random: WorldRandomStreams;
+  private readonly equipment: HeroEquipmentService;
+  private readonly contracts: ContractService;
+  private readonly population: WorldPopulationService;
+  private readonly seasons: SeasonService;
+  private readonly shop: ShopService;
+  private readonly expeditions: ExpeditionService;
+  private readonly battleFinalization: BattleFinalizationService;
+  private readonly tournaments: TournamentService;
+  private readonly npcSimulation: NpcSimulationService;
   private featureChanges: FighterFeatureChange[] = [];
   private automaticLegendDefense?: BattleReport;
 
   private constructor(save: GameSave) {
     this.save = save;
     this.random = new WorldRandomStreams(save);
+    this.npcSimulation = new NpcSimulationService(save, this.random, {
+      enemyWorldRating: (...args) => this.enemyWorldRating(...args),
+      recordEnemyHistory: (...args) => this.recordEnemyHistory(...args),
+      event: (...args) => this.event(...args),
+      recordEquipmentDeeds: (...args) => this.recordEquipmentDeeds(...args),
+      synchronizeOwnedWorldRelic: (...args) =>
+        this.synchronizeOwnedWorldRelic(...args),
+      enemyById: (...args) => this.enemyById(...args),
+      minimumRewardRarity: (...args) => this.minimumRewardRarity(...args),
+      controlledDungeonMinimum: (...args) =>
+        this.controlledDungeonMinimum(...args),
+      randomId: (...args) => this.randomId(...args),
+      recordSurvivalDeed: (...args) => this.recordSurvivalDeed(...args),
+      ensureEliteLeague: (...args) => this.ensureEliteLeague(...args),
+      ensurePopulations: (...args) => this.ensurePopulations(...args),
+      tournamentRules: (...args) => this.tournamentRules(...args),
+      recordArenaChampionship: (...args) =>
+        this.recordArenaChampionship(...args),
+      heroEliteRank: (...args) => this.heroEliteRank(...args),
+      awardCrownSeason: (...args) => this.awardCrownSeason(...args),
+      swapEliteMembers: (...args) => this.swapEliteMembers(...args),
+      registeredCrownLeagueDay: (...args) =>
+        this.registeredCrownLeagueDay(...args),
+      syncCrownSet: (...args) => this.syncCrownSet(...args),
+      crownLeagueInterval: (...args) => this.crownLeagueInterval(...args),
+      enemyPower: (...args) => this.enemyPower(...args),
+      fighterTournamentSeed: (...args) => this.fighterTournamentSeed(...args),
+      adjustEliteRating: (...args) => this.adjustEliteRating(...args),
+      promoteIntoElite: (...args) => this.promoteIntoElite(...args),
+      sortEliteByRating: (...args) => this.sortEliteByRating(...args),
+      factionHunter: (...args) => this.factionHunter(...args),
+      heroPower: (...args) => this.heroPower(...args),
+    });
+    this.tournaments = new TournamentService(save, this.random, {
+      runPendingBattleAutomatically: (...args) =>
+        this.runPendingBattleAutomatically(...args),
+      assertNoPendingBattle: (...args) => this.assertNoPendingBattle(...args),
+      tournamentRules: (...args) => this.tournamentRules(...args),
+      prepareDayActivity: (...args) => this.prepareDayActivity(...args),
+      enemyPower: (...args) => this.enemyPower(...args),
+      heroPower: (...args) => this.heroPower(...args),
+      latestEventId: (...args) => this.latestEventId(...args),
+      enemyById: (...args) => this.enemyById(...args),
+      createPendingBattle: (...args) => this.createPendingBattle(...args),
+      resolveNpcMatch: (...args) => this.resolveNpcMatch(...args),
+      recordHeroEncounter: (...args) => this.recordHeroEncounter(...args),
+      recordMutationVictory: (...args) => this.recordMutationVictory(...args),
+      updateEnemyAfterPlayerBattle: (...args) =>
+        this.updateEnemyAfterPlayerBattle(...args),
+      adjustEliteRating: (...args) => this.adjustEliteRating(...args),
+      awardCrownSeason: (...args) => this.awardCrownSeason(...args),
+      fighterById: (...args) => this.fighterById(...args),
+      npcExperienceReward: (...args) => this.npcExperienceReward(...args),
+      recordNpcRivalry: (...args) => this.recordNpcRivalry(...args),
+      addFactionInfluence: (...args) => this.addFactionInfluence(...args),
+      progressEnemy: (...args) => this.progressEnemy(...args),
+      recordEquipmentDeeds: (...args) => this.recordEquipmentDeeds(...args),
+      controlledArenaReward: (...args) => this.controlledArenaReward(...args),
+      factionAdjustedReward: (...args) => this.factionAdjustedReward(...args),
+      epochRewards: (...args) => this.epochRewards(...args),
+      gainHeroExperience: (...args) => this.gainHeroExperience(...args),
+      addHeroFactionInfluence: (...args) =>
+        this.addHeroFactionInfluence(...args),
+      createRewardItem: (...args) => this.createRewardItem(...args),
+      addItem: (...args) => this.addItem(...args),
+      advanceContract: (...args) => this.advanceContract(...args),
+      recordArenaChampionship: (...args) =>
+        this.recordArenaChampionship(...args),
+      maybeAwakenWorldRelic: (...args) => this.maybeAwakenWorldRelic(...args),
+      recordEnemyHistory: (...args) => this.recordEnemyHistory(...args),
+      enemyWorldRating: (...args) => this.enemyWorldRating(...args),
+      recalculateHeroRating: (...args) => this.recalculateHeroRating(...args),
+      event: (...args) => this.event(...args),
+      applyOfficialTournamentRecovery: (...args) =>
+        this.applyOfficialTournamentRecovery(...args),
+      completeDay: (...args) => this.completeDay(...args),
+      eventsSince: (...args) => this.eventsSince(...args),
+      promoteIntoElite: (...args) => this.promoteIntoElite(...args),
+      sortEliteByRating: (...args) => this.sortEliteByRating(...args),
+      syncCrownSet: (...args) => this.syncCrownSet(...args),
+      crownLeagueAvailability: (...args) =>
+        this.crownLeagueAvailability(...args),
+      ensureEliteLeague: (...args) => this.ensureEliteLeague(...args),
+      heroEliteRank: (...args) => this.heroEliteRank(...args),
+      fighterTournamentSeed: (...args) => this.fighterTournamentSeed(...args),
+    });
+    this.battleFinalization = new BattleFinalizationService(save, this.random, {
+      requirePendingBattle: (...args) => this.requirePendingBattle(...args),
+      finalizePendingTournamentBattle: (...args) =>
+        this.finalizePendingTournamentBattle(...args),
+      enemyById: (...args) => this.enemyById(...args),
+      epochRewards: (...args) => this.epochRewards(...args),
+      gainHeroExperience: (...args) => this.gainHeroExperience(...args),
+      recordNpcDuelWithHero: (...args) => this.recordNpcDuelWithHero(...args),
+      recordHeroEncounter: (...args) => this.recordHeroEncounter(...args),
+      recordMutationVictory: (...args) => this.recordMutationVictory(...args),
+      advanceContract: (...args) => this.advanceContract(...args),
+      event: (...args) => this.event(...args),
+      completeDay: (...args) => this.completeDay(...args),
+      createRewardItem: (...args) => this.createRewardItem(...args),
+      minimumRewardRarity: (...args) => this.minimumRewardRarity(...args),
+      controlledDungeonMinimum: (...args) =>
+        this.controlledDungeonMinimum(...args),
+      addItem: (...args) => this.addItem(...args),
+      eventsSince: (...args) => this.eventsSince(...args),
+      factionAdjustedReward: (...args) => this.factionAdjustedReward(...args),
+      npcExperienceReward: (...args) => this.npcExperienceReward(...args),
+      progressEnemy: (...args) => this.progressEnemy(...args),
+      recordEnemyHistory: (...args) => this.recordEnemyHistory(...args),
+      worldEncounterActivity: (...args) => this.worldEncounterActivity(...args),
+      swapEliteMembers: (...args) => this.swapEliteMembers(...args),
+      awardCrownSeason: (...args) => this.awardCrownSeason(...args),
+      updateEnemyAfterPlayerBattle: (...args) =>
+        this.updateEnemyAfterPlayerBattle(...args),
+      syncCrownSet: (...args) => this.syncCrownSet(...args),
+      heroEliteRank: (...args) => this.heroEliteRank(...args),
+      adjustEliteRating: (...args) => this.adjustEliteRating(...args),
+      consumeExpeditionSupply: (...args) =>
+        this.consumeExpeditionSupply(...args),
+      dungeonDiscovery: (...args) => this.dungeonDiscovery(...args),
+      finishExpedition: (...args) => this.finishExpedition(...args),
+    });
+    this.expeditions = new ExpeditionService(save, this.random, {
+      availability: (...args) => this.availability(...args),
+      runPendingBattleAutomatically: (...args) =>
+        this.runPendingBattleAutomatically(...args),
+      addItem: (...args) => this.addItem(...args),
+      epochRewards: (...args) => this.epochRewards(...args),
+      createRewardItem: (...args) => this.createRewardItem(...args),
+      minimumRewardRarity: (...args) => this.minimumRewardRarity(...args),
+      controlledDungeonMinimum: (...args) =>
+        this.controlledDungeonMinimum(...args),
+      createPendingBattle: (...args) => this.createPendingBattle(...args),
+      assertNoPendingBattle: (...args) => this.assertNoPendingBattle(...args),
+      advanceContract: (...args) => this.advanceContract(...args),
+      gainHeroExperience: (...args) => this.gainHeroExperience(...args),
+      createDungeonEnemy: (...args) => this.createDungeonEnemy(...args),
+      completeDay: (...args) => this.completeDay(...args),
+      prepareDayActivity: (...args) => this.prepareDayActivity(...args),
+      event: (...args) => this.event(...args),
+    });
+    this.population = new WorldPopulationService(save, this.random, {
+      randomId: (prefix) => this.randomId(prefix),
+      enemyWorldRating: (enemy) => this.enemyWorldRating(enemy),
+    });
+    this.seasons = new SeasonService(save, this.random, {
+      event: (type, message, payload) => this.event(type, message, payload),
+      fighterById: (id) => this.fighterById(id),
+      fighterTournamentSeed: (fighter) => this.fighterTournamentSeed(fighter),
+      recordEnemyHistory: (enemy, message) =>
+        this.recordEnemyHistory(enemy, message),
+      releaseWorldRelics: (enemy, history) =>
+        this.releaseWorldRelics(enemy, history),
+      createEnemy: (arenaIndex, newcomer) =>
+        this.createEnemy(arenaIndex, newcomer),
+      enemyById: (id) => this.enemyById(id),
+      enemyWorldRating: (enemy) => this.enemyWorldRating(enemy),
+      ensurePopulations: (immediately, routine) =>
+        this.ensurePopulations(immediately, routine),
+    });
+    this.shop = new ShopService(save, this.random);
+    this.contracts = new ContractService(save, {
+      event: (type, message, payload) => this.event(type, message, payload),
+      requireFeature: (id) => this.requireFeature(id),
+      isFeatureUnlocked: (id) => this.isFeatureUnlocked(id),
+      trainingLevelCap: () => this.trainingLevelCap(),
+      gainHeroExperience: (amount) => this.gainHeroExperience(amount),
+      reward: (experience, gold, factionId) =>
+        this.factionAdjustedReward(
+          this.epochRewards(experience, gold, "contract"),
+          "contractReward",
+          factionId,
+        ),
+    });
+    this.equipment = new HeroEquipmentService(save, this.random, {
+      event: (type, message, payload) => this.event(type, message, payload),
+      randomId: (prefix) => this.randomId(prefix),
+      requireFeature: (id) => this.requireFeature(id),
+      assertNoPendingBattle: () => this.assertNoPendingBattle(),
+      recordEnemyHistory: (enemy, message) =>
+        this.recordEnemyHistory(enemy, message),
+    });
   }
 
   public static create(
@@ -755,100 +848,18 @@ export class WorldGame {
   }
 
   public setLootTarget(target?: LootTarget): void {
-    if (!target) {
-      this.save.lootTarget = undefined;
-      this.save.lootPity = undefined;
-      return;
-    }
-    if (!target.slot && !target.setId)
-      throw new Error("Выберите слот или комплект для целевой охоты.");
-    const compatible = ITEM_TEMPLATES.some(
-      (template) =>
-        (!target.slot || template.slot === target.slot) &&
-        (!target.setId || template.setId === target.setId) &&
-        (template.allowedClasses === "all" ||
-          template.allowedClasses.includes(this.save.hero.classId)) &&
-        !template.exclusiveToBoss &&
-        !template.exclusiveToElite &&
-        !template.exclusiveToFaction,
-    );
-    if (!compatible)
-      throw new Error("Для текущего класса нет предметов выбранной цели.");
-    this.save.lootTarget = { ...target };
-    const key = `${target.slot ?? "any"}:${target.setId ?? "any"}`;
-    if (this.save.lootPity?.targetKey !== key)
-      this.save.lootPity = { targetKey: key, misses: 0 };
+    return this.equipment.setLootTarget(target);
   }
 
   public bestEquipmentEvaluation(): BestEquipmentEvaluation {
-    const hero = this.save.hero;
-    return evaluateBestEquipment(
-      equipmentItemsForLoadout(hero, findBestEquipmentLoadout(hero)),
-      { classId: hero.classId },
-    );
+    return this.equipment.bestEquipmentEvaluation();
   }
 
   public reforgeItem(
     itemId: string,
     request: Omit<ReforgeRequest, "attempt">,
   ): ReforgeResult {
-    const index = this.save.hero.inventory.findIndex(
-      (item) => item.id === itemId,
-    );
-    if (index < 0) throw new Error("Предмет не найден.");
-    const attempt = this.save.reforgeAttempts[itemId] ?? 0;
-    const source = this.save.hero.inventory[index];
-    if (source.stats[request.sourceStat] === undefined)
-      throw new Error(`У предмета нет свойства ${request.sourceStat}.`);
-    if (
-      request.targetStat &&
-      request.targetStat !== request.sourceStat &&
-      source.stats[request.targetStat] !== undefined
-    ) {
-      throw new Error(
-        `Свойство ${request.targetStat} уже присутствует на предмете.`,
-      );
-    }
-    const discount = Math.min(
-      0.75,
-      factionModifier(this.save.hero.factionReputation, "forgeDiscount"),
-    );
-    const baseCost = reforgeCost(source, attempt);
-    const cost = {
-      ...baseCost,
-      gold: Math.max(0, Math.round(baseCost.gold * (1 - discount))),
-    };
-    if (this.save.hero.gold < cost.gold)
-      throw new Error(`Для перековки нужно ${cost.gold} монет.`);
-    if (this.save.hero.temperingMarks < cost.temperingMarks)
-      throw new Error(`Для перековки нужно печатей: ${cost.temperingMarks}.`);
-    const rolled = reforgeProperty(
-      source,
-      { ...request, attempt },
-      this.random.loot,
-    );
-    this.save.hero.gold -= cost.gold;
-    this.save.hero.temperingMarks -= cost.temperingMarks;
-    this.save.hero.inventory[index] = rolled.item;
-    this.save.reforgeAttempts[itemId] = attempt + 1;
-    if (rolled.item.worldRelicId) {
-      this.synchronizeOwnedWorldRelic(
-        rolled.item,
-        `День ${this.save.worldDay}: ${this.save.hero.name} перековал свойство реликвии.`,
-      );
-    }
-    this.event(
-      "loot",
-      `${rolled.item.name}: свойство ${request.sourceStat} перековано в ${rolled.targetStat}.`,
-      {
-        kind: "loot",
-        fighterId: "hero",
-        fighterName: this.save.hero.name,
-        itemId: rolled.item.id,
-        itemName: rolled.item.name,
-      },
-    );
-    return { ...rolled, cost };
+    return this.equipment.reforgeItem(itemId, request);
   }
 
   public rivalScoutingReport(enemyId: string): RivalScoutingReport | undefined {
@@ -923,441 +934,25 @@ export class WorldGame {
     options: NewGamePlusOptions,
     now = Date.now(),
   ): WorldGame {
-    const status = this.newGamePlusStatus();
-    if (!status.unlocked) throw new Error(status.reason);
-    const name = options.name.trim();
-    if (name.length < 2)
-      throw new Error(
-        "Имя наследника должно состоять минимум из двух символов.",
-      );
-    if (!CLASS_DEFINITIONS[options.classId])
-      throw new Error("Неизвестный класс наследника.");
-    const boon = LEGACY_BOONS.find(
-      (candidate) => candidate.id === options.boonId,
-    );
-    if (!boon) throw new Error("Неизвестное наследие эпохи.");
-    if (boon.sealCost > status.availableSeals)
-      throw new Error("Недостаточно печатей летописи для выбранного наследия.");
-    const laws = [...new Set(options.lawIds)];
-    if (
-      laws.length !== status.lawLimit ||
-      laws.some((id) => !this.isKnownEraLaw(id))
-    ) {
-      throw new Error(
-        `Для эпохи ${status.targetCycle} нужно выбрать законов: ${status.lawLimit}.`,
-      );
-    }
-    const sourceItem = options.heirloomItemId
-      ? this.save.hero.inventory.find(
-          (item) => item.id === options.heirloomItemId,
-        )
-      : undefined;
-    if (options.heirloomItemId && !sourceItem)
-      throw new Error("Выбранный предмет-наследие не найден.");
-    if (
-      sourceItem &&
-      !this.heirloomCandidates(options.classId).some(
-        (item) => item.id === sourceItem.id,
-      )
-    ) {
-      throw new Error("Этот предмет нельзя передать герою выбранного класса.");
-    }
-
-    const archive = buildLegacyArchive(this.save, now);
-    const previousLegacy = normalizeLegacyState(this.save.legacy);
-    const next = WorldGame.create(name, options.classId, now);
-    const nextSave = next.save;
-    nextSave.legacy = {
-      cycle: status.targetCycle,
-      seals: status.availableSeals - boon.sealCost,
-      totalSealsEarned: previousLegacy.totalSealsEarned + status.sealsAwarded,
-      activeBoonId: boon.id,
-      activeLawIds: laws,
-      discoveredSkillIds: [
-        ...new Set([
-          ...previousLegacy.discoveredSkillIds,
-          ...this.save.hero.inventory
-            .map((item) => item.grantedSkillId)
-            .filter((id): id is string => Boolean(id)),
-          ...(this.save.hero.legacySkillId
-            ? [this.save.hero.legacySkillId]
-            : []),
-        ]),
-      ],
-      archives: [...previousLegacy.archives, archive],
-    };
-    next.initializeCrossEraPopulation(
-      this.save.enemies,
-      this.save.npcLife,
-      this.save.mentors ?? [],
-      previousLegacy.cycle,
-      new Set(archive.notableFighters.map((fighter) => fighter.name)),
-    );
-    nextSave.defeatedLegacyCycles = [...this.save.defeatedLegacyCycles];
-    nextSave.discoveredItems = [
-      ...new Set([...this.save.discoveredItems, ...nextSave.discoveredItems]),
-    ];
-    nextSave.tutorialCompleted = true;
-    nextSave.seenContextualTutorialIds = [
-      ...this.save.seenContextualTutorialIds,
-    ];
-    nextSave.hero.appearance = { ...this.save.hero.appearance };
-    nextSave.hero.autoEquipBest = this.save.hero.autoEquipBest;
-    nextSave.hero.autoSelectSkills = this.save.hero.autoSelectSkills;
-    nextSave.hero.combatMode = this.save.hero.combatMode;
-    nextSave.hero.autoResolveLegendChallenges =
-      this.save.hero.autoResolveLegendChallenges;
-    nextSave.hero.tacticalProfiles = this.save.hero.tacticalProfiles.map(
-      (profile) => ({ ...profile }),
-    );
-    nextSave.hero.activeTacticalProfileId =
-      this.save.hero.activeTacticalProfileId;
-    nextSave.hero.factionReputation = Object.fromEntries(
-      FACTIONS.map((faction) => [
-        faction.id,
-        Math.floor((this.save.hero.factionReputation[faction.id] ?? 0) * 0.2) +
-          (boon.id === "court-name" ? 8 : 0),
-      ]),
-    );
-    nextSave.factionControl = {
-      arenaControllers: {
-        ...(this.save.factionControl?.arenaControllers ?? {}),
-      },
-      arenaInfluence: Object.fromEntries(
-        Object.entries(this.save.factionControl?.arenaInfluence ?? {}).map(
-          ([arenaId, influence]) => [arenaId, { ...influence }],
-        ),
-      ),
-      dungeonControllers: {
-        ...(this.save.factionControl?.dungeonControllers ?? {}),
-      },
-      dungeonInfluence: Object.fromEntries(
-        Object.entries(this.save.factionControl?.dungeonInfluence ?? {}).map(
-          ([dungeonId, influence]) => [dungeonId, { ...influence }],
-        ),
-      ),
-      relations: Object.fromEntries(
-        Object.entries(this.save.factionControl?.relations ?? {}).map(
-          ([factionId, relations]) => [factionId, { ...relations }],
-        ),
-      ),
-      shopControllerId:
-        this.save.factionControl?.shopControllerId ?? FACTIONS[0].id,
-      shopOwnerMentorId: this.save.factionControl?.shopOwnerMentorId,
-      shopPriceRevision: this.save.factionControl?.shopPriceRevision ?? 0,
-      lastShiftDay: 1,
-    };
-    const retainedFighterIds = new Set(
-      nextSave.enemies.map((enemy) => enemy.id),
-    );
-    const eraMentors: MentorRecord[] = (this.save.mentors ?? [])
-      .slice(0, 12)
-      .map((mentor) => ({
-        ...mentor,
-        retiredDay: 1,
-        studentIds: [],
-        legacy: `${mentor.legacy} Его школа пережила смену эпохи.`,
-        competes:
-          mentor.competes === true && retainedFighterIds.has(mentor.fighterId),
-      }));
-    nextSave.mentors = eraMentors;
-    const carriedMentors = new Map(
-      eraMentors.map((mentor) => [mentor.id, mentor]),
-    );
-    nextSave.enemies.forEach((enemy) => {
-      if (!enemy.mentorId) return;
-      const mentor = carriedMentors.get(enemy.mentorId);
-      if (!mentor) {
-        enemy.mentorId = undefined;
-        return;
-      }
-      mentor.studentIds.push(enemy.id);
-    });
-    eraMentors.forEach((mentor) => {
-      mentor.studentIds = [...new Set(mentor.studentIds)];
-    });
-    const survivingSchools = new Set(
-      eraMentors.map((mentor) => mentor.dynastyId).filter(Boolean),
-    );
-    nextSave.npcLife!.dynasties = (this.save.npcLife?.dynasties ?? [])
-      .filter((dynasty) => survivingSchools.has(dynasty.id))
-      .map((dynasty) => ({
-        ...dynasty,
-        foundedDay: 1,
-        memberIds: [
-          ...new Set([
-            dynasty.founderId,
-            ...eraMentors
-              .filter((mentor) => mentor.dynastyId === dynasty.id)
-              .flatMap((mentor) => mentor.studentIds),
-          ]),
-        ],
-      }));
-    eraMentors.forEach((mentor) => {
-      if (
-        mentor.dynastyId &&
-        !nextSave.npcLife!.dynasties.some(
-          (dynasty) => dynasty.id === mentor.dynastyId,
-        )
-      )
-        mentor.dynastyId = undefined;
-    });
-    Object.values(nextSave.npcLife!.profiles).forEach((profile) => {
-      if (profile.dynastyId && !survivingSchools.has(profile.dynastyId))
-        profile.dynastyId = undefined;
-    });
-    if (
-      !eraMentors.some(
-        (mentor) => mentor.id === nextSave.factionControl?.shopOwnerMentorId,
-      )
-    ) {
-      nextSave.factionControl.shopOwnerMentorId = undefined;
-    }
-    const carriedMentorFighterIds = new Set(
-      eraMentors.map((mentor) => mentor.fighterId),
-    );
-    const canJoinNewSchool = (fighter: EnemyProfile) =>
-      !fighter.mentorId &&
-      !carriedMentorFighterIds.has(fighter.id) &&
-      !nextSave.npcLife!.profiles[fighter.id]?.dynastyId;
-    const archiveInfluence = describeLegacyArchiveInfluence(archive);
-    const influenceFactionId =
-      archiveInfluence.factionTradition?.factionId ??
-      FACTIONS[Math.max(0, archive.cycle - 1) % FACTIONS.length].id;
-    if (archiveInfluence.mentor) {
-      const students = nextSave.enemies
-        .filter(
-          (enemy) =>
-            enemy.alive &&
-            enemy.classId === archiveInfluence.mentor!.classId &&
-            canJoinNewSchool(enemy),
-        )
-        .sort(
-          (first, second) =>
-            second.level - first.level || first.id.localeCompare(second.id),
-        )
-        .slice(0, 3);
-      const mentor: MentorRecord = {
-        id: archiveInfluence.mentor.id,
-        fighterId: `legacy-hero-${archive.cycle}`,
-        name: archiveInfluence.mentor.name,
-        classId: archiveInfluence.mentor.classId,
-        factionId: influenceFactionId,
-        goal: "champion",
-        level: archiveInfluence.mentor.level,
-        rating: archiveInfluence.mentor.rating,
-        retiredDay: 1,
-        studentIds: students.map((student) => student.id),
-        legacy: `${archiveInfluence.summary} ${archiveInfluence.mentor.schoolName}.`,
-        schoolName: archiveInfluence.mentor.schoolName,
-        competes: false,
-        dynastyId: `legacy-school-${archive.cycle}`,
-        role: "mentor",
-      };
-      nextSave.mentors.unshift(mentor);
-      nextSave.npcLife!.dynasties.unshift({
-        id: mentor.dynastyId!,
-        name: archiveInfluence.mentor.schoolName,
-        founderId: mentor.fighterId,
-        founderName: mentor.name,
-        factionId: mentor.factionId,
-        foundedDay: 1,
-        memberIds: [mentor.fighterId, ...mentor.studentIds],
-        prestige: Math.max(
-          20,
-          Math.round(archive.rating / 75) + archive.tournamentWins * 4,
-        ),
-      });
-      students.forEach((student) => {
-        student.mentorId = mentor.id;
-        student.heroMemory = inheritArchiveStyleMemory(archive, 1);
-        student.heroMemory.familiarity *= 0.5;
-        student.heroMemory.stage = memoryStageFor(
-          student.heroMemory.familiarity,
-        );
-        student.relationships ??= {};
-        student.relationships[mentor.fighterId] = {
-          fighterId: mentor.fighterId,
-          kind: "mentor",
-          intensity: 80,
-          lastChangedDay: 1,
+    return beginNewChronicle(this.save, options, now, {
+      heirloomCandidates: (classId) => this.heirloomCandidates(classId),
+      create: (name, classId, createdAt) => {
+        const next = WorldGame.create(name, classId, createdAt);
+        return {
+          result: next,
+          save: next.save,
+          random: next.random,
+          initializeCrossEraPopulation: (...args) =>
+            next.initializeCrossEraPopulation(...args),
+          legacyEnemy: (archive) => next.legacyEnemy(archive),
+          addItem: (item) => next.addItem(item),
+          syncEraChallenge: () => next.syncEraChallenge(),
+          event: (type, message, payload) => next.event(type, message, payload),
+          ensureEliteLeague: () => next.ensureEliteLeague(),
+          syncCrownSet: () => next.syncCrownSet(),
         };
-        student.history.push(
-          `С начала эпохи обучается в школе «${archiveInfluence.mentor!.schoolName}».`,
-        );
-        const profile = nextSave.npcLife!.profiles[student.id];
-        if (profile) profile.dynastyId = mentor.dynastyId;
-      });
-    } else if (archiveInfluence.factionTradition) {
-      const tradition = archiveInfluence.factionTradition;
-      const followers = nextSave.enemies
-        .filter(
-          (enemy) =>
-            enemy.alive &&
-            enemy.factionId === tradition.factionId &&
-            canJoinNewSchool(enemy),
-        )
-        .sort(
-          (first, second) =>
-            second.rating - first.rating || first.id.localeCompare(second.id),
-        )
-        .slice(0, 4);
-      const founder: MentorRecord = {
-        id: `legacy-founder-${archive.cycle}`,
-        fighterId: `legacy-hero-${archive.cycle}`,
-        name: archive.name,
-        classId: archive.classId,
-        factionId: tradition.factionId,
-        goal: "elite",
-        level: archive.level,
-        rating: archive.rating,
-        retiredDay: 1,
-        studentIds: followers.map((fighter) => fighter.id),
-        legacy: `${archiveInfluence.summary} Поручения этой традиции дают наследнику больше доверия и влияния.`,
-        schoolName: tradition.name,
-        competes: false,
-        dynastyId: `legacy-tradition-${archive.cycle}`,
-        role: "faction-founder",
-      };
-      nextSave.mentors.unshift(founder);
-      nextSave.npcLife!.dynasties.unshift({
-        id: founder.dynastyId!,
-        name: tradition.name,
-        founderId: founder.fighterId,
-        founderName: founder.name,
-        factionId: founder.factionId,
-        foundedDay: 1,
-        memberIds: [founder.fighterId, ...founder.studentIds],
-        prestige: Math.max(
-          35,
-          Math.round(archive.rating / 55) + archive.crownLeagueWins * 15,
-        ),
-      });
-      nextSave.hero.factionReputation[tradition.factionId] = Math.max(
-        nextSave.hero.factionReputation[tradition.factionId] ?? 0,
-        tradition.inheritedReputation,
-      );
-      Object.values(nextSave.factionControl.arenaInfluence).forEach(
-        (influence) => {
-          influence[tradition.factionId] =
-            (influence[tradition.factionId] ?? 0) + 12;
-        },
-      );
-      Object.values(nextSave.factionControl.dungeonInfluence ?? {}).forEach(
-        (influence) => {
-          influence[tradition.factionId] =
-            (influence[tradition.factionId] ?? 0) + 8;
-        },
-      );
-      followers.forEach((fighter) => {
-        fighter.mentorId = founder.id;
-        fighter.heroMemory = inheritArchiveStyleMemory(archive, 1);
-        fighter.heroMemory.familiarity *= 0.5;
-        fighter.heroMemory.stage = memoryStageFor(
-          fighter.heroMemory.familiarity,
-        );
-        fighter.history.push(`Продолжает традицию «${tradition.name}».`);
-        const profile = nextSave.npcLife!.profiles[fighter.id];
-        if (profile) profile.dynastyId = founder.dynastyId;
-      });
-    } else if (archiveInfluence.opponent?.kind === "legendary-rival") {
-      const rival = next.legacyEnemy(archive);
-      rival.id = archiveInfluence.opponent.id;
-      rival.title = `${archive.title} · легендарный соперник эпохи ${archive.cycle}`;
-      rival.origin = "Дорога между эпохами";
-      rival.goal = "elite";
-      rival.carriedFromCycle = archive.cycle;
-      rival.joinedDay = 1;
-      rival.history.push(archiveInfluence.summary);
-      nextSave.enemies.push(rival);
-      nextSave.npcLife!.profiles[rival.id] = {
-        fighterId: rival.id,
-        career: "legend",
-        nickname: archive.title,
-        nicknameGrantedDay: 1,
-        seasonsActive: 0,
-      };
-    }
-    nextSave.worldRelics = normalizeWorldRelics(
-      (this.save.worldRelics ?? []).map((record) => ({
-        ...record,
-        item: {
-          ...record.item,
-          stats: { ...record.item.stats },
-          relicHistory: [...(record.item.relicHistory ?? [])],
-        },
-        status: "lost",
-        currentOwnerId: undefined,
-        currentOwnerName: undefined,
-        formerOwners: [...record.formerOwners],
-        history: [
-          ...record.history,
-          `Эпоха ${status.targetCycle}: реликвия пережила смену летописи и вновь затерялась в мире.`,
-        ],
-      })),
-    );
-
-    if (boon.id === "masters-school") {
-      nextSave.hero.legacySkillId = SKILLS.filter(
-        (skill) =>
-          !skill.equipmentOnly &&
-          (skill.classes === "all" ||
-            skill.classes.includes(options.classId)) &&
-          skill.unlockLevel > 1,
-      ).sort(
-        (first, second) =>
-          second.priority - first.priority ||
-          first.unlockLevel - second.unlockLevel,
-      )[0]?.id;
-    }
-
-    if (sourceItem) {
-      let inherited = prepareInheritedItem(
-        sourceItem,
-        options.classId,
-        previousLegacy.cycle,
-        this.save.hero.name,
-        next.random.loot,
-      );
-      inherited.worldRelicId = sourceItem.worldRelicId;
-      const inheritedRelicIndex = nextSave.worldRelics.findIndex(
-        (record) => record.id === inherited.worldRelicId,
-      );
-      if (inheritedRelicIndex >= 0) {
-        const transfer = transferWorldRelic(
-          nextSave.worldRelics[inheritedRelicIndex],
-          inherited,
-          "hero",
-          name,
-          `Эпоха ${status.targetCycle}: ${name} принял реликвию как наследие.`,
-        );
-        nextSave.worldRelics[inheritedRelicIndex] = transfer.record;
-        inherited = transfer.item;
-      }
-      next.addItem(inherited);
-      nextSave.hero.equipped[inherited.slot] = inherited.id;
-      nextSave.legacy.inheritedItemId = inherited.id;
-    }
-
-    next.syncEraChallenge();
-    next.event(
-      "system",
-      `Началась эпоха ${status.targetCycle}. ${name} принял наследие «${boon.name}».`,
-    );
-    next.event("system", archiveInfluence.summary);
-    next.ensureEliteLeague();
-    nextSave.npcLife = normalizeNpcLifeWorldState(
-      nextSave.npcLife,
-      nextSave.enemies,
-      1,
-    );
-    cleanupNpcLifeReferences(
-      nextSave.enemies,
-      nextSave.mentors ?? [],
-      nextSave.npcLife!,
-    );
-    next.syncCrownSet();
-    return next;
+      },
+    });
   }
 
   public beginNewEra(options: NewGamePlusOptions, now = Date.now()): WorldGame {
@@ -1549,244 +1144,34 @@ export class WorldGame {
     contractId: string,
     approach: "honor" | "profit",
   ): ContractOffer {
-    this.requireFeature("contracts");
-    if (this.save.activeContract)
-      throw new Error("Сначала завершите или отмените действующий контракт.");
-    const offer = this.save.contractOffers.find(
-      (candidate) => candidate.id === contractId,
-    );
-    if (!offer) throw new Error("Предложение больше недоступно.");
-    if (
-      offer.objective === "training" &&
-      this.save.hero.level >= this.trainingLevelCap()
-    ) {
-      this.refreshContracts(true);
-      throw new Error(
-        "Предел тренировок достигнут. Фракция заменила недоступное поручение.",
-      );
-    }
-    this.save.activeContract = { ...offer, approach };
-    this.save.contractOffers = this.save.contractOffers.filter(
-      (candidate) => candidate.id !== contractId,
-    );
-    this.event(
-      "system",
-      `${this.save.hero.name} принял контракт «${offer.title}» (${approach === "honor" ? "честь" : "выгода"}).`,
-    );
-    return this.save.activeContract;
+    return this.contracts.acceptContract(contractId, approach);
   }
 
   public abandonContract(): void {
-    this.requireFeature("contracts");
-    const contract = this.save.activeContract;
-    if (!contract) return;
-    this.save.hero.factionReputation = applyFactionReputationChange(
-      this.save.hero.factionReputation,
-      contract.factionId,
-      -2,
-    ).reputation;
-    this.event(
-      "system",
-      `${this.save.hero.name} отказался от контракта «${contract.title}».`,
-    );
-    this.save.activeContract = undefined;
+    return this.contracts.abandonContract();
   }
 
   public salvageItem(itemId: string): number {
-    return this.salvageItems([itemId]);
+    return this.equipment.salvageItem(itemId);
   }
 
   public salvageItems(itemIds: readonly string[]): number {
-    this.requireFeature("equipment-legacy");
-    const uniqueIds = [...new Set(itemIds)];
-    if (uniqueIds.length === 0)
-      throw new Error("Не выбраны предметы для разбора.");
-    const inventoryById = new Map(
-      this.save.hero.inventory.map((item) => [item.id, item]),
-    );
-    const items = uniqueIds.map((itemId) => {
-      const item = inventoryById.get(itemId);
-      if (!item)
-        throw new Error(
-          uniqueIds.length === 1
-            ? "Предмет не найден."
-            : "Один из выбранных предметов не найден.",
-        );
-      return item;
-    });
-    const equippedIds = new Set(Object.values(this.save.hero.equipped));
-    if (items.some((item) => equippedIds.has(item.id)))
-      throw new Error("Надетый предмет нельзя разобрать.");
-    if (items.some((item) => !this.canSellItem(item)))
-      throw new Error("Регалии короны нельзя разобрать.");
-    if (items.some((item) => item.worldRelicId))
-      throw new Error(
-        "Мировую реликвию нельзя уничтожить: её можно продать, чтобы она вернулась в оборот мира.",
-      );
-    const ids = new Set(uniqueIds);
-    const dust = items.reduce((total, item) => total + relicDustYield(item), 0);
-    this.save.hero.inventory = this.save.hero.inventory.filter(
-      (candidate) => !ids.has(candidate.id),
-    );
-    this.save.hero.relicDust += dust;
-    this.event(
-      "loot",
-      items.length === 1
-        ? `${items[0].name} разобран: получено ${dust} ед. реликтовой пыли.`
-        : `Разобрано предметов: ${items.length}. Получено ${dust} ед. реликтовой пыли.`,
-    );
-    return dust;
+    return this.equipment.salvageItems(itemIds);
   }
 
   public awakenRelic(
     itemId: string,
     pathId: "might" | "guard" | "tempo",
   ): EquipmentItem {
-    this.requireFeature("equipment-legacy");
-    const item = this.save.hero.inventory.find(
-      (candidate) => candidate.id === itemId,
-    );
-    if (!item) throw new Error("Предмет не найден.");
-    if (!rarityAtLeast(item.rarity, "legendary"))
-      throw new Error(
-        "Историю могут обрести только легендарные, мифические и мировые реликвии.",
-      );
-    if ((item.relicTier ?? 0) < 1)
-      throw new Error("Сначала предмет должен заслужить имя в боях.");
-    if (item.relicPath) throw new Error("Путь этой реликвии уже выбран.");
-    const path = RELIC_PATHS.find((candidate) => candidate.id === pathId);
-    if (!path) throw new Error("Путь развития не найден.");
-    const cost = 8;
-    if (this.save.hero.relicDust < cost)
-      throw new Error(`Нужно реликтовой пыли: ${cost}.`);
-    this.save.hero.relicDust -= cost;
-    item.relicPath = path.id;
-    Object.entries(path.stats).forEach(([stat, value]) => {
-      const key = stat as keyof Stats;
-      item.stats[key] = (item.stats[key] ?? 0) + Number(value);
-    });
-    const epithet = this.random.loot.pick(
-      CLASS_RELIC_EPITHETS[this.save.hero.classId],
-    );
-    item.relicName = `${item.name} · ${epithet}`;
-    item.relicHistory ??= [];
-    item.relicHistory.push(
-      `День ${this.save.worldDay}: выбран «${path.name}».`,
-    );
-    item.appearanceVariant = `${path.id}-${item.relicTier ?? 1}`;
-    if (!item.worldRelicId && isWorldRelicEligible(item)) {
-      const record = createWorldRelicRecord(
-        this.randomId("world-relic"),
-        item,
-        "hero",
-        this.save.hero.name,
-        this.save.worldDay,
-      );
-      Object.assign(item, record.item, {
-        stats: { ...record.item.stats },
-        relicHistory: [...(record.item.relicHistory ?? [])],
-        relicFeats: [...(record.item.relicFeats ?? [])],
-        relicProperties: (record.item.relicProperties ?? []).map(
-          (property) => ({ ...property }),
-        ),
-      });
-      this.save.worldRelics ??= [];
-      this.save.worldRelics.push(record);
-    } else if (item.worldRelicId) {
-      this.synchronizeOwnedWorldRelic(item);
-    }
-    this.event("loot", `${item.name} обрёл имя «${item.relicName}».`);
-    return item;
+    return this.equipment.awakenRelic(itemId, pathId);
   }
 
   public relicRecipients(itemId: string): EnemyProfile[] {
-    const item = this.save.hero.inventory.find(
-      (candidate) => candidate.id === itemId,
-    );
-    if (
-      !item?.worldRelicId ||
-      Object.values(this.save.hero.equipped).includes(item.id)
-    )
-      return [];
-    return this.save.enemies
-      .filter((enemy) => {
-        if (!enemy.alive || enemy.level < Math.max(1, item.level - 5))
-          return false;
-        if (
-          item.allowedClasses !== "all" &&
-          !item.allowedClasses.includes(enemy.classId)
-        )
-          return false;
-        const current = enemy.equipment.find(
-          (candidate) => candidate.id === enemy.equipped[item.slot],
-        );
-        if (current?.worldRelicId) return false;
-        return !ITEM_TEMPLATES.find(
-          (template) => template.id === current?.templateId,
-        )?.exclusiveToElite;
-      })
-      .sort((first, second) => {
-        const firstMeetings = this.save.hero.rivalries[first.id]?.meetings ?? 0;
-        const secondMeetings =
-          this.save.hero.rivalries[second.id]?.meetings ?? 0;
-        return secondMeetings - firstMeetings || second.rating - first.rating;
-      });
+    return this.equipment.relicRecipients(itemId);
   }
 
   public giftRelic(itemId: string, fighterId: string): WorldRelicRecord {
-    this.requireFeature("equipment-legacy");
-    this.assertNoPendingBattle();
-    const item = this.save.hero.inventory.find(
-      (candidate) => candidate.id === itemId,
-    );
-    if (!item?.worldRelicId)
-      throw new Error("Передать можно только пробуждённую мировую реликвию.");
-    if (Object.values(this.save.hero.equipped).includes(item.id))
-      throw new Error("Сначала снимите реликвию с героя.");
-    const recipient = this.relicRecipients(itemId).find(
-      (enemy) => enemy.id === fighterId,
-    );
-    if (!recipient)
-      throw new Error(
-        "Этот боец не может принять реликвию: проверьте его класс, уровень и занятый слот.",
-      );
-    const recordIndex =
-      this.save.worldRelics?.findIndex(
-        (record) => record.id === item.worldRelicId,
-      ) ?? -1;
-    if (recordIndex < 0)
-      throw new Error("Реликвия ещё не внесена в летопись мира.");
-    const transfer = transferWorldRelic(
-      this.save.worldRelics![recordIndex],
-      item,
-      recipient.id,
-      recipient.name,
-      `День ${this.save.worldDay}: ${this.save.hero.name} передал реликвию ${recipient.name}.`,
-    );
-    if (!considerNpcLoot(recipient, transfer.item))
-      throw new Error(
-        "Боец сохранил своё нынешнее снаряжение и не принял реликвию.",
-      );
-    this.save.hero.inventory = this.save.hero.inventory.filter(
-      (candidate) => candidate.id !== item.id,
-    );
-    this.save.worldRelics![recordIndex] = transfer.record;
-    recipient.relationships ??= {};
-    recipient.relationships.hero = {
-      fighterId: "hero",
-      kind: "ally",
-      intensity: 65,
-      lastChangedDay: this.save.worldDay,
-    };
-    this.recordEnemyHistory(
-      recipient,
-      `Получил от ${this.save.hero.name} реликвию «${transfer.item.relicName ?? item.name}».`,
-    );
-    this.event(
-      "loot",
-      `${this.save.hero.name} передал реликвию «${transfer.item.relicName ?? item.name}» бойцу ${recipient.name}. Она останется в мире и сможет сменить владельца.`,
-    );
-    return transfer.record;
+    return this.equipment.giftRelic(itemId, fighterId);
   }
 
   public simulateElapsed(now = Date.now()): number {
@@ -2113,32 +1498,7 @@ export class WorldGame {
   }
 
   public finalizePendingBattle(): PendingBattleFinalization {
-    const pending = this.requirePendingBattle();
-    const session = new BattleSession(pending.session);
-    if (!session.isFinished) throw new Error("Сначала завершите все ходы боя.");
-    if (pending.kind === "dungeon")
-      return this.finalizePendingDungeon(pending, session);
-    if (pending.kind === "duel")
-      return this.finalizePendingDuel(pending, session);
-    if (pending.kind === "boss")
-      return this.finalizePendingBoss(pending, session);
-    if (pending.kind === "legacy-champion")
-      return this.finalizePendingLegacyChampion(pending, session);
-    if (pending.kind === "world-encounter")
-      return this.finalizePendingWorldEncounter(pending, session);
-    if (pending.kind === "legend-hunt")
-      return this.finalizePendingLegendHunt(pending, session);
-    if (pending.kind === "legend-defense")
-      return this.finalizePendingLegendDefense(pending, session);
-    if (pending.kind === "expedition")
-      return this.finalizePendingExpedition(pending, session);
-    if (
-      pending.kind === "arena-tournament" ||
-      pending.kind === "crown-league"
-    ) {
-      return this.finalizePendingTournamentBattle(pending, session);
-    }
-    throw new Error(`Финализация ${pending.kind} ещё не поддержана.`);
+    return this.battleFinalization.finalizePendingBattle();
   }
 
   public abortPendingBattle(): PendingBattleFinalization | undefined {
@@ -2174,1012 +1534,65 @@ export class WorldGame {
     pending: PendingBattle,
     session: BattleSession,
   ): PendingBattleFinalization {
-    const tier = DUEL_TIERS.find(
-      (candidate) => candidate.id === pending.activityId,
-    );
-    if (!tier)
-      throw new Error("Ступень сохранённой дуэли больше не существует.");
-    const enemy = this.enemyById(pending.enemyId) ?? pending.enemy;
-    const combat = session.resolution();
-    const heroWon = combat.winnerId === "hero";
-    const baseExperience = heroWon
-      ? tier.rewardExperience + enemy.level * 4
-      : Math.round(tier.rewardExperience * 0.28);
-    const baseGold = heroWon ? tier.rewardGold + enemy.level * 4 : 0;
-    const { experience, gold } = this.epochRewards(
-      baseExperience,
-      baseGold,
-      "duel",
-    );
-    const levelsGained = this.gainHeroExperience(experience);
-    this.save.hero.gold += gold;
-    if (heroWon) {
-      this.save.hero.wins += 1;
-      this.save.hero.duelWins += 1;
-    } else {
-      this.save.hero.losses += 1;
-      this.save.hero.duelLosses += 1;
-    }
-    this.recordNpcDuelWithHero(enemy, heroWon);
-    this.recordHeroEncounter(enemy, heroWon, combat.turns);
-    this.recordMutationVictory(enemy, heroWon);
-    if (heroWon) this.advanceContract("duel");
-    this.event(
-      "battle",
-      `${this.save.hero.name} ${heroWon ? "победил" : "проиграл"} ${enemy.name} в дуэли «${tier.name}».`,
-      {
-        kind: "battle",
-        actorId: "hero",
-        actorName: this.save.hero.name,
-        targetId: enemy.id,
-        targetName: enemy.name,
-        outcome: heroWon ? "won" : "lost",
-      },
-    );
-    const battle: BattleReport = {
-      activity: tier,
-      heroBefore: combat.hero,
-      enemyBefore: combat.enemy,
-      winnerId: combat.winnerId,
-      loserId: heroWon ? enemy.id : "hero",
-      heroWon,
-      enemyDied: false,
-      turns: combat.turns,
-      analysis: combat.analysis,
-      rewards: {
-        experience,
-        gold,
-        levelsGained,
-        unlockedSkills: [],
-        item: undefined,
-      },
-      worldEvents: [],
-    };
-    this.save.pendingBattle = undefined;
-    this.completeDay();
-    const result: DailyActivityReport = {
-      kind: "duel",
-      title: tier.name,
-      description: heroWon
-        ? "Победа в подобранном по силе поединке."
-        : "Поражение без риска для жизни.",
-      battle,
-      experience,
-      gold,
-      levelsGained,
-    };
-    return { status: "complete", battle, result };
+    return this.battleFinalization.finalizePendingDuel(pending, session);
   }
 
   private finalizePendingDungeon(
     pending: PendingBattle,
     session: BattleSession,
   ): PendingBattleFinalization {
-    const activity = DUNGEONS.find(
-      (candidate) => candidate.id === pending.activityId,
-    );
-    if (!activity)
-      throw new Error("Сохранённое подземелье больше не существует.");
-    const enemy = pending.enemy;
-    const combat = session.resolution();
-    const heroWon = combat.winnerId === "hero";
-    const baseExperience = heroWon
-      ? activity.rewardExperience + enemy.level * 4
-      : Math.round(activity.rewardExperience * 0.2);
-    const baseGold = heroWon
-      ? activity.rewardGold +
-        this.random.loot.int(0, Math.round(activity.rewardGold * 0.25))
-      : 0;
-    const epochReward = this.epochRewards(baseExperience, baseGold, "dungeon");
-    const dungeonController =
-      this.save.factionControl?.dungeonControllers?.[activity.id];
-    const controlledReward = dungeonController
-      ? factionDungeonReward(dungeonController, epochReward)
-      : { ...epochReward, raritySteps: 0 };
-    const { experience, gold } = controlledReward;
-    const levelsGained = this.gainHeroExperience(experience);
-    this.save.hero.gold += gold;
-    if (heroWon) {
-      this.save.hero.wins += 1;
-      this.save.hero.dungeonWins += 1;
-    } else {
-      this.save.hero.losses += 1;
-      this.save.hero.dungeonLosses += 1;
-    }
-    this.recordHeroEncounter(enemy, heroWon, combat.turns);
-    this.recordMutationVictory(enemy, heroWon);
-
-    let item: EquipmentItem | undefined;
-    let temperingMarks = 0;
-    if (heroWon) {
-      item = this.createRewardItem(
-        Math.min(this.save.hero.level + 2, activity.enemyLevel[1] + 1),
-        {
-          classId: this.save.hero.classId,
-          minimumRarity: this.minimumRewardRarity(
-            this.controlledDungeonMinimum(activity.id, activity.minimumRarity),
-            "dungeon",
-          ),
-        },
-        factionModifier(this.save.hero.factionReputation, "dungeonLootChance"),
-      );
-      this.addItem(item);
-      this.event(
-        "loot",
-        `${this.save.hero.name} получил предмет: ${item.name}.`,
-        {
-          kind: "loot",
-          fighterId: "hero",
-          fighterName: this.save.hero.name,
-          itemId: item.id,
-          itemName: item.name,
-        },
-      );
-      if (
-        activity.requiredArena >= ARENAS.length - 2 &&
-        this.random.loot.chance(0.22)
-      ) {
-        temperingMarks = 1;
-        this.save.hero.temperingMarks += 1;
-        this.event(
-          "loot",
-          `${this.save.hero.name} нашёл редкую печать закалки.`,
-        );
-      }
-      this.save.dungeonClears[activity.id] = this.save.worldDay;
-      this.advanceContract("dungeon");
-    }
-    this.event(
-      "dungeon",
-      `${this.save.hero.name} ${heroWon ? "завершил" : "не прошёл"} вылазку «${activity.name}».`,
-      {
-        kind: "dungeon",
-        fighterId: "hero",
-        fighterName: this.save.hero.name,
-        dungeonId: activity.id,
-        dungeonName: activity.name,
-        outcome: heroWon ? "completed" : "retreated",
-      },
-    );
-    const beforeSkillIds = new Set(
-      Array.isArray(pending.context?.skillIds)
-        ? (pending.context!.skillIds as string[])
-        : [],
-    );
-    const equippedIds = new Set(Object.values(this.save.hero.equipped));
-    const unlockedNow = unlockedSkills(
-      this.save.hero.classId,
-      this.save.hero.level,
-      this.save.hero.inventory.filter((candidate) =>
-        equippedIds.has(candidate.id),
-      ),
-      this.save.hero.legacySkillId ? [this.save.hero.legacySkillId] : [],
-    ).filter((skill) => !beforeSkillIds.has(skill.id));
-    const battle: BattleReport = {
-      activity,
-      heroBefore: combat.hero,
-      enemyBefore: combat.enemy,
-      winnerId: combat.winnerId,
-      loserId: heroWon ? enemy.id : "hero",
-      heroWon,
-      enemyDied: false,
-      turns: combat.turns,
-      analysis: combat.analysis,
-      rewards: {
-        experience,
-        gold,
-        item,
-        levelsGained,
-        unlockedSkills: unlockedNow,
-        temperingMarks,
-      },
-      worldEvents: [],
-    };
-    const eventCursor =
-      typeof pending.context?.eventCursor === "string"
-        ? pending.context.eventCursor
-        : undefined;
-    this.save.pendingBattle = undefined;
-    this.completeDay();
-    battle.worldEvents = this.eventsSince(eventCursor);
-    return { status: "complete", battle, result: battle };
+    return this.battleFinalization.finalizePendingDungeon(pending, session);
   }
 
   private finalizePendingBoss(
     pending: PendingBattle,
     session: BattleSession,
   ): PendingBattleFinalization {
-    const boss = DUEL_BOSSES.find(
-      (candidate) => candidate.id === pending.activityId,
-    );
-    if (!boss)
-      throw new Error("Сохранённый особый противник больше не существует.");
-    const enemy = pending.enemy;
-    const combat = session.resolution();
-    const heroWon = combat.winnerId === "hero";
-    const baseExperience = heroWon
-      ? boss.rewardExperience
-      : Math.round(boss.rewardExperience * 0.16);
-    const baseGold = heroWon ? boss.rewardGold : 0;
-    const { experience, gold } = this.factionAdjustedReward(
-      this.epochRewards(baseExperience, baseGold, "boss"),
-      "bossReward",
-    );
-    const levelsGained = this.gainHeroExperience(experience);
-    this.save.hero.gold += gold;
-    let item: EquipmentItem | undefined;
-    let temperingMarks = 0;
-    if (heroWon) {
-      this.save.hero.wins += 1;
-      this.save.hero.bossWins += 1;
-      if (!this.save.defeatedBosses.includes(boss.id))
-        this.save.defeatedBosses.push(boss.id);
-      temperingMarks =
-        1 +
-        rewardModifiers(
-          this.save.legacy.cycle,
-          this.save.legacy.activeLawIds,
-          "boss",
-        ).bonusTemperingMarks;
-      this.save.hero.temperingMarks += temperingMarks;
-      const rarity = this.minimumRewardRarity(
-        boss.id === "nameless-duke" ? "mythic" : "legendary",
-        "boss",
-      );
-      item = createItem(Math.min(this.save.hero.level + 2, boss.level + 2), {
-        classId: this.save.hero.classId,
-        templateId: boss.lootTemplateIds[this.save.hero.classId],
-        rarity,
-        randomSource: this.random.loot,
-      });
-      this.addItem(item);
-      this.event(
-        "loot",
-        `${this.save.hero.name} победил ${boss.name} и получил уникальный предмет «${item.name}».`,
-        {
-          kind: "loot",
-          fighterId: "hero",
-          fighterName: this.save.hero.name,
-          itemId: item.id,
-          itemName: item.name,
-        },
-      );
-      this.advanceContract("boss");
-    } else {
-      this.save.hero.losses += 1;
-    }
-    this.recordHeroEncounter(enemy, heroWon, combat.turns);
-    this.recordMutationVictory(enemy, heroWon);
-    const battle: BattleReport = {
-      activity: boss,
-      heroBefore: combat.hero,
-      enemyBefore: combat.enemy,
-      winnerId: combat.winnerId,
-      loserId: heroWon ? enemy.id : "hero",
-      heroWon,
-      enemyDied: false,
-      turns: combat.turns,
-      analysis: combat.analysis,
-      rewards: {
-        experience,
-        gold,
-        item,
-        levelsGained,
-        unlockedSkills: [],
-        temperingMarks,
-      },
-      worldEvents: [],
-    };
-    this.save.pendingBattle = undefined;
-    this.completeDay();
-    const result: DailyActivityReport = {
-      kind: "duel",
-      title: boss.name,
-      description: heroWon
-        ? "Уникальный противник побеждён навсегда."
-        : "Босс останется доступен для новой попытки.",
-      battle,
-      experience,
-      gold,
-      levelsGained,
-    };
-    return { status: "complete", battle, result };
+    return this.battleFinalization.finalizePendingBoss(pending, session);
   }
 
   private finalizePendingLegacyChampion(
     pending: PendingBattle,
     session: BattleSession,
   ): PendingBattleFinalization {
-    const cycle =
-      typeof pending.context?.cycle === "number"
-        ? pending.context.cycle
-        : Number(pending.activityId.replace(/^legacy-/, ""));
-    const archive = this.save.legacy.archives.find(
-      (candidate) => candidate.cycle === cycle,
+    return this.battleFinalization.finalizePendingLegacyChampion(
+      pending,
+      session,
     );
-    if (!archive)
-      throw new Error("Архив сохранённого героя эпохи больше не существует.");
-    const enemy = pending.enemy;
-    const combat = session.resolution();
-    const heroWon = combat.winnerId === "hero";
-    const baseExperience = heroWon ? 720 + archive.level * 14 : 120;
-    const baseGold = heroWon ? 4_800 + archive.rating : 0;
-    const { experience, gold } = this.factionAdjustedReward(
-      this.epochRewards(baseExperience, baseGold, "boss"),
-      "bossReward",
-    );
-    const levelsGained = this.gainHeroExperience(experience);
-    this.save.hero.gold += gold;
-    let item: EquipmentItem | undefined;
-    let temperingMarks = 0;
-    if (heroWon) {
-      this.save.hero.wins += 1;
-      this.save.hero.bossWins += 1;
-      if (!this.save.defeatedLegacyCycles.includes(archive.cycle))
-        this.save.defeatedLegacyCycles.push(archive.cycle);
-      this.save.legacy.seals += 2;
-      this.save.legacy.totalSealsEarned += 2;
-      temperingMarks =
-        2 +
-        rewardModifiers(
-          this.save.legacy.cycle,
-          this.save.legacy.activeLawIds,
-          "boss",
-        ).bonusTemperingMarks;
-      this.save.hero.temperingMarks += temperingMarks;
-      item = createItem(Math.min(this.save.hero.level + 2, archive.level), {
-        classId: this.save.hero.classId,
-        minimumRarity: "mythic",
-        randomSource: this.random.loot,
-      });
-      this.addItem(item);
-      this.event(
-        "loot",
-        `${this.save.hero.name} получил реликвию после победы над героем эпохи ${archive.cycle}.`,
-        {
-          kind: "loot",
-          fighterId: "hero",
-          fighterName: this.save.hero.name,
-          itemId: item.id,
-          itemName: item.name,
-        },
-      );
-      this.advanceContract("boss");
-    } else {
-      this.save.hero.losses += 1;
-    }
-    this.recordHeroEncounter(enemy, heroWon, combat.turns);
-    this.recordMutationVictory(enemy, heroWon);
-    const activity: BossDefinition = {
-      id: `legacy-${archive.cycle}`,
-      kind: "boss",
-      name: `${archive.name}, герой эпохи ${archive.cycle}`,
-      place: "Зал отзвуков",
-      description: "Архивный поединок с завершившим прежнюю летопись героем.",
-      classId: archive.classId,
-      level: archive.level,
-      requiredLevel: 24,
-      requiredDuelWins: 0,
-      requiredArena: ARENAS.length - 2,
-      rewardGold: baseGold,
-      rewardExperience: baseExperience,
-      lootTemplateIds: Object.fromEntries(
-        HERO_CLASSES.map((classId) => [
-          classId,
-          ITEM_TEMPLATES.find(
-            (template) =>
-              template.allowedClasses === "all" ||
-              template.allowedClasses.includes(classId),
-          )!.id,
-        ]),
-      ) as Record<HeroClass, string>,
-      accent: "#715063",
-    };
-    this.event(
-      "battle",
-      heroWon
-        ? `${this.save.hero.name} превзошёл ${archive.name}, героя эпохи ${archive.cycle}.`
-        : `${archive.name} сохранил своё место в Зале отзвуков.`,
-      {
-        kind: "battle",
-        actorId: "hero",
-        actorName: this.save.hero.name,
-        targetId: enemy.id,
-        targetName: enemy.name,
-        outcome: heroWon ? "won" : "lost",
-      },
-    );
-    const battle: BattleReport = {
-      activity,
-      heroBefore: combat.hero,
-      enemyBefore: combat.enemy,
-      winnerId: combat.winnerId,
-      loserId: heroWon ? enemy.id : "hero",
-      heroWon,
-      enemyDied: false,
-      turns: combat.turns,
-      analysis: combat.analysis,
-      rewards: {
-        experience,
-        gold,
-        item,
-        levelsGained,
-        unlockedSkills: [],
-        temperingMarks,
-      },
-      worldEvents: [],
-    };
-    this.save.pendingBattle = undefined;
-    this.completeDay();
-    battle.worldEvents = this.eventsSince(
-      typeof pending.context?.eventCursor === "string"
-        ? pending.context.eventCursor
-        : undefined,
-    );
-    return { status: "complete", battle, result: battle };
   }
 
   private finalizePendingWorldEncounter(
     pending: PendingBattle,
     session: BattleSession,
   ): PendingBattleFinalization {
-    const encounterType =
-      pending.context?.encounterType === "future-boss"
-        ? "future-boss"
-        : "faction-hunter";
-    const combat = session.resolution();
-    const enemy = pending.enemy;
-    const persistentEnemy = this.enemyById(pending.enemyId);
-    const heroWon = combat.winnerId === "hero";
-    const bossRecord =
-      encounterType === "future-boss"
-        ? this.save.npcLife?.futureBosses.find(
-            (candidate) => candidate.id === pending.context?.futureBossId,
-          )
-        : undefined;
-    const baseExperience =
-      encounterType === "future-boss"
-        ? heroWon
-          ? 520 + enemy.level * 16
-          : 110 + enemy.level * 2
-        : heroWon
-          ? 210 + enemy.level * 8
-          : 65 + enemy.level * 2;
-    const baseGold = heroWon
-      ? encounterType === "future-boss"
-        ? 2_400 + enemy.level * 95
-        : 650 + enemy.level * 38
-      : 0;
-    const { experience, gold } = this.epochRewards(
-      baseExperience,
-      baseGold,
-      encounterType === "future-boss" ? "boss" : "duel",
+    return this.battleFinalization.finalizePendingWorldEncounter(
+      pending,
+      session,
     );
-    const levelsGained = this.gainHeroExperience(experience);
-    this.save.hero.gold += gold;
-    let item: EquipmentItem | undefined;
-    let temperingMarks = 0;
-    if (heroWon) {
-      this.save.hero.wins += 1;
-      if (encounterType === "future-boss") this.save.hero.bossWins += 1;
-      else this.save.hero.duelWins += 1;
-      item = this.createRewardItem(
-        Math.min(enemy.level + 2, this.save.hero.level + 4),
-        {
-          classId: this.save.hero.classId,
-          minimumRarity:
-            encounterType === "future-boss"
-              ? "mythic"
-              : this.save.hero.highestArena >= 3
-                ? "legendary"
-                : "epic",
-        },
-      );
-      temperingMarks = encounterType === "future-boss" ? 2 : 1;
-      this.save.hero.temperingMarks += temperingMarks;
-      this.addItem(item);
-      this.advanceContract(encounterType === "future-boss" ? "boss" : "duel");
-    } else {
-      this.save.hero.losses += 1;
-      if (encounterType === "faction-hunter") this.save.hero.duelLosses += 1;
-    }
-    if (persistentEnemy) {
-      this.recordNpcDuelWithHero(persistentEnemy, heroWon);
-      if (!heroWon) {
-        if (encounterType === "faction-hunter") {
-          persistentEnemy.experience += this.npcExperienceReward(
-            60 + this.save.hero.level * 3,
-          );
-          persistentEnemy.gold =
-            (persistentEnemy.gold ?? 0) + 120 + this.save.hero.level * 12;
-          this.progressEnemy(persistentEnemy, false);
-        }
-      }
-      this.recordEnemyHistory(
-        persistentEnemy,
-        `${heroWon ? "Проиграл" : "Победил"} ${this.save.hero.name} в личном событии мира.`,
-      );
-    }
-    this.recordHeroEncounter(persistentEnemy ?? enemy, heroWon, combat.turns);
-    if (encounterType === "future-boss" && bossRecord && heroWon) {
-      bossRecord.status = "defeated";
-      const profile = this.save.npcLife?.profiles[bossRecord.fighterId];
-      if (profile) {
-        profile.futureBossId = undefined;
-        if (profile.career === "future-boss") {
-          profile.career =
-            persistentEnemy?.legendSinceDay !== undefined ? "legend" : "active";
-        }
-      }
-      this.event(
-        "promotion",
-        `${this.save.hero.name} завершил историю особого противника ${bossRecord.name}.`,
-      );
-    }
-    if (encounterType === "faction-hunter") {
-      const factionId =
-        typeof pending.context?.factionId === "string"
-          ? pending.context.factionId
-          : enemy.factionId;
-      if (factionId) {
-        this.save.hero.factionReputation = applyFactionReputationChange(
-          this.save.hero.factionReputation,
-          factionId,
-          heroWon ? 5 : -3,
-        ).reputation;
-      }
-      this.save.pendingFactionHunterId = undefined;
-    }
-    const activity = this.worldEncounterActivity(
-      pending.activityId,
-      encounterType === "future-boss"
-        ? (bossRecord?.name ?? enemy.name)
-        : `Охотник: ${enemy.name}`,
-      encounterType === "future-boss"
-        ? (bossRecord?.reason ?? enemy.title)
-        : "Расплата за вражду с одной из фракций мира.",
-      enemy,
-      baseExperience,
-      baseGold,
-    );
-    this.recordMutationVictory(enemy, heroWon);
-    this.event(
-      "battle",
-      `${this.save.hero.name} ${heroWon ? "победил" : "проиграл"} в событии «${activity.name}».`,
-      {
-        kind: "battle",
-        actorId: "hero",
-        actorName: this.save.hero.name,
-        targetId: enemy.id,
-        targetName: enemy.name,
-        outcome: heroWon ? "won" : "lost",
-      },
-    );
-    const battle: BattleReport = {
-      activity,
-      heroBefore: combat.hero,
-      enemyBefore: combat.enemy,
-      winnerId: combat.winnerId,
-      loserId: heroWon ? enemy.id : "hero",
-      heroWon,
-      enemyDied: false,
-      turns: combat.turns,
-      analysis: combat.analysis,
-      rewards: {
-        experience,
-        gold,
-        item,
-        levelsGained,
-        unlockedSkills: [],
-        temperingMarks,
-      },
-      worldEvents: [],
-    };
-    this.save.pendingBattle = undefined;
-    this.completeDay();
-    battle.worldEvents = this.eventsSince(
-      typeof pending.context?.eventCursor === "string"
-        ? pending.context.eventCursor
-        : undefined,
-    );
-    return { status: "complete", battle, result: battle };
   }
 
   private finalizePendingLegendHunt(
     pending: PendingBattle,
     session: BattleSession,
   ): PendingBattleFinalization {
-    const activity = ENDGAME_ACTIVITIES.find(
-      (candidate) => candidate.id === "legend-hunt",
-    )!;
-    const enemy = this.enemyById(pending.enemyId);
-    if (!enemy)
-      throw new Error("Легенда из сохранённого вызова больше не существует.");
-    const combat = session.resolution();
-    const heroWon = combat.winnerId === "hero";
-    const baseExperience = heroWon
-      ? activity.rewardExperience + enemy.level * 18
-      : Math.round(activity.rewardExperience * 0.18);
-    const baseGold = heroWon
-      ? activity.rewardGold + enemy.tournamentWins * 120
-      : 0;
-    const { experience, gold } = this.factionAdjustedReward(
-      this.epochRewards(baseExperience, baseGold, "legend-hunt"),
-      "bossReward",
-    );
-    const levelsGained = this.gainHeroExperience(experience);
-    this.save.hero.gold += gold;
-    this.save.lastLegendHuntDay = this.save.worldDay;
-    let item: EquipmentItem | undefined;
-    let temperingMarks = 0;
-    if (heroWon) {
-      this.save.hero.wins += 1;
-      this.save.hero.legendHuntWins += 1;
-      this.swapEliteMembers("hero", enemy.id);
-      temperingMarks = 4;
-      this.save.hero.temperingMarks += temperingMarks;
-      item = this.createRewardItem(this.save.hero.level + 2, {
-        classId: this.save.hero.classId,
-        minimumRarity: "mythic",
-      });
-      this.addItem(item);
-    } else {
-      this.save.hero.losses += 1;
-    }
-    this.awardCrownSeason(heroWon ? "hero" : enemy.id, "win");
-    this.awardCrownSeason(heroWon ? enemy.id : "hero", "loss");
-    this.recordHeroEncounter(enemy, heroWon, combat.turns);
-    this.recordMutationVictory(enemy, heroWon);
-    this.updateEnemyAfterPlayerBattle(enemy, heroWon, false, false);
-    this.syncCrownSet();
-    this.event(
-      "battle",
-      `${this.save.hero.name} ${heroWon ? `занял место ${this.heroEliteRank()} в элите` : "не смог подняться"} после боя с ${enemy.name}.`,
-      {
-        kind: "battle",
-        actorId: "hero",
-        actorName: this.save.hero.name,
-        targetId: enemy.id,
-        targetName: enemy.name,
-        outcome: heroWon ? "won" : "lost",
-      },
-    );
-    const battle: BattleReport = {
-      activity,
-      heroBefore: combat.hero,
-      enemyBefore: combat.enemy,
-      winnerId: combat.winnerId,
-      loserId: heroWon ? enemy.id : "hero",
-      heroWon,
-      enemyDied: false,
-      turns: combat.turns,
-      analysis: combat.analysis,
-      rewards: {
-        experience,
-        gold,
-        item,
-        levelsGained,
-        unlockedSkills: [],
-        temperingMarks,
-      },
-      worldEvents: [],
-    };
-    this.save.pendingBattle = undefined;
-    this.completeDay();
-    battle.worldEvents = this.eventsSince(
-      typeof pending.context?.eventCursor === "string"
-        ? pending.context.eventCursor
-        : undefined,
-    );
-    return { status: "complete", battle, result: battle };
+    return this.battleFinalization.finalizePendingLegendHunt(pending, session);
   }
 
   private finalizePendingLegendDefense(
     pending: PendingBattle,
     session: BattleSession,
   ): PendingBattleFinalization {
-    const activity = ENDGAME_ACTIVITIES.find(
-      (candidate) => candidate.id === "legend-hunt",
-    )!;
-    const enemy = this.enemyById(pending.enemyId);
-    const rank = this.heroEliteRank();
-    if (!enemy || !rank || rank > LEGEND_COUNT)
-      throw new Error("Сохранённый вызов легенде больше не действителен.");
-    const combat = session.resolution();
-    const heroWon = combat.winnerId === "hero";
-    if (heroWon) {
-      this.save.hero.wins += 1;
-      this.save.hero.legendDefenses += 1;
-      this.adjustEliteRating("hero", 10);
-    } else {
-      this.save.hero.losses += 1;
-      this.swapEliteMembers("hero", enemy.id);
-    }
-    this.recordHeroEncounter(enemy, heroWon, combat.turns);
-    this.recordMutationVictory(enemy, heroWon);
-    this.updateEnemyAfterPlayerBattle(enemy, heroWon, false, false);
-    this.save.pendingEliteChallengeId = undefined;
-    this.awardCrownSeason(
-      heroWon ? "hero" : enemy.id,
-      heroWon ? "defense" : "win",
+    return this.battleFinalization.finalizePendingLegendDefense(
+      pending,
+      session,
     );
-    this.awardCrownSeason(heroWon ? enemy.id : "hero", "loss");
-    this.save.lastLegendHuntDay = this.save.worldDay;
-    this.syncCrownSet();
-    this.event(
-      "battle",
-      heroWon
-        ? `${this.save.hero.name} защитил титул легенды.`
-        : `${enemy.name} отобрал у ${this.save.hero.name} место легенды.`,
-      {
-        kind: "battle",
-        actorId: "hero",
-        actorName: this.save.hero.name,
-        targetId: enemy.id,
-        targetName: enemy.name,
-        outcome: heroWon ? "won" : "lost",
-      },
-    );
-    const battle: BattleReport = {
-      activity,
-      heroBefore: combat.hero,
-      enemyBefore: combat.enemy,
-      winnerId: combat.winnerId,
-      loserId: heroWon ? enemy.id : "hero",
-      heroWon,
-      enemyDied: false,
-      turns: combat.turns,
-      analysis: combat.analysis,
-      rewards: { experience: 0, gold: 0, levelsGained: 0, unlockedSkills: [] },
-      worldEvents: [],
-    };
-    this.save.pendingBattle = undefined;
-    if (pending.context?.advanceDay !== false) this.completeDay();
-    battle.worldEvents = this.eventsSince(
-      typeof pending.context?.eventCursor === "string"
-        ? pending.context.eventCursor
-        : undefined,
-    );
-    return { status: "complete", battle, result: battle };
   }
 
   private finalizePendingExpedition(
     pending: PendingBattle,
     session: BattleSession,
   ): PendingBattleFinalization {
-    const expedition = this.save.activeExpedition;
-    if (!expedition || expedition.dungeonId !== pending.activityId) {
-      throw new Error("Сохранённый поход больше не существует.");
-    }
-    const dungeon = DUNGEONS.find(
-      (candidate) => candidate.id === expedition.dungeonId,
-    );
-    if (!dungeon)
-      throw new Error("Подземелье сохранённого похода больше не существует.");
-    const combat = session.resolution();
-    const enemy = pending.enemy;
-    const heroWon = combat.winnerId === "hero";
-    const lastTurn = combat.turns[combat.turns.length - 1];
-    const remainingHealth = heroWon
-      ? lastTurn?.actorId === "hero"
-        ? lastTurn.actorHealth
-        : (lastTurn?.targetHealth ?? combat.hero.maxHealth)
-      : 0;
-    const mode = pending.context?.expeditionMode;
-    const routeNode =
-      mode === "route-node"
-        ? expedition.route?.nodes.find(
-            (candidate) => candidate.id === pending.context?.nodeId,
-          )
-        : undefined;
-    const rawChoiceId =
-      mode === "choice" ? pending.context?.choiceId : undefined;
-    const choiceId =
-      rawChoiceId === "safe" || rawChoiceId === "risk"
-        ? rawChoiceId
-        : undefined;
-    if (mode === "route-node" && !routeNode)
-      throw new Error("Узел сохранённого похода больше не существует.");
-    if (mode === "choice" && choiceId !== "safe" && choiceId !== "risk") {
-      throw new Error("Выбор сохранённого похода больше не существует.");
-    }
-    if (mode !== "route-node" && mode !== "choice")
-      throw new Error("Неизвестный этап сохранённого похода.");
-    const combatKind =
-      routeNode?.kind === "boss" || routeNode?.kind === "alternate-boss"
-        ? "boss"
-        : routeNode?.kind === "elite" || routeNode?.kind === "rival"
-          ? "elite"
-          : choiceId === "risk"
-            ? "elite"
-            : "battle";
-    expedition.health = expeditionStaminaAfterBattle(
-      expedition.health,
-      combat.hero.maxHealth,
-      remainingHealth,
-      expeditionBattleExertion(combatKind),
-    );
-    let item: EquipmentItem | undefined;
-    let completedByBoss = false;
-    let successMessage = "Этап похода пройден.";
-    const persistentEnemyId =
-      typeof pending.context?.persistentEnemyId === "string"
-        ? pending.context.persistentEnemyId
-        : undefined;
-    const persistentEnemy = persistentEnemyId
-      ? this.enemyById(persistentEnemyId)
-      : undefined;
-    if (persistentEnemy) {
-      this.recordNpcDuelWithHero(persistentEnemy, heroWon);
-      if (!heroWon) {
-        persistentEnemy.experience += 35 + persistentEnemy.level * 2;
-        persistentEnemy.gold = (persistentEnemy.gold ?? 0) + 45;
-        this.progressEnemy(persistentEnemy, false);
-      }
-      this.recordEnemyHistory(
-        persistentEnemy,
-        `${heroWon ? "Проиграл" : "Победил"} ${this.save.hero.name} во время встречи в данже «${dungeon.name}».`,
-      );
-    }
-
-    if (mode === "route-node") {
-      const node = routeNode!;
-      this.consumeExpeditionSupply(expedition);
-      const discovery = recordDungeonNodeVisit(
-        expedition.route!,
-        this.dungeonDiscovery(expedition.dungeonId),
-        node.id,
-      );
-      this.save.dungeonDiscoveries![expedition.dungeonId] = {
-        ...discovery,
-        alternateBossDefeated:
-          this.save.dungeonDiscoveries?.[expedition.dungeonId]
-            ?.alternateBossDefeated ?? false,
-      };
-      expedition.discoveredNodeIds = [...discovery.discoveredNodeIds];
-      expedition.visitedNodeIds = [
-        ...(expedition.visitedNodeIds ?? []),
-        node.id,
-      ];
-      expedition.currentNodeId = node.id;
-      expedition.stage = expedition.visitedNodeIds.length;
-      expedition.path.push(`node:${node.kind}:${node.id}`);
-      const elite = node.kind === "elite" || node.kind === "rival";
-      const boss = node.kind === "boss" || node.kind === "alternate-boss";
-      const alternateBoss = node.kind === "alternate-boss";
-      completedByBoss = boss;
-      if (heroWon) {
-        const multiplier = node.rewardMultiplier || 1;
-        expedition.accumulatedExperience += Math.round(
-          (dungeon.rewardExperience / expedition.maxStages) * multiplier,
-        );
-        expedition.accumulatedGold += Math.round(
-          (dungeon.rewardGold / expedition.maxStages) * multiplier,
-        );
-        const lootChance = boss ? 1 : elite ? 0.88 : 0.34;
-        if (
-          this.random.loot.chance(
-            Math.min(1, lootChance + (expedition.lootChanceBonus ?? 0)),
-          )
-        ) {
-          item = this.createRewardItem(
-            Math.min(
-              this.save.hero.level + (boss ? 3 : 2),
-              dungeon.enemyLevel[1] + (boss ? 3 : 1),
-            ),
-            {
-              classId: this.save.hero.classId,
-              minimumRarity: this.minimumRewardRarity(
-                this.controlledDungeonMinimum(
-                  dungeon.id,
-                  alternateBoss
-                    ? improveMinimumRarity(dungeon.minimumRarity, 3)
-                    : boss
-                      ? improveMinimumRarity(dungeon.minimumRarity, 2)
-                      : elite
-                        ? improveMinimumRarity(dungeon.minimumRarity, 1)
-                        : dungeon.minimumRarity,
-                ),
-                "dungeon",
-              ),
-            },
-            (boss ? 0.35 : elite ? 0.2 : 0) + (expedition.lootChanceBonus ?? 0),
-          );
-          expedition.loot.push(item);
-        }
-      }
-      successMessage = boss
-        ? `${alternateBoss ? "Тайный владыка" : "Хранитель"} «${dungeon.name}» повержен. Маршрут завершён, все трофеи сохранены.`
-        : `${node.kind === "rival" ? "Соперник с арены" : elite ? "Элитный страж" : "Патруль"} повержен. Выберите следующий связанный узел маршрута.`;
-    } else if (mode === "choice" && choiceId) {
-      expedition.path.push(choiceId);
-      if (heroWon) {
-        expedition.accumulatedExperience += Math.round(
-          (dungeon.rewardExperience / expedition.maxStages) *
-            (choiceId === "risk" ? 1.55 : 1),
-        );
-        expedition.accumulatedGold += Math.round(
-          (dungeon.rewardGold / expedition.maxStages) *
-            (choiceId === "risk" ? 1.7 : 1),
-        );
-        if (this.random.loot.chance(choiceId === "risk" ? 0.72 : 0.34)) {
-          item = this.createRewardItem(
-            Math.min(this.save.hero.level + 2, dungeon.enemyLevel[1] + 1),
-            {
-              classId: this.save.hero.classId,
-              minimumRarity: this.minimumRewardRarity(
-                this.controlledDungeonMinimum(
-                  dungeon.id,
-                  dungeon.minimumRarity,
-                ),
-                "dungeon",
-              ),
-            },
-            factionModifier(
-              this.save.hero.factionReputation,
-              "dungeonLootChance",
-            ),
-          );
-          expedition.loot.push(item);
-        }
-        expedition.stage += 1;
-      }
-      successMessage =
-        expedition.stage >= expedition.maxStages
-          ? `Поход «${dungeon.name}» завершён. Все накопленные трофеи сохранены.`
-          : `Этап ${expedition.stage}/${expedition.maxStages} пройден. Можно углубиться или отступить.`;
-    }
-
-    const battle: BattleReport = {
-      activity: dungeon,
-      heroBefore: combat.hero,
-      enemyBefore: combat.enemy,
-      winnerId: combat.winnerId,
-      loserId: heroWon ? enemy.id : "hero",
-      heroWon,
-      enemyDied: false,
-      turns: combat.turns,
-      analysis: combat.analysis,
-      rewards: {
-        experience: 0,
-        gold: 0,
-        item,
-        levelsGained: 0,
-        unlockedSkills: [],
-      },
-      worldEvents: [],
-    };
-    this.recordHeroEncounter(enemy, heroWon, combat.turns);
-    this.recordMutationVictory(enemy, heroWon);
-    this.save.pendingBattle = undefined;
-    let result: ExpeditionStepReport;
-    if (!heroWon) {
-      result = this.finishExpedition(
-        true,
-        "Раненый герой отступил. Часть найденного удалось вынести.",
-        battle,
-      );
-    } else if (
-      completedByBoss ||
-      (expedition.stage >= expedition.maxStages && mode === "choice")
-    ) {
-      result = this.finishExpedition(false, successMessage, battle);
-    } else if (expedition.health <= 0) {
-      result = this.finishExpedition(
-        true,
-        "Герой исчерпал запас сил и вынужден отступить. Часть найденного удалось вынести.",
-        battle,
-      );
-    } else {
-      result = {
-        expedition,
-        battle,
-        completed: false,
-        retreated: false,
-        message: successMessage,
-      };
-    }
-    return { status: "complete", battle, result };
+    return this.battleFinalization.finalizePendingExpedition(pending, session);
   }
 
   public fightBoss(bossId: string): DailyActivityReport {
@@ -3214,600 +1627,53 @@ export class WorldGame {
   }
 
   public playTournament(arenaId: string): TournamentReport {
-    this.beginTournament(arenaId);
-    const result = this.runPendingBattleAutomatically();
-    if (!result || !("matches" in result))
-      throw new Error("Автоматический расчёт турнира не вернул результат.");
-    return result;
+    return this.tournaments.playTournament(arenaId);
   }
 
   public beginTournament(arenaId: string): PendingBattle {
-    this.assertNoPendingBattle();
-    const arenaIndex = ARENAS.findIndex(
-      (candidate) => candidate.id === arenaId,
-    );
-    const arena = ARENAS[arenaIndex];
-    if (!arena) throw new Error("Турнир не найден.");
-    const ruleIds = this.tournamentRules(arenaId).map((rule) => rule.id);
-    if (this.save.tournamentRegistrations[arenaId] !== this.save.worldDay) {
-      throw new Error(
-        "На этот турнир нет действующей записи или его день ещё не наступил.",
-      );
-    }
-    this.prepareDayActivity();
-    const eliteIds = new Set(this.save.eliteLeagueMemberIds);
-    const controllerId = this.save.factionControl?.arenaControllers[arena.id];
-    const candidates = this.save.enemies.filter(
-      (enemy) =>
-        enemy.alive &&
-        enemy.arenaIndex === arenaIndex &&
-        !eliteIds.has(enemy.id),
-    );
-    const byComparablePower = (
-      first: EnemyProfile,
-      second: EnemyProfile,
-    ): number =>
-      Math.abs(this.enemyPower(first) - this.heroPower()) -
-      Math.abs(this.enemyPower(second) - this.heroPower());
-    const controlledSlots = controllerId
-      ? Math.floor((arena.participants - 1) / 2)
-      : 0;
-    const controlled = candidates
-      .filter((enemy) => enemy.factionId === controllerId)
-      .sort(byComparablePower)
-      .slice(0, controlledSlots);
-    const controlledIds = new Set(controlled.map((enemy) => enemy.id));
-    const pool = [
-      ...controlled,
-      ...candidates
-        .filter((enemy) => !controlledIds.has(enemy.id))
-        .sort(byComparablePower),
-    ];
-    if (pool.length < arena.participants - 1) {
-      throw new Error(
-        `На арене пока недостаточно бойцов: ${pool.length + 1}/${arena.participants}. Мир пополнит состав на следующий день.`,
-      );
-    }
-    const participantIds = [
-      "hero",
-      ...pool.slice(0, arena.participants - 1).map((enemy) => enemy.id),
-    ];
-    const initialSeeds = this.random.world.shuffle(participantIds);
-    const tournament: PendingTournamentState = {
-      kind: "arena",
-      activityId: arena.id,
-      participantIds,
-      initialSeeds,
-      round: 1,
-      pairs: pendingOpeningRound(initialSeeds),
-      pairIndex: 0,
-      roundWinners: [],
-      matches: [],
-      heroBattles: [],
-      heroPlacement: arena.participants,
-      ruleIds,
-      eventCursor: this.latestEventId(),
-    };
-    const advanced = this.advancePendingTournament(tournament);
-    if (!("session" in advanced))
-      throw new Error("Турнир завершился без боя главного героя.");
-    return advanced;
+    return this.tournaments.beginTournament(arenaId);
   }
 
   private advancePendingTournament(
     state: PendingTournamentState,
   ): PendingBattle | TournamentReport {
-    while (true) {
-      if (state.pairIndex >= state.pairs.length) {
-        if (state.roundWinners.length === 1) {
-          return state.kind === "arena"
-            ? this.completePendingArenaTournament(state, state.roundWinners[0])
-            : this.completePendingCrownTournament(state, state.roundWinners[0]);
-        }
-        const winners = [...state.roundWinners];
-        state.round += 1;
-        state.pairs = [];
-        for (let index = 0; index < winners.length; index += 2)
-          state.pairs.push([winners[index], winners[index + 1]]);
-        state.pairIndex = 0;
-        state.roundWinners = [];
-      }
-      const [firstId, secondId] = state.pairs[state.pairIndex];
-      if (!secondId) {
-        state.roundWinners.push(firstId);
-        state.matches.push({
-          round: state.round,
-          match: state.pairIndex + 1,
-          firstId,
-          winnerId: firstId,
-          heroInvolved: firstId === "hero",
-          bye: true,
-        });
-        state.pairIndex += 1;
-        continue;
-      }
-      if (firstId === "hero" || secondId === "hero") {
-        const enemyId = firstId === "hero" ? secondId : firstId;
-        const enemy = this.enemyById(enemyId);
-        if (!enemy)
-          throw new Error("Соперник из турнирной сетки больше не существует.");
-        const arena = ARENAS.find(
-          (candidate) => candidate.id === state.activityId,
-        );
-        const options: CombatOptions =
-          state.kind === "arena"
-            ? {
-                heroLevelCap:
-                  (arena?.enemyLevel[1] ?? this.save.hero.level) + 1,
-                enemyLevelCap:
-                  (arena?.enemyLevel[1] ?? this.save.hero.level) + 1,
-                ruleIds: state.ruleIds,
-              }
-            : { ruleIds: state.ruleIds };
-        return this.createPendingBattle(
-          state.kind === "arena" ? "arena-tournament" : "crown-league",
-          state.activityId,
-          enemy,
-          options,
-          state.kind === "arena" ? "arena" : "crown-league",
-          state,
-        );
-      }
-      const first = this.enemyById(firstId);
-      const second = this.enemyById(secondId);
-      if (!first || !second)
-        throw new Error("Участник турнирной сетки больше не существует.");
-      const outcome = this.resolveNpcMatch(
-        first,
-        second,
-        state.kind === "crown" || state.pairs.length <= 2,
-        state.ruleIds,
-      );
-      const winnerId = outcome.winner.id;
-      state.roundWinners.push(winnerId);
-      state.matches.push({
-        round: state.round,
-        match: state.pairIndex + 1,
-        firstId,
-        secondId,
-        winnerId,
-        heroInvolved: false,
-        bye: false,
-      });
-      state.pairIndex += 1;
-    }
+    return this.tournaments.advancePendingTournament(state);
   }
 
   private finalizePendingTournamentBattle(
     pending: PendingBattle,
     session: BattleSession,
   ): PendingBattleFinalization {
-    const state = pending.tournament;
-    if (!state) throw new Error("Состояние турнирной сетки отсутствует.");
-    const enemy = this.enemyById(pending.enemyId);
-    if (!enemy)
-      throw new Error("Соперник из турнирной сетки больше не существует.");
-    const combat = session.resolution();
-    const heroWon = combat.winnerId === "hero";
-    const arena = ARENAS.find((candidate) => candidate.id === state.activityId);
-    const activity =
-      state.kind === "arena"
-        ? arena
-        : ENDGAME_ACTIVITIES.find(
-            (candidate) => candidate.id === "crown-league",
-          );
-    if (!activity)
-      throw new Error("Активность сохранённого турнира больше не существует.");
-    const enemyDied =
-      state.kind === "arena" && heroWon && arena
-        ? this.random.world.chance(
-            Math.min(
-              0.3,
-              arena.lethalChance *
-                eraLawModifiers(this.save.legacy.activeLawIds)
-                  .arenaLethalityMultiplier *
-                worldSeasonRule(this.save.worldSeason?.ruleId)
-                  .lethalityMultiplier,
-            ),
-          )
-        : false;
-    const battle: BattleReport = {
-      activity,
-      heroBefore: combat.hero,
-      enemyBefore: combat.enemy,
-      winnerId: combat.winnerId,
-      loserId: heroWon ? enemy.id : "hero",
-      heroWon,
-      enemyDied,
-      turns: combat.turns,
-      analysis: combat.analysis,
-      rewards: { experience: 0, gold: 0, levelsGained: 0, unlockedSkills: [] },
-      worldEvents: [],
-      ruleIds: state.ruleIds,
-    };
-    if (heroWon) {
-      this.save.hero.wins += 1;
-      this.save.hero.tournamentMatchWins += 1;
-    } else {
-      this.save.hero.losses += 1;
-      this.save.hero.tournamentMatchLosses += 1;
-    }
-    this.recordHeroEncounter(enemy, heroWon, combat.turns, enemyDied);
-    this.recordMutationVictory(enemy, heroWon);
-    this.updateEnemyAfterPlayerBattle(enemy, heroWon, enemyDied);
-    if (state.kind === "crown") {
-      this.adjustEliteRating("hero", heroWon ? 12 : -5);
-      this.adjustEliteRating(enemy.id, heroWon ? -5 : 12);
-      this.awardCrownSeason(heroWon ? "hero" : enemy.id, "win");
-      this.awardCrownSeason(heroWon ? enemy.id : "hero", "loss");
-    } else if (arena) {
-      awardWorldSeasonPoints(
-        this.save.worldSeason!,
-        arena.id,
-        heroWon ? "hero" : enemy.id,
-        "win",
-        heroWon ? this.save.hero.name : enemy.name,
-      );
-      awardWorldSeasonPoints(
-        this.save.worldSeason!,
-        arena.id,
-        heroWon ? enemy.id : "hero",
-        "loss",
-        heroWon ? enemy.name : this.save.hero.name,
-      );
-    }
-    const [firstId, secondId] = state.pairs[state.pairIndex];
-    const winnerId = heroWon ? "hero" : enemy.id;
-    state.matches.push({
-      round: state.round,
-      match: state.pairIndex + 1,
-      firstId,
-      secondId,
-      winnerId,
-      heroInvolved: true,
-      battle,
-      bye: false,
-    });
-    state.heroBattles.push(battle);
-    state.roundWinners.push(winnerId);
-    if (!heroWon) {
-      const size = state.kind === "arena" ? arena!.participants : ELITE_SIZE;
-      state.heroPlacement = Math.max(
-        2,
-        Math.floor(size / 2 ** (state.round - 1)),
-      );
-    }
-    state.pairIndex += 1;
-    this.save.pendingBattle = undefined;
-    const advanced = this.advancePendingTournament(state);
-    if ("session" in advanced)
-      return { status: "next-battle", battle, pendingBattle: advanced };
-    return { status: "complete", battle, result: advanced };
+    return this.tournaments.finalizePendingTournamentBattle(pending, session);
   }
 
   private tournamentMatches(state: PendingTournamentState): TournamentMatch[] {
-    return state.matches
-      .filter((match) => !match.bye)
-      .map((match) => {
-        const first = this.fighterById(match.firstId);
-        const second = match.secondId
-          ? this.fighterById(match.secondId)
-          : undefined;
-        const winner = this.fighterById(match.winnerId);
-        return {
-          round: match.round,
-          match: match.match,
-          firstName: first?.name ?? match.firstId,
-          secondName: second?.name ?? "Автоматический проход",
-          winnerName: winner?.name ?? match.winnerId,
-          heroInvolved: match.heroInvolved,
-          battle: match.battle,
-          bye: match.bye,
-        };
-      });
+    return this.tournaments.tournamentMatches(state);
   }
 
   private applyPendingNpcArenaMatches(
     state: PendingTournamentState,
     arenaIndex: number,
   ): void {
-    state.matches
-      .filter((match) => !match.heroInvolved && !match.bye && match.secondId)
-      .forEach((match) => {
-        const winner = this.enemyById(match.winnerId);
-        const loserId =
-          match.winnerId === match.firstId ? match.secondId! : match.firstId;
-        const loser = this.enemyById(loserId);
-        if (!winner || !loser) return;
-        winner.wins += 1;
-        winner.arenaWins += 1;
-        winner.experience += this.npcExperienceReward(65 + arenaIndex * 24);
-        winner.gold = (winner.gold ?? 0) + 24 + arenaIndex * 12;
-        loser.losses += 1;
-        this.recordNpcRivalry(winner, loser);
-        this.addFactionInfluence(winner, arenaIndex, 1);
-        awardWorldSeasonPoints(
-          this.save.worldSeason!,
-          ARENAS[arenaIndex].id,
-          winner.id,
-          "win",
-          winner.name,
-        );
-        awardWorldSeasonPoints(
-          this.save.worldSeason!,
-          ARENAS[arenaIndex].id,
-          loser.id,
-          "loss",
-          loser.name,
-        );
-        this.progressEnemy(winner, false);
-      });
+    return this.tournaments.applyPendingNpcArenaMatches(state, arenaIndex);
   }
 
   private completePendingArenaTournament(
     state: PendingTournamentState,
     championId: string,
   ): TournamentReport {
-    const arenaIndex = ARENAS.findIndex(
-      (candidate) => candidate.id === state.activityId,
-    );
-    const arena = ARENAS[arenaIndex];
-    if (!arena)
-      throw new Error("Арена сохранённого турнира больше не существует.");
-    this.applyPendingNpcArenaMatches(state, arenaIndex);
-    const champion = this.fighterById(championId);
-    if (!champion)
-      throw new Error("Чемпион сохранённого турнира больше не существует.");
-    const heroWon = championId === "hero";
-    if (heroWon) {
-      state.heroPlacement = 1;
-      this.recordEquipmentDeeds(
-        this.save.hero,
-        "championship",
-        `${arena.name}, день ${this.save.worldDay}`,
-      );
-    }
-    const roundsWon = state.heroBattles.filter(
-      (battle) => battle.heroWon,
-    ).length;
-    const baseExperience = heroWon
-      ? arena.rewardExperience
-      : Math.round(arena.rewardExperience * (0.12 + roundsWon * 0.13));
-    const baseGold = heroWon
-      ? arena.rewardGold
-      : Math.round(arena.rewardGold * roundsWon * 0.04);
-    const controlledReward = this.controlledArenaReward(
-      arena.id,
-      this.factionAdjustedReward(
-        this.epochRewards(baseExperience, baseGold, "arena"),
-        "tournamentReward",
-      ),
-    );
-    const { experience, gold } = controlledReward;
-    const levelsGained = this.gainHeroExperience(experience);
-    this.save.hero.gold += gold;
-    let item: EquipmentItem | undefined;
-    let temperingMarks = 0;
-    if (heroWon) {
-      this.save.hero.arenaWins[arenaIndex] += 1;
-      this.addHeroFactionInfluence(arenaIndex, 8 + arenaIndex * 2);
-      if (
-        this.save.hero.arenaWins[arenaIndex] >= arena.winsToAdvance &&
-        arenaIndex < ARENAS.length - 1
-      ) {
-        this.save.hero.highestArena = Math.max(
-          this.save.hero.highestArena,
-          arenaIndex + 1,
-        );
-      }
-      const baseMinimum: Rarity =
-        arenaIndex >= 4 ? "legendary" : arenaIndex >= 2 ? "epic" : "rare";
-      const minimum =
-        this.save.factionControl?.arenaControllers[arena.id] === "red-ledger"
-          ? improveMinimumRarity(baseMinimum, 1)
-          : baseMinimum;
-      item = this.createRewardItem(
-        Math.min(this.save.hero.level + 2, arena.enemyLevel[1] + 1),
-        { classId: this.save.hero.classId, minimumRarity: minimum },
-      );
-      this.addItem(item);
-      if (arenaIndex >= 2) {
-        temperingMarks = arenaIndex === ARENAS.length - 1 ? 2 : 1;
-        this.save.hero.temperingMarks += temperingMarks;
-      }
-      this.advanceContract("tournament");
-    } else {
-      const npcChampion = champion as EnemyProfile;
-      this.recordArenaChampionship(npcChampion, arenaIndex);
-      npcChampion.gold = (npcChampion.gold ?? 0) + arena.rewardGold;
-      this.addFactionInfluence(npcChampion, arenaIndex, 14 + arenaIndex * 2);
-      this.maybeAwakenWorldRelic(npcChampion, false);
-      this.recordEnemyHistory(
-        npcChampion,
-        `Стал чемпионом турнира «${arena.name}» в день ${this.save.worldDay}.`,
-      );
-      npcChampion.rating = this.enemyWorldRating(npcChampion);
-    }
-    awardWorldSeasonPoints(
-      this.save.worldSeason!,
-      arena.id,
-      championId,
-      "champion",
-      champion.name,
-    );
-    this.recalculateHeroRating();
-    this.event(
-      "tournament",
-      `«${arena.name}» завершён. Чемпион: ${champion.name}. Участников: ${arena.participants}.`,
-      {
-        kind: "tournament",
-        tournamentId: arena.id,
-        tournamentName: arena.name,
-        championId: champion.id,
-        championName: champion.name,
-        participants: arena.participants,
-      },
-    );
-    this.applyOfficialTournamentRecovery();
-    delete this.save.tournamentRegistrations[arena.id];
-    this.save.pendingBattle = undefined;
-    this.completeDay(arena.id);
-    return {
-      activity: arena,
-      day: this.save.worldDay - 1,
-      participantCount: arena.participants,
-      matches: this.tournamentMatches(state),
-      heroBattles: state.heroBattles,
-      championName: champion.name,
-      heroWon,
-      heroPlacement: state.heroPlacement,
-      rewards: {
-        experience,
-        gold,
-        item,
-        levelsGained,
-        unlockedSkills: [],
-        temperingMarks,
-      },
-      worldEvents: this.eventsSince(state.eventCursor),
-      ruleIds: state.ruleIds,
-    };
+    return this.tournaments.completePendingArenaTournament(state, championId);
   }
 
   private completePendingCrownTournament(
     state: PendingTournamentState,
     championId: string,
   ): TournamentReport {
-    const activity = ENDGAME_ACTIVITIES.find(
-      (candidate) => candidate.id === "crown-league",
-    )!;
-    const wasElite = Boolean(state.wasElite);
-
-    state.matches
-      .filter((match) => !match.heroInvolved && !match.bye && match.secondId)
-      .forEach((match) => {
-        const winner = this.enemyById(match.winnerId);
-        const loserId =
-          match.winnerId === match.firstId ? match.secondId! : match.firstId;
-        const loser = this.enemyById(loserId);
-        if (!winner || !loser) return;
-        winner.wins += 1;
-        winner.experience += 150;
-        loser.losses += 1;
-        this.adjustEliteRating(winner.id, 12);
-        this.adjustEliteRating(loser.id, -5);
-        this.awardCrownSeason(winner.id, "win");
-        this.awardCrownSeason(loser.id, "loss");
-        this.progressEnemy(winner, false);
-      });
-
-    const champion = this.fighterById(championId);
-    if (!champion)
-      throw new Error("Чемпион сохранённой Лиги короны больше не существует.");
-    this.recordEquipmentDeeds(
-      champion,
-      "championship",
-      `Лига короны, день ${this.save.worldDay}`,
-    );
-    this.awardCrownSeason(champion.id, "champion");
-    const heroWon = championId === "hero";
-    if (heroWon) state.heroPlacement = 1;
-    if (!heroWon) {
-      const npc = champion as EnemyProfile;
-      npc.tournamentWins += 1;
-      this.save.eliteCrownWins[npc.id] =
-        (this.save.eliteCrownWins[npc.id] ?? 0) + 1;
-    }
-
-    const roundsWon = state.heroBattles.filter(
-      (battle) => battle.heroWon,
-    ).length;
-    const baseExperience = heroWon
-      ? activity.rewardExperience
-      : Math.round(activity.rewardExperience * (0.12 + roundsWon * 0.12));
-    const baseGold = heroWon
-      ? activity.rewardGold
-      : Math.round(activity.rewardGold * roundsWon * 0.05);
-    const { experience, gold } = this.factionAdjustedReward(
-      this.epochRewards(baseExperience, baseGold, "crown-league"),
-      "tournamentReward",
-    );
-    const levelsGained = this.gainHeroExperience(experience);
-    this.save.hero.gold += gold;
-    let item: EquipmentItem | undefined;
-    let temperingMarks = roundsWon > 0 ? 1 : 0;
-    if (heroWon) {
-      this.save.hero.crownLeagueWins += 1;
-      this.save.hero.crownLeaguePoints += 20;
-      temperingMarks = 4;
-      item = this.createRewardItem(this.save.hero.level + 2, {
-        classId: this.save.hero.classId,
-        minimumRarity: "mythic",
-      });
-      this.addItem(item);
-      if (!wasElite) this.promoteIntoElite("hero");
-      else this.adjustEliteRating("hero", 28);
-      this.advanceContract("tournament");
-    } else if (wasElite) {
-      this.save.hero.crownLeaguePoints += roundsWon * 3;
-    }
-    this.save.hero.temperingMarks += temperingMarks;
-    this.save.lastCrownLeagueDay = this.save.worldDay;
-    delete this.save.tournamentRegistrations["crown-league"];
-    if (wasElite || !heroWon) this.sortEliteByRating();
-    this.syncCrownSet();
-    this.event(
-      "tournament",
-      `Лига короны завершена. Чемпион: ${champion.name}. Сетка: ${ELITE_SIZE} бойцов.`,
-      {
-        kind: "tournament",
-        tournamentId: activity.id,
-        tournamentName: activity.name,
-        championId: champion.id,
-        championName: champion.name,
-        participants: ELITE_SIZE,
-      },
-    );
-    this.applyOfficialTournamentRecovery();
-    this.save.pendingBattle = undefined;
-    this.completeDay();
-    this.recalculateHeroRating();
-    const rewards = {
-      experience,
-      gold,
-      item,
-      levelsGained,
-      unlockedSkills: [] as SkillDefinition[],
-      temperingMarks,
-    };
-    const finalBattle = state.heroBattles[state.heroBattles.length - 1];
-    if (finalBattle) finalBattle.rewards = rewards;
-    return {
-      activity,
-      day: this.save.worldDay - 1,
-      participantCount: ELITE_SIZE,
-      matches: this.tournamentMatches(state),
-      heroBattles: state.heroBattles,
-      championName: champion.name,
-      heroWon,
-      heroPlacement: state.heroPlacement,
-      rewards,
-      worldEvents: this.eventsSince(state.eventCursor),
-      ruleIds: state.ruleIds,
-    };
+    return this.tournaments.completePendingCrownTournament(state, championId);
   }
 
   public equip(itemId: string): void {
-    const item = this.save.hero.inventory.find(
-      (candidate) => candidate.id === itemId,
-    );
-    if (!item) throw new Error("Предмет не найден.");
-    if (
-      item.allowedClasses !== "all" &&
-      !item.allowedClasses.includes(this.save.hero.classId)
-    )
-      throw new Error("Этот класс не может использовать предмет.");
-    this.save.hero.equipped[item.slot] = item.id;
+    return this.equipment.equip(itemId);
   }
 
   public crownLeagueAvailability(): ActivityAvailability {
@@ -3840,123 +1706,29 @@ export class WorldGame {
   }
 
   public startExpedition(dungeonId: string): DungeonExpedition {
-    if (this.save.activeExpedition) return this.save.activeExpedition;
-    const dungeon = DUNGEONS.find((candidate) => candidate.id === dungeonId);
-    if (!dungeon) throw new Error("Данж не найден.");
-    const availability = this.availability(dungeon);
-    if (!availability.unlocked) throw new Error(availability.reason);
-    this.prepareDayActivity();
-    const maxStages =
-      dungeon.requiredArena >= 4 ? 5 : dungeon.requiredArena >= 2 ? 4 : 3;
-    const discovery = this.dungeonDiscovery(dungeonId);
-    const maxSupplies = maxStages + 1;
-    this.save.activeExpedition = {
-      dungeonId,
-      stage: 0,
-      maxStages,
-      health: 100,
-      accumulatedGold: 0,
-      accumulatedExperience: 0,
-      loot: [],
-      path: [],
-      route: generateDungeonRoute(dungeonId, maxStages, this.random.world),
-      visitedNodeIds: [],
-      discoveredNodeIds: [...discovery.discoveredNodeIds],
-      encounteredFighterIds: [],
-      supplies: maxSupplies,
-      maxSupplies,
-    };
-    this.event(
-      "dungeon",
-      `${this.save.hero.name} начал поход «${dungeon.name}».`,
-      {
-        kind: "dungeon",
-        fighterId: "hero",
-        fighterName: this.save.hero.name,
-        dungeonId: dungeon.id,
-        dungeonName: dungeon.name,
-        outcome: "started",
-      },
-    );
-    return this.save.activeExpedition;
+    return this.expeditions.startExpedition(dungeonId);
   }
 
   public expeditionRoute() {
-    return this.save.activeExpedition?.route;
+    return this.expeditions.expeditionRoute();
   }
 
   public dungeonDiscovery(dungeonId: string) {
-    const source = this.save.dungeonDiscoveries?.[dungeonId];
-    const normalized = normalizeDungeonDiscoveryState(dungeonId, source);
-    const discovery = {
-      ...normalized,
-      alternateBossDefeated: source?.alternateBossDefeated ?? false,
-    };
-    this.save.dungeonDiscoveries ??= {};
-    this.save.dungeonDiscoveries[dungeonId] = discovery;
-    return discovery;
+    return this.expeditions.dungeonDiscovery(dungeonId);
   }
 
   public reachableExpeditionNodes(): DungeonRouteNode[] {
-    const expedition = this.save.activeExpedition;
-    if (
-      !expedition?.route ||
-      expedition.pendingShrineNodeId ||
-      expedition.pendingMerchantNodeId
-    )
-      return [];
-    return reachableDungeonNodes(
-      expedition.route,
-      expedition.visitedNodeIds ?? [],
-      this.dungeonDiscovery(expedition.dungeonId),
-    );
+    return this.expeditions.reachableExpeditionNodes();
   }
 
   public expeditionShrineChoices(): ExpeditionShrineChoice[] {
-    if (!this.save.activeExpedition?.pendingShrineNodeId) return [];
-    return EXPEDITION_SHRINE_CHOICES.map((choice) => ({ ...choice }));
+    return this.expeditions.expeditionShrineChoices();
   }
 
   public resolveExpeditionShrine(
     choiceId: ExpeditionShrineChoiceId,
   ): ExpeditionStepReport {
-    const expedition = this.save.activeExpedition;
-    if (!expedition?.pendingShrineNodeId)
-      throw new Error("Святилище не ожидает решения.");
-    const choice = EXPEDITION_SHRINE_CHOICES.find(
-      (candidate) => candidate.id === choiceId,
-    );
-    if (!choice) throw new Error("Такой клятвы у святилища нет.");
-    if (choice.id === "blood-oath") {
-      expedition.health = Math.max(1, expedition.health - 14);
-      expedition.attackMultiplier =
-        Math.max(1, expedition.attackMultiplier ?? 1) + 0.18;
-    } else {
-      expedition.accumulatedGold = Math.floor(expedition.accumulatedGold * 0.8);
-      expedition.defenseMultiplier =
-        Math.max(1, expedition.defenseMultiplier ?? 1) + 0.16;
-      expedition.lootChanceBonus =
-        Math.max(0, expedition.lootChanceBonus ?? 0) + 0.12;
-    }
-    expedition.path.push(`shrine:${choice.id}`);
-    expedition.pendingShrineNodeId = undefined;
-    this.event(
-      "dungeon",
-      `${this.save.hero.name} принял клятву «${choice.name}».`,
-      {
-        kind: "dungeon",
-        fighterId: "hero",
-        fighterName: this.save.hero.name,
-        dungeonId: expedition.dungeonId,
-        outcome: "progressed",
-      },
-    );
-    return {
-      expedition,
-      completed: false,
-      retreated: false,
-      message: `${choice.name}: ${choice.benefit}. Цена: ${choice.cost}.`,
-    };
+    return this.expeditions.resolveExpeditionShrine(choiceId);
   }
 
   public expeditionMerchantOptions(): Array<{
@@ -3965,680 +1737,47 @@ export class WorldGame {
     description: string;
     price: number;
   }> {
-    const expedition = this.save.activeExpedition;
-    if (!expedition?.pendingMerchantNodeId || !expedition.route) return [];
-    const node = expedition.route.nodes.find(
-      (candidate) => candidate.id === expedition.pendingMerchantNodeId,
-    );
-    if (!node) return [];
-    const terms = dungeonMerchantTerms(node, this.save.hero.level);
-    return [
-      {
-        id: "healing",
-        name: "Перевязать раны",
-        description: `Восстановить ${terms.staminaRestored}% запаса сил.`,
-        price: terms.healingPrice,
-      },
-      {
-        id: "supplies",
-        name: "Купить припасы",
-        description: "Восстановить две единицы провизии.",
-        price: Math.max(1, Math.round(terms.healingPrice * 0.72)),
-      },
-      {
-        id: "leave",
-        name: "Продолжить путь",
-        description: "Не тратить найденные монеты.",
-        price: 0,
-      },
-    ];
+    return this.expeditions.expeditionMerchantOptions();
   }
 
   public resolveExpeditionMerchant(
     choiceId: "healing" | "supplies" | "leave",
   ): ExpeditionStepReport {
-    const expedition = this.save.activeExpedition;
-    if (!expedition?.pendingMerchantNodeId || !expedition.route)
-      throw new Error("Торговец сейчас не ожидает решения.");
-    const option = this.expeditionMerchantOptions().find(
-      (candidate) => candidate.id === choiceId,
-    );
-    if (!option) throw new Error("Такого предложения у торговца нет.");
-    const node = expedition.route.nodes.find(
-      (candidate) => candidate.id === expedition.pendingMerchantNodeId,
-    );
-    if (!node) throw new Error("Торговец из маршрута больше не найден.");
-    if (expedition.accumulatedGold < option.price)
-      throw new Error(`Нужно найденных монет: ${option.price}.`);
-    expedition.accumulatedGold -= option.price;
-    if (choiceId === "healing") {
-      const terms = dungeonMerchantTerms(node, this.save.hero.level);
-      expedition.health = Math.min(
-        100,
-        expedition.health + terms.staminaRestored,
-      );
-    } else if (choiceId === "supplies") {
-      expedition.supplies = Math.min(
-        expedition.maxSupplies ?? expedition.maxStages + 1,
-        (expedition.supplies ?? 0) + 2,
-      );
-    }
-    expedition.path.push(`merchant:${choiceId}`);
-    expedition.pendingMerchantNodeId = undefined;
-    this.event(
-      "dungeon",
-      choiceId === "leave"
-        ? `${this.save.hero.name} отказался от сделки с подземным торговцем.`
-        : `${this.save.hero.name} приобрёл у подземного торговца: ${option.name.toLocaleLowerCase("ru-RU")}.`,
-      {
-        kind: "dungeon",
-        fighterId: "hero",
-        fighterName: this.save.hero.name,
-        dungeonId: expedition.dungeonId,
-        outcome: "progressed",
-      },
-    );
-    return {
-      expedition,
-      completed: false,
-      retreated: false,
-      message:
-        choiceId === "leave"
-          ? "Торговец остался позади."
-          : `${option.name}: потрачено ${option.price} найденных монет.`,
-    };
+    return this.expeditions.resolveExpeditionMerchant(choiceId);
   }
 
   public advanceExpeditionNode(nodeId: string): ExpeditionStepReport {
-    const started = this.beginExpeditionNode(nodeId);
-    if (!("version" in started)) return started;
-    const result = this.runPendingBattleAutomatically();
-    if (!result || !("completed" in result))
-      throw new Error(
-        "Автоматический расчёт этапа похода не вернул результат.",
-      );
-    return result as ExpeditionStepReport;
+    return this.expeditions.advanceExpeditionNode(nodeId);
   }
 
   public beginExpeditionNode(
     nodeId: string,
   ): PendingBattle | ExpeditionStepReport {
-    this.assertNoPendingBattle();
-    const expedition = this.save.activeExpedition;
-    if (!expedition?.route)
-      throw new Error("Для текущего похода маршрут ещё не построен.");
-    if (expedition.pendingShrineNodeId)
-      throw new Error("Сначала завершите выбор у святилища.");
-    if (expedition.pendingMerchantNodeId)
-      throw new Error("Сначала завершите разговор с подземным торговцем.");
-    const node = this.reachableExpeditionNodes().find(
-      (candidate) => candidate.id === nodeId,
-    );
-    if (!node)
-      throw new Error("Этот узел не связан с текущим положением экспедиции.");
-    if (
-      node.kind === "cache" ||
-      node.kind === "camp" ||
-      node.kind === "shrine" ||
-      node.kind === "trap" ||
-      node.kind === "merchant"
-    ) {
-      this.consumeExpeditionSupply(expedition);
-      const discovery = recordDungeonNodeVisit(
-        expedition.route,
-        this.dungeonDiscovery(expedition.dungeonId),
-        node.id,
-      );
-      this.save.dungeonDiscoveries![expedition.dungeonId] = {
-        ...discovery,
-        alternateBossDefeated:
-          this.save.dungeonDiscoveries?.[expedition.dungeonId]
-            ?.alternateBossDefeated ?? false,
-      };
-      expedition.discoveredNodeIds = [...discovery.discoveredNodeIds];
-      expedition.visitedNodeIds = [
-        ...(expedition.visitedNodeIds ?? []),
-        node.id,
-      ];
-      expedition.currentNodeId = node.id;
-      expedition.stage = expedition.visitedNodeIds.length;
-      expedition.path.push(`node:${node.kind}:${node.id}`);
-      if (node.kind === "cache") return this.resolveExpeditionCache(node);
-      if (node.kind === "camp") return this.resolveExpeditionCamp(node);
-      if (node.kind === "trap") return this.resolveExpeditionTrap(node);
-      if (node.kind === "merchant") {
-        expedition.pendingMerchantNodeId = node.id;
-        return {
-          expedition,
-          completed: false,
-          retreated: false,
-          requiresChoice: true,
-          message:
-            "Подземный торговец предлагает восстановить силы или пополнить припасы.",
-        };
-      }
-      expedition.pendingShrineNodeId = node.id;
-      return {
-        expedition,
-        completed: false,
-        retreated: false,
-        requiresChoice: true,
-        message: "Святилище требует клятвы. Выберите силу и примите её цену.",
-      };
-    }
-    const dungeon = DUNGEONS.find(
-      (candidate) => candidate.id === expedition.dungeonId,
-    )!;
-    const elite = node.kind === "elite" || node.kind === "rival";
-    const boss = node.kind === "boss" || node.kind === "alternate-boss";
-    const alternateBoss = node.kind === "alternate-boss";
-    const levelBonus = node.depth + (boss ? 5 : elite ? 3 : 0);
-    const persistentRival =
-      node.kind === "rival"
-        ? selectPersistentDungeonRival(
-            node,
-            this.save.enemies.filter(
-              (enemy) =>
-                enemy.alive && enemy.arenaIndex >= dungeon.requiredArena,
-            ),
-            expedition.encounteredFighterIds,
-          )
-        : undefined;
-    const enemy =
-      persistentRival ??
-      this.createDungeonEnemy(
-        [
-          Math.min(
-            dungeon.enemyLevel[1] + (boss ? 3 : 1),
-            dungeon.enemyLevel[0] + levelBonus,
-          ),
-          Math.min(
-            dungeon.enemyLevel[1] + (boss ? 4 : 2),
-            dungeon.enemyLevel[0] + levelBonus + 2,
-          ),
-        ],
-        dungeon.name,
-      );
-    if (persistentRival) {
-      expedition.encounteredFighterIds = [
-        ...new Set([
-          ...(expedition.encounteredFighterIds ?? []),
-          persistentRival.id,
-        ]),
-      ];
-      if (node.event?.type === "rival")
-        node.event.opponentId = persistentRival.id;
-    } else if (elite) {
-      enemy.name = `Элитный страж: ${enemy.name.replace(/^Хранитель:\s*/, "")}`;
-      enemy.title = `именной хранитель «${dungeon.name}»`;
-    } else if (boss) {
-      enemy.name = `${alternateBoss ? "Тайный владыка" : "Владыка глубин"}: ${enemy.name.replace(/^Хранитель:\s*/, "")}`;
-      enemy.title = `${alternateBoss ? "скрытый хозяин" : "финальный хранитель"} «${dungeon.name}»`;
-    }
-    const wear = Math.max(0, Math.round((100 - expedition.health) * 1.8));
-    const temporaryHero: HeroProfile = {
-      ...this.save.hero,
-      injuries: [
-        ...this.save.hero.injuries,
-        ...(wear > 0
-          ? [
-              {
-                id: "expedition-wear",
-                name: "Усталость похода",
-                description: "Накопленная усталость снижает запас сил.",
-                remainingDays: 1,
-                stats: { health: -wear },
-                gainedDay: this.save.worldDay,
-              },
-            ]
-          : []),
-      ],
-    };
-    const enemyMultiplier = alternateBoss
-      ? 1.52
-      : boss
-        ? 1.28
-        : elite
-          ? 1.14
-          : 1;
-    return this.createPendingBattle(
-      "expedition",
-      dungeon.id,
-      enemy,
-      {
-        heroStatMultipliers: {
-          attack: expedition.attackMultiplier ?? 1,
-          defense: expedition.defenseMultiplier ?? 1,
-        },
-        enemyStatMultipliers: {
-          health: enemyMultiplier,
-          attack: alternateBoss ? 1.26 : boss ? 1.16 : elite ? 1.08 : 1,
-          defense: enemyMultiplier,
-        },
-      },
-      boss ? "boss" : "dungeon",
-      undefined,
-      {
-        expeditionMode: "route-node",
-        nodeId: node.id,
-        nodeKind: node.kind,
-        persistentEnemyId: persistentRival?.id,
-      },
-      temporaryHero,
-    );
-  }
-
-  private resolveExpeditionCache(node: DungeonRouteNode): ExpeditionStepReport {
-    const expedition = this.save.activeExpedition!;
-    const dungeon = DUNGEONS.find(
-      (candidate) => candidate.id === expedition.dungeonId,
-    )!;
-    const gold = Math.max(
-      1,
-      Math.round(
-        (dungeon.rewardGold / expedition.maxStages) * node.rewardMultiplier,
-      ),
-    );
-    expedition.accumulatedGold += gold;
-    let item: EquipmentItem | undefined;
-    const lootChance = Math.min(
-      0.9,
-      0.42 +
-        (expedition.lootChanceBonus ?? 0) +
-        factionModifier(this.save.hero.factionReputation, "dungeonLootChance"),
-    );
-    if (this.random.loot.chance(lootChance)) {
-      item = this.createRewardItem(
-        Math.min(this.save.hero.level + 1, dungeon.enemyLevel[1]),
-        {
-          classId: this.save.hero.classId,
-          minimumRarity: this.minimumRewardRarity(
-            this.controlledDungeonMinimum(dungeon.id, dungeon.minimumRarity),
-            "dungeon",
-          ),
-        },
-        0.08 + (expedition.lootChanceBonus ?? 0),
-      );
-      expedition.loot.push(item);
-    }
-    this.event(
-      "loot",
-      `${this.save.hero.name} нашёл тайник: ${gold} монет${item ? ` и «${item.name}»` : ""}.`,
-      {
-        kind: "loot",
-        fighterId: "hero",
-        fighterName: this.save.hero.name,
-        itemId: item?.id,
-        itemName: item?.name,
-        rarity: item?.rarity,
-        source: `dungeon-cache:${dungeon.id}`,
-      },
-    );
-    return {
-      expedition,
-      completed: false,
-      retreated: false,
-      message: `Тайник открыт без боя. Найдено ${gold} монет${item ? ` и предмет «${item.name}»` : ""}.`,
-    };
-  }
-
-  private resolveExpeditionTrap(node: DungeonRouteNode): ExpeditionStepReport {
-    const expedition = this.save.activeExpedition!;
-    const resolution = resolveDungeonTrap(
-      node,
-      expedition.health,
-      expedition.accumulatedGold,
-    );
-    expedition.health = resolution.staminaAfter;
-    expedition.accumulatedGold = resolution.goldAfter;
-    this.event(
-      "dungeon",
-      `${this.save.hero.name} попал в ловушку: -${resolution.staminaLost}% сил, -${resolution.goldLost} найденных монет.`,
-      {
-        kind: "dungeon",
-        fighterId: "hero",
-        fighterName: this.save.hero.name,
-        dungeonId: expedition.dungeonId,
-        outcome: "progressed",
-      },
-    );
-    if (expedition.health <= 0) {
-      return this.finishExpedition(
-        true,
-        "Ловушка исчерпала запас сил. Герой вынужден покинуть данж.",
-      );
-    }
-    return {
-      expedition,
-      completed: false,
-      retreated: false,
-      message: `Ловушка отняла ${resolution.staminaLost}% сил и ${resolution.goldLost} монет, но открыла сведения о скрытом пути.`,
-    };
-  }
-
-  private resolveExpeditionCamp(_node: DungeonRouteNode): ExpeditionStepReport {
-    const expedition = this.save.activeExpedition!;
-    const before = expedition.health;
-    expedition.health = Math.min(100, expedition.health + 30);
-    expedition.supplies = Math.min(
-      expedition.maxSupplies ?? expedition.maxStages + 1,
-      (expedition.supplies ?? 0) + 1,
-    );
-    expedition.daysSpent = (expedition.daysSpent ?? 0) + 1;
-    let incident = "";
-    if (this.random.world.chance(0.18)) {
-      const loss = this.random.world.int(6, 11);
-      expedition.health = Math.max(1, expedition.health - loss);
-      incident = ` Ночью патруль потревожил лагерь: потеряно ${loss}% запаса сил.`;
-    }
-    const recovered = Math.max(0, expedition.health - before);
-    this.event(
-      "dungeon",
-      `${this.save.hero.name} устроил лагерь в походе и восстановил ${recovered}% запаса сил.${incident}`,
-      {
-        kind: "dungeon",
-        fighterId: "hero",
-        fighterName: this.save.hero.name,
-        dungeonId: expedition.dungeonId,
-        outcome: "progressed",
-      },
-    );
-    this.completeDay();
-    return {
-      expedition,
-      completed: false,
-      retreated: false,
-      message: `Лагерь восстановил ${recovered}% запаса сил и занял один день.${incident}`,
-    };
-  }
-
-  private resolveExpeditionBattleNode(
-    node: DungeonRouteNode,
-  ): ExpeditionStepReport {
-    const expedition = this.save.activeExpedition!;
-    const dungeon = DUNGEONS.find(
-      (candidate) => candidate.id === expedition.dungeonId,
-    )!;
-    const elite = node.kind === "elite";
-    const boss = node.kind === "boss";
-    const levelBonus = node.depth + (boss ? 5 : elite ? 3 : 0);
-    const enemy = this.createDungeonEnemy(
-      [
-        Math.min(
-          dungeon.enemyLevel[1] + (boss ? 3 : 1),
-          dungeon.enemyLevel[0] + levelBonus,
-        ),
-        Math.min(
-          dungeon.enemyLevel[1] + (boss ? 4 : 2),
-          dungeon.enemyLevel[0] + levelBonus + 2,
-        ),
-      ],
-      dungeon.name,
-    );
-    if (elite) {
-      enemy.name = `Элитный страж: ${enemy.name.replace(/^Хранитель:\s*/, "")}`;
-      enemy.title = `именной хранитель «${dungeon.name}»`;
-    } else if (boss) {
-      enemy.name = `Владыка глубин: ${enemy.name.replace(/^Хранитель:\s*/, "")}`;
-      enemy.title = `финальный хранитель «${dungeon.name}»`;
-    }
-    const wear = Math.max(0, Math.round((100 - expedition.health) * 1.8));
-    const temporaryHero: HeroProfile = {
-      ...this.save.hero,
-      injuries: [
-        ...this.save.hero.injuries,
-        ...(wear > 0
-          ? [
-              {
-                id: "expedition-wear",
-                name: "Усталость похода",
-                description: "Накопленная усталость снижает запас сил.",
-                remainingDays: 1,
-                stats: { health: -wear },
-                gainedDay: this.save.worldDay,
-              },
-            ]
-          : []),
-      ],
-    };
-    const enemyMultiplier = boss ? 1.28 : elite ? 1.14 : 1;
-    const combat = this.resolveWorldCombat(
-      enemy,
-      {
-        heroStatMultipliers: {
-          attack: expedition.attackMultiplier ?? 1,
-          defense: expedition.defenseMultiplier ?? 1,
-        },
-        enemyStatMultipliers: {
-          health: enemyMultiplier,
-          attack: boss ? 1.16 : elite ? 1.08 : 1,
-          defense: enemyMultiplier,
-        },
-      },
-      boss ? "boss" : "dungeon",
-      temporaryHero,
-    );
-    const heroWon = combat.winnerId === "hero";
-    const lastTurn = combat.turns[combat.turns.length - 1];
-    const remainingHealth = heroWon
-      ? lastTurn?.actorId === "hero"
-        ? lastTurn.actorHealth
-        : (lastTurn?.targetHealth ?? combat.hero.maxHealth)
-      : 0;
-    expedition.health = expeditionStaminaAfterBattle(
-      expedition.health,
-      combat.hero.maxHealth,
-      remainingHealth,
-      expeditionBattleExertion(boss ? "boss" : elite ? "elite" : "battle"),
-    );
-    const multiplier = node.rewardMultiplier || 1;
-    const stageExperience = Math.round(
-      (dungeon.rewardExperience / expedition.maxStages) * multiplier,
-    );
-    const stageGold = Math.round(
-      (dungeon.rewardGold / expedition.maxStages) * multiplier,
-    );
-    let item: EquipmentItem | undefined;
-    if (heroWon) {
-      expedition.accumulatedExperience += stageExperience;
-      expedition.accumulatedGold += stageGold;
-      const lootChance = boss ? 1 : elite ? 0.88 : 0.34;
-      if (
-        this.random.loot.chance(
-          Math.min(1, lootChance + (expedition.lootChanceBonus ?? 0)),
-        )
-      ) {
-        item = this.createRewardItem(
-          Math.min(
-            this.save.hero.level + (boss ? 3 : 2),
-            dungeon.enemyLevel[1] + (boss ? 3 : 1),
-          ),
-          {
-            classId: this.save.hero.classId,
-            minimumRarity: this.minimumRewardRarity(
-              this.controlledDungeonMinimum(
-                dungeon.id,
-                boss
-                  ? improveMinimumRarity(dungeon.minimumRarity, 2)
-                  : elite
-                    ? improveMinimumRarity(dungeon.minimumRarity, 1)
-                    : dungeon.minimumRarity,
-              ),
-              "dungeon",
-            ),
-          },
-          (boss ? 0.35 : elite ? 0.2 : 0) + (expedition.lootChanceBonus ?? 0),
-        );
-        expedition.loot.push(item);
-      }
-    }
-    const battle: BattleReport = {
-      activity: dungeon,
-      heroBefore: combat.hero,
-      enemyBefore: combat.enemy,
-      winnerId: combat.winnerId,
-      loserId: heroWon ? enemy.id : "hero",
-      heroWon,
-      enemyDied: false,
-      turns: combat.turns,
-      analysis: combat.analysis,
-      rewards: {
-        experience: 0,
-        gold: 0,
-        item,
-        levelsGained: 0,
-        unlockedSkills: [],
-      },
-      worldEvents: [],
-    };
-    this.recordHeroEncounter(enemy, heroWon, combat.turns);
-    if (!heroWon)
-      return this.finishExpedition(
-        true,
-        "Раненый герой отступил. Часть найденного удалось вынести.",
-        battle,
-      );
-    if (boss)
-      return this.finishExpedition(
-        false,
-        `Хранитель «${dungeon.name}» повержен. Маршрут завершён, все трофеи сохранены.`,
-        battle,
-      );
-    if (expedition.health <= 0) {
-      return this.finishExpedition(
-        true,
-        "Герой исчерпал запас сил и вынужден отступить. Часть найденного удалось вынести.",
-        battle,
-      );
-    }
-    return {
-      expedition,
-      battle,
-      completed: false,
-      retreated: false,
-      message: `${elite ? "Элитный страж" : "Патруль"} повержен. Выберите следующий связанный узел маршрута.`,
-    };
+    return this.expeditions.beginExpeditionNode(nodeId);
   }
 
   private consumeExpeditionSupply(expedition: DungeonExpedition): void {
-    const remaining = Math.max(
-      0,
-      expedition.supplies ?? expedition.maxStages + 1,
-    );
-    if (remaining > 0) {
-      expedition.supplies = remaining - 1;
-      return;
-    }
-    expedition.supplies = 0;
-    expedition.health = Math.max(1, expedition.health - 9);
-    expedition.path.push("exhausted-supplies");
+    return this.expeditions.consumeExpeditionSupply(expedition);
   }
 
   public expeditionChoices(): ExpeditionChoice[] {
-    if (!this.save.activeExpedition) return [];
-    const expedition = this.save.activeExpedition;
-    return EXPEDITION_CHOICES.filter(
-      (choice) =>
-        choice.id !== "rest" ||
-        (expedition.stage > 0 && expedition.health < 92),
-    );
+    return this.expeditions.expeditionChoices();
   }
 
   public advanceExpedition(
     choiceId: ExpeditionChoice["id"],
   ): ExpeditionStepReport {
-    const started = this.beginExpeditionChoice(choiceId);
-    if (!("version" in started)) return started;
-    const result = this.runPendingBattleAutomatically();
-    if (!result || !("completed" in result))
-      throw new Error(
-        "Автоматический расчёт этапа похода не вернул результат.",
-      );
-    return result as ExpeditionStepReport;
+    return this.expeditions.advanceExpedition(choiceId);
   }
 
   public beginExpeditionChoice(
     choiceId: ExpeditionChoice["id"],
   ): PendingBattle | ExpeditionStepReport {
-    this.assertNoPendingBattle();
-    const expedition = this.save.activeExpedition;
-    if (!expedition) throw new Error("Активного похода нет.");
-    const dungeon = DUNGEONS.find(
-      (candidate) => candidate.id === expedition.dungeonId,
-    )!;
-    const choice = this.expeditionChoices().find(
-      (candidate) => candidate.id === choiceId,
-    );
-    if (!choice) throw new Error("Этот путь сейчас недоступен.");
-
-    if (choice.id === "rest") {
-      expedition.path.push(choice.id);
-      expedition.health = Math.min(100, expedition.health + 28);
-      expedition.stage += 1;
-      if (expedition.stage >= expedition.maxStages)
-        return this.finishExpedition(
-          false,
-          `Герой закрепил добычу и нашёл выход из «${dungeon.name}».`,
-        );
-      return {
-        expedition,
-        completed: false,
-        retreated: false,
-        message: "Лагерь восстановил силы, но приблизил поход к развязке.",
-      };
-    }
-
-    const levelBonus = expedition.stage + (choice.id === "risk" ? 3 : 0);
-    const enemy = this.createDungeonEnemy(
-      [
-        Math.min(dungeon.enemyLevel[1] + 2, dungeon.enemyLevel[0] + levelBonus),
-        Math.min(
-          dungeon.enemyLevel[1] + 3,
-          dungeon.enemyLevel[0] + levelBonus + 2,
-        ),
-      ],
-      dungeon.name,
-    );
-    const wear = Math.max(0, Math.round((100 - expedition.health) * 1.8));
-    const temporaryHero: HeroProfile = {
-      ...this.save.hero,
-      injuries: [
-        ...this.save.hero.injuries,
-        ...(wear > 0
-          ? [
-              {
-                id: "expedition-wear",
-                name: "Усталость похода",
-                description: "Накопленная усталость снижает запас сил.",
-                remainingDays: 1,
-                stats: { health: -wear },
-                gainedDay: this.save.worldDay,
-              },
-            ]
-          : []),
-      ],
-    };
-    return this.createPendingBattle(
-      "expedition",
-      dungeon.id,
-      enemy,
-      {},
-      "dungeon",
-      undefined,
-      {
-        expeditionMode: "choice",
-        choiceId: choice.id,
-      },
-      temporaryHero,
-    );
+    return this.expeditions.beginExpeditionChoice(choiceId);
   }
 
   public retreatExpedition(): ExpeditionStepReport {
-    if (!this.save.activeExpedition) throw new Error("Активного похода нет.");
-    return this.finishExpedition(
-      true,
-      "Герой добровольно вернулся наверх и сохранил часть добычи.",
-    );
+    return this.expeditions.retreatExpedition();
   }
 
   private finishExpedition(
@@ -4646,112 +1785,7 @@ export class WorldGame {
     message: string,
     battle?: BattleReport,
   ): ExpeditionStepReport {
-    const expedition = this.save.activeExpedition!;
-    const finishedExpedition: DungeonExpedition = {
-      ...expedition,
-      loot: [...expedition.loot],
-      path: [...expedition.path],
-    };
-    const dungeon = DUNGEONS.find(
-      (candidate) => candidate.id === expedition.dungeonId,
-    )!;
-    const dungeonController =
-      this.save.factionControl?.dungeonControllers?.[dungeon.id];
-    const multiplier = retreated
-      ? Math.min(
-          0.95,
-          0.55 +
-            factionModifier(
-              this.save.hero.factionReputation,
-              "retreatRetention",
-            ),
-        )
-      : 1;
-    const baseExperience = Math.round(
-      expedition.accumulatedExperience * multiplier,
-    );
-    const baseGold = Math.round(expedition.accumulatedGold * multiplier);
-    const { experience, gold } = this.epochRewards(
-      baseExperience,
-      baseGold,
-      "dungeon",
-    );
-    const keptCount = retreated
-      ? Math.ceil(expedition.loot.length / 2)
-      : expedition.loot.length;
-    const items = expedition.loot.slice(0, keptCount);
-    items.forEach((item) => this.addItem(item));
-    this.save.hero.gold += gold;
-    const levelsGained = this.gainHeroExperience(experience);
-    if (retreated) {
-      this.save.hero.losses += 1;
-      this.save.hero.dungeonLosses += 1;
-    } else {
-      this.save.hero.wins += 1;
-      this.save.hero.dungeonWins += 1;
-      this.save.dungeonClears[dungeon.id] = this.save.worldDay;
-      this.advanceContract("dungeon");
-      const preferred = FACTIONS.map((faction) => ({
-        id: faction.id,
-        reputation: this.save.hero.factionReputation[faction.id] ?? 0,
-      })).sort((first, second) => second.reputation - first.reputation)[0];
-      const supportedFactionId =
-        preferred && preferred.reputation > 0
-          ? preferred.id
-          : (dungeonController ?? FACTIONS[0].id);
-      this.save.factionControl = changeFactionInfluence(
-        this.save.factionControl ??
-          createFactionControlState(this.save.worldDay),
-        "dungeon",
-        dungeon.id,
-        supportedFactionId,
-        7 + dungeon.requiredArena * 2,
-      );
-    }
-    if (expedition.route) {
-      const source = this.dungeonDiscovery(dungeon.id);
-      const next = retreated
-        ? source
-        : completeDungeonExploration(
-            expedition.route,
-            source,
-            expedition.visitedNodeIds ?? [],
-          );
-      this.save.dungeonDiscoveries![dungeon.id] = {
-        ...next,
-        alternateBossDefeated:
-          source.alternateBossDefeated ||
-          (!retreated &&
-            expedition.path.some((entry) => entry.includes("alternate-boss"))),
-      };
-    }
-    this.save.activeExpedition = undefined;
-    this.event("dungeon", message, {
-      kind: "dungeon",
-      fighterId: "hero",
-      fighterName: this.save.hero.name,
-      dungeonId: dungeon.id,
-      dungeonName: dungeon.name,
-      outcome: retreated ? "retreated" : "completed",
-    });
-    this.completeDay();
-    const rewards = {
-      experience,
-      gold,
-      item: items[0],
-      items,
-      levelsGained,
-      unlockedSkills: [],
-    };
-    if (battle) battle.rewards = rewards;
-    return {
-      expedition: finishedExpedition,
-      battle,
-      completed: !retreated,
-      retreated,
-      message,
-      rewards,
-    };
+    return this.expeditions.finishExpedition(retreated, message, battle);
   }
 
   private crownLeagueQualification(): ActivityAvailability {
@@ -4865,60 +1899,11 @@ export class WorldGame {
   }
 
   public playCrownLeague(): TournamentReport {
-    this.beginCrownLeague();
-    const result = this.runPendingBattleAutomatically();
-    if (!result || !("matches" in result))
-      throw new Error("Автоматический расчёт Лиги короны не вернул результат.");
-    return result;
+    return this.tournaments.playCrownLeague();
   }
 
   public beginCrownLeague(): PendingBattle {
-    this.assertNoPendingBattle();
-    const availability = this.crownLeagueAvailability();
-    if (!availability.unlocked) throw new Error(availability.reason);
-    this.prepareDayActivity();
-    this.ensureEliteLeague();
-    const wasElite = Boolean(this.heroEliteRank());
-    const rosterIds = wasElite
-      ? [...this.save.eliteLeagueMemberIds]
-      : ["hero", ...this.save.eliteLeagueMemberIds.slice(0, ELITE_SIZE - 1)];
-    const initialSeeds = rosterIds
-      .map((id) => this.fighterById(id))
-      .filter((fighter): fighter is HeroProfile | EnemyProfile =>
-        Boolean(fighter),
-      )
-      .sort(
-        (first, second) =>
-          this.fighterTournamentSeed(second) -
-          this.fighterTournamentSeed(first),
-      )
-      .map((fighter) => fighter.id);
-    if (
-      initialSeeds.length !== ELITE_SIZE ||
-      new Set(initialSeeds).size !== ELITE_SIZE
-    ) {
-      throw new Error("Элитная сетка ещё не собрана.");
-    }
-    const tournament: PendingTournamentState = {
-      kind: "crown",
-      activityId: "crown-league",
-      participantIds: [...initialSeeds],
-      initialSeeds,
-      round: 1,
-      pairs: pendingOpeningRound(initialSeeds),
-      pairIndex: 0,
-      roundWinners: [],
-      matches: [],
-      heroBattles: [],
-      heroPlacement: ELITE_SIZE,
-      ruleIds: [...this.save.crownSeason.ruleIds],
-      wasElite,
-      eventCursor: this.latestEventId(),
-    };
-    const advanced = this.advancePendingTournament(tournament);
-    if (!("session" in advanced))
-      throw new Error("Лига короны завершилась без боя главного героя.");
-    return advanced;
+    return this.tournaments.beginCrownLeague();
   }
 
   public huntLegend(): BattleReport {
@@ -4992,163 +1977,49 @@ export class WorldGame {
   }
 
   public equipBest(mode: "power" | "set" = "power"): EquipmentItem[] {
-    const hero = this.save.hero;
-    hero.equipped = findBestEquipmentLoadout(hero, mode);
-    return equipmentItemsForLoadout(hero, hero.equipped);
+    return this.equipment.equipBest(mode);
   }
 
   public setAutoEquipBest(enabled: boolean): void {
-    this.save.hero.autoEquipBest = enabled;
-    if (enabled) this.equipBest();
+    return this.equipment.setAutoEquipBest(enabled);
   }
 
   public setAutoSelectSkills(enabled: boolean): void {
-    this.save.hero.autoSelectSkills = enabled;
+    return this.equipment.setAutoSelectSkills(enabled);
   }
 
   public setSelectedSkills(skillIds: string[]): SkillDefinition[] {
-    const hero = this.save.hero;
-    const equippedIds = new Set(Object.values(hero.equipped));
-    const available = unlockedSkills(
-      hero.classId,
-      hero.level,
-      hero.inventory.filter((item) => equippedIds.has(item.id)),
-      hero.legacySkillId ? [hero.legacySkillId] : [],
-    );
-    const availableById = new Map(available.map((skill) => [skill.id, skill]));
-    const selected = skillIds
-      .filter(
-        (id, index, values) =>
-          values.indexOf(id) === index && availableById.has(id),
-      )
-      .slice(0, MAX_ACTIVE_SKILLS);
-    hero.selectedSkillIds = selected;
-    return selected.map((id) => availableById.get(id)!);
+    return this.equipment.setSelectedSkills(skillIds);
   }
 
   public setCombatMode(mode: "auto" | "manual"): void {
-    this.save.hero.combatMode = mode;
+    return this.equipment.setCombatMode(mode);
   }
 
   public classChangeAvailability(): ActivityAvailability {
-    const hero = this.save.hero;
-    if (this.save.pendingBattle)
-      return {
-        unlocked: false,
-        reason: "Сначала завершите или отмените начатый бой.",
-      };
-    if (this.save.activeExpedition)
-      return {
-        unlocked: false,
-        reason: "Сначала завершите текущий поход или отступите.",
-      };
-    const finalArenaIndex = ARENAS.length - 1;
-    if (
-      hero.highestArena < finalArenaIndex ||
-      (hero.arenaWins[finalArenaIndex] ?? 0) < 1
-    ) {
-      return {
-        unlocked: false,
-        reason: `Смена класса откроется после чемпионства на арене «${ARENAS[finalArenaIndex].name}».`,
-      };
-    }
-    if (hero.gold < CLASS_CHANGE_GOLD_COST)
-      return {
-        unlocked: false,
-        reason: `Нужно ${CLASS_CHANGE_GOLD_COST.toLocaleString("ru-RU")} монет.`,
-      };
-    if (hero.temperingMarks < CLASS_CHANGE_MARK_COST)
-      return {
-        unlocked: false,
-        reason: `Нужно печатей закалки: ${CLASS_CHANGE_MARK_COST}.`,
-      };
-    return {
-      unlocked: true,
-      reason: `Стоимость: ${CLASS_CHANGE_GOLD_COST.toLocaleString("ru-RU")} ¤ и ${CLASS_CHANGE_MARK_COST} печатей.`,
-    };
+    return this.equipment.classChangeAvailability();
   }
 
   public changeHeroClass(classId: HeroClass): EquipmentItem[] {
-    const hero = this.save.hero;
-    if (classId === hero.classId) throw new Error("Этот класс уже выбран.");
-    const availability = this.classChangeAvailability();
-    if (!availability.unlocked) throw new Error(availability.reason);
-    hero.gold -= CLASS_CHANGE_GOLD_COST;
-    hero.temperingMarks -= CLASS_CHANGE_MARK_COST;
-    hero.classId = classId;
-    hero.classChanges += 1;
-    hero.selectedSkillIds = [];
-    (Object.keys(hero.equipped) as EquipmentSlot[]).forEach((slot) => {
-      const item = hero.inventory.find(
-        (candidate) => candidate.id === hero.equipped[slot],
-      );
-      if (
-        item &&
-        item.allowedClasses !== "all" &&
-        !item.allowedClasses.includes(classId)
-      )
-        delete hero.equipped[slot];
-    });
-    createStarterItems(classId, this.random.loot).forEach((starter) => {
-      const hasCompatibleSlot = hero.inventory.some(
-        (item) =>
-          item.slot === starter.slot &&
-          (item.allowedClasses === "all" ||
-            item.allowedClasses.includes(classId)),
-      );
-      if (!hasCompatibleSlot) this.addItem(starter);
-    });
-    const equipped = this.equipBest();
-    this.event(
-      "system",
-      `${hero.name} сменил класс и теперь следует пути «${CLASS_DEFINITIONS[classId].name}».`,
-    );
-    return equipped;
+    return this.equipment.changeHeroClass(classId);
   }
 
   public unequip(slot: EquipmentSlot): void {
-    delete this.save.hero.equipped[slot];
+    return this.equipment.unequip(slot);
   }
 
   public sell(itemId: string): number {
-    const item = this.save.hero.inventory.find(
-      (candidate) => candidate.id === itemId,
-    );
-    if (!item) return 0;
-    if (Object.values(this.save.hero.equipped).includes(itemId))
-      throw new Error("Сначала снимите предмет.");
-    if (!this.canSellItem(item))
-      throw new Error(
-        "Регалии живой короны нельзя продать, пока они принадлежат лидеру элиты.",
-      );
-    const value = Math.max(1, Math.round(item.price * 0.45));
-    this.returnHeroRelicToWorld(
-      item,
-      `День ${this.save.worldDay}: ${this.save.hero.name} продал реликвию обратно в мир.`,
-    );
-    this.save.hero.inventory = this.save.hero.inventory.filter(
-      (candidate) => candidate.id !== itemId,
-    );
-    this.save.hero.gold += value;
-    return value;
+    return this.equipment.sell(itemId);
   }
 
   public canSell(itemId: string): boolean {
-    const item = this.save.hero.inventory.find(
-      (candidate) => candidate.id === itemId,
-    );
-    return item ? this.canSellItem(item) : false;
+    return this.equipment.canSell(itemId);
   }
 
   public canSellItem(
     item: Readonly<Pick<EquipmentItem, "templateId">>,
   ): boolean {
-    eliteRegaliaTemplateIds ??= new Set(
-      ITEM_TEMPLATES.filter((template) => template.exclusiveToElite).map(
-        (template) => template.id,
-      ),
-    );
-    return !eliteRegaliaTemplateIds.has(item.templateId);
+    return this.equipment.canSellItem(item);
   }
 
   public canBulkSellItem(
@@ -5156,139 +2027,41 @@ export class WorldGame {
       Pick<EquipmentItem, "templateId" | "worldRelicId" | "rarity">
     >,
   ): boolean {
-    return (
-      !item.worldRelicId && item.rarity !== "relic" && this.canSellItem(item)
-    );
+    return this.equipment.canBulkSellItem(item);
   }
 
   public sellUnequippedQuote(): { count: number; value: number } {
-    const equippedIds = new Set(Object.values(this.save.hero.equipped));
-    return this.save.hero.inventory.reduce(
-      (quote, item) => {
-        if (equippedIds.has(item.id) || !this.canBulkSellItem(item))
-          return quote;
-        quote.count += 1;
-        quote.value += Math.max(1, Math.round(item.price * 0.45));
-        return quote;
-      },
-      { count: 0, value: 0 },
-    );
+    return this.equipment.sellUnequippedQuote();
   }
 
   public sellUnequipped(): { count: number; value: number } {
-    const equippedIds = new Set(Object.values(this.save.hero.equipped));
-    const sellable = this.save.hero.inventory.filter(
-      (item) => !equippedIds.has(item.id) && this.canBulkSellItem(item),
-    );
-    const ids = new Set(sellable.map((item) => item.id));
-    const value = sellable.reduce(
-      (total, item) => total + Math.max(1, Math.round(item.price * 0.45)),
-      0,
-    );
-    sellable.forEach((item) =>
-      this.returnHeroRelicToWorld(
-        item,
-        `День ${this.save.worldDay}: реликвия покинула инвентарь ${this.save.hero.name}.`,
-      ),
-    );
-    this.save.hero.inventory = this.save.hero.inventory.filter(
-      (item) => !ids.has(item.id),
-    );
-    this.save.hero.gold += value;
-    return { count: sellable.length, value };
+    return this.equipment.sellUnequipped();
   }
 
   public temperingMarkPrice(): number {
-    return temperingMarkPrice(this.save);
+    return this.equipment.temperingMarkPrice();
   }
 
   public buyTemperingMarks(quantity = 1): { quantity: number; cost: number } {
-    return buyTemperingMarks(this.save, quantity);
+    return this.equipment.buyTemperingMarks(quantity);
   }
 
   public buy(index: number): EquipmentItem {
-    const offer = this.save.shopOffers[index];
-    if (!offer || offer.sold) throw new Error("Предмет уже продан.");
-    if (this.save.hero.gold < offer.item.price)
-      throw new Error("Недостаточно монет.");
-    this.save.hero.gold -= offer.item.price;
-    offer.sold = true;
-    this.addItem(offer.item);
-    if (offer.item.worldRelicId) {
-      const recordIndex = (this.save.worldRelics ?? []).findIndex(
-        (candidate) => candidate.id === offer.item.worldRelicId,
-      );
-      if (recordIndex >= 0) {
-        const transfer = transferWorldRelic(
-          this.save.worldRelics![recordIndex],
-          offer.item,
-          "hero",
-          this.save.hero.name,
-          `День ${this.save.worldDay}: реликвию приобрёл ${this.save.hero.name}.`,
-        );
-        this.save.worldRelics![recordIndex] = transfer.record;
-        const inventoryIndex = this.save.hero.inventory.findIndex(
-          (item) => item.id === offer.item.id,
-        );
-        if (inventoryIndex >= 0)
-          this.save.hero.inventory[inventoryIndex] = transfer.item;
-        offer.item = transfer.item;
-      }
-    }
-    return offer.item;
+    return this.equipment.buy(index);
   }
 
   public upgradeCost(itemId: string): number {
-    const item = this.save.hero.inventory.find(
-      (candidate) => candidate.id === itemId,
-    );
-    if (!item) throw new Error("Предмет не найден.");
-    return this.upgradeCostFor(item);
+    return this.equipment.upgradeCost(itemId);
   }
 
   public upgradeCostFor(
     item: Readonly<Pick<EquipmentItem, "enhancement">>,
   ): number {
-    if (
-      this.save.legacy.activeBoonId === "forge-tradition" &&
-      (item.enhancement ?? 0) === 0
-    )
-      return 0;
-    return TEMPERING_MARK_COSTS[item.enhancement ?? 0] ?? 0;
+    return this.equipment.upgradeCostFor(item);
   }
 
   public upgradeItem(itemId: string): EquipmentItem {
-    const item = this.save.hero.inventory.find(
-      (candidate) => candidate.id === itemId,
-    );
-    if (!item) throw new Error("Предмет не найден.");
-    const current = item.enhancement ?? 0;
-    if (current >= 5)
-      throw new Error("Предмет уже достиг максимальной закалки.");
-    const cost = this.upgradeCostFor(item);
-    if (this.save.hero.temperingMarks < cost)
-      throw new Error(`Нужно печатей закалки: ${cost}.`);
-    this.save.hero.temperingMarks -= cost;
-    item.enhancement = current + 1;
-    item.level += 1;
-    item.stats = Object.fromEntries(
-      Object.entries(item.stats).map(([stat, value]) => [
-        stat,
-        Math.max(Number(value) + 1, Math.ceil(Number(value) * 1.08)),
-      ]),
-    );
-    item.price = calculateItemPrice(item.level, item.rarity);
-    if (item.worldRelicId) {
-      this.synchronizeOwnedWorldRelic(
-        item,
-        `День ${this.save.worldDay}: ${this.save.hero.name} закалил реликвию до +${item.enhancement}.`,
-      );
-    }
-    this.event(
-      "loot",
-      `${item.name} улучшен в кузнице до +${item.enhancement}.`,
-    );
-    return item;
+    return this.equipment.upgradeItem(itemId);
   }
 
   public leaderboard(): LeaderboardEntry[] {
@@ -5303,7 +2076,6 @@ export class WorldGame {
   }
 
   private leaderboardAll(): LeaderboardEntry[] {
-    const hero = this.save.hero;
     const eliteIds = new Set(this.save.eliteLeagueMemberIds);
     return [
       ...(!eliteIds.has("hero") ? [this.leaderboardEntry("hero")!] : []),
@@ -5578,64 +2350,14 @@ export class WorldGame {
   }
 
   private addItem(item: EquipmentItem): void {
-    this.save.hero.inventory.push(item);
-    if (!this.save.discoveredItems.includes(item.templateId))
-      this.save.discoveredItems.push(item.templateId);
-    if (
-      item.grantedSkillId &&
-      !this.save.legacy.discoveredSkillIds.includes(item.grantedSkillId)
-    ) {
-      this.save.legacy.discoveredSkillIds.push(item.grantedSkillId);
-    }
-    const compatible =
-      item.allowedClasses === "all" ||
-      item.allowedClasses.includes(this.save.hero.classId);
-    if (!this.save.hero.autoEquipBest || !compatible) return;
-    this.equipBest();
-  }
-
-  private returnHeroRelicToWorld(item: EquipmentItem, history: string): void {
-    if (!item.worldRelicId) return;
-    const recordIndex = (this.save.worldRelics ?? []).findIndex(
-      (candidate) => candidate.id === item.worldRelicId,
-    );
-    if (recordIndex < 0) return;
-    this.save.worldRelics![recordIndex] = releaseWorldRelic(
-      this.save.worldRelics![recordIndex],
-      item,
-      history,
-    ).record;
+    return this.equipment.addItem(item);
   }
 
   private synchronizeOwnedWorldRelic(
     item: EquipmentItem,
     history?: string,
   ): WorldRelicRecord | undefined {
-    if (!item.worldRelicId) return undefined;
-    const recordIndex = (this.save.worldRelics ?? []).findIndex(
-      (candidate) => candidate.id === item.worldRelicId,
-    );
-    if (recordIndex < 0) return undefined;
-    const record = synchronizeWorldRelic(
-      this.save.worldRelics![recordIndex],
-      item,
-      history,
-      this.save.worldDay,
-    );
-    this.save.worldRelics![recordIndex] = record;
-    Object.assign(item, record.item, {
-      stats: { ...record.item.stats },
-      relicHistory: [...(record.item.relicHistory ?? [])],
-      relicFeats: [...(record.item.relicFeats ?? [])],
-      relicProperties: (record.item.relicProperties ?? []).map((property) => ({
-        ...property,
-      })),
-    });
-    return record;
-  }
-
-  private isKnownEraLaw(id: string): boolean {
-    return ERA_LAWS.some((law) => law.id === id);
+    return this.equipment.synchronizeOwnedWorldRelic(item, history);
   }
 
   private hasEraLaw(
@@ -5775,96 +2497,7 @@ export class WorldGame {
   }
 
   private syncCrownSeason(): void {
-    if (this.save.worldDay <= this.save.crownSeason.endsDay) return;
-    const completed = this.save.crownSeason;
-    const standings = Object.entries(completed.points)
-      .map(([fighterId, points]) => ({
-        fighterId,
-        points,
-        defenses: completed.defenses[fighterId] ?? 0,
-        seed: this.fighterById(fighterId)
-          ? this.fighterTournamentSeed(this.fighterById(fighterId)!)
-          : 0,
-      }))
-      .sort(
-        (first, second) =>
-          second.points - first.points ||
-          second.defenses - first.defenses ||
-          second.seed - first.seed ||
-          first.fighterId.localeCompare(second.fighterId),
-      );
-    const heroIndex = standings.findIndex(
-      (entry) => entry.fighterId === "hero",
-    );
-    const heroRank = heroIndex >= 0 ? heroIndex + 1 : undefined;
-    const heroPoints = heroIndex >= 0 ? standings[heroIndex].points : 0;
-    const rewardGold =
-      heroRank === 1
-        ? 5_000
-        : heroRank && heroRank <= 5
-          ? 2_500
-          : heroRank && heroRank <= 15
-            ? 1_000
-            : 0;
-    const rewardTemperingMarks =
-      heroRank === 1
-        ? 3
-        : heroRank && heroRank <= 5
-          ? 2
-          : heroRank && heroRank <= 15
-            ? 1
-            : 0;
-    this.save.hero.gold += rewardGold;
-    this.save.hero.temperingMarks += rewardTemperingMarks;
-    const championId = standings[0]?.fighterId;
-    const championName = championId
-      ? this.fighterById(championId)?.name
-      : undefined;
-    this.save.lastCrownSeasonResult = {
-      season: completed.number,
-      completedDay: completed.endsDay,
-      championId,
-      championName,
-      heroRank,
-      heroPoints,
-      rewardGold,
-      rewardTemperingMarks,
-    };
-    this.event(
-      "tournament",
-      heroRank
-        ? `Сезон ${completed.number} Лиги короны завершён. Место героя: #${heroRank}; награда: ${rewardGold} золота и ${rewardTemperingMarks} печ. закалки.`
-        : `Сезон ${completed.number} Лиги короны завершён. Герой не набрал сезонных очков.`,
-      {
-        kind: "system",
-        code: "crown-season-result",
-        values: {
-          season: completed.number,
-          heroRank: heroRank ?? 0,
-          heroPoints,
-          rewardGold,
-          rewardTemperingMarks,
-        },
-      },
-    );
-    const nextNumber = completed.number + 1;
-    this.save.crownSeason = createCrownSeason(
-      this.save.worldDay,
-      nextNumber,
-      TOURNAMENT_RULES.map((rule) => rule.id),
-      new SeededRandom(
-        `${this.save.tournamentRuleSeed}:crown-season:${nextNumber}`,
-      ),
-    );
-    this.event(
-      "tournament",
-      `Начался сезон ${nextNumber} Лиги короны. Новые правила действуют до дня ${this.save.crownSeason.endsDay}.`,
-      {
-        kind: "system",
-        code: "crown-season-start",
-        values: { season: nextNumber, endsDay: this.save.crownSeason.endsDay },
-      },
-    );
+    return this.seasons.syncCrownSeason();
   }
 
   private syncNarrativeEvent(): void {
@@ -6043,27 +2676,6 @@ export class WorldGame {
     return controller
       ? improveFactionMinimumRarity(rarity, controller)
       : rarity;
-  }
-
-  private resolveWorldCombat(
-    enemy: EnemyProfile,
-    options: CombatOptions = {},
-    context:
-      | "arena"
-      | "dungeon"
-      | "duel"
-      | "boss"
-      | "crown-league"
-      | "legend-hunt" = "arena",
-    hero: HeroProfile = this.save.hero,
-  ): ReturnType<typeof resolveCombat> {
-    return this.createWorldBattleSession(
-      enemy,
-      options,
-      context,
-      hero,
-      this.random.combat,
-    ).runAutomatic();
   }
 
   private createWorldBattleSession(
@@ -6684,173 +3296,11 @@ export class WorldGame {
   }
 
   private refreshContracts(force: boolean): void {
-    if (!this.isFeatureUnlocked("contracts")) {
-      this.save.contractOffers = [];
-      this.save.activeContract = undefined;
-      return;
-    }
-    let active = this.save.activeContract;
-    const trainingAvailable = this.save.hero.level < this.trainingLevelCap();
-    if (active?.objective === "training" && !trainingAvailable) {
-      this.event(
-        "system",
-        `Контракт «${active.title}» отозван без штрафа: герой достиг предела тренировок текущей арены.`,
-      );
-      this.save.activeContract = undefined;
-      active = undefined;
-    }
-    if (active && active.expiresDay < this.save.worldDay) {
-      this.event("system", `Срок контракта «${active.title}» истёк.`);
-      this.save.activeContract = undefined;
-    }
-    const stillValid = this.save.contractOffers.filter(
-      (offer) =>
-        offer.expiresDay >= this.save.worldDay &&
-        (offer.objective !== "training" || trainingAvailable),
-    );
-    if (!force && stillValid.length >= FACTIONS.length) {
-      this.save.contractOffers = stillValid;
-      return;
-    }
-    const labels: Record<ContractObjective, string[]> = {
-      training: ["Показательная выучка", "День дисциплины"],
-      duel: ["Честный вызов", "Долг клинка"],
-      dungeon: ["След пропавшего отряда", "Груз из глубин"],
-      tournament: ["Знамя на трибуне", "Место для имени"],
-      boss: ["Закрыть старый счёт", "Охота за печатью"],
-    };
-    this.save.contractOffers = FACTIONS.map((faction, index) => {
-      const available = faction.objectives.filter(
-        (objective) =>
-          (objective !== "boss" || this.save.hero.highestArena >= 2) &&
-          (objective !== "training" || trainingAvailable),
-      );
-      const objective =
-        available[
-          (this.save.worldDay + index + this.save.completedContracts) %
-            available.length
-        ];
-      const target =
-        objective === "training" ? 2 : objective === "duel" ? 3 : 1;
-      const reputation = this.save.hero.factionReputation[faction.id] ?? 0;
-      const rewardMultiplier =
-        1 + factionReputationTier(reputation).contractRewardBonus;
-      return {
-        id: `contract-${faction.id}-${this.save.worldDay}-${this.save.completedContracts}`,
-        factionId: faction.id,
-        title: labels[objective][(this.save.worldDay + index) % 2],
-        description: `${faction.name} просит выполнить задачу: ${objective === "training" ? "провести тренировочные дни" : objective === "duel" ? "победить в дуэлях" : objective === "dungeon" ? "завершить поход в данж" : objective === "tournament" ? "стать чемпионом турнира" : "победить особого противника"}.`,
-        objective,
-        target,
-        progress: 0,
-        rewardGold: Math.round(
-          (450 + this.save.hero.level * 55 + index * 130) * rewardMultiplier,
-        ),
-        rewardExperience: Math.round(
-          (70 + this.save.hero.level * 9) * rewardMultiplier,
-        ),
-        rewardReputation: 5 + index,
-        createdDay: this.save.worldDay,
-        expiresDay: this.save.worldDay + CONTRACT_LIFETIME,
-      };
-    });
+    return this.contracts.refreshContracts(force);
   }
 
   private advanceContract(objective: ContractObjective): void {
-    if (!this.isFeatureUnlocked("contracts")) return;
-    if (
-      objective === "tournament" ||
-      objective === "dungeon" ||
-      objective === "boss"
-    )
-      this.advanceFactionCampaign(objective);
-    const contract = this.save.activeContract;
-    if (!contract || contract.objective !== objective) return;
-    contract.progress = Math.min(contract.target, contract.progress + 1);
-    if (contract.progress < contract.target) {
-      this.event(
-        "system",
-        `Контракт «${contract.title}»: ${contract.progress}/${contract.target}.`,
-      );
-      return;
-    }
-    const profitMultiplier = contract.approach === "profit" ? 1.35 : 1;
-    const reputationMultiplier = contract.approach === "honor" ? 1.5 : 1;
-    const baseGold = Math.round(contract.rewardGold * profitMultiplier);
-    const { gold, experience } = this.factionAdjustedReward(
-      this.epochRewards(contract.rewardExperience, baseGold, "contract"),
-      "contractReward",
-      contract.factionId,
-    );
-    const reputation = Math.round(
-      contract.rewardReputation * reputationMultiplier,
-    );
-    this.save.hero.gold += gold;
-    this.gainHeroExperience(experience);
-    this.save.hero.factionReputation = applyFactionReputationChange(
-      this.save.hero.factionReputation,
-      contract.factionId,
-      reputation,
-    ).reputation;
-    const control = (this.save.factionControl ??= createFactionControlState(
-      this.save.worldDay,
-    ));
-    if (contract.objective === "dungeon") {
-      const supportedDungeon =
-        [...DUNGEONS]
-          .reverse()
-          .find(
-            (dungeon) => dungeon.requiredArena <= this.save.hero.highestArena,
-          ) ?? DUNGEONS[0];
-      this.save.factionControl = changeFactionInfluence(
-        control,
-        "dungeon",
-        supportedDungeon.id,
-        contract.factionId,
-        reputation,
-      );
-    } else {
-      const supportedArena = ARENAS[this.save.hero.highestArena];
-      this.save.factionControl = changeFactionInfluence(
-        control,
-        "arena",
-        supportedArena.id,
-        contract.factionId,
-        reputation,
-      );
-    }
-    this.save.completedContracts += 1;
-    this.advanceFactionCampaign("contract", contract.factionId);
-    this.event(
-      "system",
-      `Контракт «${contract.title}» выполнен: +${gold} ¤, репутация +${reputation}.`,
-    );
-    this.save.activeContract = undefined;
-    this.refreshContracts(true);
-  }
-
-  private advanceFactionCampaign(
-    kind: FactionCampaignEventKind,
-    factionId?: string,
-  ): void {
-    const before = new Set(
-      this.factionCampaigns()
-        .filter((entry) => entry.claimable)
-        .map((entry) => entry.factionId),
-    );
-    this.save.factionCampaigns = recordFactionCampaignEvent(
-      this.save.factionCampaigns ?? {},
-      this.save.hero.factionReputation,
-      { kind, factionId },
-    );
-    this.factionCampaigns()
-      .filter((entry) => entry.claimable && !before.has(entry.factionId))
-      .forEach((entry) => {
-        this.event(
-          "system",
-          `Поручение «${entry.current!.title}» выполнено. Во фракциях можно забрать уникальную награду.`,
-        );
-      });
+    return this.contracts.advanceContract(objective);
   }
 
   private cleanupVisualTestCatalog(): void {
@@ -6936,209 +3386,13 @@ export class WorldGame {
     previousCycle: number,
     notableNames: ReadonlySet<string>,
   ): void {
-    const freshPopulation = [...this.save.enemies];
-    const competingMentorFighterIds = new Set(
-      previousMentors
-        .filter((mentor) => mentor.competes === true)
-        .map((mentor) => mentor.fighterId),
+    return this.population.initializeCrossEraPopulation(
+      previousEnemies,
+      previousLife,
+      previousMentors,
+      previousCycle,
+      notableNames,
     );
-    const selections = ARENAS.map((_, arenaIndex) => {
-      const fresh = freshPopulation.filter(
-        (enemy) => enemy.arenaIndex === arenaIndex,
-      );
-      const candidates = this.random.world
-        .shuffle(
-          previousEnemies.filter(
-            (enemy) =>
-              enemy.alive &&
-              (!enemy.retiredDay || competingMentorFighterIds.has(enemy.id)) &&
-              enemy.arenaIndex === arenaIndex,
-          ),
-        )
-        .sort(
-          (first, second) =>
-            Number(notableNames.has(second.name)) -
-            Number(notableNames.has(first.name)),
-        );
-      const returningCount = Math.min(
-        fresh.length,
-        Math.round(fresh.length * CROSS_ERA_RETURNING_SHARE),
-        candidates.length,
-      );
-      return {
-        arenaIndex,
-        fresh,
-        returning: candidates.slice(0, returningCount),
-      };
-    });
-    const retainedIds = new Set(
-      selections.flatMap((selection) =>
-        selection.returning.map((enemy) => enemy.id),
-      ),
-    );
-    const usedIds = new Set(retainedIds);
-    const retained = selections.flatMap((selection) =>
-      selection.returning.map((enemy) =>
-        this.prepareCrossEraFighter(enemy, previousCycle),
-      ),
-    );
-    const newcomers: EnemyProfile[] = [];
-    selections.forEach(({ arenaIndex, fresh, returning }) => {
-      const required = fresh.length - returning.length;
-      const currentArenaNewcomers: EnemyProfile[] = [];
-      fresh
-        .filter((enemy) => !usedIds.has(enemy.id))
-        .slice(0, required)
-        .forEach((enemy) => {
-          usedIds.add(enemy.id);
-          currentArenaNewcomers.push(enemy);
-        });
-      while (currentArenaNewcomers.length < required) {
-        const enemy = this.createEnemy(arenaIndex);
-        if (usedIds.has(enemy.id)) continue;
-        usedIds.add(enemy.id);
-        currentArenaNewcomers.push(enemy);
-      }
-      newcomers.push(...currentArenaNewcomers);
-    });
-    const allIds = new Set(
-      [...retained, ...newcomers].map((enemy) => enemy.id),
-    );
-    retained.forEach((enemy) => {
-      enemy.relationships = Object.fromEntries(
-        Object.entries(enemy.relationships ?? {})
-          .filter(
-            ([id, relationship]) =>
-              id !== enemy.id &&
-              allIds.has(id) &&
-              relationship?.fighterId === id,
-          )
-          .map(([id, relationship]) => [
-            id,
-            { ...relationship, lastChangedDay: 1 },
-          ]),
-      );
-    });
-    this.save.enemies = [...retained, ...newcomers];
-    this.save.eliteLeagueMemberIds = [];
-    this.save.eliteRatings = {};
-    this.save.eliteCrownWins = {};
-    const profiles = Object.fromEntries(
-      retained.map((enemy) => {
-        const source = previousLife?.profiles?.[enemy.id];
-        const career =
-          source?.career === "legend" || enemy.legendSinceDay !== undefined
-            ? "legend"
-            : "active";
-        return [
-          enemy.id,
-          {
-            fighterId: enemy.id,
-            career,
-            nickname: source?.nickname,
-            nicknameGrantedDay:
-              source?.nicknameGrantedDay === undefined ? undefined : 1,
-            dynastyId: source?.dynastyId,
-            revengeTargetId:
-              source?.revengeTargetId && allIds.has(source.revengeTargetId)
-                ? source.revengeTargetId
-                : undefined,
-            desiredSetId: source?.desiredSetId,
-            seasonsActive: Math.max(0, source?.seasonsActive ?? 0) + 1,
-          } satisfies NpcLifeProfile,
-        ];
-      }),
-    );
-    this.save.npcLife = normalizeNpcLifeWorldState(
-      {
-        ...createNpcLifeWorldState(1),
-        profiles,
-      },
-      this.save.enemies,
-      1,
-    );
-  }
-
-  private prepareCrossEraFighter(
-    source: EnemyProfile,
-    previousCycle: number,
-  ): EnemyProfile {
-    const arenaIndex = Math.max(
-      0,
-      Math.min(ARENAS.length - 1, source.arenaIndex),
-    );
-    const arena = ARENAS[arenaIndex];
-    const level = Math.max(
-      arena.enemyLevel[0],
-      Math.min(source.level, arena.enemyLevel[1]),
-    );
-    const minimumRarity: Rarity =
-      arenaIndex >= 4 ? "epic" : arenaIndex >= 2 ? "rare" : "common";
-    const gearCount = Math.min(6, 2 + Math.floor(level / 5));
-    const equipment = (
-      ["weapon", "offhand", "chest", "head", "hands", "feet"] as EquipmentSlot[]
-    )
-      .slice(0, gearCount)
-      .map((slot) =>
-        createItem(level, {
-          classId: source.classId,
-          slot,
-          minimumRarity,
-          randomSource: this.random.loot,
-        }),
-      );
-    const equipped: EnemyProfile["equipped"] = {};
-    equipment.forEach((item) => {
-      equipped[item.slot] = item.id;
-    });
-    const originalCycle = Number.isFinite(source.carriedFromCycle)
-      ? Math.max(
-          1,
-          Math.min(previousCycle, Math.floor(source.carriedFromCycle!)),
-        )
-      : previousCycle;
-    const fighter: EnemyProfile = {
-      ...source,
-      level,
-      experience: Math.min(
-        Math.max(0, source.experience),
-        Math.max(0, enemyExperienceRequirement(level) - 1),
-      ),
-      arenaIndex,
-      arenaTournamentWins: ARENAS.map((_, index) =>
-        Math.max(0, source.arenaTournamentWins?.[index] ?? 0),
-      ),
-      alive: true,
-      equipment,
-      equipped,
-      history: [
-        ...source.history.slice(-49),
-        `Пережил эпоху ${previousCycle} и продолжил путь в новой летописи.`,
-      ],
-      traitIds: [...source.traitIds],
-      scarIds: [...source.scarIds],
-      injuries: [],
-      adaptationIds: [...source.adaptationIds],
-      heroMemory: inheritArchiveStyleMemory(source, 1),
-      carriedFromCycle: originalCycle,
-      joinedDay: 1,
-      lastActivity: undefined,
-      relationships: Object.fromEntries(
-        Object.entries(source.relationships ?? {}).map(([id, relationship]) => [
-          id,
-          { ...relationship },
-        ]),
-      ),
-      factionHostility: source.factionHostility
-        ? { ...source.factionHostility }
-        : undefined,
-      legendSinceDay: source.legendSinceDay === undefined ? undefined : 1,
-      retiredDay: undefined,
-      eraMutationId: undefined,
-      eraMutationPotency: undefined,
-    };
-    fighter.rating = this.enemyWorldRating(fighter);
-    return fighter;
   }
 
   private createEnemy(
@@ -7146,129 +3400,7 @@ export class WorldGame {
     newcomer = false,
     levelOverride?: number,
   ): EnemyProfile {
-    const arena = ARENAS[arenaIndex];
-    const classId = this.random.world.pick(HERO_CLASSES);
-    const newcomerLevelCeiling = Math.min(
-      arena.enemyLevel[1],
-      arena.enemyLevel[0] +
-        Math.max(
-          1,
-          Math.ceil((arena.enemyLevel[1] - arena.enemyLevel[0]) * 0.3),
-        ),
-    );
-    const level =
-      levelOverride ??
-      this.random.world.int(
-        arena.enemyLevel[0],
-        newcomer ? newcomerLevelCeiling : arena.enemyLevel[1],
-      );
-    const gearCount = Math.min(6, 2 + Math.floor(level / 5));
-    const equipment = Array.from({ length: gearCount }, (_, index) =>
-      createItem(level, {
-        classId,
-        slot: (
-          [
-            "weapon",
-            "offhand",
-            "chest",
-            "head",
-            "hands",
-            "feet",
-          ] as EquipmentSlot[]
-        )[index],
-        minimumRarity:
-          arenaIndex >= 4 ? "epic" : arenaIndex >= 2 ? "rare" : "common",
-        randomSource: this.random.loot,
-      }),
-    );
-    const equipped: EnemyProfile["equipped"] = {};
-    equipment.forEach((item) => {
-      equipped[item.slot] = item.id;
-    });
-    const name = `${this.random.world.pick(ENEMY_NAMES)} ${String.fromCharCode(65 + this.random.world.int(0, 20))}.`;
-    const wins = newcomer
-      ? this.random.world.int(0, Math.max(1, arenaIndex))
-      : this.random.world.int(arenaIndex * 3, arenaIndex * 9 + 5);
-    const tournamentWins = newcomer
-      ? 0
-      : this.random.world.int(arenaIndex * 4, arenaIndex * 12 + 6);
-    const enemy: EnemyProfile = {
-      id: this.randomId("enemy"),
-      name,
-      title: this.random.world.pick(ENEMY_TITLES),
-      origin: this.random.world.pick(ENEMY_ORIGINS),
-      classId,
-      level,
-      experience: newcomer
-        ? this.random.world.int(0, 35 + level * 4)
-        : this.random.world.int(0, 80 + level * 20),
-      rating: 0,
-      wins,
-      tournamentWins,
-      arenaTournamentWins: ARENAS.map((_, index) =>
-        index === arenaIndex ? tournamentWins : 0,
-      ),
-      kills: newcomer
-        ? 0
-        : this.random.world.int(0, Math.max(0, arenaIndex * 2)),
-      losses: newcomer
-        ? this.random.world.int(0, 1)
-        : this.random.world.int(0, 5),
-      arenaIndex,
-      arenaWins: newcomer
-        ? 0
-        : this.random.world.int(0, Math.max(1, arenaIndex)),
-      alive: true,
-      equipment,
-      equipped,
-      history: [`Начал путь: ${arena.name}.`],
-      traitIds: [
-        FIGHTER_TRAITS[
-          (HERO_CLASSES.indexOf(classId) + level + arenaIndex) %
-            FIGHTER_TRAITS.length
-        ].id,
-      ],
-      scarIds: [],
-      injuries: [],
-      adaptationIds: [],
-      heroMemory: createEnemyStyleMemory(this.save.worldDay),
-      tacticalStyle:
-        DEFAULT_TACTICAL_PROFILES[
-          (HERO_CLASSES.indexOf(classId) + arenaIndex) %
-            DEFAULT_TACTICAL_PROFILES.length
-        ].style,
-      factionId:
-        FACTIONS[
-          (HERO_CLASSES.indexOf(classId) +
-            arenaIndex +
-            this.random.world.int(0, 2)) %
-            FACTIONS.length
-        ].id,
-      gold: Math.max(
-        40,
-        level * 55 + wins * 14 + this.random.world.int(0, 180),
-      ),
-      goal: this.random.world.pick<NpcGoal>(
-        arenaIndex >= ARENAS.length - 2
-          ? ["champion", "relic", "elite", "vengeance"]
-          : ["champion", "wealth", "relic", "vengeance"],
-      ),
-      joinedDay: this.save.worldDay,
-      relationships: {},
-    };
-    if (this.save.legacy.cycle >= 2) {
-      const mutation = eraChallengeFor(this.save.legacy.cycle).mutations[
-        classId
-      ];
-      enemy.eraMutationId = mutation.id;
-      enemy.eraMutationPotency = mutation.potency;
-    }
-    if (newcomer)
-      enemy.history = [
-        `Прибыл на арену «${arena.name}» в день ${this.save.worldDay}.`,
-      ];
-    enemy.rating = this.enemyWorldRating(enemy);
-    return enemy;
+    return this.population.createEnemy(arenaIndex, newcomer, levelOverride);
   }
 
   private createDungeonEnemy(
@@ -7559,14 +3691,7 @@ export class WorldGame {
   }
 
   private recordNpcDuelWithHero(enemy: EnemyProfile, heroWon: boolean): void {
-    if (heroWon) {
-      enemy.losses += 1;
-      enemy.duelLosses = (enemy.duelLosses ?? 0) + 1;
-    } else {
-      enemy.wins += 1;
-      enemy.duelWins = (enemy.duelWins ?? 0) + 1;
-    }
-    enemy.rating = this.enemyWorldRating(enemy);
+    return this.npcSimulation.recordNpcDuelWithHero(enemy, heroWon);
   }
 
   private updateEnemyAfterPlayerBattle(
@@ -7575,55 +3700,12 @@ export class WorldGame {
     died: boolean,
     arenaMatch = true,
   ): void {
-    if (heroWon) {
-      enemy.losses += 1;
-      if (!arenaMatch) enemy.duelLosses = (enemy.duelLosses ?? 0) + 1;
-      if (died) {
-        enemy.alive = false;
-        const mentor = this.save.mentors?.find(
-          (candidate) => candidate.fighterId === enemy.id,
-        );
-        if (mentor) mentor.competes = false;
-        this.recordEnemyHistory(
-          enemy,
-          `Погиб в бою с ${this.save.hero.name} на арене «${ARENAS[enemy.arenaIndex].name}».`,
-        );
-        this.releaseWorldRelics(
-          enemy,
-          `День ${this.save.worldDay}: ${enemy.name} погиб в бою с ${this.save.hero.name}.`,
-        );
-        this.event(
-          "death",
-          `${enemy.name}, когда-то ${enemy.title}, погиб и больше не появится в мире.`,
-          {
-            kind: "death",
-            fighterId: enemy.id,
-            fighterName: enemy.name,
-            killerId: "hero",
-            killerName: this.save.hero.name,
-          },
-        );
-      } else {
-        this.recordEnemyHistory(
-          enemy,
-          `Проиграл ${this.save.hero.name}, но выжил.`,
-        );
-        if (enemy.losses >= 2) enemy.goal = "vengeance";
-      }
-    } else {
-      enemy.wins += 1;
-      if (arenaMatch) enemy.arenaWins += 1;
-      else enemy.duelWins = (enemy.duelWins ?? 0) + 1;
-      enemy.experience += this.npcExperienceReward(45);
-      enemy.gold = (enemy.gold ?? 0) + 45 + enemy.arenaIndex * 18;
-      if (arenaMatch) this.addFactionInfluence(enemy, enemy.arenaIndex, 4);
-      this.recordEnemyHistory(
-        enemy,
-        `Победил главного героя ${this.save.hero.name}.`,
-      );
-      this.progressEnemy(enemy);
-    }
-    enemy.rating = this.enemyWorldRating(enemy);
+    return this.npcSimulation.updateEnemyAfterPlayerBattle(
+      enemy,
+      heroWon,
+      died,
+      arenaMatch,
+    );
   }
 
   private simulateWorldFights(
@@ -7631,145 +3713,15 @@ export class WorldGame {
     recordEvents: boolean,
     fixedArenaIndex?: number,
   ): void {
-    const eliteIds = new Set(this.save.eliteLeagueMemberIds);
-    for (let index = 0; index < count; index += 1) {
-      const arenaIndex =
-        fixedArenaIndex ?? this.random.world.int(0, ARENAS.length - 1);
-      const pool = this.save.enemies.filter(
-        (enemy) =>
-          enemy.alive &&
-          enemy.arenaIndex === arenaIndex &&
-          !eliteIds.has(enemy.id),
-      );
-      if (pool.length < 2) continue;
-      const first = this.random.world.pick(pool);
-      const second = this.random.world.pick(
-        pool.filter((enemy) => enemy.id !== first.id),
-      );
-      const { winner, loser } = this.resolveNpcMatch(first, second);
-      winner.wins += 1;
-      winner.arenaWins += 1;
-      winner.experience += this.npcExperienceReward(70 + arenaIndex * 22);
-      winner.gold = (winner.gold ?? 0) + 24 + arenaIndex * 12;
-      loser.losses += 1;
-      this.recordNpcRivalry(winner, loser);
-      this.addFactionInfluence(winner, arenaIndex, 1);
-      awardWorldSeasonPoints(
-        this.save.worldSeason!,
-        ARENAS[arenaIndex].id,
-        winner.id,
-        "win",
-        winner.name,
-      );
-      awardWorldSeasonPoints(
-        this.save.worldSeason!,
-        ARENAS[arenaIndex].id,
-        loser.id,
-        "loss",
-        loser.name,
-      );
-      if (recordEvents)
-        this.event(
-          "battle",
-          `${winner.name} победил ${loser.name} на арене «${ARENAS[arenaIndex].name}».`,
-          {
-            kind: "battle",
-            actorId: winner.id,
-            actorName: winner.name,
-            targetId: loser.id,
-            targetName: loser.name,
-            outcome: "won",
-          },
-        );
-      const lethalMultiplier =
-        eraLawModifiers(this.save.legacy.activeLawIds)
-          .arenaLethalityMultiplier *
-        worldSeasonRule(this.save.worldSeason?.ruleId).lethalityMultiplier;
-      const lethal = this.random.world.chance(
-        Math.min(
-          0.3,
-          ARENAS[arenaIndex].lethalChance *
-            BACKGROUND_LETHALITY_SCALE *
-            lethalMultiplier,
-        ),
-      );
-      if (lethal) {
-        winner.kills += 1;
-        this.recordEquipmentDeeds(winner, "lethal", loser.name);
-        loser.alive = false;
-        const mentor = this.save.mentors?.find(
-          (candidate) => candidate.fighterId === loser.id,
-        );
-        if (mentor) mentor.competes = false;
-        this.recordEnemyHistory(
-          loser,
-          `Погиб в фоновом бою против ${winner.name}.`,
-        );
-        this.releaseWorldRelics(
-          loser,
-          `День ${this.save.worldDay}: владелец ${loser.name} погиб на арене.`,
-        );
-        if (recordEvents)
-          this.event(
-            "death",
-            `${winner.name} смертельно победил ${loser.name} на арене «${ARENAS[arenaIndex].name}».`,
-            {
-              kind: "death",
-              fighterId: loser.id,
-              fighterName: loser.name,
-              killerId: winner.id,
-              killerName: winner.name,
-            },
-          );
-      }
-      if (this.random.loot.chance(0.24)) {
-        const item = createItem(winner.level, {
-          classId: winner.classId,
-          minimumRarity: arenaIndex >= 3 ? "rare" : "common",
-          randomSource: this.random.loot,
-        });
-        const equipped = considerNpcLoot(winner, item);
-        if (equipped && recordEvents)
-          this.event(
-            "loot",
-            `${winner.name} усилил снаряжение предметом «${item.name}» после боя.`,
-            {
-              kind: "loot",
-              fighterId: winner.id,
-              fighterName: winner.name,
-              itemId: item.id,
-              itemName: item.name,
-            },
-          );
-      }
-      this.progressEnemy(winner, recordEvents);
-      this.maybeAwakenWorldRelic(winner, false);
-      winner.rating = this.enemyWorldRating(winner);
-    }
+    return this.npcSimulation.simulateWorldFights(
+      count,
+      recordEvents,
+      fixedArenaIndex,
+    );
   }
 
   private recordNpcRivalry(winner: EnemyProfile, loser: EnemyProfile): void {
-    winner.relationships ??= {};
-    loser.relationships ??= {};
-    const respectedAlly =
-      winner.factionId === loser.factionId && this.random.world.chance(0.14);
-    const update = (owner: EnemyProfile, rival: EnemyProfile): void => {
-      const current = owner.relationships?.[rival.id];
-      owner.relationships![rival.id] = {
-        fighterId: rival.id,
-        kind: respectedAlly ? "ally" : "rival",
-        intensity: Math.min(100, (current?.intensity ?? 0) + 6),
-        lastChangedDay: this.save.worldDay,
-      };
-    };
-    update(winner, loser);
-    update(loser, winner);
-    if (
-      loser.relationships[winner.id]?.kind === "rival" &&
-      (loser.relationships[winner.id]?.intensity ?? 0) >= 30
-    ) {
-      loser.goal = "vengeance";
-    }
+    return this.npcSimulation.recordNpcRivalry(winner, loser);
   }
 
   private addFactionInfluence(
@@ -7777,322 +3729,19 @@ export class WorldGame {
     arenaIndex: number,
     amount: number,
   ): void {
-    const factionId = enemy.factionId ?? FACTIONS[0].id;
-    const arena = ARENAS[arenaIndex];
-    const control = (this.save.factionControl ??= createFactionControlState(
-      this.save.worldDay,
-    ));
-    control.arenaInfluence[arena.id] ??= Object.fromEntries(
-      FACTIONS.map((faction) => [faction.id, 0]),
-    );
-    const scaled = Math.max(
-      1,
-      Math.round(
-        amount *
-          worldSeasonRule(this.save.worldSeason?.ruleId)
-            .factionInfluenceMultiplier,
-      ),
-    );
-    control.arenaInfluence[arena.id][factionId] =
-      (control.arenaInfluence[arena.id][factionId] ?? 0) + scaled;
+    return this.npcSimulation.addFactionInfluence(enemy, arenaIndex, amount);
   }
 
   private addHeroFactionInfluence(arenaIndex: number, amount: number): void {
-    const arena = ARENAS[arenaIndex];
-    const control = (this.save.factionControl ??= createFactionControlState(
-      this.save.worldDay,
-    ));
-    const preferred = FACTIONS.map((faction) => ({
-      id: faction.id,
-      reputation: this.save.hero.factionReputation[faction.id] ?? 0,
-    })).sort((first, second) => second.reputation - first.reputation)[0];
-    const factionId =
-      preferred && preferred.reputation > 0
-        ? preferred.id
-        : (control.arenaControllers[arena.id] ?? FACTIONS[0].id);
-    control.arenaInfluence[arena.id] ??= Object.fromEntries(
-      FACTIONS.map((faction) => [faction.id, 0]),
-    );
-    const scaled = Math.max(
-      1,
-      Math.round(
-        amount *
-          worldSeasonRule(this.save.worldSeason?.ruleId)
-            .factionInfluenceMultiplier,
-      ),
-    );
-    control.arenaInfluence[arena.id][factionId] =
-      (control.arenaInfluence[arena.id][factionId] ?? 0) + scaled;
+    return this.npcSimulation.addHeroFactionInfluence(arenaIndex, amount);
   }
 
   private resolveFactionControl(): void {
-    const control = (this.save.factionControl ??= createFactionControlState(
-      this.save.worldDay,
-    ));
-    const interval = this.save.worldSeason?.ruleId === "faction-war" ? 4 : 7;
-    const resolution = resolveFactionControlCycle(
-      control,
-      this.save.worldDay,
-      interval,
-    );
-    this.save.factionControl = resolution.state;
-    resolution.arenaChanges.forEach((change) => {
-      const arena = ARENAS.find((candidate) => candidate.id === change.arenaId);
-      const faction = FACTIONS.find(
-        (candidate) => candidate.id === change.nextFactionId,
-      );
-      if (arena && faction)
-        this.event(
-          "promotion",
-          `${faction.name} установила контроль над ареной «${arena.name}».`,
-        );
-    });
-    resolution.dungeonChanges.forEach((change) => {
-      const dungeon = DUNGEONS.find(
-        (candidate) => candidate.id === change.dungeonId,
-      );
-      const faction = FACTIONS.find(
-        (candidate) => candidate.id === change.nextFactionId,
-      );
-      if (dungeon && faction)
-        this.event(
-          "promotion",
-          `${faction.name} взяла под контроль пути к данжу «${dungeon.name}».`,
-        );
-    });
-    if (resolution.shopChange) {
-      this.event(
-        "system",
-        `${FACTIONS.find((faction) => faction.id === resolution.shopChange!.nextFactionId)?.name} получила право снабжать лавку Ионы.`,
-      );
-    }
+    return this.npcSimulation.resolveFactionControl();
   }
 
   private simulateNpcAgencyDay(): void {
-    const eliteIds = new Set(this.save.eliteLeagueMemberIds);
-    const active = this.save.enemies.filter((enemy) => enemy.alive);
-    const life = (this.save.npcLife = normalizeNpcLifeWorldState(
-      this.save.npcLife,
-      this.save.enemies,
-      this.save.worldDay,
-    ));
-    const planningContext = createNpcPlanningContext(
-      {
-        day: this.save.worldDay,
-        fighters: active,
-        eliteIds,
-        mentors: this.save.mentors,
-        random: this.random.world,
-      },
-      life,
-    );
-    const plans = new Map(
-      active.map((enemy) => [
-        enemy.id,
-        planNpcDay(enemy, life, planningContext),
-      ]),
-    );
-    const resolvedFighters = new Set<string>();
-    active.forEach((enemy) => {
-      const plan = plans.get(enemy.id)!;
-      const activity = plan.activity;
-      let success = true;
-      let acquiredTemplateId: string | undefined;
-      let description = `${enemy.name}: ${plan.reason}`;
-      if (activity === "training") {
-        const mentor = this.save.mentors?.find(
-          (candidate) => candidate.id === enemy.mentorId,
-        );
-        const season = worldSeasonRule(this.save.worldSeason?.ruleId);
-        enemy.experience += Math.round(
-          (20 + enemy.level * 2 + (mentor ? 18 : 0)) *
-            season.npcExperienceMultiplier,
-        );
-        if (mentor)
-          description = `${enemy.name} тренировался в школе наставника ${mentor.name}. ${plan.reason}`;
-        this.progressEnemy(enemy, false);
-      } else if (activity === "shopping" && (enemy.gold ?? 0) >= 120) {
-        const candidate = createItem(enemy.level + this.random.loot.int(0, 1), {
-          classId: enemy.classId,
-          templateId: plan.targetTemplateId,
-          minimumRarity:
-            enemy.goal === "relic" && enemy.arenaIndex >= 3
-              ? "epic"
-              : enemy.arenaIndex >= 2
-                ? "rare"
-                : "common",
-          randomSource: this.random.loot,
-        });
-        const price = Math.max(40, Math.round(candidate.price * 0.62));
-        if ((enemy.gold ?? 0) >= price && considerNpcLoot(enemy, candidate)) {
-          enemy.gold = (enemy.gold ?? 0) - price;
-          acquiredTemplateId = candidate.templateId;
-          description = `${enemy.name} купил в лавке предмет «${candidate.name}».`;
-          if (
-            RARITY_ORDER.indexOf(candidate.rarity) >=
-            RARITY_ORDER.indexOf("legendary")
-          ) {
-            this.event("loot", description);
-          }
-        } else success = false;
-      } else if (activity === "forging" && (enemy.gold ?? 0) >= 180) {
-        const worn = enemy.equipment.filter(
-          (item) =>
-            Object.values(enemy.equipped).includes(item.id) &&
-            (item.enhancement ?? 0) < 5,
-        );
-        if (worn.length > 0) {
-          const item = [...worn].sort(
-            (first, second) =>
-              (first.enhancement ?? 0) - (second.enhancement ?? 0),
-          )[0];
-          const cost = 110 + (item.enhancement ?? 0) * 75;
-          if ((enemy.gold ?? 0) >= cost) {
-            enemy.gold = (enemy.gold ?? 0) - cost;
-            item.enhancement = (item.enhancement ?? 0) + 1;
-            item.stats = Object.fromEntries(
-              Object.entries(item.stats).map(([stat, value]) => [
-                stat,
-                Math.max(1, Math.round((value ?? 0) * 1.04)),
-              ]),
-            );
-            if (item.worldRelicId) {
-              this.synchronizeOwnedWorldRelic(
-                item,
-                `День ${this.save.worldDay}: ${enemy.name} усилил реликвию до +${item.enhancement}.`,
-              );
-            }
-            description = `${enemy.name} закалил предмет «${item.relicName ?? item.name}» до +${item.enhancement}.`;
-          }
-        } else success = false;
-      } else if (activity === "rest") {
-        enemy.injuries.forEach((injury) => {
-          injury.remainingDays = Math.max(0, injury.remainingDays - 1);
-        });
-        description = `${enemy.name} взял день на восстановление.`;
-      } else if (activity === "dungeon") {
-        const dungeon =
-          DUNGEONS[
-            Math.min(DUNGEONS.length - 1, Math.max(0, enemy.arenaIndex))
-          ];
-        const companion = plan.companionFighterId
-          ? this.enemyById(plan.companionFighterId)
-          : undefined;
-        const season = worldSeasonRule(this.save.worldSeason?.ruleId);
-        const chance = Math.min(
-          0.88,
-          0.48 +
-            enemy.level / Math.max(20, dungeon.enemyLevel[1] * 3) +
-            (companion ? 0.08 : 0),
-        );
-        success = this.random.world.chance(chance);
-        if (success) {
-          enemy.experience += this.npcExperienceReward(
-            dungeon.rewardExperience * 0.55 * season.dungeonRewardMultiplier,
-          );
-          enemy.gold =
-            (enemy.gold ?? 0) +
-            Math.round(
-              dungeon.rewardGold *
-                0.52 *
-                season.goldMultiplier *
-                season.dungeonRewardMultiplier,
-            );
-          const item = createItem(enemy.level + this.random.loot.int(0, 2), {
-            classId: enemy.classId,
-            templateId: plan.targetTemplateId,
-            minimumRarity: this.minimumRewardRarity(
-              this.controlledDungeonMinimum(dungeon.id, dungeon.minimumRarity),
-              "dungeon",
-            ),
-            randomSource: this.random.loot,
-          });
-          if (considerNpcLoot(enemy, item))
-            acquiredTemplateId = item.templateId;
-          this.progressEnemy(enemy, false);
-          if (companion)
-            recordNpcAlliance(life, enemy, companion, this.save.worldDay, 5);
-          this.save.factionControl = changeFactionInfluence(
-            this.save.factionControl ??
-              createFactionControlState(this.save.worldDay),
-            "dungeon",
-            dungeon.id,
-            enemy.factionId ?? FACTIONS[0].id,
-            Math.max(
-              1,
-              Math.round(
-                (2 + dungeon.requiredArena) * season.factionInfluenceMultiplier,
-              ),
-            ),
-          );
-          description = `${enemy.name}${companion ? ` вместе с ${companion.name}` : ""} вернулся из «${dungeon.name}»${acquiredTemplateId ? ` с предметом «${item.name}»` : " без улучшения"}.`;
-        } else {
-          enemy.injuries.push({
-            id: this.randomId("npc-dungeon-injury"),
-            name: "Рана из глубин",
-            description: `Получена в походе «${dungeon.name}».`,
-            remainingDays: this.random.world.int(1, 3),
-            stats: { health: -Math.max(4, enemy.level * 2) },
-            gainedDay: this.save.worldDay,
-          });
-          description = `${enemy.name} не завершил поход «${dungeon.name}» и ушёл восстанавливаться.`;
-        }
-      } else if (activity === "arena" && !resolvedFighters.has(enemy.id)) {
-        const opponent = chooseNpcArenaOpponent(
-          plan,
-          enemy,
-          active.filter(
-            (candidate) => candidate.arenaIndex === enemy.arenaIndex,
-          ),
-        );
-        if (opponent && !resolvedFighters.has(opponent.id)) {
-          const targeted =
-            enemy.goal === "vengeance" && plan.targetFighterId === opponent.id;
-          const result = this.resolvePlannedNpcFight(enemy, opponent, targeted);
-          resolvedFighters.add(enemy.id);
-          resolvedFighters.add(opponent.id);
-          success = result.winner.id === enemy.id;
-          description = `${result.winner.name} победил ${result.loser.name} ${targeted ? "в личной дуэли" : "в бою текущей арены"}.`;
-          recordNpcPlanOutcome(life, opponent, plans.get(opponent.id) ?? plan, {
-            day: this.save.worldDay,
-            success: result.winner.id === opponent.id,
-          });
-        } else success = false;
-      }
-      enemy.lastActivity = { day: this.save.worldDay, activity, description };
-      recordNpcPlanOutcome(life, enemy, plan, {
-        day: this.save.worldDay,
-        success,
-        acquiredTemplateId,
-      });
-      const nickname = refreshNpcIdentity(life, enemy, this.save.worldDay);
-      if (
-        nickname &&
-        enemy.title !== nickname &&
-        this.save.worldDay === life.profiles[enemy.id]?.nicknameGrantedDay
-      ) {
-        enemy.title = nickname;
-        this.recordEnemyHistory(
-          enemy,
-          `Получил прозвище «${nickname}» в день ${this.save.worldDay}.`,
-        );
-        this.event(
-          "promotion",
-          `${enemy.name} отныне известен как «${nickname}».`,
-        );
-      }
-      if (enemy.arenaIndex >= ARENAS.length - 1 && enemy.tournamentWins >= 2)
-        enemy.goal = "elite";
-    });
-    (this.save.mentors ?? []).forEach((mentor) => {
-      mentor.studentIds.forEach((studentId) => {
-        const student = this.enemyById(studentId);
-        if (!student) return;
-        student.experience += 10 + Math.round(mentor.level * 0.5);
-        this.progressEnemy(student, false);
-      });
-    });
-    evolveNpcRelationships(active, life, this.save.worldDay);
+    return this.npcSimulation.simulateNpcAgencyDay();
   }
 
   private resolvePlannedNpcFight(
@@ -8104,45 +3753,7 @@ export class WorldGame {
     loser: EnemyProfile;
     fullCombat: boolean;
   } {
-    const { winner, loser, fullCombat } = this.resolveNpcMatch(
-      first,
-      second,
-      targeted,
-    );
-    winner.wins += 1;
-    if (!targeted) winner.arenaWins += 1;
-    winner.experience += this.npcExperienceReward(28 + winner.arenaIndex * 9);
-    winner.gold = (winner.gold ?? 0) + 12 + winner.arenaIndex * 7;
-    loser.losses += 1;
-    recordNpcEncounter(this.save.npcLife!, winner, loser, {
-      day: this.save.worldDay,
-      kind: targeted ? "duel" : "arena",
-    });
-    this.recordNpcRivalry(winner, loser);
-    if (!targeted) {
-      this.addFactionInfluence(winner, winner.arenaIndex, 1);
-      awardWorldSeasonPoints(
-        this.save.worldSeason!,
-        ARENAS[winner.arenaIndex].id,
-        winner.id,
-        "win",
-        winner.name,
-      );
-      awardWorldSeasonPoints(
-        this.save.worldSeason!,
-        ARENAS[loser.arenaIndex].id,
-        loser.id,
-        "loss",
-        loser.name,
-      );
-    }
-    this.progressEnemy(winner, false);
-    if (fullCombat)
-      this.event(
-        "battle",
-        `${winner.name} победил ${loser.name} в личной встрече, которую мир запомнил подробно.`,
-      );
-    return { winner, loser, fullCombat };
+    return this.npcSimulation.resolvePlannedNpcFight(first, second, targeted);
   }
 
   private resolveNpcMatch(
@@ -8151,561 +3762,40 @@ export class WorldGame {
     forceFull = false,
     ruleIds?: string[],
   ) {
-    const result = resolveNpcCombat(first, second, {
-      worldRandom: this.random.world,
-      combatRandom: this.random.combat,
-      eliteIds: this.save.eliteLeagueMemberIds,
+    return this.npcSimulation.resolveNpcMatch(
+      first,
+      second,
       forceFull,
       ruleIds,
-      lawIds: this.save.legacy.activeLawIds,
-    });
-    if (result.fullCombat) {
-      this.recordSurvivalDeed(result.winner, result.loser.name, result.turns);
-      if (
-        this.save.eliteLeagueMemberIds
-          .slice(0, LEGEND_COUNT)
-          .includes(result.loser.id)
-      ) {
-        this.recordEquipmentDeeds(result.winner, "legend", result.loser.name);
-      }
-      const decision = result.analysis?.decidingEffect;
-      this.recordEnemyHistory(
-        result.winner,
-        `День ${this.save.worldDay}: победил ${result.loser.name} за ${result.turns.length} действий${decision ? `; ${decision}` : ""}.`,
-      );
-    }
-    return result;
-  }
-
-  private maybeRetireEnemy(enemy: EnemyProfile): void {
-    const age = this.save.worldDay - (enemy.joinedDay ?? this.save.worldDay);
-    if (age < 90 || enemy.level < 18 || enemy.tournamentWins < 2) return;
-    const chance = enemy.losses > enemy.wins ? 0.0015 : 0.00045;
-    if (!this.random.world.chance(chance)) return;
-    this.maybeAwakenWorldRelic(enemy, true);
-    enemy.retiredDay = this.save.worldDay;
-    const candidates = this.save.enemies
-      .filter(
-        (candidate) =>
-          candidate.alive &&
-          candidate.id !== enemy.id &&
-          (candidate.classId === enemy.classId ||
-            candidate.factionId === enemy.factionId),
-      )
-      .sort((first, second) => first.level - second.level)
-      .slice(0, 2);
-    const mentor: MentorRecord = {
-      id: this.randomId("mentor"),
-      fighterId: enemy.id,
-      name: enemy.name,
-      classId: enemy.classId,
-      factionId: enemy.factionId ?? FACTIONS[0].id,
-      goal: enemy.goal ?? "champion",
-      level: enemy.level,
-      rating: enemy.rating,
-      retiredDay: this.save.worldDay,
-      studentIds: candidates.map((candidate) => candidate.id),
-      legacy: `${enemy.tournamentWins} турнирных побед, ${enemy.wins} побед в боях и ${enemy.kills} смертельных исходов.`,
-      schoolName: `Школа «${enemy.name.replace(/\s+[A-ZА-ЯЁ]\.\s*$/u, "").trim()}»`,
-      competes:
-        (enemy.goal === "champion" || enemy.goal === "elite") &&
-        enemy.level >= 24 &&
-        enemy.wins >= Math.max(8, Math.round(enemy.losses * 0.75)),
-    };
-    enemy.alive = mentor.competes === true;
-    candidates.forEach((candidate) => {
-      candidate.mentorId = mentor.id;
-      candidate.relationships ??= {};
-      candidate.relationships[enemy.id] = {
-        fighterId: enemy.id,
-        kind: "mentor",
-        intensity: 70,
-        lastChangedDay: this.save.worldDay,
-      };
-    });
-    this.save.mentors ??= [];
-    this.save.mentors.unshift(mentor);
-    this.save.mentors = this.save.mentors.slice(0, 40);
-    if (!mentor.competes)
-      this.releaseWorldRelics(
-        enemy,
-        `День ${this.save.worldDay}: ${enemy.name} завершил карьеру и передал оружие миру.`,
-      );
-    this.recordEnemyHistory(
-      enemy,
-      `Завершил карьеру и стал наставником в день ${this.save.worldDay}.`,
-    );
-    this.event(
-      "promotion",
-      `${enemy.name} завершил карьеру бойца и стал наставником для ${candidates.length || "нового поколения"}.`,
     );
   }
 
   private maybeAwakenWorldRelic(enemy: EnemyProfile, force: boolean): void {
-    if (
-      (this.save.worldRelics ?? []).some(
-        (record) =>
-          record.currentOwnerId === enemy.id ||
-          record.formerOwners.includes(enemy.name),
-      )
-    )
-      return;
-    if (!force && enemy.tournamentWins < 2 && enemy.kills < 4) return;
-    if (!force && !this.random.world.chance(0.012)) return;
-    const candidate = enemy.equipment
-      .filter(
-        (item) =>
-          Object.values(enemy.equipped).includes(item.id) &&
-          !item.worldRelicId &&
-          isWorldRelicEligible(item) &&
-          RARITY_ORDER.indexOf(item.rarity) >=
-            RARITY_ORDER.indexOf("legendary"),
-      )
-      .sort((first, second) => itemPower(second) - itemPower(first))[0];
-    if (!candidate) return;
-    assertWorldRelicEligible(candidate);
-    const created = createWorldRelicRecord(
-      this.randomId("world-relic"),
-      candidate,
-      enemy.id,
-      enemy.name,
-      this.save.worldDay,
-    );
-    const record = synchronizeWorldRelic(
-      created,
-      created.item,
-      `${enemy.name}: ${enemy.tournamentWins} турнирных побед и ${enemy.kills} смертельных побед.`,
-      this.save.worldDay,
-    );
-    Object.assign(candidate, record.item, {
-      stats: { ...record.item.stats },
-      relicHistory: [...(record.item.relicHistory ?? [])],
-      relicFeats: [...(record.item.relicFeats ?? [])],
-      relicProperties: (record.item.relicProperties ?? []).map((property) => ({
-        ...property,
-      })),
-    });
-    this.save.worldRelics ??= [];
-    this.save.worldRelics.push(record);
-    this.event(
-      "loot",
-      `В мире появилась реликвия «${candidate.relicName}», выкованная победами ${enemy.name}.`,
-    );
+    return this.npcSimulation.maybeAwakenWorldRelic(enemy, force);
   }
 
   private releaseWorldRelics(enemy: EnemyProfile, history: string): void {
-    const records = (this.save.worldRelics ?? []).filter(
-      (record) => record.currentOwnerId === enemy.id,
-    );
-    records.forEach((record) => {
-      const actualItem = enemy.equipment.find(
-        (item) => item.worldRelicId === record.id,
-      );
-      const released = releaseWorldRelic(
-        record,
-        actualItem ?? record.item,
-        history,
-      );
-      const recordIndex = this.save.worldRelics!.findIndex(
-        (candidate) => candidate.id === record.id,
-      );
-      if (recordIndex >= 0)
-        this.save.worldRelics![recordIndex] = released.record;
-      enemy.equipment = enemy.equipment.filter(
-        (item) => item.worldRelicId !== record.id,
-      );
-      (Object.keys(enemy.equipped) as EquipmentSlot[]).forEach((slot) => {
-        if (!enemy.equipment.some((item) => item.id === enemy.equipped[slot]))
-          delete enemy.equipped[slot];
-      });
-    });
+    return this.npcSimulation.releaseWorldRelics(enemy, history);
   }
 
   private circulateWorldRelics(): void {
-    const lost = (this.save.worldRelics ?? []).filter(
-      (record) => record.status === "lost",
-    );
-    lost.forEach((record) => {
-      if (!this.random.world.chance(0.045)) return;
-      const candidates = this.save.enemies.filter(
-        (enemy) =>
-          enemy.alive &&
-          (record.item.allowedClasses === "all" ||
-            record.item.allowedClasses.includes(enemy.classId)) &&
-          enemy.level >= Math.max(1, record.item.level - 8),
-      );
-      if (candidates.length === 0) return;
-      const owner = this.random.world.pick(candidates);
-      const item = {
-        ...record.item,
-        stats: { ...record.item.stats },
-        relicHistory: [...record.history],
-      };
-      if (!considerNpcLoot(owner, item)) return;
-      const line = `День ${this.save.worldDay}: реликвию нашёл ${owner.name}.`;
-      const transfer = transferWorldRelic(
-        record,
-        item,
-        owner.id,
-        owner.name,
-        line,
-      );
-      const recordIndex = this.save.worldRelics!.findIndex(
-        (candidate) => candidate.id === record.id,
-      );
-      if (recordIndex >= 0)
-        this.save.worldRelics![recordIndex] = transfer.record;
-      const itemIndex = owner.equipment.findIndex(
-        (candidate) => candidate.id === item.id,
-      );
-      if (itemIndex >= 0) owner.equipment[itemIndex] = transfer.item;
-      this.event(
-        "loot",
-        `${owner.name} нашёл мировую реликвию «${transfer.item.relicName ?? transfer.item.name}».`,
-      );
-    });
+    return this.npcSimulation.circulateWorldRelics();
   }
 
   private syncLegendCareers(): void {
-    const legends = new Set(this.save.eliteLeagueMemberIds.slice(0, 5));
-    this.save.enemies.forEach((enemy) => {
-      if (legends.has(enemy.id) && !enemy.legendSinceDay) {
-        enemy.legendSinceDay = this.save.worldDay;
-        enemy.goal = "elite";
-        this.recordEnemyHistory(
-          enemy,
-          `Признан легендой элиты в день ${this.save.worldDay}.`,
-        );
-        if (this.save.worldDay > 1)
-          this.event("promotion", `${enemy.name} вошёл в пятёрку легенд мира.`);
-      }
-    });
+    return this.npcSimulation.syncLegendCareers();
   }
 
   private simulateDailyWorld(skipTournamentArenaId?: string): void {
-    this.ensureEliteLeague();
-    this.syncLegendCareers();
-    this.simulateNpcAgencyDay();
-    ARENAS.forEach((arena, arenaIndex) => {
-      this.simulateWorldFights(10 + arenaIndex * 3, true, arenaIndex);
-      if (
-        arena.id !== skipTournamentArenaId &&
-        this.save.worldDay % arena.tournamentInterval === 0
-      )
-        this.simulateBackgroundTournament(arenaIndex);
-    });
-    DUNGEONS.forEach((dungeon) => {
-      const arenaIndex = Math.min(ARENAS.length - 1, dungeon.requiredArena);
-      const eliteIds = new Set(this.save.eliteLeagueMemberIds);
-      const pool = this.save.enemies.filter(
-        (enemy) =>
-          enemy.alive &&
-          enemy.arenaIndex === arenaIndex &&
-          !eliteIds.has(enemy.id),
-      );
-      if (pool.length === 0) return;
-      const explorer = this.random.world.pick(pool);
-      const succeeded = this.random.world.chance(0.68);
-      if (succeeded) {
-        const season = worldSeasonRule(this.save.worldSeason?.ruleId);
-        const controller =
-          this.save.factionControl?.dungeonControllers?.[dungeon.id] ??
-          FACTIONS[0].id;
-        const reward = factionDungeonReward(controller, {
-          experience: this.npcExperienceReward(
-            dungeon.rewardExperience * 0.7 * season.dungeonRewardMultiplier,
-          ),
-          gold: Math.round(
-            dungeon.rewardGold *
-              0.65 *
-              season.goldMultiplier *
-              season.dungeonRewardMultiplier,
-          ),
-        });
-        explorer.experience += reward.experience;
-        explorer.gold = (explorer.gold ?? 0) + reward.gold;
-        this.save.factionControl = changeFactionInfluence(
-          this.save.factionControl ??
-            createFactionControlState(this.save.worldDay),
-          "dungeon",
-          dungeon.id,
-          explorer.factionId ?? FACTIONS[0].id,
-          Math.max(1, Math.round(3 * season.factionInfluenceMultiplier)),
-        );
-        const item = createItem(explorer.level, {
-          classId: explorer.classId,
-          minimumRarity: this.minimumRewardRarity(
-            this.controlledDungeonMinimum(dungeon.id, dungeon.minimumRarity),
-            "dungeon",
-          ),
-          randomSource: this.random.loot,
-        });
-        const equipped = considerNpcLoot(explorer, item);
-        this.event(
-          "dungeon",
-          equipped
-            ? `${explorer.name} вернулся из данжа «${dungeon.name}» и усилил снаряжение предметом «${item.name}».`
-            : `${explorer.name} прошёл данж «${dungeon.name}», но не нашёл улучшения.`,
-        );
-        this.progressEnemy(explorer, true);
-      } else {
-        this.event(
-          "dungeon",
-          `${explorer.name} не смог пройти данж «${dungeon.name}».`,
-        );
-      }
-    });
-    this.simulateEliteDay();
-    this.resolveFactionControl();
-    this.circulateWorldRelics();
-    this.ensurePopulations();
+    return this.npcSimulation.simulateDailyWorld(skipTournamentArenaId);
   }
 
   private simulateBackgroundTournament(arenaIndex: number): void {
-    const arena = ARENAS[arenaIndex];
-    const eliteIds = new Set(this.save.eliteLeagueMemberIds);
-    const candidates = this.random.world.shuffle(
-      this.save.enemies.filter(
-        (enemy) =>
-          enemy.alive &&
-          enemy.arenaIndex === arenaIndex &&
-          !eliteIds.has(enemy.id),
-      ),
-    );
-    const controllerId = this.save.factionControl?.arenaControllers[arena.id];
-    const controlled = candidates
-      .filter((enemy) => enemy.factionId === controllerId)
-      .slice(0, Math.floor(arena.participants / 2));
-    const controlledIds = new Set(controlled.map((enemy) => enemy.id));
-    const pool = [
-      ...controlled,
-      ...candidates.filter((enemy) => !controlledIds.has(enemy.id)),
-    ].slice(0, arena.participants);
-    if (pool.length < arena.participants) return;
-    const ruleIds = this.tournamentRules(arena.id, this.save.worldDay).map(
-      (rule) => rule.id,
-    );
-    const bracket = TournamentEngine.run(
-      pool,
-      (first, second, round) => {
-        const { winner, loser } = this.resolveNpcMatch(
-          first,
-          second,
-          round >= Math.ceil(Math.log2(pool.length)) - 1,
-          ruleIds,
-        );
-        winner.wins += 1;
-        winner.arenaWins += 1;
-        winner.experience += this.npcExperienceReward(55 + arenaIndex * 18);
-        winner.gold = (winner.gold ?? 0) + 20 + arenaIndex * 10;
-        loser.losses += 1;
-        this.recordNpcRivalry(winner, loser);
-        this.addFactionInfluence(winner, arenaIndex, 1);
-        recordNpcEncounter(this.save.npcLife!, winner, loser, {
-          day: this.save.worldDay,
-          kind: "tournament",
-        });
-        awardWorldSeasonPoints(
-          this.save.worldSeason!,
-          arena.id,
-          winner.id,
-          "win",
-          winner.name,
-        );
-        awardWorldSeasonPoints(
-          this.save.worldSeason!,
-          arena.id,
-          loser.id,
-          "loss",
-          loser.name,
-        );
-        return { winner };
-      },
-      { seeded: true },
-    );
-    const champion = bracket.champion;
-    this.recordArenaChampionship(champion, arenaIndex);
-    awardWorldSeasonPoints(
-      this.save.worldSeason!,
-      arena.id,
-      champion.id,
-      "champion",
-      champion.name,
-    );
-    champion.gold = (champion.gold ?? 0) + arena.rewardGold;
-    this.addFactionInfluence(champion, arenaIndex, 14 + arenaIndex * 2);
-    champion.rating = this.enemyWorldRating(champion);
-    const prize = createItem(champion.level, {
-      classId: champion.classId,
-      minimumRarity:
-        arenaIndex >= 4 ? "legendary" : arenaIndex >= 2 ? "epic" : "rare",
-      randomSource: this.random.loot,
-    });
-    considerNpcLoot(champion, prize);
-    this.recordEnemyHistory(
-      champion,
-      `Стал чемпионом турнира «${arena.name}» в день ${this.save.worldDay}.`,
-    );
-    this.progressEnemy(champion, true);
-    this.maybeAwakenWorldRelic(champion, false);
-    this.event(
-      "tournament",
-      `Фоновый турнир «${arena.name}» завершён: ${champion.name} победил сетку из ${pool.length} бойцов.`,
-      {
-        kind: "tournament",
-        tournamentId: arena.id,
-        tournamentName: arena.name,
-        championId: champion.id,
-        championName: champion.name,
-        participants: pool.length,
-      },
-    );
+    return this.npcSimulation.simulateBackgroundTournament(arenaIndex);
   }
 
   private simulateEliteDay(): void {
-    this.ensureEliteLeague();
-    const heroRank = this.heroEliteRank();
-    const challengeMultiplier = eraLawModifiers(
-      this.save.legacy.activeLawIds,
-    ).eliteChallengeChanceMultiplier;
-    if (
-      heroRank &&
-      heroRank <= LEGEND_COUNT &&
-      !this.save.pendingEliteChallengeId &&
-      this.save.lastLegendHuntDay !== this.save.worldDay &&
-      this.random.world.chance(Math.min(0.24, 0.08 * challengeMultiplier))
-    ) {
-      const challengerId =
-        this.save.eliteLeagueMemberIds[Math.min(ELITE_SIZE - 1, heroRank)];
-      if (challengerId && challengerId !== "hero") {
-        this.save.pendingEliteChallengeId = challengerId;
-        this.event(
-          "battle",
-          `${this.enemyById(challengerId)?.name ?? "Претендент"} вызвал ${this.save.hero.name} на защиту титула легенды.`,
-        );
-      }
-    } else if (
-      this.random.world.chance(Math.min(0.35, 0.16 * challengeMultiplier))
-    ) {
-      const defenderIndex = this.random.world.int(0, LEGEND_COUNT - 1);
-      const challengerIndex = defenderIndex + 1;
-      const defenderId = this.save.eliteLeagueMemberIds[defenderIndex];
-      const challengerId = this.save.eliteLeagueMemberIds[challengerIndex];
-      if (
-        defenderId &&
-        challengerId &&
-        defenderId !== "hero" &&
-        challengerId !== "hero"
-      ) {
-        const defender = this.enemyById(defenderId);
-        const challenger = this.enemyById(challengerId);
-        if (defender && challenger) {
-          const result = this.resolveNpcMatch(challenger, defender, true);
-          result.winner.wins += 1;
-          result.loser.losses += 1;
-          recordNpcEncounter(this.save.npcLife!, result.winner, result.loser, {
-            day: this.save.worldDay,
-            kind: "duel",
-          });
-          this.awardCrownSeason(
-            result.winner.id,
-            result.winner.id === defender.id ? "defense" : "win",
-          );
-          this.awardCrownSeason(result.loser.id, "loss");
-          if (result.winner.id === challenger.id) {
-            this.swapEliteMembers(challenger.id, defender.id);
-            this.event(
-              "battle",
-              `${challenger.name} победил легенду ${defender.name} и занял место #${defenderIndex + 1}.`,
-            );
-          }
-        }
-      }
-    }
-
-    if (this.registeredCrownLeagueDay() === this.save.worldDay) {
-      this.syncCrownSet();
-      return;
-    }
-    const lastLeague = this.save.lastCrownLeagueDay ?? 0;
-    if (
-      this.save.worldDay % this.crownLeagueInterval() !== 0 ||
-      this.save.worldDay === lastLeague
-    ) {
-      this.syncCrownSet();
-      return;
-    }
-    const elite = new Set(this.save.eliteLeagueMemberIds);
-    const candidate = this.save.enemies
-      .filter(
-        (enemy) =>
-          enemy.alive &&
-          !elite.has(enemy.id) &&
-          enemy.arenaIndex === ARENAS.length - 1 &&
-          enemy.tournamentWins > 0,
-      )
-      .sort(
-        (a, b) =>
-          b.rating - a.rating || this.enemyPower(b) - this.enemyPower(a),
-      )[0];
-    if (!candidate) return;
-    const contestants = [
-      candidate,
-      ...this.save.eliteLeagueMemberIds
-        .filter((id) => id !== "hero")
-        .slice(0, ELITE_SIZE - 1)
-        .map((id) => this.enemyById(id))
-        .filter((enemy): enemy is EnemyProfile => Boolean(enemy)),
-    ].sort(
-      (first, second) =>
-        this.fighterTournamentSeed(second) - this.fighterTournamentSeed(first),
-    );
-    if (contestants.length !== ELITE_SIZE) return;
-    const bracket = TournamentEngine.run(
-      contestants,
-      (first, second) => {
-        const { winner, loser } = this.resolveNpcMatch(
-          first,
-          second,
-          true,
-          this.save.crownSeason.ruleIds,
-        );
-        winner.wins += 1;
-        loser.losses += 1;
-        this.adjustEliteRating(winner.id, 8);
-        this.adjustEliteRating(loser.id, -3);
-        this.awardCrownSeason(winner.id, "win");
-        this.awardCrownSeason(loser.id, "loss");
-        return { winner };
-      },
-      { seeded: true },
-    );
-    const champion = bracket.champion;
-    this.awardCrownSeason(champion.id, "champion");
-    this.recordEquipmentDeeds(
-      champion,
-      "championship",
-      `Лига короны, день ${this.save.worldDay}`,
-    );
-    champion.tournamentWins += 1;
-    this.save.eliteCrownWins[champion.id] =
-      (this.save.eliteCrownWins[champion.id] ?? 0) + 1;
-    if (champion.id === candidate.id) this.promoteIntoElite(candidate.id);
-    else this.sortEliteByRating();
-    this.save.lastCrownLeagueDay = this.save.worldDay;
-    this.event(
-      "tournament",
-      `Фоновую Лигу короны выиграл ${champion.name}. ${candidate.name} ${champion.id === candidate.id ? "вошёл в элиту" : "остался в обычном рейтинге"}.`,
-      {
-        kind: "tournament",
-        tournamentId: "crown-league",
-        tournamentName: "Лига короны",
-        championId: champion.id,
-        championName: champion.name,
-        participants: contestants.length,
-      },
-    );
-    this.syncCrownSet();
+    return this.npcSimulation.simulateEliteDay();
   }
 
   private completeDay(skipTournamentArenaId?: string): void {
@@ -8726,270 +3816,15 @@ export class WorldGame {
   }
 
   private syncWorldSeason(): void {
-    const season = this.save.worldSeason!;
-    if (this.save.worldDay <= season.endsDay) return;
-    const life = (this.save.npcLife = normalizeNpcLifeWorldState(
-      this.save.npcLife,
-      this.save.enemies,
-      this.save.worldDay,
-    ));
-    const mentors = (this.save.mentors ??= []);
-    const seasonLength = Math.max(7, season.endsDay - season.startsDay + 1);
-    const career = advanceNpcCareerSeason(this.save.enemies, mentors, life, {
-      day: this.save.worldDay,
-      eliteIds: this.save.eliteLeagueMemberIds,
-      random: this.random.world,
-      seasonLength,
-      maxRetirements: 2,
-    });
-    career.transitions.forEach((transition) => {
-      const fighter = this.save.enemies.find(
-        (candidate) => candidate.id === transition.fighterId,
-      );
-      if (fighter) this.recordEnemyHistory(fighter, transition.description);
-      this.event("promotion", transition.description);
-      const mentor = transition.mentorId
-        ? mentors.find((candidate) => candidate.id === transition.mentorId)
-        : undefined;
-      if (transition.kind === "became-mentor" && fighter && !mentor?.competes) {
-        this.releaseWorldRelics(
-          fighter,
-          `День ${this.save.worldDay}: ${fighter.name} завершил карьеру и передал реликвии следующему поколению.`,
-        );
-      }
-    });
-    career.mentorsCreated.forEach((mentor, index) => {
-      const dynasty = career.dynastiesCreated.find(
-        (candidate) => candidate.founderId === mentor.fighterId,
-      );
-      mentor.dynastyId = dynasty?.id;
-      mentor.role =
-        !mentor.competes && index === 0 && season.number % 3 === 0
-          ? "shop-owner"
-          : !mentor.competes && index === 0 && season.number % 3 === 2
-            ? "faction-founder"
-            : "mentor";
-      if (mentor.role === "shop-owner") {
-        const control = (this.save.factionControl ??= createFactionControlState(
-          this.save.worldDay,
-        ));
-        control.shopOwnerMentorId = mentor.id;
-        control.shopControllerId = mentor.factionId;
-        control.shopPriceRevision = (control.shopPriceRevision ?? 0) + 1;
-        this.event(
-          "promotion",
-          `${mentor.name} принял управление лавкой и открыл поставки своей школы.`,
-        );
-      }
-      if (mentor.role === "faction-founder") {
-        const control = (this.save.factionControl ??= createFactionControlState(
-          this.save.worldDay,
-        ));
-        ARENAS.forEach((arena) => {
-          control.arenaInfluence[arena.id] ??= {};
-          control.arenaInfluence[arena.id][mentor.factionId] =
-            (control.arenaInfluence[arena.id][mentor.factionId] ?? 0) + 6;
-        });
-        this.event(
-          "promotion",
-          `${mentor.name} превратил свою школу в новую силу внутри фракции.`,
-        );
-      }
-    });
-
-    const newcomerIds: string[] = [];
-    const generationSize = season.ruleId === "new-blood" ? 2 : 1;
-    ARENAS.forEach((arena, arenaIndex) => {
-      for (let index = 0; index < generationSize; index += 1) {
-        const newcomer = this.createEnemy(arenaIndex, true);
-        const mentor = mentors
-          .filter(
-            (candidate) =>
-              candidate.classId === newcomer.classId ||
-              candidate.factionId === newcomer.factionId,
-          )
-          .sort((first, second) => second.rating - first.rating)[0];
-        if (mentor) {
-          newcomer.mentorId = mentor.id;
-          mentor.studentIds = [...new Set([...mentor.studentIds, newcomer.id])];
-          newcomer.relationships ??= {};
-          newcomer.relationships[mentor.fighterId] = {
-            fighterId: mentor.fighterId,
-            kind: "mentor",
-            intensity: 72,
-            lastChangedDay: this.save.worldDay,
-          };
-          const profile = (life.profiles[newcomer.id] ??= {
-            fighterId: newcomer.id,
-            career: "active",
-            seasonsActive: 0,
-          });
-          profile.dynastyId = mentor.dynastyId;
-          const dynasty = life.dynasties.find(
-            (candidate) => candidate.id === mentor.dynastyId,
-          );
-          if (dynasty)
-            dynasty.memberIds = [
-              ...new Set([...dynasty.memberIds, newcomer.id]),
-            ];
-          newcomer.history.push(`Принят в школу наставника ${mentor.name}.`);
-        }
-        this.save.enemies.push(newcomer);
-        newcomerIds.push(newcomer.id);
-      }
-    });
-
-    const result = closeWorldSeason(
-      season,
-      this.save.enemies,
-      mentors,
-      this.save.hero.name,
-      newcomerIds,
-    );
-    const promotedIds: string[] = [];
-    const demotedIds: string[] = [];
-    const promoted = new Set(result.promotedIds);
-    result.promotedIds.forEach((fighterId) => {
-      const fighter = this.enemyById(fighterId);
-      if (
-        !fighter?.alive ||
-        this.save.eliteLeagueMemberIds.includes(fighter.id) ||
-        fighter.arenaIndex >= ARENAS.length - 1
-      )
-        return;
-      const previous = ARENAS[fighter.arenaIndex];
-      fighter.arenaIndex += 1;
-      fighter.arenaWins = 0;
-      fighter.rating = this.enemyWorldRating(fighter);
-      promotedIds.push(fighter.id);
-      this.recordEnemyHistory(
-        fighter,
-        `Повышен по итогам сезона ${season.number}: «${previous.name}» → «${ARENAS[fighter.arenaIndex].name}».`,
-      );
-    });
-    result.demotedIds.forEach((fighterId) => {
-      const fighter = this.enemyById(fighterId);
-      if (
-        !fighter?.alive ||
-        promoted.has(fighter.id) ||
-        this.save.eliteLeagueMemberIds.includes(fighter.id) ||
-        fighter.arenaIndex <= 0
-      )
-        return;
-      const previous = ARENAS[fighter.arenaIndex];
-      fighter.arenaIndex -= 1;
-      fighter.arenaWins = 0;
-      fighter.rating = this.enemyWorldRating(fighter);
-      demotedIds.push(fighter.id);
-      this.recordEnemyHistory(
-        fighter,
-        `Понижен по итогам сезона ${season.number}: «${previous.name}» → «${ARENAS[fighter.arenaIndex].name}».`,
-      );
-    });
-    result.promotedIds = promotedIds;
-    result.demotedIds = demotedIds;
-    result.retiredIds = career.transitions
-      .filter((transition) => transition.kind === "became-mentor")
-      .map((transition) => transition.fighterId);
-    result.mentorIds = career.mentorsCreated.map((mentor) => mentor.id);
-    result.summary = `Сезон ${season.number} завершён: чемпионов арен — ${result.champions.length}, повышений — ${promotedIds.length}, понижений — ${demotedIds.length}, наставников — ${result.mentorIds.length}, новых бойцов — ${newcomerIds.length}.`;
-    this.save.worldSeasonHistory ??= [];
-    this.save.worldSeasonHistory.push(result);
-    this.save.worldSeasonHistory = this.save.worldSeasonHistory.slice(-12);
-    this.event("tournament", result.summary, {
-      kind: "system",
-      code: "world-season-result",
-      values: {
-        season: season.number,
-        promotions: promotedIds.length,
-        demotions: demotedIds.length,
-        newcomers: newcomerIds.length,
-      },
-    });
-    const nextNumber = season.number + 1;
-    this.save.worldSeason = createWorldSeason(
-      this.save.worldDay,
-      nextNumber,
-      new SeededRandom(
-        `${this.save.tournamentRuleSeed}:world-season:${nextNumber}`,
-      ),
-    );
-    const rule = worldSeasonRule(this.save.worldSeason.ruleId);
-    this.event(
-      "system",
-      `Начался мировой сезон ${nextNumber}: «${rule.name}». ${rule.description}`,
-    );
-    cleanupNpcLifeReferences(this.save.enemies, mentors, life);
-    this.ensurePopulations(false, false);
+    return this.seasons.syncWorldSeason();
   }
 
   private syncFutureBosses(): void {
-    const life = (this.save.npcLife = normalizeNpcLifeWorldState(
-      this.save.npcLife,
-      this.save.enemies,
-      this.save.worldDay,
-    ));
-    refreshFutureBossAvailability(life, this.save.worldDay).forEach((boss) => {
-      this.event(
-        "promotion",
-        `${boss.name} появился среди особых противников. ${boss.reason}`,
-      );
-    });
+    return this.npcSimulation.syncFutureBosses();
   }
 
   private syncFactionHunter(): void {
-    const current = this.factionHunter();
-    if (current?.alive) return;
-    this.save.pendingFactionHunterId = undefined;
-    if (this.save.worldDay < 10 || this.save.hero.highestArena < 1) return;
-    const relations = this.save.factionControl?.relations;
-    const hostile = FACTIONS.map((faction) => ({
-      faction,
-      hostility: factionHostility(
-        this.save.hero.factionReputation,
-        faction.id,
-        relations,
-      ),
-    })).sort((first, second) => second.hostility - first.hostility)[0];
-    if (!hostile || hostile.hostility < 35) return;
-    const interval = Math.max(5, 11 - Math.floor(hostile.hostility / 14));
-    if (
-      this.save.worldDay % interval !== 0 ||
-      !this.random.world.chance(Math.min(0.9, 0.38 + hostile.hostility / 160))
-    )
-      return;
-    const heroPower = this.heroPower();
-    const candidates = this.save.enemies
-      .filter(
-        (enemy) =>
-          enemy.alive &&
-          enemy.factionId === hostile.faction.id &&
-          !this.save.eliteLeagueMemberIds.includes(enemy.id),
-      )
-      .sort((first, second) => {
-        const firstVengeance = first.goal === "vengeance" ? -250 : 0;
-        const secondVengeance = second.goal === "vengeance" ? -250 : 0;
-        return (
-          Math.abs(this.enemyPower(first) - heroPower) +
-          firstVengeance -
-          (Math.abs(this.enemyPower(second) - heroPower) + secondVengeance)
-        );
-      });
-    if (candidates.length === 0) return;
-    const hunter =
-      candidates[this.random.world.int(0, Math.min(3, candidates.length - 1))];
-    this.save.pendingFactionHunterId = hunter.id;
-    hunter.goal = "vengeance";
-    const profile = this.save.npcLife?.profiles[hunter.id];
-    if (profile) profile.revengeTargetId = "hero";
-    this.recordEnemyHistory(
-      hunter,
-      `${hostile.faction.name} отправила его охотиться на ${this.save.hero.name}.`,
-    );
-    this.event(
-      "battle",
-      `${hostile.faction.name} выставила охотника ${hunter.name} против ${this.save.hero.name}.`,
-    );
+    return this.npcSimulation.syncFactionHunter();
   }
 
   private syncFeatureUnlocks(): WorldFeatureUnlock[] {
@@ -9052,259 +3887,29 @@ export class WorldGame {
   }
 
   private npcExperienceReward(baseExperience: number): number {
-    return Math.max(
-      0,
-      Math.round(
-        baseExperience *
-          worldSeasonRule(this.save.worldSeason?.ruleId)
-            .npcExperienceMultiplier,
-      ),
-    );
+    return this.npcSimulation.npcExperienceReward(baseExperience);
   }
 
   private progressEnemy(enemy: EnemyProfile, recordEvent = true): void {
-    while (enemy.experience >= enemyExperienceRequirement(enemy.level)) {
-      enemy.experience -= enemyExperienceRequirement(enemy.level);
-      enemy.level += 1;
-    }
-    const nextArena = ARENAS[enemy.arenaIndex + 1];
-    if (
-      nextArena &&
-      enemy.arenaWins >= ARENAS[enemy.arenaIndex].winsToAdvance &&
-      enemy.level >= nextArena.minLevel
-    ) {
-      const old = ARENAS[enemy.arenaIndex].name;
-      enemy.arenaIndex += 1;
-      enemy.arenaWins = 0;
-      this.recordEnemyHistory(
-        enemy,
-        `Перешёл с арены «${old}» на «${nextArena.name}».`,
-      );
-      if (recordEvent)
-        this.event(
-          "promotion",
-          `${enemy.name} покинул арену «${old}» и поднялся на «${nextArena.name}».`,
-          {
-            kind: "promotion",
-            fighterId: enemy.id,
-            fighterName: enemy.name,
-            fromArena: old,
-            toArena: nextArena.name,
-          },
-        );
-    }
-    enemy.rating = this.enemyWorldRating(enemy);
+    return this.npcSimulation.progressEnemy(enemy, recordEvent);
   }
 
   private ensurePopulations(
     fillImmediately = false,
     allowRoutineRecruitment = true,
   ): void {
-    const eliteIds = new Set(this.save.eliteLeagueMemberIds);
-    ARENAS.forEach((arena, arenaIndex) => {
-      const alive = this.save.enemies.filter(
-        (enemy) =>
-          enemy.alive &&
-          enemy.arenaIndex === arenaIndex &&
-          !eliteIds.has(enemy.id),
-      ).length;
-      const floor = Math.max(ARENA_POPULATION_BASE_FLOOR, arena.participants);
-      const target = Math.max(
-        ARENA_POPULATION_TARGET,
-        floor + ARENA_POPULATION_RESERVE,
-      );
-      const missing = Math.max(0, target - alive);
-      const emergencyRecruitment = Math.max(0, floor - alive);
-      const routineRecruitment = allowRoutineRecruitment
-        ? Math.min(1, missing)
-        : 0;
-      const recruits = fillImmediately
-        ? missing
-        : Math.max(emergencyRecruitment, routineRecruitment);
-      for (let index = 0; index < recruits; index += 1) {
-        this.save.enemies.push(this.createEnemy(arenaIndex, !fillImmediately));
-      }
-    });
-    if (this.save.enemies.length > 260) {
-      rememberWorldSeasonFighters(this.save.worldSeason!, [
-        this.save.hero,
-        ...this.save.enemies,
-      ]);
-      const previousEnemyIds = new Set(
-        this.save.enemies.map((enemy) => enemy.id),
-      );
-      const encounteredIds = new Set(Object.keys(this.save.hero.rivalries));
-      this.save.eliteLeagueMemberIds.forEach((id) => encounteredIds.add(id));
-      const life = (this.save.npcLife = normalizeNpcLifeWorldState(
-        this.save.npcLife,
-        this.save.enemies,
-        this.save.worldDay,
-      ));
-      npcReferenceRetentionIds(
-        this.save.enemies,
-        this.save.mentors ?? [],
-        life,
-      ).forEach((id) => encounteredIds.add(id));
-      (this.save.worldRelics ?? []).forEach((record) => {
-        if (record.currentOwnerId && record.currentOwnerId !== "hero")
-          encounteredIds.add(record.currentOwnerId);
-      });
-      ARENAS.forEach((arena, arenaIndex) => {
-        this.save.enemies
-          .filter(
-            (enemy) =>
-              enemy.alive &&
-              enemy.arenaIndex === arenaIndex &&
-              !eliteIds.has(enemy.id),
-          )
-          .sort(
-            (first, second) =>
-              second.rating - first.rating ||
-              second.tournamentWins - first.tournamentWins ||
-              second.history.length - first.history.length,
-          )
-          .slice(0, Math.max(ARENA_POPULATION_BASE_FLOOR, arena.participants))
-          .forEach((enemy) => encounteredIds.add(enemy.id));
-      });
-      const encountered = this.save.enemies.filter((enemy) =>
-        encounteredIds.has(enemy.id),
-      );
-      const retainedIds = new Set(encountered.map((enemy) => enemy.id));
-      const populationLimit = Math.max(0, 260 - encountered.length);
-      const population = this.save.enemies
-        .filter(
-          (enemy) =>
-            !retainedIds.has(enemy.id) &&
-            (enemy.alive ||
-              enemy.history.some((line) => line.includes(this.save.hero.name))),
-        )
-        .sort(
-          (first, second) =>
-            Number(second.alive) - Number(first.alive) ||
-            second.rating - first.rating ||
-            second.tournamentWins - first.tournamentWins ||
-            second.history.length - first.history.length,
-        )
-        .slice(0, populationLimit);
-      this.save.enemies = [...encountered, ...population];
-      const retainedEnemyIds = new Set(
-        this.save.enemies.map((enemy) => enemy.id),
-      );
-      const removedEnemyIds = [...previousEnemyIds].filter(
-        (id) => !retainedEnemyIds.has(id),
-      );
-      if (removedEnemyIds.length > 0) {
-        this.save.events = this.save.events.filter(
-          (event) =>
-            !removedEnemyIds.some((fighterId) =>
-              eventReferencesFighter(event.payload, fighterId),
-            ),
-        );
-      }
-    }
-    cleanupNpcLifeReferences(
-      this.save.enemies,
-      this.save.mentors ?? [],
-      this.save.npcLife!,
+    return this.population.ensurePopulations(
+      fillImmediately,
+      allowRoutineRecruitment,
     );
   }
 
   private refreshShopIfNeeded(): void {
-    if (this.save.worldDay - this.save.shopDay >= 2) this.rotateShop();
+    return this.shop.refreshShopIfNeeded();
   }
 
   private rotateShop(): void {
-    this.save.shopOffers
-      .filter((offer) => !offer.sold && offer.item.worldRelicId)
-      .forEach((offer) => {
-        const recordIndex = (this.save.worldRelics ?? []).findIndex(
-          (candidate) => candidate.id === offer.item.worldRelicId,
-        );
-        if (recordIndex < 0) return;
-        this.save.worldRelics![recordIndex] = releaseWorldRelic(
-          this.save.worldRelics![recordIndex],
-          offer.item,
-          `День ${this.save.worldDay}: лавка сняла реликвию с продажи.`,
-        ).record;
-      });
-    const controllerId =
-      this.save.factionControl?.shopControllerId ?? FACTIONS[0].id;
-    const baseMinimum: Rarity =
-      this.save.hero.highestArena >= 4
-        ? "epic"
-        : this.save.hero.highestArena >= 2
-          ? "rare"
-          : "common";
-    const minimum =
-      controllerId === "red-ledger"
-        ? improveMinimumRarity(baseMinimum, 1)
-        : baseMinimum;
-    const offers: ShopOffer[] = Array.from({ length: 8 }, () => {
-      const universalTemplate =
-        controllerId === "free-company" && this.random.loot.chance(0.48)
-          ? this.random.loot.pick(
-              ITEM_TEMPLATES.filter(
-                (template) =>
-                  template.allowedClasses === "all" &&
-                  !template.exclusiveToElite &&
-                  !template.exclusiveToBoss &&
-                  !template.exclusiveToFaction,
-              ),
-            )
-          : undefined;
-      const item = createItem(
-        this.save.hero.level + this.random.loot.int(0, 2),
-        {
-          classId: this.save.hero.classId,
-          templateId: universalTemplate?.id,
-          minimumRarity: this.random.loot.chance(
-            controllerId === "red-ledger" ? 0.58 : 0.35,
-          )
-            ? minimum
-            : "common",
-          randomSource: this.random.loot,
-        },
-      );
-      item.price = factionShopPrice(
-        item.price,
-        controllerId,
-        this.save.hero.factionReputation[controllerId] ?? 0,
-      );
-      return { item, sold: false };
-    });
-    const lostRelics = (this.save.worldRelics ?? []).filter(
-      (record) =>
-        record.status === "lost" &&
-        (record.item.allowedClasses === "all" ||
-          record.item.allowedClasses.includes(this.save.hero.classId)),
-    );
-    if (lostRelics.length > 0 && this.random.world.chance(0.28)) {
-      const record = this.random.world.pick(lostRelics);
-      const placed = placeWorldRelicInShop(
-        record,
-        "Лавка Ионы",
-        `День ${this.save.worldDay}: реликвия появилась в лавке Ионы.`,
-      );
-      placed.item.price = factionShopPrice(
-        Math.max(
-          placed.item.price,
-          calculateItemPrice(placed.item.level, placed.item.rarity),
-        ),
-        controllerId,
-        this.save.hero.factionReputation[controllerId] ?? 0,
-        true,
-      );
-      offers[this.random.world.int(0, offers.length - 1)] = {
-        item: placed.item,
-        sold: false,
-      };
-      const recordIndex = this.save.worldRelics!.findIndex(
-        (candidate) => candidate.id === record.id,
-      );
-      if (recordIndex >= 0) this.save.worldRelics![recordIndex] = placed.record;
-    }
-    this.save.shopOffers = offers;
-    this.save.shopDay = this.save.worldDay;
+    return this.shop.rotateShop();
   }
 
   private latestEventId(): string | undefined {
