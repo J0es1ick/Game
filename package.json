@@ -1,5 +1,5 @@
 {
-  "name": "game",
+  "name": "dust-and-crown",
   "version": "1.0.0",
   "description": "Однопользовательская RPG-симуляция живого мира с автоматическими боями на TypeScript",
   "main": "dist-console/index.js",
@@ -11,7 +11,9 @@
     "check": "npm run typecheck && npm test -- --runInBand && npm run build:console && npm run build",
     "preview": "vite preview",
     "dev_con": "npm run build:console && node dist-console/index.js",
-    "test": "jest"
+    "test": "jest",
+    "test:browser": "playwright test --config tests/browser/playwright.config.ts",
+    "check:bundle": "node tests/browser/check-bundle.mjs"
   },
   "author": "",
   "license": "ISC",
@@ -25,7 +27,9 @@
     "react-dom": "^19.2.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@babel/core": "^7.29.0",
+    "@playwright/test": "^1.62.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.6",
     "@types/jest": "^29.5.14",
@@ -42,6 +46,10 @@
   },
   "jest": {
     "preset": "ts-jest",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/tests/browser/"
+    ],
     "moduleNameMapper": {
       "\\.css$": "<rootDir>/tests/helpers/styleMock.ts"
     }
