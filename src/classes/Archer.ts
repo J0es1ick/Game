@@ -40,7 +40,11 @@ export class Archer extends Player {
   ): CombatModifier {
     const cadence = (context.setCounts.wind ?? 0) >= 6 ? 2 : 3;
     if (context.attackCounter % cadence !== 0) return { damage };
-    return { damage: damage * 1.45, detail: "усиленный выстрел" };
+    return {
+      damage: damage * 2,
+      armorPenetration: 0.5,
+      detail: "усиленный выстрел пробил половину брони",
+    };
   }
 
   public override reset(): void {

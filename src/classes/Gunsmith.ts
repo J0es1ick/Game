@@ -32,6 +32,7 @@ export class Gunsmith extends Player {
     damage: number,
     context: CombatContext,
   ): CombatModifier {
+    if (context.isSkill) return { damage };
     return {
       damage,
       secondaryDamageRatio: (context.setCounts.powder ?? 0) >= 4 ? 0.75 : 0.55,

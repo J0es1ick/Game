@@ -1,6 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 import { resolve } from "node:path";
 
+const port = Number(process.env.BROWSER_TEST_PORT ?? 4173);
+process.env.BROWSER_TEST_PORT = String(port);
+
 export default defineConfig({
   testDir: ".",
   testMatch: "**/*.spec.ts",
@@ -17,7 +20,7 @@ export default defineConfig({
     ["json", { outputFile: resolve("test-results/report.json") }],
   ],
   use: {
-    baseURL: "http://127.0.0.1:4173/Game/",
+    baseURL: `http://127.0.0.1:${port}/Game/`,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -32,12 +35,5 @@ export default defineConfig({
       },
     },
   ],
-  webServer: {
-    cwd: process.cwd(),
-    command:
-      "node node_modules/vite/bin/vite.js preview --host=127.0.0.1 --port=4173 --strictPort",
-    url: "http://127.0.0.1:4173/Game/",
-    reuseExistingServer: false,
-    timeout: 30000,
-  },
+  globalSetup: resolve("tests/browser/server-lifecycle.ts"),
 });

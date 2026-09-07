@@ -36,8 +36,7 @@ export class Knight extends Player {
     damage: number,
     context: CombatContext,
   ): CombatModifier {
-    if (context.healthRatio <= 0.25) return { damage };
-    const reduction = (context.setCounts.bastion ?? 0) >= 4 ? 0.24 : 0.18;
+    const reduction = (context.setCounts.bastion ?? 0) >= 4 ? 0.28 : 0.22;
     return {
       damage: Math.max(1, Math.round(damage * (1 - reduction))),
       detail: "щит снизил урон",

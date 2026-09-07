@@ -4,7 +4,8 @@ import {
   FACTIONS,
 } from "../../catalogs/WorldExpansionCatalog";
 import { ItemCreationOptions } from "../../factories/ItemFactory";
-import { CombatOptions } from "../combat/AdvancedBattle";
+import { combatantSnapshot, CombatOptions } from "../combat/AdvancedBattle";
+import { FighterPowerCalculator } from "../combat/FighterPowerCalculator";
 import { EXPEDITION_SHRINE_CHOICES } from "../core/WorldGameConfig";
 import { WorldRandomStreams } from "../core/WorldRandom";
 import {
@@ -391,32 +392,45 @@ export class ExpeditionService {
     const boss = node.kind === "boss" || node.kind === "alternate-boss";
     const alternateBoss = node.kind === "alternate-boss";
     const levelBonus = node.depth + (boss ? 5 : elite ? 3 : 0);
+    const levels: [number, number] = [
+      Math.min(
+        dungeon.enemyLevel[1] + (boss ? 3 : 1),
+        dungeon.enemyLevel[0] + levelBonus,
+      ),
+      Math.min(
+        dungeon.enemyLevel[1] + (boss ? 4 : 2),
+        dungeon.enemyLevel[0] + levelBonus + 2,
+      ),
+    ];
+    const generatedEnemy = this.hooks.createDungeonEnemy(levels, dungeon.name);
+    const power = (fighter: EnemyProfile): number => {
+      const snapshot = combatantSnapshot(fighter);
+      return FighterPowerCalculator.stats({
+        health: snapshot.maxHealth,
+        attack: snapshot.attack,
+        defense: snapshot.defense,
+        speed: snapshot.speed,
+        crit: snapshot.crit,
+      });
+    };
+    const maximumRivalPower = power(generatedEnemy) * 1.25;
     const persistentRival =
       node.kind === "rival"
         ? selectPersistentDungeonRival(
             node,
             this.save.enemies.filter(
               (enemy) =>
-                enemy.alive && enemy.arenaIndex >= dungeon.requiredArena,
+                enemy.alive &&
+                enemy.arenaIndex >= dungeon.requiredArena &&
+                enemy.arenaIndex <= dungeon.requiredArena + 1 &&
+                enemy.level >= levels[0] &&
+                enemy.level <= levels[1] &&
+                power(enemy) <= maximumRivalPower,
             ),
             expedition.encounteredFighterIds,
           )
         : undefined;
-    const enemy =
-      persistentRival ??
-      this.hooks.createDungeonEnemy(
-        [
-          Math.min(
-            dungeon.enemyLevel[1] + (boss ? 3 : 1),
-            dungeon.enemyLevel[0] + levelBonus,
-          ),
-          Math.min(
-            dungeon.enemyLevel[1] + (boss ? 4 : 2),
-            dungeon.enemyLevel[0] + levelBonus + 2,
-          ),
-        ],
-        dungeon.name,
-      );
+    const enemy = persistentRival ?? generatedEnemy;
     if (persistentRival) {
       expedition.encounteredFighterIds = [
         ...new Set([
@@ -727,6 +741,7 @@ export class ExpeditionService {
   }
 
   public retreatExpedition(): ExpeditionStepReport {
+    this.hooks.assertNoPendingBattle();
     if (!this.save.activeExpedition) throw new Error("Активного похода нет.");
     return this.finishExpedition(
       true,

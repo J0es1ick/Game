@@ -4,10 +4,10 @@ import { WorldGame } from "../src/gameplay/core/WorldGame";
 import { ARENAS, DUNGEONS } from "../src/catalogs/WorldCatalog";
 import { ERA_LAWS, LEGACY_BOONS } from "../src/catalogs/NewGamePlusCatalog";
 
-describe("world service extraction", () => {
+describe("world service determinism", () => {
   afterEach(() => jest.restoreAllMocks());
 
-  test("preserves complete saves and RNG states from the pre-extraction implementation", () => {
+  test("preserves complete save and RNG checkpoints under the current combat rules", () => {
     const now = 1750000000000;
     jest.spyOn(Date, "now").mockReturnValue(now);
     const game = WorldGame.create("Аудит", "Knight", now);
@@ -25,7 +25,7 @@ describe("world service extraction", () => {
     );
     game.duel();
     expect(hash()).toBe(
-      "5ca76184717f912abfdc5055e77be24caa632fdf49ad04ac083e7873b12e533b",
+      "8679bc4c857ef8628e6f4f05303216ec06cab74f054b082294a4b2c2685ca867",
     );
     game.save.hero.level = 8;
     game.save.hero.highestArena = 1;
@@ -33,18 +33,18 @@ describe("world service extraction", () => {
     game.advanceExpeditionNode(game.reachableExpeditionNodes()[0].id);
     if (game.save.activeExpedition) game.retreatExpedition();
     expect(hash()).toBe(
-      "e545992af0cd4eb2f1b61c278c8ece117ad91ef531d9ca331c9868fb5a815afd",
+      "51e55ab445aaf3a05636e8502543f8cc93ee19d2ee96df954e7fa4887f90a027",
     );
     game.save.lastSimulatedAt = now - 14 * 600000;
     game.simulateElapsed(now);
     expect(hash()).toBe(
-      "e04180d193ddbdb7186748d709e7452b98fdae3975e9951018cec40b2ad0b652",
+      "2fa93daeae28e0ebe25d83b980b00481d1d5ee43118da30709669798c053979e",
     );
     game.save.worldDay = game.save.worldSeason!.endsDay;
     game.save.lastSimulatedAt = now - 600000;
     game.simulateElapsed(now);
     expect(hash()).toBe(
-      "b400bc70e7617164aef6fddee316155dae68a79216dd7a5da334eabd31ccaf5e",
+      "ab168fee5548445c32edd92c75bc9398e40dc137f0558b415416b650c5bd7627",
     );
     game.save.hero.highestArena = ARENAS.length - 1;
     game.save.hero.arenaWins[ARENAS.length - 1] = 1;
@@ -70,7 +70,7 @@ describe("world service extraction", () => {
     );
     expect(
       createHash("sha256").update(JSON.stringify(next.save)).digest("hex"),
-    ).toBe("d3c83c3f7947ad5bd224f88f0b7eaa478e49748154eb874058d5dc27bae8918d");
+    ).toBe("d8607e98db81235fd3ae983e5b605ca8ab4a80c8b62c173bbff7307fe818dfd7");
   });
 
   test.each([

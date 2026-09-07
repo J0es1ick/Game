@@ -80,7 +80,7 @@ describe("Каталоги конфигурации", () => {
       wind: [{ pieces: 2, stats: { speed: 4 } }, { pieces: 4, stats: { crit: 8 } }],
       astral: [{ pieces: 2, stats: { attack: 5 } }],
       crane: [{ pieces: 2, stats: { speed: 5 } }],
-      powder: [{ pieces: 2, stats: { attack: 5 } }],
+      powder: [{ pieces: 2, stats: { attack: 2 } }],
       dusk: [{ pieces: 2, stats: { crit: 6 } }],
     };
 

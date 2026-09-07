@@ -119,13 +119,25 @@ describe("BattleSession", () => {
     expect(result.turns.some((turn) => turn.detail.includes("последний бастион") && turn.targetHealth === 1)).toBe(true);
   });
 
-  test("полный Астральный круг действительно сокращает перезарядку", () => {
+  test("Астральный круг не превращает короткий навык в бесконечное заклинание", () => {
     const { hero, enemy } = fighters("Wizard");
     equipSet(hero, "astral");
     const session = new BattleSession(hero, enemy, { randomSource: fixedRandom });
     session.step({ type: "skill", skillId: "ember" });
     while (!session.isFinished && session.currentActorId !== hero.id) session.step();
+    expect(session.availableActions().find((action) => action.id === "ember")?.cooldown).toBe(1);
+    session.step({ type: "basic" });
+    while (!session.isFinished && session.currentActorId !== hero.id) session.step();
     expect(session.availableActions().find((action) => action.id === "ember")?.available).toBe(true);
+  });
+
+  test("Астральный круг сокращает длинную перезарядку", () => {
+    const { hero, enemy } = fighters("Wizard", 2);
+    equipSet(hero, "astral");
+    const session = new BattleSession(hero, enemy, { randomSource: new SeededRandom(77) });
+    while (session.currentActorId !== hero.id) session.step();
+    session.step({ type: "skill", skillId: "frost-seal" });
+    expect(session.snapshot().hero.cooldowns["frost-seal"]).toBe(3);
   });
 
   test("полный Пороховой расчёт переносит крит на второй выстрел", () => {

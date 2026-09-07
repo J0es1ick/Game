@@ -1504,7 +1504,10 @@ export class WorldGame {
   public abortPendingBattle(): PendingBattleFinalization | undefined {
     const pending = this.save.pendingBattle;
     if (!pending) return undefined;
-    if (pending.session.turns.length === 0) {
+    if (
+      pending.session.turns.length === 0 &&
+      !pending.tournament?.heroBattles.length
+    ) {
       this.save.pendingBattle = undefined;
       return undefined;
     }

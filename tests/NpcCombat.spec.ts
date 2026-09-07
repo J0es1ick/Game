@@ -1,5 +1,5 @@
 import { WorldGame } from "../src/gameplay/core/WorldGame";
-import { importantNpcBattle, resolveNpcCombat, type NpcCombatContext } from "../src/gameplay/combat/NpcCombat";
+import { importantNpcBattle, resolveNpcCombat } from "../src/gameplay/combat/NpcCombat";
 import { SeededRandom } from "../src/gameplay/core/RandomSource";
 import type { EnemyProfile } from "../src/gameplay/core/WorldTypes";
 import { BattleSession, combatantSnapshot } from "../src/gameplay/combat/AdvancedBattle";
@@ -24,62 +24,43 @@ function context() {
   return { worldRandom: new SeededRandom("npc-world"), combatRandom: new SeededRandom("npc-combat"), eliteIds: [] as string[] };
 }
 
-function probability(first: EnemyProfile, second: EnemyProfile, settings: Pick<NpcCombatContext, "ruleIds" | "lawIds"> = {}): number {
-  const options = { ...context(), ...settings };
-  const roll = jest.spyOn(options.worldRandom, "chance");
-  const before = JSON.stringify([first, second]);
-  const combatBefore = options.combatRandom.snapshot();
-  const result = resolveNpcCombat(first, second, options);
-  expect(result.fullCombat).toBe(false);
-  expect(roll).toHaveBeenCalledTimes(1);
-  expect(options.combatRandom.snapshot()).toEqual(combatBefore);
-  expect(JSON.stringify([first, second])).toBe(before);
-  return roll.mock.calls[0][0];
-}
-
 describe("NPC combat routing", () => {
-  test("ordinary rolls account for injuries and earned traits", () => {
-    const [first, second] = fighters();
-    first.traitIds = [];
-    first.injuries = [];
-    const healthy = probability(first, second);
-    first.injuries.push({ id: "sprain", name: "Травма", description: "Потеря темпа", remainingDays: 3,
-      gainedDay: 1, stats: { speed: -4, attack: -8, health: -20 } });
-    expect(probability(first, second)).toBeLessThan(healthy);
-    first.injuries[0].remainingDays = 0;
-    expect(probability(first, second)).toBe(healthy);
-    first.traitIds.push("survivor");
-    expect(probability(first, second)).toBeGreaterThan(healthy);
+  test.each([
+    {}, { ruleIds: ["challenger-favor"] }, { ruleIds: ["iron-oath", "heavy-sand"] },
+    { ruleIds: ["dry-ring"] }, { lawIds: ["age-of-steel"] as const },
+  ])("unrecorded bouts follow the full engine including rules %j", (settings) => {
+    for (let sample = 0; sample < 30; sample++) {
+      const [first, second] = fighters();
+      first.level = 3 + sample % 12;
+      second.level = 3 + (sample * 3) % 12;
+      first.traitIds = sample % 2 ? ["survivor"] : [];
+      if (sample % 3 === 0) first.injuries = [{ id: "sprain", name: "Травма", description: "Потеря темпа",
+        remainingDays: 3, gainedDay: 1, stats: { speed: -4, attack: -8, health: -20 } }];
+      const worldRandom = new SeededRandom(`parity:${sample}`);
+      const fullRandom = new SeededRandom(new SeededRandom(`parity:${sample}`).int(0, 0x7fffffff));
+      const ordinary = resolveNpcCombat(first, second, { ...context(), ...settings, worldRandom });
+      const full = resolveNpcCombat(first, second, { ...context(), ...settings, combatRandom: fullRandom, forceFull: true });
+      expect(ordinary.winner.id).toBe(full.winner.id);
+      expect(ordinary.turns).toEqual([]);
+      expect(full.turns.length).toBeGreaterThan(0);
+    }
   });
 
-  test("ordinary rolls apply symmetric rules, lower-level favor and defense laws", () => {
+  test("a level-three beginner cannot routinely beat a level-twelve mirror", () => {
     const [first, second] = fighters();
-    first.level = 1;
-    second.level = 12;
-    const normal = probability(first, second);
-    expect(probability(first, second, { ruleIds: ["challenger-favor"] })).toBeGreaterThan(normal);
-    expect(probability(first, second, { ruleIds: ["iron-oath"] })).not.toBe(normal);
-    expect(probability(first, second, { lawIds: ["age-of-steel"] })).not.toBe(normal);
-    const forward = probability(first, second, { ruleIds: ["heavy-sand", "iron-oath"] });
-    const backward = probability(second, first, { ruleIds: ["heavy-sand", "iron-oath"] });
-    expect(forward + backward).toBeCloseTo(1, 12);
-  });
-
-  test("dry ring removes healing skills from the cheap score", () => {
-    const [first, second] = fighters();
-    [first, second].forEach((fighter) => {
-      fighter.classId = "Knight";
-      fighter.equipment = [];
-      fighter.equipped = {};
-      fighter.traitIds = [];
-      fighter.scarIds = [];
-      fighter.injuries = [];
+    [first, second].forEach(f => {
+      f.classId = "Knight"; f.equipment = []; f.equipped = {}; f.traitIds = []; f.scarIds = []; f.injuries = [];
     });
     first.level = 3;
-    second.level = 1;
-    expect(combatantSnapshot(first).skills).toContain("second-wind");
-    expect(probability(first, second, { ruleIds: ["dry-ring"] })).toBeLessThan(probability(first, second));
+    second.level = 12;
+    let weakWins = 0;
+    for (let seed = 0; seed < 200; seed++) {
+      const result = resolveNpcCombat(first, second, { ...context(), worldRandom: new SeededRandom(seed) });
+      if (result.winner.id === first.id) weakWins++;
+    }
+    expect(weakWins).toBeLessThanOrEqual(10);
   });
+
   test("ordinary bouts consume only a world roll without mutating fighters", () => {
     const [first, second] = fighters();
     const before = JSON.stringify([first, second]);

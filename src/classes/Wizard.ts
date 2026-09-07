@@ -1,4 +1,4 @@
-import { Player } from "../abstract/Player";
+import { Player, CombatContext, CombatModifier } from "../abstract/Player";
 import { ISkill } from "../skills/ISkill";
 import { IWeapon } from "../weapon/IWeapon";
 
@@ -41,6 +41,13 @@ export class Wizard extends Player {
     maxHealth: number,
     currentHealth: number,
   ): number {
-    return Math.min(maxHealth - currentHealth, Math.round(maxHealth * 0.05));
+    return Math.min(maxHealth - currentHealth, Math.round(maxHealth * 0.03));
+  }
+
+  public override modifyCombatAttack(
+    damage: number,
+    context: CombatContext,
+  ): CombatModifier {
+    return { damage, armorPenetration: context.isSkill ? 0.4 : 0 };
   }
 }

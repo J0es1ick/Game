@@ -26,8 +26,8 @@ export const CLASS_DEFINITIONS: Record<HeroClass, ClassDefinition> = {
     epithet: "щит перед строем",
     description:
       "Меч и щит. Медленно изматывает противника и лучше всех держит удар.",
-    passive: "Блокирует 18% входящего урона, пока здоровье выше 25%.",
-    startingStats: { health: 164, attack: 15, defense: 15, speed: 7, crit: 5 },
+    passive: "Блокирует 22% входящего урона, в том числе при тяжёлом ранении.",
+    startingStats: { health: 164, attack: 16, defense: 15, speed: 7, crit: 5 },
     startingWeapon: "Учебный меч",
     startingOffhand: "Дубовый щит",
     accent: "#a65743",
@@ -38,8 +38,9 @@ export const CLASS_DEFINITIONS: Record<HeroClass, ClassDefinition> = {
     epithet: "дальний прицел",
     description:
       "Быстрый стрелок. Накапливает темп и усиливает каждый третий выстрел.",
-    passive: "Каждая третья обычная атака наносит на 45% больше урона.",
-    startingStats: { health: 132, attack: 17, defense: 8, speed: 14, crit: 12 },
+    passive:
+      "Каждое третье попадание, включая атакующие навыки, наносит двойной урон и игнорирует половину брони.",
+    startingStats: { health: 144, attack: 17, defense: 8, speed: 14, crit: 12 },
     startingWeapon: "Тисовый лук",
     accent: "#668152",
   },
@@ -50,8 +51,8 @@ export const CLASS_DEFINITIONS: Record<HeroClass, ClassDefinition> = {
     description:
       "Использует сильные заклинания и восстанавливается после каждого навыка.",
     passive:
-      "После применения активного навыка восстанавливает 5% максимального HP.",
-    startingStats: { health: 124, attack: 21, defense: 7, speed: 10, crit: 9 },
+      "Атакующие навыки игнорируют 40% брони. После навыка восстанавливает 3% максимального HP.",
+    startingStats: { health: 144, attack: 24, defense: 7, speed: 11, crit: 9 },
     startingWeapon: "Ясеневый посох",
     accent: "#645c91",
   },
@@ -61,8 +62,8 @@ export const CLASS_DEFINITIONS: Record<HeroClass, ClassDefinition> = {
     epithet: "пустые ладони",
     description:
       "Сражается без оружия, уклоняется и усиливает следующие друг за другом удары.",
-    passive: "Имеет 14% шанс уклониться; каждый успешный удар усиливает комбо.",
-    startingStats: { health: 142, attack: 16, defense: 10, speed: 15, crit: 8 },
+    passive: "Имеет 12% шанс уклониться; каждый успешный удар усиливает комбо.",
+    startingStats: { health: 142, attack: 18, defense: 10, speed: 15, crit: 8 },
     startingWeapon: "Льняные бинты",
     accent: "#b17a3b",
   },
@@ -73,7 +74,7 @@ export const CLASS_DEFINITIONS: Record<HeroClass, ClassDefinition> = {
     description:
       "Носит два пистолета. Обычная атака состоит из двух менее сильных попаданий.",
     passive: "Обычная атака наносит второй выстрел силой 55% от первого.",
-    startingStats: { health: 136, attack: 18, defense: 8, speed: 13, crit: 11 },
+    startingStats: { health: 136, attack: 11, defense: 8, speed: 13, crit: 11 },
     startingWeapon: "Левый кремнёвый пистолет",
     startingOffhand: "Правый кремнёвый пистолет",
     accent: "#4e7480",
@@ -85,8 +86,8 @@ export const CLASS_DEFINITIONS: Record<HeroClass, ClassDefinition> = {
     description:
       "Атакует двумя мечами и чаще наносит критические удары после ранения.",
     passive:
-      "При здоровье ниже 50% получает +12% критического шанса и второй удар.",
-    startingStats: { health: 146, attack: 19, defense: 9, speed: 12, crit: 10 },
+      "При здоровье ниже 50% получает +12% критического шанса; обычная атака получает второй удар.",
+    startingStats: { health: 146, attack: 17, defense: 9, speed: 12, crit: 12 },
     startingWeapon: "Короткий меч",
     startingOffhand: "Парный короткий меч",
     accent: "#7d604d",
@@ -119,7 +120,8 @@ const sharedSkills: SkillDefinition[] = [
   {
     id: "battle-focus",
     name: "Боевой настрой",
-    description: "Усиливает следующую атаку.",
+    description:
+      "Подготовительный удар в половину силы, защита от ответного удара и усиление следующей атаки.",
     classes: "all",
     unlockLevel: 8,
     kind: "buff",
@@ -179,7 +181,7 @@ const classSkills: Record<
     ["shield-bash", "Удар щитом", 1, "control", 0.85, 3],
     ["riposte", "Ответный выпад", 2, "attack", 1.25, 3],
     ["iron-stance", "Железная стойка", 4, "buff", 0.38, 5],
-    ["oath-strike", "Удар клятвы", 7, "attack", 1.55, 4],
+    ["oath-strike", "Удар клятвы", 7, "attack", 1.75, 4],
     ["aegis", "Живая эгида", 11, "heal", 32, 6],
     ["last-bastion", "Последний бастион", 16, "buff", 0.62, 7],
   ],
@@ -208,10 +210,10 @@ const classSkills: Record<
     ["dragon-step", "Шаг дракона", 16, "attack", 2.0, 6],
   ],
   Gunsmith: [
-    ["snap-shot", "Выстрел навскидку", 1, "attack", 1.17, 2],
+    ["snap-shot", "Выстрел навскидку", 1, "attack", 1.65, 2],
     ["powder-flash", "Пороховая вспышка", 2, "control", 0.8, 4],
     ["calibration", "Калибровка", 4, "buff", 0.45, 5],
-    ["crossfire", "Перекрёстный огонь", 7, "attack", 1.7, 4],
+    ["crossfire", "Перекрёстный огонь", 7, "attack", 2.05, 4],
     ["field-repair", "Полевая починка", 11, "heal", 31, 6],
     ["full-cylinder", "Полный барабан", 16, "attack", 2.1, 7],
   ],
@@ -253,7 +255,8 @@ export const EQUIPMENT_SKILLS: SkillDefinition[] = [
   {
     id: "relic-chrono-step",
     name: "Украденная секунда",
-    description: "Усиливает следующую атаку и меняет темп боя.",
+    description:
+      "Подготовительный удар в половину силы, защитная стойка и усиление следующей атаки.",
     classes: "all",
     unlockLevel: 0,
     kind: "buff",
@@ -360,7 +363,7 @@ export const SKILLS: SkillDefinition[] = [
           : kind === "heal"
             ? "Автоматически применяется при снижении здоровья."
             : kind === "buff"
-              ? "Усиливает следующую атаку."
+              ? "Подготовительный удар в половину силы, защитная стойка и усиление следующей атаки."
               : "Ослабляет следующую атаку противника.",
       classes: [classId as HeroClass],
       unlockLevel,
@@ -2288,7 +2291,7 @@ export const EQUIPMENT_SETS: EquipmentSetDefinition[] = [
     ),
     bonuses: [
       { pieces: 2, description: "+6 к защите", stats: { defense: 6 } },
-      { pieces: 4, description: "Блок рыцаря усилен до 24%" },
+      { pieces: 4, description: "Блок рыцаря усилен до 28%" },
       { pieces: 6, description: "Первый смертельный удар оставляет 1 HP" },
     ],
   },
@@ -2323,8 +2326,11 @@ export const EQUIPMENT_SETS: EquipmentSetDefinition[] = [
     ),
     bonuses: [
       { pieces: 2, description: "+5 к атаке", stats: { attack: 5 } },
-      { pieces: 4, description: "Лечение после навыка увеличено вдвое" },
-      { pieces: 6, description: "Перезарядка навыков сокращена на 1 ход" },
+      { pieces: 4, description: "Лечение после навыка усилено на 50%" },
+      {
+        pieces: 6,
+        description: "Перезарядка навыков сокращена на 1 ход, минимум 2 хода",
+      },
     ],
   },
   {
@@ -2353,7 +2359,7 @@ export const EQUIPMENT_SETS: EquipmentSetDefinition[] = [
       (item) => item.id,
     ),
     bonuses: [
-      { pieces: 2, description: "+5 к атаке", stats: { attack: 5 } },
+      { pieces: 2, description: "+2 к атаке", stats: { attack: 2 } },
       { pieces: 4, description: "Второй выстрел наносит 75% урона" },
       {
         pieces: 6,

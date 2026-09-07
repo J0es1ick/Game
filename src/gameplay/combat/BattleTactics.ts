@@ -7,6 +7,7 @@ import type {
 } from "../core/WorldTypes";
 
 export interface TacticalFighterView {
+  basicAttackPower?: number;
   classId: HeroClass;
   health: number;
   maxHealth: number;
@@ -113,6 +114,21 @@ function evaluateSkill(
   }
 
   if (skill.kind === "attack") {
+    // Low-health dual attacks and set bonuses can outperform a weak skill.
+    // Explicit openings remain under the player's control.
+    if (
+      skill.power < (actor.basicAttackPower ?? 1) &&
+      !(
+        (actor.actionsTaken ?? 0) === 0 &&
+        actor.tactics.preferredOpeningSkillId === skill.id
+      )
+    ) {
+      eligible = false;
+      pushReason(
+        reasons,
+        "обычная атака с классовым бонусом сильнее этого приёма",
+      );
+    }
     score += skill.power * 13;
     if (targetHealth <= 0.35) {
       score += 24;

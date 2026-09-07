@@ -35,7 +35,7 @@ export class Swordsman extends Player {
     context: CombatContext,
   ): CombatModifier {
     const threshold = (context.setCounts.dusk ?? 0) >= 4 ? 0.7 : 0.5;
-    return context.healthRatio < threshold
+    return !context.isSkill && context.healthRatio < threshold
       ? {
           damage,
           secondaryDamageRatio: 0.55,

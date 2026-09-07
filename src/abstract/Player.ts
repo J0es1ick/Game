@@ -15,6 +15,7 @@ export interface DispatchTrace {
 }
 
 export interface CombatContext {
+  isSkill?: boolean;
   attackCounter: number;
   combo: number;
   healthRatio: number;
@@ -23,6 +24,7 @@ export interface CombatContext {
 }
 
 export interface CombatModifier {
+  armorPenetration?: number;
   damage: number;
   detail?: string;
   combo?: number;

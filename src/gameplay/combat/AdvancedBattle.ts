@@ -109,6 +109,8 @@ export interface CombatStatMultipliers {
 }
 
 export interface CombatOptions {
+  /** Background NPC bouts use the same rules without retaining a replay. */
+  recordTurns?: boolean;
   heroLevelCap?: number;
   enemyLevelCap?: number;
   ruleIds?: string[];
@@ -628,9 +630,28 @@ function skillDecision(
     actor.id === "hero" && hasMemoryCounter(target, "healing-denial")
       ? 1 - 0.35 * (target.memoryRead?.strength ?? 0)
       : 1;
+  const context = {
+    attackCounter: actor.attackCounter + 1,
+    combo: actor.combo,
+    healthRatio: actor.health / actor.maxHealth,
+    setCounts: actor.setCounts,
+  };
+  const secondary =
+    actor.model.modifyCombatAttack(1, context).secondaryDamageRatio ?? 0;
+  const expectedCrit =
+    1 +
+    (0.45 *
+      Math.min(60, actor.crit + actor.model.criticalChanceBonus(context))) /
+      100;
+  const basicAttackPower =
+    1 + secondary * ((actor.setCounts.powder ?? 0) >= 6 ? 1 : 1 / expectedCrit);
   return chooseTacticalSkill(
     ready,
-    { ...actor, healingMultiplier: pressure.healingMultiplier * denial },
+    {
+      ...actor,
+      basicAttackPower,
+      healingMultiplier: pressure.healingMultiplier * denial,
+    },
     target,
   );
 }
@@ -740,6 +761,7 @@ function attackDamage(
     });
   }
   const actorContext = {
+    isSkill: Boolean(skillId),
     attackCounter: actor.attackCounter,
     combo: actor.combo,
     healthRatio: actor.health / actor.maxHealth,
@@ -778,7 +800,9 @@ function attackDamage(
     variance *
     (critical ? 1.45 : 1);
   actor.buff = 0;
-  const armorMultiplier = combatArmorMultiplier(target.defense);
+  const armorMultiplier = combatArmorMultiplier(
+    target.defense * (1 - (classAttack.armorPenetration ?? 0)),
+  );
   let damage = Math.max(1, Math.round(raw * armorMultiplier));
   const defended = target.model.modifyCombatDefense(damage, {
     attackCounter: target.attackCounter,
@@ -949,7 +973,9 @@ function performTurn(
     action = skill.name;
     actor.cooldowns[skill.id] = Math.max(
       1,
-      skill.cooldown - ((actor.setCounts.astral ?? 0) >= 6 ? 1 : 0),
+      (actor.setCounts.astral ?? 0) >= 6
+        ? Math.max(2, skill.cooldown - 1)
+        : skill.cooldown,
     );
     if (skill.kind === "heal") {
       let healingMultiplier = healingPressure;
@@ -967,8 +993,20 @@ function performTurn(
       actor.health += healing;
       detail += `восстановлено ${healing} HP`;
     } else if (skill.kind === "buff") {
+      const preparation = attackDamage(
+        actor,
+        target,
+        random,
+        effects,
+        0.5,
+        skill.id,
+      );
+      damage = preparation.damage;
+      critical = preparation.critical;
+      statusComboIds.push(...preparation.statusComboIds);
       actor.buff = Math.max(actor.buff, skill.power);
-      detail = `следующая атака усилена на ${Math.round(skill.power * 100)}%`;
+      effects.addStatus(actor, "guarded", 3, actor.id);
+      detail = `подготовительный удар: ${preparation.detail}; следующая атака усилена на ${Math.round(skill.power * 100)}%; защитная стойка прикрывает подготовку`;
     } else if (skill.kind === "control") {
       const result = attackDamage(
         actor,
@@ -1017,13 +1055,12 @@ function performTurn(
       statusComboIds.push(...result.statusComboIds);
     }
     {
-      const baseEcho = actor.model.recoveryAfterSkill(
-        actor.maxHealth,
-        actor.health,
-      );
+      const baseEcho = actor.disableHealing
+        ? 0
+        : actor.model.recoveryAfterSkill(actor.maxHealth, actor.health);
       const baseRecovery =
         (actor.setCounts.astral ?? 0) >= 4
-          ? Math.min(actor.maxHealth - actor.health, baseEcho * 2)
+          ? Math.min(actor.maxHealth - actor.health, baseEcho * 1.5)
           : baseEcho;
       const echo = Math.min(
         actor.maxHealth - actor.health,
@@ -1086,7 +1123,12 @@ function performTurn(
     detail += "; последний бастион оставил бойцу 1 HP";
   }
   target.health = Math.max(0, target.health - damage);
-  if (critical && damage > 0 && (actor.setCounts.dusk ?? 0) >= 6) {
+  if (
+    !actor.disableHealing &&
+    critical &&
+    damage > 0 &&
+    (actor.setCounts.dusk ?? 0) >= 6
+  ) {
     const restored = Math.min(
       actor.maxHealth - actor.health,
       Math.max(1, Math.round(actor.maxHealth * 0.03 * healingPressure)),
@@ -1184,6 +1226,8 @@ export class BattleSession {
   private readonly random: RandomSource;
   private readonly effects = new BattleEffectPipeline();
   private readonly turnLog: DetailedBattleTurn[] = [];
+  private readonly recordTurns: boolean;
+  private actionCount = 0;
   private nextActor: RuntimeFighter;
   private winner?: RuntimeFighter;
   private readonly maximumActions = 120;
@@ -1200,6 +1244,7 @@ export class BattleSession {
     enemyProfile?: EnemyProfile | CombatantSnapshot,
     options: CombatOptions = {},
   ) {
+    this.recordTurns = options.recordTurns !== false;
     if (isBattleSessionSnapshot(heroProfileOrSnapshot)) {
       const snapshot = heroProfileOrSnapshot;
       this.random = new SeededRandom(snapshot.random.seed, snapshot.random);
@@ -1208,6 +1253,7 @@ export class BattleSession {
       this.heroBefore = cloneCombatantSnapshot(snapshot.heroBefore);
       this.enemyBefore = cloneCombatantSnapshot(snapshot.enemyBefore);
       this.turnLog.push(...snapshot.turns.map(cloneBattleTurn));
+      this.actionCount = snapshot.turns.length;
       const nextActor =
         snapshot.nextActorId === this.hero.id
           ? this.hero
@@ -1347,6 +1393,8 @@ export class BattleSession {
   }
 
   public snapshot(): BattleSessionSnapshot {
+    if (!this.recordTurns)
+      throw new Error("An unrecorded NPC battle cannot be saved.");
     const random = this.random as RandomSource & {
       snapshot?: () => RandomSnapshot;
     };
@@ -1431,18 +1479,19 @@ export class BattleSession {
     const actor = this.nextActor;
     const target = actor.id === this.hero.id ? this.enemy : this.hero;
     const turn = performTurn(
-      this.turnLog.length + 1,
+      this.actionCount + 1,
       actor,
       target,
       this.random,
       this.effects,
       action,
     );
-    this.turnLog.push(turn);
+    this.actionCount += 1;
+    if (this.recordTurns) this.turnLog.push(turn);
     actor.nextActionAt += this.actionInterval(actor);
     if (this.hero.health <= 0 || this.enemy.health <= 0) {
       this.winner = this.hero.health > 0 ? this.hero : this.enemy;
-    } else if (this.turnLog.length >= this.maximumActions) {
+    } else if (this.actionCount >= this.maximumActions) {
       this.winner =
         this.hero.health / this.hero.maxHealth >=
         this.enemy.health / this.enemy.maxHealth
@@ -1457,11 +1506,22 @@ export class BattleSession {
   }
 
   public runAutomatic(): CombatResolution {
+    if (!this.recordTurns)
+      throw new Error("Use runToWinner for an unrecorded NPC battle.");
     while (!this.isFinished) this.step();
     return this.resolution();
   }
 
+  public runToWinner(): string {
+    while (!this.isFinished) this.step();
+    return this.winner!.id;
+  }
+
   public forfeit(fighterId = this.hero.id): CombatResolution {
+    if (!this.recordTurns)
+      throw new Error(
+        "An unrecorded NPC battle cannot be forfeited interactively.",
+      );
     if (this.isFinished) return this.resolution();
     const loser =
       fighterId === this.hero.id
@@ -1491,6 +1551,8 @@ export class BattleSession {
   }
 
   public resolution(): CombatResolution {
+    if (!this.recordTurns)
+      throw new Error("An unrecorded NPC battle has no replay.");
     if (!this.winner) throw new Error("Battle session has not finished yet.");
     const turns = this.turnLog.map(cloneBattleTurn);
     return {

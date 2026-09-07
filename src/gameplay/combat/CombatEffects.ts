@@ -28,6 +28,7 @@ export interface ClassResourceDefinition extends Omit<
 }
 
 export interface EffectFighter {
+  disableHealing?: boolean;
   id: string;
   classId: HeroClass;
   health: number;
@@ -163,7 +164,7 @@ const STATUS_TEXT: Readonly<
   },
   "arcane-surge": {
     name: "Астральный прилив",
-    description: "Следующая атакующая способность наносит на 18% больше урона.",
+    description: "Следующая атакующая способность наносит на 30% больше урона.",
   },
   burning: {
     name: "Горение",
@@ -275,7 +276,7 @@ export class BattleEffectPipeline {
       detail.push("ошеломление ослабило удар");
     }
     if (isSkill && consume(actor, "arcane-surge")) {
-      result *= 1.18;
+      result *= 1.3;
       detail.push("арканный прилив усилил навык");
       if (targetBurning) {
         result *= 1.12;
@@ -380,15 +381,17 @@ export class BattleEffectPipeline {
         actor,
         context.skillKind === "control" || (context.healing ?? 0) > 0 ? 2 : 1,
         () => {
-          healing = Math.min(
-            actor.maxHealth - actor.health,
-            Math.max(
-              0,
-              Math.round(
-                actor.maxHealth * 0.05 * (context.healingMultiplier ?? 1),
-              ),
-            ),
-          );
+          healing = actor.disableHealing
+            ? 0
+            : Math.min(
+                actor.maxHealth - actor.health,
+                Math.max(
+                  0,
+                  Math.round(
+                    actor.maxHealth * 0.04 * (context.healingMultiplier ?? 1),
+                  ),
+                ),
+              );
           actor.health += healing;
           const cleansed = actor.statuses.find(
             (status) =>
@@ -411,10 +414,7 @@ export class BattleEffectPipeline {
         context.critical || context.skillKind === "control" ? 2 : 1,
         () => {
           this.addStatus(target, "burning", 3, actor.id);
-          if (context.critical) this.addStatus(target, "burning", 3, actor.id);
-          detail.push(
-            `накал поджёг цель${context.critical ? " сильнее обычного" : ""}`,
-          );
+          detail.push("накал поджёг цель");
           return "Пороховой перегрев";
         },
       );

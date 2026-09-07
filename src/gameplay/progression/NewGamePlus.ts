@@ -777,8 +777,8 @@ export function newGamePlusRequirements(
     },
     {
       id: "legend-rank",
-      label: "Войти в пятёрку легенд элитной лиги",
-      met: eliteRank !== undefined && eliteRank <= LEGEND_COUNT,
+      label: "Занять первое место в элитной лиге",
+      met: eliteRank === 1,
     },
     {
       id: "crown-league",

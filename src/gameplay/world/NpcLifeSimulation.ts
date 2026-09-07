@@ -1067,16 +1067,18 @@ export function npcReferenceRetentionIds(
   state: NpcLifeWorldState,
 ): Set<string> {
   const retained = new Set<string>();
-  mentors.forEach((mentor) =>
-    mentor.studentIds.forEach((id) => retained.add(id)),
-  );
+  mentors.forEach((mentor) => {
+    retained.add(mentor.fighterId);
+    mentor.studentIds.forEach((id) => retained.add(id));
+  });
   Object.values(state.profiles).forEach((profile) => {
     if (profile.revengeTargetId) retained.add(profile.revengeTargetId);
     if (profile.career === "future-boss") retained.add(profile.fighterId);
   });
-  state.dynasties.forEach((dynasty) =>
-    dynasty.memberIds.forEach((id) => retained.add(id)),
-  );
+  state.dynasties.forEach((dynasty) => {
+    retained.add(dynasty.founderId);
+    dynasty.memberIds.forEach((id) => retained.add(id));
+  });
   state.futureBosses
     .filter((boss) => boss.status !== "defeated")
     .forEach((boss) => retained.add(boss.fighterId));

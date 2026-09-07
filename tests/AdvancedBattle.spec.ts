@@ -132,7 +132,7 @@ describe("числовые бонусы комплектов из каталог
     ["wind", "Archer", 4, { speed: 4, crit: 8 }],
     ["astral", "Wizard", 2, { attack: 5 }],
     ["crane", "Monk", 2, { speed: 5 }],
-    ["powder", "Gunsmith", 2, { attack: 5 }],
+    ["powder", "Gunsmith", 2, { attack: 2 }],
     ["dusk", "Swordsman", 2, { crit: 6 }],
   ] as Array<[string, HeroClass, number, Partial<Stats>]>) (
     "%s (%s): применяет бонус порога %i один раз",

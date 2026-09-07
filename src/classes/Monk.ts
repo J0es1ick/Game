@@ -52,7 +52,7 @@ export class Monk extends Player {
     damage: number,
     context: CombatContext,
   ): CombatModifier {
-    const dodge = 0.14 + ((context.setCounts.crane ?? 0) >= 4 ? 0.06 : 0);
+    const dodge = 0.12 + ((context.setCounts.crane ?? 0) >= 4 ? 0.06 : 0);
     return (context.random?.() ?? Math.random()) < dodge
       ? {
           damage: 0,

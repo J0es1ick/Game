@@ -303,7 +303,18 @@ describe("NpcLifeSimulation", () => {
 
     const retained = npcReferenceRetentionIds([fighter, student, rival], [mentor], state);
 
-    expect(retained).toEqual(expect.objectContaining(new Set([student.id, rival.id])));
+    expect(retained).toContain(student.id);
+    expect(retained).toContain(rival.id);
+    expect(retained).toContain(mentor.fighterId);
+
+    // An old save may retain the mentor but no dynasty or surviving students.
+    mentor.studentIds = [];
+    const legacyState = createNpcLifeWorldState(1);
+    legacyState.dynasties = [{ id: "orphan-school", name: "Старая школа", founderId: fighter.id,
+      founderName: fighter.name, factionId: fighter.factionId!, foundedDay: 1, memberIds: [], prestige: 10 }];
+    const legacyRetention = npcReferenceRetentionIds([fighter, student, rival], [mentor], legacyState);
+    expect(legacyRetention).toContain(mentor.fighterId);
+    expect(legacyRetention).toContain(fighter.id);
   });
 
   test("moves legends and veterans through seasonal careers and founds a dynasty", () => {
