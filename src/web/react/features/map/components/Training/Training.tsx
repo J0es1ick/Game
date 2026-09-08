@@ -29,6 +29,19 @@ export function Training() {
     });
   };
 
+  const skipDay = () => {
+    act((current) => current.skipTrainingDay());
+    notify({
+      eyebrow: "ТРЕНИРОВОЧНЫЙ ДЕНЬ",
+      title: "День пропущен",
+      description: "Вы пропустили тренировочный день.",
+      symbol: "⚔",
+      tone: "neutral",
+      sound: "training",
+      duration: 1700,
+    });
+  };
+
   return (
     <section className="training-strip" id="daily-actions-section">
       <div>
@@ -49,6 +62,9 @@ export function Training() {
           onClick={train}
         >
           {blocked ? "Достигнут предел" : "Тренироваться"}
+        </button>
+        <button className="button" onClick={skipDay}>
+          {"Пропустить день"}
         </button>
       </div>
     </section>

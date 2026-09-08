@@ -1,0 +1,27 @@
+[0907/142415.650:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/142415.652:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/142415.652:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/142443.170:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/142443.171:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/142443.171:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/142443.172:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/142443.172:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/144105.648:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/144105.654:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/144105.655:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/144105.655:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/144115.623:WARNING:services\audio\sync_reader.cc:154] ASR: No room in socket buffer.: Идет закрытие канала. (0xE8)
+[0907/150510.909:WARNING:services\audio\sync_reader.cc:154] ASR: No room in socket buffer.: Идет закрытие канала. (0xE8)
+[0907/151446.790:WARNING:services\audio\sync_reader.cc:175] SyncReader::Read timed out, audio glitch count=10
+[0907/151446.944:WARNING:services\audio\sync_reader.cc:175] SyncReader::Read timed out, audio glitch count=20
+[0907/151447.131:WARNING:services\audio\sync_reader.cc:154] ASR: No room in socket buffer.: Идет закрытие канала. (0xE8)
+[0907/151448.210:WARNING:services\audio\sync_reader.cc:154] ASR: No room in socket buffer.: Идет закрытие канала. (0xE8)
+[0907/151454.200:WARNING:services\audio\sync_reader.cc:154] ASR: No room in socket buffer.: Идет закрытие канала. (0xE8)
+[0907/152054.110:WARNING:services\audio\sync_reader.cc:154] ASR: No room in socket buffer.: Идет закрытие канала. (0xE8)
+[0907/152054.420:WARNING:services\audio\sync_reader.cc:175] SyncReader::Read timed out, audio glitch count=10
+[0907/160425.137:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/162139.308:WARNING:services\audio\sync_reader.cc:154] ASR: No room in socket buffer.: Идет закрытие канала. (0xE8)
+[0907/162327.367:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/162327.369:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/162327.369:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.
+[0907/162327.369:ERROR:gpu\command_buffer\service\shared_image\shared_image_manager.cc:395] SharedImageManager::ProduceMemory: Trying to Produce a Memory representation from a non-existent mailbox.

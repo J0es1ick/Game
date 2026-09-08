@@ -1404,6 +1404,20 @@ export class WorldGame {
     return this.trainingDay();
   }
 
+  public skipTrainingDay(): DailyActivityReport {
+    this.prepareDayActivity();
+    this.advanceContract("training");
+    this.completeDay();
+    return {
+      kind: "training",
+      title: "День тренировок пропущен",
+      description: "Безопасная практика без добычи и рейтингового риска.",
+      experience: 0,
+      gold: 0,
+      levelsGained: 0,
+    };
+  }
+
   private trainingDay(
     mentorMultiplier = 1,
     mentorName?: string,
