@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { TOURNAMENT_RULES } from "../../../../../../catalogs/WorldExpansionCatalog";
 import type { BattleAction } from "../../../../../../gameplay/combat/AdvancedBattle";
+import { combatPressure } from "../../../../../../gameplay/combat/CombatBalance";
 import type {
   ExpeditionStepReport,
   TournamentReport,
@@ -26,6 +27,7 @@ import {
   TournamentBracket,
 } from "../../components/BattleParts/BattleParts";
 import { ExpeditionRewards } from "../../components/ExpeditionRewards/ExpeditionRewards";
+import { BattleBriefing } from "../../components/BattleBriefing/BattleBriefing";
 import "../../styles/components.css";
 
 export function BattleDialog() {
@@ -44,6 +46,7 @@ export function BattleDialog() {
   const [tick, setTick] = useState(0);
   const [speed, setSpeed] = useState(450);
   const [manual, setManual] = useState(game.save.hero.combatMode === "manual");
+  const [paused, setPaused] = useState(true);
   const [skipping, setSkipping] = useState(false);
   const [showRewards, setShowRewards] = useState(false);
   const alive = useRef(true);
@@ -64,8 +67,13 @@ export function BattleDialog() {
       : undefined;
   const turn = playback.turn;
   const heroTurn = snapshot.nextActorId === "hero";
+  const pressure = combatPressure(
+    snapshot.hero.actionsTaken ?? snapshot.hero.attackCounter,
+    snapshot.enemy.actionsTaken ?? snapshot.enemy.attackCounter,
+  );
   const actions =
     !completion && heroTurn ? playback.session.availableActions() : [];
+  const recommendation = actions.find((action) => action.recommended);
 
   useEffect(() => {
     if (!active || showRewards) return;
@@ -180,6 +188,7 @@ export function BattleDialog() {
       finalize();
       return;
     }
+    if (paused) return;
     if (manual && heroTurn) return;
     const timer = window.setTimeout(() => step(), speed);
     return () => window.clearTimeout(timer);
@@ -189,6 +198,7 @@ export function BattleDialog() {
     completion,
     skipping,
     manual,
+    paused,
     heroTurn,
     speed,
     playback,
@@ -236,6 +246,7 @@ export function BattleDialog() {
     if (!completion) return;
     if (playback.awaitingNextRound) {
       playback.nextRound();
+      setPaused(true);
       setTick((value) => value + 1);
       return;
     }
@@ -308,6 +319,18 @@ export function BattleDialog() {
           </button>
         ) : (
           <div className="battle-controls">
+            <button
+              className="button primary"
+              type="button"
+              disabled={skipping}
+              onClick={() => setPaused((value) => !value)}
+            >
+              {paused
+                ? snapshot.turns.length
+                  ? "Продолжить бой"
+                  : "Начать бой"
+                : "Пауза"}
+            </button>
             <label data-term="battleSpeed">
               Скорость боя
               <select
@@ -325,7 +348,10 @@ export function BattleDialog() {
               type="button"
               aria-pressed={manual}
               disabled={skipping}
-              onClick={() => setManual((value) => !value)}
+              onClick={() => {
+                setManual((value) => !value);
+                setPaused(false);
+              }}
             >
               {manual ? "Включить автобой" : "Управлять вручную"}
             </button>
@@ -359,29 +385,57 @@ export function BattleDialog() {
           <b>
             {completion
               ? title
-              : manual && heroTurn
-                ? "Ваш ход — выберите доступный приём"
-                : turn
-                  ? `${turn.actorName}: ${turn.action}`
-                  : "Бойцы выходят на площадку"}
+              : paused
+                ? snapshot.turns.length
+                  ? "Бой на паузе"
+                  : "Готовы к бою?"
+                : manual && heroTurn
+                  ? "Ваш ход — выберите доступный приём"
+                  : turn
+                    ? `${turn.actorName}: ${turn.action}`
+                    : "Бойцы выходят на площадку"}
           </b>
           <p>
             {skipping
               ? "Рассчитываем оставшиеся ходы…"
-              : turn
-                ? battleTurnSummary(turn)
-                : ""}
+              : paused && !turn
+                ? "Изучите характеристики и правила, затем начните бой или выберите ручное управление."
+                : turn
+                  ? battleTurnSummary(turn)
+                  : ""}
           </p>
         </div>
         <CombatantCard side="enemy" fighter={snapshot.enemy} turn={turn} />
       </div>
+      {!completion && snapshot.turns.length === 0 && (
+        <BattleBriefing snapshot={snapshot} kind={playback.kind} />
+      )}
+      {rules.length > 0 && (
+        <div className="battle-rules" aria-label="Правила боя">
+          {rules.map((rule) => (
+            <span key={rule.id}>
+              <b>{rule.name}</b> {rule.description}
+            </span>
+          ))}
+        </div>
+      )}
+      {!completion && pressure.damageMultiplier > 1 && (
+        <p className="battle-pressure">
+          <strong>Затяжной бой</strong> · урон ×
+          {pressure.damageMultiplier.toFixed(1)} · восстановление{" "}
+          {Math.round(pressure.healingMultiplier * 100)}%
+          <span>
+            Чем дольше сражаются оба бойца, тем сильнее удары и слабее лечение.
+          </span>
+        </p>
+      )}
       <div className="battle-skills" id="battle-skills">
         <BattleSkillList
           side="hero"
           fighter={snapshot.hero}
           actions={actions}
           turn={turn}
-          active={manual && heroTurn && !completion && !skipping}
+          active={manual && heroTurn && !paused && !completion && !skipping}
           onUse={
             manual
               ? (id) =>
@@ -401,6 +455,12 @@ export function BattleDialog() {
           active={false}
         />
       </div>
+      {manual && heroTurn && !paused && !completion && recommendation && (
+        <p className="battle-recommendation">
+          <strong>Совет тактики: {recommendation.name}.</strong>{" "}
+          {recommendation.reason}
+        </p>
+      )}
       <LazyDetails
         className="react-battle-log-details"
         summary={`Журнал боя · ${snapshot.turns.length} действий`}
@@ -419,18 +479,9 @@ export function BattleDialog() {
           />
         )}
       </LazyDetails>
-      {rules.length > 0 && (
-        <div className="battle-rules">
-          {rules.map((rule) => (
-            <span key={rule.id}>
-              <b>{rule.name}</b> {rule.description}
-            </span>
-          ))}
-        </div>
-      )}
       {completion && (
         <section
-          className="battle-result"
+          className={`battle-result ${report.heroWon ? "battle-victory" : "battle-defeat"}`}
           id="battle-result"
           ref={resultElement}
         >
@@ -442,15 +493,28 @@ export function BattleDialog() {
                 сеткой.
               </p>
             ) : (
-              <p>
-                Опыт: +{rewards.experience} · Монеты: +{rewards.gold}
-                {rewards.temperingMarks
-                  ? ` · Печати закалки: +${rewards.temperingMarks}`
-                  : ""}
-                {rewards.levelsGained
-                  ? ` · Получено уровней: ${rewards.levelsGained}`
-                  : ""}
-              </p>
+              <dl className="battle-reward-strip">
+                <div>
+                  <dt>Опыт</dt>
+                  <dd>+{rewards.experience}</dd>
+                </div>
+                <div>
+                  <dt>Монеты</dt>
+                  <dd>+{rewards.gold}</dd>
+                </div>
+                {!!rewards.temperingMarks && (
+                  <div>
+                    <dt>Печати закалки</dt>
+                    <dd>+{rewards.temperingMarks}</dd>
+                  </div>
+                )}
+                {!!rewards.levelsGained && (
+                  <div className="battle-level-up">
+                    <dt>Новые уровни</dt>
+                    <dd>+{rewards.levelsGained}</dd>
+                  </div>
+                )}
+              </dl>
             )}
             {rewards.item && <p>Добыча: {rewards.item.name}</p>}
             {rewards.unlockedSkills.length > 0 && (
@@ -463,6 +527,11 @@ export function BattleDialog() {
               <p>Противник погиб и больше не появится в живом мире.</p>
             )}
             {tournament && <p>Чемпион: {tournament.championName}</p>}
+            {report.analysis?.decidingEffect && (
+              <p className="battle-verdict">
+                Решающий фактор: {report.analysis.decidingEffect}
+              </p>
+            )}
             <BattleAnalysis report={report} />
             <FeatureChanges changes={playback.featureChanges} />
           </div>

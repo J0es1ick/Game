@@ -108,6 +108,54 @@ describe("React application integration", () => {
     ).getByRole("button", { name: new RegExp(`^${name}(?:\\s|$)`) });
   }
 
+  test("the next goal follows due tournaments and changes to the elite endgame after the final championship", async () => {
+    const { game, ui } = await loadedWorld();
+    const goal = () =>
+      within(ui.getByRole("region", { name: "Ближайшая цель" }));
+    act(() =>
+      store.act((current) => {
+        current.save.hero.highestArena = 1;
+        current.save.tournamentRegistrations[ARENAS[0].id] =
+          current.save.worldDay;
+      }),
+    );
+    expect(goal().getByRole("heading").textContent).toContain(
+      `${ARENAS[0].name} — сегодня`,
+    );
+    fireEvent.click(goal().getByRole("button", { name: "К событию" }));
+    expect(store.getSnapshot().navigation?.anchor).toBe("tournaments-section");
+    act(() =>
+      store.act((current) => {
+        current.save.tournamentRegistrations = {};
+        current.save.hero.highestArena = ARENAS.length - 1;
+        current.save.hero.arenaWins[ARENAS.length - 1] = 1;
+      }),
+    );
+    expect(goal().getByRole("heading").textContent).toBe(
+      "Путь к вершине элиты",
+    );
+    fireEvent.click(goal().getByRole("button", { name: "К борьбе за Корону" }));
+    expect(store.getSnapshot().navigation?.anchor).toBe("endgame-section");
+    act(() =>
+      store.act((current) => {
+        current.save.hero.crownLeagueWins = 1;
+        current.save.hero.legendDefenses = 1;
+        current.save.eliteLeagueMemberIds = ["hero"];
+      }),
+    );
+    expect(game.newGamePlusStatus().unlocked).toBe(true);
+    expect(goal().getByRole("heading").textContent).toBe(
+      "Эпоха готова к завершению",
+    );
+    fireEvent.click(goal().getByRole("button", { name: "Завершение эпохи" }));
+    expect(
+      store
+        .getSnapshot()
+        .dialogs.some((dialog) => dialog.kind === "new-chronicle"),
+    ).toBe(true);
+    await ui.findByRole("dialog", { name: "Начать новую летопись" });
+  });
+
   test("creates a hero through the real mode chooser, skips onboarding and reloads the saved campaign", async () => {
     const ui = application();
     expect(ui.getByRole("heading", { name: "Выберите режим" })).toBeTruthy();

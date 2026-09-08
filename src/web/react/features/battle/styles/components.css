@@ -1,5 +1,206 @@
 @import "./dungeon.css";
 
+.battle-briefing {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 24px;
+  padding: 20px 24px;
+  border-block: 1px solid var(--line);
+  background: var(--paper-light);
+}
+.battle-briefing h3 {
+  margin: 5px 0 8px;
+}
+.battle-briefing p {
+  font-size: 13px;
+  line-height: 1.55;
+}
+.battle-briefing .battle-stakes {
+  margin-top: 10px;
+  font-weight: 600;
+}
+.battle-comparison {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.battle-comparison caption {
+  text-align: left;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.battle-comparison th,
+.battle-comparison td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.battle-comparison th:first-child {
+  text-align: left;
+}
+.battle-comparison thead th {
+  font-size: 12px;
+  color: var(--muted);
+}
+.battle-comparison td:nth-child(2) {
+  background: #e2e8dc;
+  color: #314638;
+  font-weight: 600;
+}
+.battle-reward-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+.battle-reward-strip > div {
+  min-width: 95px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  background: var(--paper-light);
+}
+.battle-reward-strip dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+.battle-reward-strip dd {
+  margin: 4px 0 0;
+  font-size: 24px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.battle-reward-strip .battle-level-up {
+  background: #ece1bc;
+  border-color: #a88841;
+}
+.react-battle-dialog .battle-verdict {
+  padding: 12px 14px;
+  border-left: 3px solid var(--green);
+  background: #e4e8dc;
+  color: #334338;
+}
+.react-battle-dialog .combatant {
+  position: relative;
+}
+.react-battle-dialog .combatant.low-health {
+  border-color: #a24838;
+}
+.battle-health-warning {
+  color: #8b352c;
+  font-size: 11px;
+}
+.react-battle-dialog .combatant.low-health .battle-health i {
+  background: #a24838;
+}
+.battle-resource-meter {
+  height: 5px;
+  overflow: hidden;
+  background: #c9c1b2;
+}
+.battle-resource-meter i {
+  display: block;
+  height: 100%;
+  background: #73582f;
+  transition: width 240ms ease;
+}
+.battle-impact {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+  pointer-events: none;
+  animation: battle-impact-float 850ms ease-out forwards;
+}
+.battle-impact span {
+  padding: 3px 6px;
+  background: var(--paper-light);
+  box-shadow: 1px 2px 0 rgb(52 46 37 / 20%);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.impact-damage {
+  color: #963a30;
+}
+.impact-critical {
+  color: #8b3b14;
+  border: 1px solid #aa6d29;
+}
+.impact-heal {
+  color: #335f41;
+}
+.battle-victory h3 {
+  color: #bad7b0;
+}
+.battle-defeat h3 {
+  color: #efb0a5;
+}
+.battle-pressure {
+  margin: 0;
+  padding: 12px 24px;
+  border-block: 1px solid #c1a878;
+  background: #eadcbf;
+  color: #634720;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.battle-pressure span {
+  display: block;
+}
+.battle-recommendation {
+  margin: 0;
+  padding: 12px 24px;
+  border-top: 1px solid var(--line);
+  background: #e3e8dc;
+  color: #354c3b;
+  font-size: 13px;
+  line-height: 1.5;
+}
+@keyframes battle-impact-float {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.85);
+  }
+  18% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-22px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .battle-impact {
+    animation: none;
+    display: none;
+  }
+  .battle-resource-meter i {
+    transition: none;
+  }
+}
+@media (max-width: 700px) {
+  .battle-briefing {
+    grid-template-columns: 1fr;
+    padding: 14px;
+    gap: 12px;
+  }
+  .battle-impact span {
+    font-size: 19px;
+  }
+  .battle-comparison th,
+  .battle-comparison td {
+    padding: 6px;
+  }
+}
+
 .react-battle-dialog .react-modal-paper {
   width: min(1120px, calc(100vw - 32px));
   height: auto;
@@ -220,6 +421,7 @@
 }
 
 .react-battle-dialog .battle-controls label {
+  color: #dbcdb5;
   font:
     13px/1.4 "Inter",
     sans-serif;

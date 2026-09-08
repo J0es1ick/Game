@@ -36,9 +36,12 @@ export function CombatantCard({
     return () => window.clearTimeout(timer);
   }, [fighter.id, turn]);
   const health = Math.max(0, Math.ceil(fighter.health));
+  const lowHealth = health > 0 && health / fighter.maxHealth <= 0.3;
+  const damage = turn?.targetId === fighter.id ? turn.damage : 0;
+  const healing = turn?.actorId === fighter.id ? turn.healing : 0;
   return (
     <article
-      className={`combatant ${side}-combatant ${motion}`}
+      className={`combatant ${side}-combatant ${motion}${lowHealth ? " low-health" : ""}`}
       id={`battle-${side}`}
     >
       <span className="combatant-role">
@@ -65,12 +68,46 @@ export function CombatantCard({
       </div>
       <strong>
         {health} / {fighter.maxHealth} HP
+        {lowHealth && (
+          <span className="battle-health-warning"> · Мало здоровья</span>
+        )}
       </strong>
+      {turn && (damage > 0 || healing > 0) && (
+        <div
+          className="battle-impact"
+          key={`${turn.turn}-${turn.actorId}`}
+          aria-hidden="true"
+        >
+          {damage > 0 && (
+            <span
+              className={turn.critical ? "impact-critical" : "impact-damage"}
+            >
+              −{damage}
+              {turn.critical ? "!" : ""}
+            </span>
+          )}
+          {healing > 0 && <span className="impact-heal">+{healing}</span>}
+        </div>
+      )}
       <div className="battle-runtime">
         <span title="Классовый ресурс накапливается в бою и срабатывает при заполнении шкалы.">
           {fighter.resource.name}: {fighter.resource.current}/
           {fighter.resource.maximum}
         </span>
+        <div
+          className="battle-resource-meter"
+          role="progressbar"
+          aria-label={`${fighter.resource.name}: ${fighter.name}`}
+          aria-valuemin={0}
+          aria-valuemax={fighter.resource.maximum}
+          aria-valuenow={fighter.resource.current}
+        >
+          <i
+            style={{
+              width: `${Math.min(100, (100 * fighter.resource.current) / Math.max(1, fighter.resource.maximum))}%`,
+            }}
+          />
+        </div>
         <span
           title={
             fighter.statuses

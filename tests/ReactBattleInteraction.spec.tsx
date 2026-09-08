@@ -11,7 +11,10 @@ import { gameAudio } from "../src/web/react/app/audio/GameAudio";
 
 jest.mock("../src/web/react/features/battle/styles/components.css", () => ({}));
 jest.mock("../src/web/react/features/basic/styles/components.css", () => ({}));
-jest.mock("../src/web/react/features/equipment/styles/components.css", () => ({}));
+jest.mock(
+  "../src/web/react/features/equipment/styles/components.css",
+  () => ({}),
+);
 jest.mock("../src/web/react/app/Notifications/Notifications.css", () => ({}));
 
 class MemoryStorage {
@@ -108,6 +111,7 @@ describe("interactive React battle screens", () => {
       </GameProvider>,
     );
     const fighter = document.getElementById("battle-hero");
+    fireEvent.click(ui.getByRole("button", { name: "Начать бой" }));
     fireEvent.click(ui.getByRole("button", { name: "Обычная атака" }));
     expect(step).toHaveBeenCalledWith({ type: "basic" });
     expect(store.checkpoint).toHaveBeenCalledTimes(1);
@@ -127,9 +131,21 @@ describe("interactive React battle screens", () => {
       </GameProvider>,
     );
     act(() => {
+      jest.advanceTimersByTime(5000);
+    });
+    expect(step).not.toHaveBeenCalled();
+    fireEvent.click(ui.getByRole("button", { name: "Начать бой" }));
+    act(() => {
       jest.advanceTimersByTime(450);
     });
     expect(step).toHaveBeenCalledTimes(1);
+    fireEvent.click(ui.getByRole("button", { name: "Пауза" }));
+    const pausedSave = JSON.stringify(game.save);
+    act(() => {
+      jest.advanceTimersByTime(5000);
+    });
+    expect(JSON.stringify(game.save)).toBe(pausedSave);
+    fireEvent.click(ui.getByRole("button", { name: "Продолжить бой" }));
     ui.unmount();
     act(() => {
       jest.advanceTimersByTime(10_000);

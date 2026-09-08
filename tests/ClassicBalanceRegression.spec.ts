@@ -189,6 +189,42 @@ describe("classic campaign balance regressions", () => {
     expect(session.step().skillId).toBeUndefined();
   });
 
+  test("a tactical recommendation accounts for bleeding before the action without changing the battle", () => {
+    const hero = {
+      ...fighter("Swordsman"),
+      health: 101,
+      maxHealth: 200,
+      speed: 100,
+      crit: 0,
+      skills: ["measured-strike"],
+    };
+    const enemy = {
+      ...fighter("Knight"),
+      health: 9000,
+      maxHealth: 9000,
+      speed: 1,
+      attack: 1,
+      skills: [],
+    };
+    const snapshot = new BattleSession(hero, enemy, {
+      randomSource: new SeededRandom(77),
+    }).snapshot();
+    snapshot.hero.statuses.push({
+      id: "bleeding",
+      name: "Кровотечение",
+      description: "",
+      duration: 2,
+      stacks: 1,
+    });
+    const session = new BattleSession(snapshot);
+    const before = session.snapshot();
+    expect(
+      session.availableActions().find((action) => action.recommended)?.id,
+    ).toBe("basic");
+    expect(session.snapshot()).toEqual(before);
+    expect(session.step().skillId).toBeUndefined();
+  });
+
   test("retreat during an expedition battle rejects without changing the save", () => {
     const game = WorldGame.create("Delver", "Knight", 10_006);
     game.save.hero.level = 40;

@@ -1436,12 +1436,20 @@ export class BattleSession {
     if (this.isFinished) return [];
     const actor = this.nextActor;
     const target = actor.id === this.hero.id ? this.enemy : this.hero;
-    const ready = SKILLS.filter(
-      (skill) =>
-        actor.skills.includes(skill.id) &&
-        Math.max(0, (actor.cooldowns[skill.id] ?? 0) - 1) === 0,
-    );
-    const decision = skillDecision(ready, actor, target);
+    // Recommendations use the same start-of-turn state as automatic combat.
+    // Work on a copy so viewing actions never consumes health, effects or RNG.
+    const preview = runtimeFromBattleSnapshot(battleRuntimeSnapshot(actor));
+    cooldownTick(preview);
+    this.effects.beginTurn(preview);
+    const ready = readySkills(preview);
+    const decision: TacticalDecision =
+      preview.health > 0
+        ? skillDecision(ready, preview, target)
+        : {
+            score: 0,
+            reason: "Состояния исчерпают здоровье в начале хода.",
+            considered: [],
+          };
     return [
       {
         id: "basic",

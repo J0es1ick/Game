@@ -157,3 +157,64 @@ test("hero, battle, saved reload and touch-readable tournament rules", async ({
   }
   expect(errors).toEqual([]);
 });
+
+test("battle preparation, pause and reload preserve the fight until the player continues", async ({
+  page,
+}) => {
+  await createHero(page);
+  await page
+    .getByRole("button", { name: "Начать дуэль", exact: true })
+    .first()
+    .click();
+  const battle = page.getByRole("dialog");
+  await expect(
+    battle.getByRole("heading", { name: "Оцените соперника" }),
+  ).toBeVisible();
+  await expect(
+    battle.getByRole("table", { name: "Характеристики участников" }),
+  ).toBeVisible();
+  await expect(battle.getByText("ХОД 0", { exact: true })).toBeVisible();
+  await noOverflow(page);
+  await accessible(page);
+  await expect(battle.getByText("ХОД 0", { exact: true })).toBeVisible();
+  await battle
+    .getByRole("combobox", { name: "Скорость боя" })
+    .selectOption("900");
+  await battle.getByRole("button", { name: "Начать бой", exact: true }).click();
+  await expect(battle.getByText("ХОД 1", { exact: true })).toBeVisible();
+  await battle.getByRole("button", { name: "Пауза", exact: true }).click();
+  const progress = await battle.locator(".battle-action > span").innerText();
+  const readMeters = () =>
+    battle
+      .getByRole("progressbar")
+      .evaluateAll((elements) =>
+        elements.map((element) => [
+          element.getAttribute("aria-label"),
+          element.getAttribute("aria-valuenow"),
+        ]),
+      );
+  const health = await readMeters();
+  await page.reload();
+  await expect(
+    battle.getByRole("button", { name: "Продолжить бой", exact: true }),
+  ).toBeVisible();
+  await expect(battle.locator(".battle-action > span")).toHaveText(progress);
+  expect(await readMeters()).toEqual(health);
+  await battle
+    .getByRole("button", { name: "Пропустить бой", exact: true })
+    .click();
+  await expect(battle.locator(".battle-reward-strip")).toBeVisible();
+  await noOverflow(page);
+  await accessible(page);
+  await battle
+    .getByRole("button", { name: "Продолжить игру", exact: true })
+    .click();
+  await expect(battle).toBeHidden();
+  const day = page
+    .getByText("День мира", { exact: true })
+    .locator("..")
+    .getByRole("definition");
+  await expect(day).toHaveText("2");
+  await page.reload();
+  await expect(day).toHaveText("2");
+});
