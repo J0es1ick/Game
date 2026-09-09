@@ -28,7 +28,7 @@
 }
 .basic-header .plain-button {
   flex: 0 0 auto;
-  border-color: #736b5c;
+  border-color: var(--border-muted, #736b5c);
   color: var(--ink);
 }
 .basic-head-actions {
@@ -55,7 +55,7 @@
   position: relative;
   min-width: 0;
   padding: 15px 17px;
-  border-right: 1px solid #aaa08d;
+  border-right: 1px solid var(--border-muted, #aaa08d);
 }
 .basic-patterns article:last-child {
   border: 0;
@@ -66,7 +66,7 @@
   display: block;
 }
 .basic-patterns b {
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font:
     10px "Courier New",
     monospace;
@@ -104,7 +104,7 @@
   justify-content: space-between;
   gap: 15px;
   padding-bottom: 13px;
-  border-bottom: 1px solid #aaa08d;
+  border-bottom: 1px solid var(--border-muted, #aaa08d);
 }
 .basic-roster h2,
 .basic-arena-board h2,
@@ -114,7 +114,7 @@
 }
 .basic-roster > header span,
 #basic-match {
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font:
     700 11px "Courier New",
     monospace;
@@ -142,7 +142,7 @@
 .basic-control-deck select {
   min-height: 38px;
   padding: 7px 9px;
-  border: 1px solid #a09888;
+  border: 1px solid var(--border-muted, #a09888);
   background: var(--paper-light);
 }
 .icon-button {
@@ -154,8 +154,8 @@
   display: grid;
   max-height: 365px;
   overflow-y: auto;
-  border: 1px solid #aaa08d;
-  background: #dcd4c5;
+  border: 1px solid var(--border-muted, #aaa08d);
+  background: var(--surface-base, #dcd4c5);
   padding: 6px;
 }
 .basic-roster-row {
@@ -163,8 +163,8 @@
   grid-template-columns: 1fr auto;
   gap: 4px 10px;
   padding: 10px;
-  border-bottom: 1px dotted #b4aa98;
-  background: #eee8dc;
+  border-bottom: 1px dotted var(--border-muted, #b4aa98);
+  background: var(--surface-raised, #eee8dc);
   font-size: 11px;
 }
 .basic-roster-row + .basic-roster-row {
@@ -175,20 +175,20 @@
 }
 .basic-roster-row code {
   grid-column: 1 / -1;
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font-size: 11px;
 }
 .basic-roster-row.active {
   border-left: 4px solid var(--green);
 }
 .basic-roster-row.eliminated {
-  color: #999185;
+  color: var(--text-soft, #999185);
   text-decoration: line-through;
   opacity: 0.56;
 }
 .basic-builder {
   margin-top: 14px;
-  border-top: 1px solid #aaa08d;
+  border-top: 1px solid var(--border-muted, #aaa08d);
 }
 .basic-builder summary {
   display: flex;
@@ -217,7 +217,7 @@
   gap: 6px;
   margin: 2px 0;
   padding: 10px;
-  border: 1px solid #aaa08d;
+  border: 1px solid var(--border-muted, #aaa08d);
 }
 .basic-builder fieldset label {
   display: flex;
@@ -228,7 +228,7 @@
 .basic-builder p {
   min-height: 16px;
   margin: 0;
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font-size: 12px;
 }
 .basic-versus {
@@ -242,12 +242,12 @@
 .basic-versus article {
   min-width: 0;
   padding: 22px;
-  border: 1px solid #9e9481;
-  background: #e8e1d3;
+  border: 1px solid var(--border-muted, #9e9481);
+  background: var(--surface-base, #e8e1d3);
   box-shadow: 5px 5px 0 rgba(57, 51, 42, 0.14);
 }
 .basic-versus article small {
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font:
     11px "Courier New",
     monospace;
@@ -271,15 +271,15 @@
     monospace;
 }
 .basic-versus > b {
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font:
     italic 26px Georgia,
     serif;
 }
 .basic-health {
   height: 12px;
-  border: 1px solid #8f8574;
-  background: #c9c0af;
+  border: 1px solid var(--border-muted, #8f8574);
+  background: var(--surface-inset, #c9c0af);
 }
 .basic-health i {
   display: block;
@@ -294,7 +294,7 @@
   align-items: end;
   gap: 9px;
   padding-top: 15px;
-  border-top: 1px solid #aaa08d;
+  border-top: 1px solid var(--border-muted, #aaa08d);
 }
 .basic-speed {
   grid-column: 1 / -1;
@@ -312,8 +312,8 @@
 .basic-factory-trace {
   margin: 16px 0;
   padding: 14px;
-  border: 1px solid #768469;
-  background: #cad8b9;
+  border: 1px solid var(--border-muted, #768469);
+  background: var(--surface-base, #cad8b9);
   font-family: "Courier New", monospace;
 }
 .basic-factory-trace small,
@@ -345,7 +345,7 @@
 }
 #basic-trace li {
   padding: 10px 12px;
-  border: 1px solid #aaa08d;
+  border: 1px solid var(--border-muted, #aaa08d);
   border-left: 4px solid var(--red);
   background: var(--paper-light);
 }
@@ -369,7 +369,7 @@
 }
 #basic-trace code {
   margin: 5px 0;
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font-size: 12px;
 }
 #basic-trace span {
@@ -382,7 +382,7 @@
   gap: 7px;
   margin-top: 16px;
   padding-top: 13px;
-  border-top: 1px solid #aaa08d;
+  border-top: 1px solid var(--border-muted, #aaa08d);
   color: var(--muted);
   font:
     11px "Courier New",
@@ -413,7 +413,7 @@
 }
 .basic-class-manual > header {
   padding-bottom: 14px;
-  border-bottom: 1px solid #aaa08d;
+  border-bottom: 1px solid var(--border-muted, #aaa08d);
 }
 .basic-class-manual h2 {
   margin: 0;
@@ -426,12 +426,12 @@
 }
 #basic-class-manual article {
   padding: 14px;
-  border: 1px solid #aaa08d;
+  border: 1px solid var(--border-muted, #aaa08d);
   background: var(--paper-light);
 }
 #basic-class-manual small,
 #basic-class-manual code {
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font:
     11px "Courier New",
     monospace;
@@ -443,8 +443,8 @@
 #basic-class-manual code {
   display: block;
   padding: 6px;
-  border: 1px solid #c4bbab;
-  background: #e3dccf;
+  border: 1px solid var(--border-muted, #c4bbab);
+  background: var(--surface-base, #e3dccf);
 }
 #basic-class-manual p {
   margin: 9px 0 0;
@@ -453,7 +453,7 @@
   line-height: 1.5;
 }
 .basic-chronicle .plain-button {
-  border-color: #736b5c;
+  border-color: var(--border-muted, #736b5c);
   color: var(--ink);
 }
 .basic-log {
@@ -462,8 +462,8 @@
   max-height: 270px;
   overflow-y: auto;
   margin-top: 15px;
-  border: 1px solid #768469;
-  background: #cad8b9;
+  border: 1px solid var(--border-muted, #768469);
+  background: var(--surface-base, #cad8b9);
   padding: 8px 13px;
 }
 .basic-log p {
@@ -472,20 +472,20 @@
   gap: 8px;
   margin: 0;
   padding: 8px 9px 8px 0;
-  border-bottom: 1px dotted #94a386;
-  color: #42523b;
+  border-bottom: 1px dotted var(--border-muted, #94a386);
+  color: var(--text-soft, #42523b);
   font:
     9px/1.4 "Courier New",
     monospace;
 }
 .basic-log p:nth-child(even) {
   padding-left: 10px;
-  border-left: 1px dotted #94a386;
+  border-left: 1px dotted var(--border-muted, #94a386);
 }
 .basic-log time {
   opacity: 0.65;
 }
 .basic-log p.result {
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font-weight: bold;
 }

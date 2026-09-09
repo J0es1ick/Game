@@ -12,7 +12,7 @@
 .save-recovery-card {
   width: min(620px, 100%);
   padding: clamp(24px, 5vw, 48px);
-  border: 1px solid #756b59;
+  border: 1px solid var(--border-muted, #756b59);
   border-top: 6px solid var(--red);
   background: var(--paper);
   box-shadow: 12px 14px 0 rgba(0, 0, 0, 0.28);
@@ -32,7 +32,7 @@
 .save-recovery-note {
   padding: 12px 14px;
   border-left: 4px solid var(--yellow);
-  background: #ded5c4;
+  background: var(--surface-base, #ded5c4);
 }
 
 .save-recovery-actions {

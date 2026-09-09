@@ -52,8 +52,8 @@
 
 .next-goal.goal-urgent {
   border-left-color: #997137;
-  background: #eee3c9;
+  background: var(--paper-light);
 }
 .next-goal.goal-urgent .eyebrow {
-  color: #735125;
+  color: var(--muted);
 }

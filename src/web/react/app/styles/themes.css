@@ -1,0 +1,75 @@
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #e9e2d3;
+  --muted: #beb5a5;
+  --paper: #26241f;
+  --paper-light: #2f2c26;
+  --paper-dark: #211f1b;
+  --line: #5d564a;
+  --shell: #161511;
+  --shell-light: #24211c;
+  --shadow: rgb(0 0 0 / 35%);
+  --text-strong: #e9e2d3;
+  --text-soft: #beb5a5;
+  --text-danger: #e4a090;
+  --text-positive: #b0c49e;
+  --text-info: #a0c4ce;
+  --text-warm: #d9bf8c;
+  --text-violet: #bba4ca;
+  --surface-raised: #302d27;
+  --surface-base: #292720;
+  --surface-inset: #211f1b;
+  --surface-danger: #3c2a24;
+  --surface-positive: #283028;
+  --surface-info: #273035;
+  --surface-warm: #383021;
+  --border-muted: #5d564a;
+  --surface-hover: #38342d;
+  --surface-emblem: #353129;
+  --panel-rim: rgb(213 198 171 / 5%);
+  --relic-glow: rgb(79 137 132 / 9%);
+  --offset-shadow: #171611;
+  --select-arrow: #beb5a5;
+}
+
+:root[data-theme="dark"] {
+  scrollbar-color: #686052 #24221d;
+}
+:root[data-theme="dark"] .main-nav button.active::after {
+  background: #ceab77;
+}
+:root[data-theme="dark"] :is(.equipment-slot.relic, .item-card.relic) {
+  background: linear-gradient(120deg, #26312d, #302d25 60%, #28312e);
+}
+:root[data-theme="dark"] .gear-swatch.empty-slot::before {
+  border-color: var(--line);
+}
+:root[data-theme="dark"] .item-card.equipped,
+:root[data-theme="dark"] .equipment-page .item-card.equipped {
+  box-shadow: inset 3px 0 0 #839476;
+}
+
+:root[data-motion="reduced"] *,
+:root[data-motion="reduced"] *::before,
+:root[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-delay: 0ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+:root[data-motion="reduced"] .battle-impact {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

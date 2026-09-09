@@ -2,8 +2,8 @@
   margin: 12px 0 2px;
   padding: 8px 10px;
   border-left: 3px solid var(--yellow);
-  color: #4f493e;
-  background: #e4dccb;
+  color: var(--text-soft, #4f493e);
+  background: var(--surface-base, #e4dccb);
   font:
     600 11px/1.45 "Inter",
     sans-serif;
@@ -40,8 +40,8 @@
 .expedition-condition {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  border: 1px solid #a99f8c;
-  background: #dfd7c7;
+  border: 1px solid var(--border-muted, #a99f8c);
+  background: var(--surface-base, #dfd7c7);
 }
 
 .expedition-condition .stat-row {
@@ -54,7 +54,7 @@
   grid-template-columns: 1fr auto;
   gap: 7px 12px;
   padding: 10px 11px 9px;
-  border-bottom: 1px dotted #aaa08d;
+  border-bottom: 1px dotted var(--border-muted, #aaa08d);
   color: var(--muted);
   font-size: 13px;
 }
@@ -69,7 +69,7 @@
   grid-column: 1 / -1;
   height: 7px;
   overflow: hidden;
-  background: #bdb4a4;
+  background: var(--surface-inset, #bdb4a4);
 }
 .expedition-stamina-meter i {
   display: block;
@@ -95,7 +95,7 @@
   display: grid;
   min-height: 210px;
   padding: 17px;
-  border: 1px solid #a59a86;
+  border: 1px solid var(--border-muted, #a59a86);
   border-top: 5px solid var(--green);
   background: var(--paper-light);
 }
@@ -143,12 +143,12 @@
   margin: 12px 0 2px;
   padding: 10px 11px;
   border-left: 4px solid var(--faction-accent);
-  background: #dfd8c9;
+  background: var(--surface-base, #dfd8c9);
 }
 
 .activity-controller small,
 .activity-controller span {
-  color: #6d6557;
+  color: var(--text-soft, #6d6557);
   font-size: 11px;
   line-height: 1.35;
 }
@@ -187,12 +187,12 @@
   display: grid;
   gap: 6px;
   padding: 15px;
-  border: 1px solid #a79d8a;
+  border: 1px solid var(--border-muted, #a79d8a);
   border-top: 4px solid var(--faction-accent);
-  background: #ece5d7;
+  background: var(--surface-raised, #ece5d7);
 }
 .world-control-card > small {
-  color: #716959;
+  color: var(--text-soft, #716959);
   font:
     10px/1.3 "Courier New",
     monospace;
@@ -222,7 +222,7 @@
 .faction-influence-row > div {
   height: 5px;
   overflow: hidden;
-  background: #c9c0af;
+  background: var(--surface-inset, #c9c0af);
 }
 .faction-influence-row i {
   display: block;
@@ -235,7 +235,7 @@
 .faction-control-summary {
   padding: 9px 10px;
   border-left: 3px solid var(--faction-accent);
-  background: #dfd8c9;
+  background: var(--surface-base, #dfd8c9);
   font-size: 12px;
 }
 
@@ -259,8 +259,8 @@
 }
 .shop-price-index {
   padding: 9px 12px;
-  border: 1px solid #9d927f;
-  background: #ded6c7;
+  border: 1px solid var(--border-muted, #9d927f);
+  background: var(--surface-base, #ded6c7);
   white-space: nowrap;
 }
 
@@ -272,7 +272,7 @@
 .living-world-section {
   min-width: 0;
   padding: 20px;
-  border-top: 5px solid #5b6c60;
+  border-top: 5px solid var(--border-muted, #5b6c60);
 }
 .living-world-section h2 {
   margin: 5px 0 14px;
@@ -320,8 +320,8 @@
 .world-season-stats {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  border: 1px solid #aea38f;
-  background: #dfd7c8;
+  border: 1px solid var(--border-muted, #aea38f);
+  background: var(--surface-base, #dfd7c8);
 }
 .world-season-stats .stat-row {
   padding: 10px 12px;
@@ -339,7 +339,7 @@
   gap: 3px;
   padding: 11px 12px;
   border-left: 4px solid #a57a39;
-  background: #e5ddce;
+  background: var(--surface-base, #e5ddce);
 }
 .world-season-championships small {
   color: var(--muted);
@@ -366,8 +366,8 @@
   min-width: 0;
   margin: 0;
   padding: 9px 11px;
-  border: 1px solid #b5aa97;
-  color: #655e52;
+  border: 1px solid var(--border-muted, #b5aa97);
+  color: var(--text-soft, #655e52);
   font-size: 11px;
   line-height: 1.4;
 }
@@ -385,7 +385,7 @@
   min-width: 0;
   padding: 11px 12px;
   border-left: 4px solid var(--faction-accent);
-  background: #e3dccd;
+  background: var(--surface-base, #e3dccd);
 }
 .territory-ledger small {
   color: var(--muted);
@@ -449,7 +449,7 @@
   gap: 14px;
   padding: 10px 11px;
   border-left: 4px solid var(--faction-accent);
-  background: #e2dbcd;
+  background: var(--surface-base, #e2dbcd);
 }
 .living-world-list article > div {
   display: grid;
@@ -471,7 +471,7 @@
   margin-top: 7px;
   padding: 5px 0;
   border: 0;
-  color: #76551f;
+  color: var(--text-warm, #76551f);
   background: transparent;
   font-size: 12px;
   font-weight: 700;
@@ -479,7 +479,7 @@
 }
 .living-world-dossier-button:hover,
 .living-world-dossier-button:focus-visible {
-  color: #a34f3e;
+  color: var(--text-danger, #a34f3e);
 }
 .fighter-dossier-dialog .react-modal-paper {
   width: min(760px, 100%);
@@ -491,8 +491,8 @@
 }
 .fighter-dossier-summary > div {
   padding: 14px;
-  border: 1px solid #b1a793;
-  background: #e2dbcd;
+  border: 1px solid var(--border-muted, #b1a793);
+  background: var(--surface-base, #e2dbcd);
 }
 .fighter-dossier-summary span {
   display: block;
@@ -530,7 +530,7 @@
   margin: 0;
   padding: 9px 11px;
   border-left: 3px solid #a4874c;
-  background: #e8e1d4;
+  background: var(--surface-base, #e8e1d4);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -548,8 +548,8 @@
 .living-world-subsection {
   min-width: 0;
   padding: 14px;
-  border: 1px solid #b0a590;
-  background: #eee7da;
+  border: 1px solid var(--border-muted, #b0a590);
+  background: var(--surface-raised, #eee7da);
 }
 .world-dynasty-list,
 .future-boss-list {
@@ -561,8 +561,8 @@
   display: grid;
   gap: 3px;
   padding: 10px 11px;
-  border-left: 4px solid var(--faction-accent, #776e5f);
-  background: #ded7c8;
+  border-left: 4px solid var(--faction-accent, var(--border-muted, #776e5f));
+  background: var(--surface-base, #ded7c8);
 }
 .world-dynasty-list span,
 .world-dynasty-list small,
@@ -587,11 +587,11 @@
 }
 .future-boss-list article.faction-hunter {
   --faction-accent: #914c43;
-  background: #e5d2c8;
+  background: var(--surface-base, #e5d2c8);
 }
 .future-boss-list p {
   margin: 3px 0 0;
-  color: #625b50;
+  color: var(--text-soft, #625b50);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -605,18 +605,18 @@
   align-self: start;
   gap: 4px;
   padding: 12px;
-  border: 1px solid #a69a83;
+  border: 1px solid var(--border-muted, #a69a83);
   border-left: 5px solid #8a6845;
-  background: #e8dfcf;
+  background: var(--surface-base, #e8dfcf);
 }
 .world-relic-entry.lost {
-  border-left-color: #6f6a61;
+  border-left-color: var(--border-muted, #6f6a61);
 }
 .world-relic-entry.shop {
   border-left-color: #a8813f;
 }
 .world-relic-entry small {
-  color: #796344;
+  color: var(--text-warm, #796344);
   font:
     11px/1.35 "Courier New",
     monospace;
@@ -632,8 +632,12 @@
   padding: 8px 10px;
   border: 1px solid #68a3a4;
   border-left: 4px solid #2f7d80;
-  color: #225f61;
-  background: linear-gradient(90deg, #d2e5df, #eee3c8);
+  color: var(--text-info, #225f61);
+  background: linear-gradient(
+    90deg,
+    var(--surface-base, #d2e5df),
+    var(--surface-raised, #eee3c8)
+  );
   font:
     11px/1.35 "Courier New",
     monospace;
@@ -642,7 +646,7 @@
 .rivalry-last-activity {
   display: block;
   margin-top: 4px;
-  color: #6b6254;
+  color: var(--text-soft, #6b6254);
   font-size: 12px;
 }
 .fighter-world-badge {
@@ -650,8 +654,12 @@
   margin-left: 8px;
   padding: 2px 5px;
   border: 1px solid var(--faction-accent);
-  color: #50493e;
-  background: color-mix(in srgb, var(--faction-accent) 15%, #eee7da);
+  color: var(--text-soft, #50493e);
+  background: color-mix(
+    in srgb,
+    var(--faction-accent) 15%,
+    var(--surface-raised, #eee7da)
+  );
   font:
     9px/1.2 "Courier New",
     monospace;
@@ -679,7 +687,7 @@
   scroll-snap-align: start;
 }
 .expedition-route-column > small {
-  color: #746b5c;
+  color: var(--text-soft, #746b5c);
   font:
     11px/1.3 "Courier New",
     monospace;
@@ -691,18 +699,18 @@
   align-content: start;
   gap: 7px;
   padding: 14px;
-  border: 1px solid #9d927f;
-  border-top: 4px solid #817765;
-  background: #e9e2d4;
+  border: 1px solid var(--border-muted, #9d927f);
+  border-top: 4px solid var(--border-muted, #817765);
+  background: var(--surface-base, #e9e2d4);
 }
 .expedition-route-node.reachable {
-  border-top-color: #55705d;
-  background: #f4eee2;
+  border-top-color: var(--border-muted, #55705d);
+  background: var(--surface-raised, #f4eee2);
   box-shadow: 4px 4px 0 rgba(66, 60, 48, 0.13);
 }
 .expedition-route-node.visited {
   border-top-color: #b78a3e;
-  background: #ddd5c5;
+  background: var(--surface-base, #ddd5c5);
 }
 .expedition-route-node.current {
   outline: 2px solid #9d7140;
@@ -722,7 +730,7 @@
   border-top-color: #b78a3e;
 }
 .expedition-route-node small {
-  color: #756b5c;
+  color: var(--text-soft, #756b5c);
   font:
     10px/1.35 "Courier New",
     monospace;
@@ -740,7 +748,7 @@
 }
 .expedition-route-node > span {
   margin-top: auto;
-  color: #6c5d3d;
+  color: var(--text-warm, #6c5d3d);
   font-size: 12px;
 }
 .expedition-route-node .button {
@@ -749,7 +757,7 @@
 }
 .expedition-node-state {
   margin-top: auto;
-  color: #716858;
+  color: var(--text-soft, #716858);
   font:
     11px/1.3 "Courier New",
     monospace;
@@ -757,9 +765,9 @@
 }
 .expedition-shrine-choice {
   padding: 18px;
-  border: 1px solid #76657d;
+  border: 1px solid var(--border-muted, #76657d);
   border-left: 5px solid #745b84;
-  background: #ded6df;
+  background: var(--surface-base, #ded6df);
 }
 .expedition-shrine-choice h4 {
   margin: 5px 0 7px;
@@ -777,9 +785,9 @@
   display: grid;
   gap: 6px;
   padding: 15px;
-  border: 1px solid #8d8174;
+  border: 1px solid var(--border-muted, #8d8174);
   text-align: left;
-  background: #f0e8db;
+  background: var(--surface-raised, #f0e8db);
 }
 .expedition-shrine-option strong {
   font-size: 17px;
@@ -796,16 +804,16 @@
     monospace;
 }
 .expedition-shrine-option span.positive {
-  color: #47664f;
+  color: var(--text-positive, #47664f);
 }
 .expedition-shrine-option span.negative {
-  color: #994c42;
+  color: var(--text-danger, #994c42);
 }
 .expedition-merchant-choice {
   padding: 18px;
   border: 1px solid #8d754d;
   border-left: 5px solid #9a754b;
-  background: #e4d8c2;
+  background: var(--surface-base, #e4d8c2);
 }
 .expedition-merchant-choice h4 {
   margin: 5px 0 7px;
@@ -826,9 +834,9 @@
   gap: 6px;
   min-height: 118px;
   padding: 14px;
-  border: 1px solid #958772;
+  border: 1px solid var(--border-muted, #958772);
   text-align: left;
-  background: #f0e8da;
+  background: var(--surface-raised, #f0e8da);
 }
 .expedition-merchant-option:hover:not(:disabled) {
   color: #f4eddf;
@@ -861,7 +869,7 @@
 .battle-analysis {
   margin-top: 13px;
   padding: 11px;
-  border: 1px solid #777061;
+  border: 1px solid var(--border-muted, #777061);
   background: #2d2923;
 }
 .battle-analysis-heading small {
@@ -890,7 +898,7 @@
   display: grid;
   gap: 4px;
   padding: 9px 10px;
-  border-left: 4px solid #879b83;
+  border-left: 4px solid var(--border-muted, #879b83);
   background: #403a31;
 }
 .battle-analysis-fighters strong {
@@ -939,7 +947,7 @@
   margin-bottom: 16px;
   padding: 20px 22px;
   border-left: 6px solid #9b7343;
-  background: #e8dfcf;
+  background: var(--surface-base, #e8dfcf);
 }
 .legacy-layout .loot-target-workshop {
   margin-bottom: 0;
@@ -962,7 +970,7 @@
 .loot-target-controls label {
   display: grid;
   gap: 6px;
-  color: #6c6354;
+  color: var(--text-soft, #6c6354);
   font:
     11px/1.3 "Courier New",
     monospace;
@@ -983,8 +991,8 @@
 }
 .loot-target-status {
   display: grid;
-  border: 1px solid #b2a791;
-  background: #ded5c4;
+  border: 1px solid var(--border-muted, #b2a791);
+  background: var(--surface-base, #ded5c4);
 }
 .loot-target-status .stat-row {
   padding: 8px 10px;
@@ -992,19 +1000,19 @@
 .loot-target-best-set {
   margin: 0;
   padding: 10px;
-  border-top: 1px dotted #aaa08d;
-  color: #526a58;
+  border-top: 1px dotted var(--border-muted, #aaa08d);
+  color: var(--text-soft, #526a58);
   font-size: 11px;
   line-height: 1.45;
 }
 
 .reforge-control {
   grid-column: 1 / -1;
-  border-top: 1px solid #b7ad9b;
+  border-top: 1px solid var(--border-muted, #b7ad9b);
 }
 .reforge-control > summary {
   padding: 9px 2px 3px;
-  color: #6b5841;
+  color: var(--text-warm, #6b5841);
   cursor: pointer;
   font-size: 13px;
   font-weight: 750;
@@ -1018,7 +1026,7 @@
 .reforge-control-body label {
   display: grid;
   gap: 4px;
-  color: #756b5b;
+  color: var(--text-soft, #756b5b);
   font-size: 11px;
 }
 .reforge-control-body select {
@@ -1029,7 +1037,7 @@
 .reforge-price {
   align-self: center;
   margin: 0;
-  color: #695d4a;
+  color: var(--text-warm, #695d4a);
   font:
     11px/1.35 "Courier New",
     monospace;
@@ -1050,7 +1058,7 @@
   align-items: center;
   padding: 20px;
   border-left: 6px solid #a77c36;
-  background: #eee3cc;
+  background: var(--surface-raised, #eee3cc);
 }
 .crown-season-copy h3 {
   margin: 5px 0 7px;
@@ -1065,8 +1073,8 @@
 .crown-season-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  border: 1px solid #b2a58d;
-  background: #dfd3bc;
+  border: 1px solid var(--border-muted, #b2a58d);
+  background: var(--surface-base, #dfd3bc);
 }
 .crown-season-summary .stat-row {
   padding: 8px 10px;
@@ -1084,7 +1092,7 @@
   gap: 2px;
   padding: 8px 10px;
   border-left: 3px solid #a77c36;
-  background: #e1d6c1;
+  background: var(--surface-base, #e1d6c1);
 }
 .crown-season-rules b {
   font-size: 12px;
@@ -1100,7 +1108,7 @@
   gap: 7px;
   margin-top: 18px;
   padding-top: 15px;
-  border-top: 1px solid #aaa08d;
+  border-top: 1px solid var(--border-muted, #aaa08d);
 }
 
 .fighter-feature-list > strong {
@@ -1109,11 +1117,11 @@
 .fighter-feature-list > div {
   padding: 9px;
   border-left: 3px solid var(--green);
-  background: #ded6c7;
+  background: var(--surface-base, #ded6c7);
 }
 .fighter-feature-list > div.injury {
   border-left-color: var(--red);
-  background: #e5d1c6;
+  background: var(--surface-base, #e5d1c6);
 }
 .fighter-feature-list small,
 .fighter-feature-list b,
@@ -1140,7 +1148,7 @@
   display: grid;
   gap: 6px;
   padding-top: 10px;
-  border-top: 1px solid #aaa08d;
+  border-top: 1px solid var(--border-muted, #aaa08d);
 }
 
 .tactical-profile-picker select {
@@ -1165,8 +1173,8 @@
   width: min(520px, 100%);
   height: 10px;
   margin: 16px 0 7px;
-  border: 1px solid #9f9581;
-  background: #d4ccbc;
+  border: 1px solid var(--border-muted, #9f9581);
+  background: var(--surface-base, #d4ccbc);
 }
 .contract-progress i {
   display: block;
@@ -1193,7 +1201,7 @@
 .reputation-tier-list {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  border: 1px solid #b5ab98;
+  border: 1px solid var(--border-muted, #b5ab98);
 }
 .reputation-tier-list article {
   display: grid;
@@ -1201,8 +1209,8 @@
   gap: 5px;
   min-height: 96px;
   padding: 12px;
-  border-left: 1px solid #b5ab98;
-  background: #e5ddcd;
+  border-left: 1px solid var(--border-muted, #b5ab98);
+  background: var(--surface-base, #e5ddcd);
 }
 .reputation-tier-list article:first-child {
   border-left: 0;
@@ -1211,7 +1219,7 @@
   box-shadow: inset 0 4px 0 var(--green);
 }
 .reputation-tier-list small {
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font:
     9px "Courier New",
     monospace;
@@ -1221,7 +1229,7 @@
   font-size: 14px;
 }
 .reputation-tier-list span {
-  color: #526b58;
+  color: var(--text-soft, #526b58);
   font:
     700 10px/1.4 "Courier New",
     monospace;
@@ -1230,8 +1238,8 @@
   min-height: 0 !important;
   margin: 10px 0 0;
   padding-top: 9px;
-  border-top: 1px dotted #aaa08d;
-  color: #526b58 !important;
+  border-top: 1px dotted var(--border-muted, #aaa08d);
+  color: var(--text-soft, #526b58) !important;
   font-size: 11px;
 }
 .faction-perk-list {
@@ -1239,7 +1247,7 @@
   gap: 6px;
   margin-top: 13px;
   padding-top: 11px;
-  border-top: 1px solid #c1b6a3;
+  border-top: 1px solid var(--border-muted, #c1b6a3);
 }
 .faction-perk-list > strong {
   font-size: 13px;
@@ -1249,11 +1257,11 @@
   grid-template-columns: 85px minmax(0, 1fr);
   gap: 2px 8px;
   padding: 8px;
-  background: #e5ddce;
+  background: var(--surface-base, #e5ddce);
 }
 .faction-perk small {
   grid-row: 1 / span 2;
-  color: #756b5c;
+  color: var(--text-soft, #756b5c);
   font:
     10px/1.3 "Courier New",
     monospace;
@@ -1267,8 +1275,8 @@
   line-height: 1.35;
 }
 .faction-perk.unlocked {
-  border-left: 3px solid #58715d;
-  background: #dce4d7;
+  border-left: 3px solid var(--border-muted, #58715d);
+  background: var(--surface-base, #dce4d7);
 }
 .faction-perk.locked {
   opacity: 0.72;
@@ -1289,12 +1297,12 @@
   overflow: hidden;
   border: 1px solid #665d4e;
   border-top: 7px solid #8c4f42;
-  background: #e9e1d1;
+  background: var(--surface-base, #e9e1d1);
   box-shadow: 14px 16px 0 rgba(20, 17, 13, 0.34);
 }
 .narrative-dialog > header {
   padding: clamp(24px, 5vw, 48px);
-  border-bottom: 1px solid #aaa08d;
+  border-bottom: 1px solid var(--border-muted, #aaa08d);
   text-align: center;
 }
 .narrative-dialog h2 {
@@ -1323,18 +1331,18 @@
   padding: 28px;
   border: 0;
   text-align: left;
-  background: #f1eadc;
+  background: var(--surface-raised, #f1eadc);
   transform-origin: 50% 110%;
 }
 .narrative-choice:not(:disabled):hover,
 .narrative-choice:not(:disabled):focus-visible {
   z-index: 1;
-  background: #fff6e5;
+  background: var(--surface-raised, #fff6e5);
   box-shadow: inset 0 -5px 0 #9e5949;
   transform: translateY(-5px) rotate(calc((var(--choice-index) - 1) * 0.45deg));
 }
 .narrative-choice small {
-  color: #9a5144;
+  color: var(--text-danger, #9a5144);
   font:
     11px/1.3 "Courier New",
     monospace;
@@ -1354,14 +1362,14 @@
   align-self: end;
   margin-top: auto;
   padding-top: 14px;
-  border-top: 1px solid #bcb19e;
-  color: #536b59;
+  border-top: 1px solid var(--border-muted, #bcb19e);
+  color: var(--text-soft, #536b59);
   font:
     12px/1.45 "Courier New",
     monospace;
 }
 .narrative-choice:disabled .narrative-consequence {
-  color: #9c4c42;
+  color: var(--text-danger, #9c4c42);
 }
 
 .faction-card,
@@ -1378,7 +1386,7 @@
   margin: 12px 0;
   padding-left: 12px;
   border-left: 2px solid var(--faction-accent);
-  color: #574f43;
+  color: var(--text-soft, #574f43);
   font-style: italic;
 }
 .faction-card > p:not(.eyebrow),
@@ -1393,7 +1401,7 @@
 .contract-rewards {
   margin: 16px 0 12px;
   padding: 10px;
-  background: #ded6c6;
+  background: var(--surface-base, #ded6c6);
   font:
     11px/1.45 "Courier New",
     monospace;
@@ -1423,7 +1431,7 @@
   border: 1px solid #6e6556;
   border-top: 4px solid var(--faction-accent, var(--green));
   color: var(--ink);
-  background: #f1ebdf;
+  background: var(--surface-raised, #f1ebdf);
   box-shadow: 6px 7px 0 rgba(43, 37, 29, 0.22);
   opacity: 0;
   pointer-events: none;
@@ -1442,7 +1450,7 @@
   height: 13px;
   border-right: 1px solid #6e6556;
   border-bottom: 1px solid #6e6556;
-  background: #f1ebdf;
+  background: var(--surface-raised, #f1ebdf);
   content: "";
   transform: rotate(45deg) translateY(-7px);
 }
@@ -1453,7 +1461,7 @@
   display: block;
 }
 .contract-approach-tooltip small {
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font:
     9px "Courier New",
     monospace;
@@ -1465,13 +1473,13 @@
 }
 .contract-approach-tooltip p {
   margin: 0;
-  color: #5d5548;
+  color: var(--text-soft, #5d5548);
   font-size: 12px;
   line-height: 1.45;
 }
 .contract-approach-tooltip b {
   margin-top: 8px;
-  color: #526b58;
+  color: var(--text-soft, #526b58);
   font:
     700 11px/1.45 "Courier New",
     monospace;
@@ -1527,13 +1535,13 @@
   justify-content: space-between;
   gap: 16px;
   padding: 12px;
-  border: 1px solid #aaa08e;
-  border-left: 5px solid var(--rarity-accent, #8a8172);
-  background: #e2dacb;
+  border: 1px solid var(--border-muted, #aaa08e);
+  border-left: 5px solid var(--rarity-accent, var(--border-muted, #8a8172));
+  background: var(--surface-base, #e2dacb);
 }
 .relic-ready-list article.equipped {
-  border-color: #748975;
-  background: #dce3d6;
+  border-color: var(--border-muted, #748975);
+  background: var(--surface-base, #dce3d6);
   box-shadow: inset 0 0 0 1px rgba(83, 108, 86, 0.22);
 }
 .relic-ready-list article > div {
@@ -1574,7 +1582,7 @@
   line-height: 1.25;
 }
 .relic-item-kicker {
-  color: #6d6457;
+  color: var(--text-soft, #6d6457);
   font:
     11px/1.35 "Courier New",
     monospace;
@@ -1600,12 +1608,12 @@
 }
 .relic-item-status.equipped {
   margin-left: auto;
-  color: #435e49;
-  background: #edf1e8;
+  color: var(--text-soft, #435e49);
+  background: var(--surface-raised, #edf1e8);
 }
 .relic-item-status.protected {
-  color: #77564f;
-  background: #eee0db;
+  color: var(--text-danger, #77564f);
+  background: var(--surface-base, #eee0db);
 }
 .relic-path-option {
   position: relative;
@@ -1620,8 +1628,8 @@
   padding: 13px 14px;
   border: 1px solid #6e6556;
   border-top: 4px solid var(--green);
-  color: #332f28;
-  background: #f1ebdf;
+  color: var(--text-strong, #332f28);
+  background: var(--surface-raised, #f1ebdf);
   box-shadow: 6px 7px 0 rgba(43, 37, 29, 0.22);
   opacity: 0;
   pointer-events: none;
@@ -1640,7 +1648,7 @@
   height: 13px;
   border-right: 1px solid #6e6556;
   border-bottom: 1px solid #6e6556;
-  background: #f1ebdf;
+  background: var(--surface-raised, #f1ebdf);
   content: "";
   transform: rotate(45deg) translateY(-7px);
 }
@@ -1652,7 +1660,7 @@
   display: block;
 }
 .relic-path-tooltip small {
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font:
     9px "Courier New",
     monospace;
@@ -1664,13 +1672,13 @@
 }
 .relic-path-tooltip p {
   margin: 0;
-  color: #5d5548;
+  color: var(--text-soft, #5d5548);
   font-size: 12px;
   line-height: 1.45;
 }
 .relic-path-tooltip .feature-stats {
   margin-top: 8px;
-  color: #526b58;
+  color: var(--text-soft, #526b58);
   font:
     700 11px "Courier New",
     monospace;
@@ -1710,7 +1718,7 @@
 .relic-salvage {
   grid-column: 1 / -1;
   padding-top: 18px;
-  border-top: 1px solid #a99e8b;
+  border-top: 1px solid var(--border-muted, #a99e8b);
 }
 .relic-salvage-heading {
   display: flex;
@@ -1718,7 +1726,7 @@
   justify-content: space-between;
   gap: 16px;
   padding-bottom: 12px;
-  color: #453c31;
+  color: var(--text-strong, #453c31);
 }
 .relic-salvage-heading-copy {
   display: grid;
@@ -1729,7 +1737,7 @@
   font-weight: 800;
 }
 .relic-salvage-heading small {
-  color: #716858;
+  color: var(--text-soft, #716858);
   font:
     12px/1.4 "Courier New",
     monospace;
@@ -1762,10 +1770,10 @@
   align-items: center;
   gap: 11px;
   padding: 12px;
-  border: 1px solid #a79d8a;
-  border-left: 5px solid var(--rarity-accent, #898478);
-  color: #332f29;
-  background: #eee8dc;
+  border: 1px solid var(--border-muted, #a79d8a);
+  border-left: 5px solid var(--rarity-accent, var(--border-muted, #898478));
+  color: var(--text-strong, #332f29);
+  background: var(--surface-raised, #eee8dc);
   content-visibility: auto;
   contain-intrinsic-size: 108px;
   transition:
@@ -1775,24 +1783,24 @@
     transform 140ms ease;
 }
 .relic-salvage-card:hover {
-  border-color: #766d5e;
-  background: #f3ede2;
+  border-color: var(--border-muted, #766d5e);
+  background: var(--surface-raised, #f3ede2);
   transform: translateY(-1px);
 }
 .relic-salvage-card.selected {
   border-color: #8a5b3f;
-  background: #f3e7d5;
+  background: var(--surface-raised, #f3e7d5);
   box-shadow: inset 0 0 0 1px rgba(138, 91, 63, 0.24);
 }
 .relic-salvage-card.status-equipped {
-  border-color: #748975;
-  border-left-color: #536f59;
-  background: #dce3d6;
+  border-color: var(--border-muted, #748975);
+  border-left-color: var(--border-muted, #536f59);
+  background: var(--surface-base, #dce3d6);
   cursor: default;
 }
 .relic-salvage-card.status-protected {
-  border-color: #a89089;
-  background: #e8ddd8;
+  border-color: var(--border-muted, #a89089);
+  background: var(--surface-base, #e8ddd8);
   cursor: default;
 }
 .relic-salvage-card.status-equipped:hover,
@@ -1835,7 +1843,7 @@
   line-height: 1.25;
 }
 .relic-salvage-stats {
-  color: #5e574d;
+  color: var(--text-soft, #5e574d);
   font:
     12px/1.35 "Courier New",
     monospace;
@@ -1848,12 +1856,12 @@
   text-align: right;
 }
 .relic-salvage-state small {
-  color: #6f6657;
+  color: var(--text-soft, #6f6657);
   font-size: 11px;
   line-height: 1.3;
 }
 .relic-dust-yield {
-  color: #715a28;
+  color: var(--text-warm, #715a28);
   font:
     800 14px/1.2 "Courier New",
     monospace;
@@ -1861,8 +1869,8 @@
 .relic-salvage-button {
   min-width: 148px;
   min-height: 40px;
-  color: #3b342a;
-  background: #e9e2d5;
+  color: var(--text-strong, #3b342a);
+  background: var(--surface-base, #e9e2d5);
   white-space: normal;
 }
 .relic-salvage-button:hover {
@@ -1873,7 +1881,7 @@
   grid-column: 1 / -1;
   margin: 0;
   padding: 16px;
-  border: 1px solid #aaa08e;
+  border: 1px solid var(--border-muted, #aaa08e);
 }
 .forge-card-actions {
   display: grid;
@@ -1891,8 +1899,8 @@
   flex-wrap: wrap;
   gap: 7px;
   padding: 10px 18px;
-  border-top: 1px solid #9d927e;
-  background: #dcd4c4;
+  border-top: 1px solid var(--border-muted, #9d927e);
+  background: var(--surface-base, #dcd4c4);
 }
 .battle-rules[hidden] {
   display: none;
@@ -1901,17 +1909,17 @@
   display: flex;
   gap: 7px;
   padding: 7px 9px;
-  border: 1px solid #a79c88;
-  background: #eee7da;
-  color: #625b4e;
+  border: 1px solid var(--border-muted, #a79c88);
+  background: var(--surface-raised, #eee7da);
+  color: var(--text-soft, #625b4e);
   font-size: 11px;
 }
 .battle-rules b {
-  color: #833e34;
+  color: var(--text-danger, #833e34);
 }
 .rivalry-traits {
   margin-top: 3px;
-  color: #5c705d;
+  color: var(--text-soft, #5c705d);
   font-size: 11px;
 }
 
@@ -2055,7 +2063,7 @@
 }
 .relic-gift-list {
   margin-block: 2rem;
-  border-top: 1px solid var(--line, #aaa28f);
+  border-top: 1px solid var(--line, var(--border-muted, #aaa28f));
   padding-top: 1.5rem;
 }
 
@@ -2065,7 +2073,7 @@
   gap: 1rem;
   align-items: center;
   padding-block: 1rem;
-  border-bottom: 1px solid var(--line, #aaa28f);
+  border-bottom: 1px solid var(--line, var(--border-muted, #aaa28f));
 }
 
 .relic-gift-row select {
@@ -2080,14 +2088,14 @@
 .epoch-final-goal {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--line, #aaa28f);
+  border-top: 1px solid var(--line, var(--border-muted, #aaa28f));
 }
 .epoch-final-goal p {
   font-size: 1rem;
   line-height: 1.5;
 }
 .goal-complete {
-  color: #426343;
+  color: var(--text-positive, #426343);
 }
 
 @media (max-width: 700px) {
@@ -2106,7 +2114,7 @@
   gap: 0.75rem;
   margin-top: 1.25rem;
   padding-top: 1.25rem;
-  border-top: 1px solid var(--line, #aaa28f);
+  border-top: 1px solid var(--line, var(--border-muted, #aaa28f));
 }
 .faction-campaign h4,
 .faction-campaign p {

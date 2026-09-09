@@ -91,7 +91,7 @@ h3 {
   width: min(980px, 100%);
   margin-top: clamp(20px, 8vh, 90px);
   padding: clamp(28px, 6vw, 70px);
-  border: 1px solid #afa48f;
+  border: 1px solid var(--border-muted, #afa48f);
   background: var(--paper);
   box-shadow: 14px 14px 0 #0d0c0a;
 }
@@ -115,9 +115,9 @@ h3 {
 .mode-card {
   min-height: 265px;
   padding: 25px;
-  border: 1px solid #9f9582;
+  border: 1px solid var(--border-muted, #9f9582);
   text-align: left;
-  background: #ded6c6;
+  background: var(--surface-base, #ded6c6);
   box-shadow: 5px 5px 0 rgba(58, 51, 41, 0.18);
 }
 .mode-card:hover {
@@ -131,7 +131,7 @@ h3 {
 .mode-card > span {
   display: block;
   margin-bottom: 24px;
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font:
     700 10px "Courier New",
     monospace;
@@ -160,8 +160,8 @@ h3 {
 .mode-card b {
   display: block;
   padding-top: 16px;
-  border-top: 1px solid #aaa08d;
-  color: var(--red);
+  border-top: 1px solid var(--border-muted, #aaa08d);
+  color: var(--text-danger, var(--red));
   font:
     700 12px "Inter Tight",
     sans-serif;
@@ -176,11 +176,11 @@ h3 {
   min-height: min-content;
   overflow: visible;
   padding: clamp(24px, 5vw, 58px);
-  border: 1px solid #b1a58e;
+  border: 1px solid var(--border-muted, #b1a58e);
   background: var(--paper);
   box-shadow:
     14px 14px 0 #0d0c0a,
-    inset 0 0 0 5px rgba(255, 255, 255, 0.22);
+    inset 0 0 0 5px var(--panel-rim, rgba(255, 255, 255, 0.22));
 }
 
 .creation-paper > h1 {
@@ -192,7 +192,7 @@ h3 {
 }
 .creation-intro {
   max-width: 730px;
-  color: #555143;
+  color: var(--text-soft, #555143);
   font-size: 16px;
   line-height: 1.65;
 }
@@ -204,7 +204,7 @@ h3 {
 .appearance-choice label {
   display: grid;
   gap: 6px;
-  color: #5c5548;
+  color: var(--text-soft, #5c5548);
   font:
     9px "Courier New",
     monospace;
@@ -214,7 +214,7 @@ h3 {
   min-width: 180px;
   height: 42px;
   padding: 0 11px;
-  border: 1px solid #9e9380;
+  border: 1px solid var(--border-muted, #9e9380);
   color: var(--ink);
   background: var(--paper-light);
   font:
@@ -223,7 +223,7 @@ h3 {
 }
 .eyebrow {
   margin-bottom: 8px;
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font-family: "Courier New", monospace;
   font-size: 12px;
   font-weight: bold;
@@ -268,10 +268,10 @@ h3 {
   grid-template-columns: 54px 1fr;
   gap: 10px;
   padding: 18px;
-  border: 1px solid #b7ad99;
+  border: 1px solid var(--border-muted, #b7ad99);
   border-radius: var(--radius);
   text-align: left;
-  background: rgba(255, 255, 255, 0.28);
+  background: var(--surface-hover, rgba(255, 255, 255, 0.28));
   box-shadow: 0 3px 0 rgba(87, 78, 62, 0.14);
 }
 .class-option:hover {
@@ -315,7 +315,7 @@ h3 {
 }
 .class-copy p {
   margin: 0;
-  color: #5f5a4d;
+  color: var(--text-soft, #5f5a4d);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -323,8 +323,8 @@ h3 {
   grid-column: 1 / -1;
   align-self: end;
   padding-top: 10px;
-  border-top: 1px solid #c9c0af;
-  color: #5d584c;
+  border-top: 1px solid var(--border-muted, #c9c0af);
+  color: var(--text-soft, #5d584c);
   font-family: "Courier New", monospace;
   font-size: 12px;
 }
@@ -337,7 +337,7 @@ h3 {
 }
 .creation-footer p {
   margin: 0;
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font-size: 13px;
 }
 
@@ -346,9 +346,9 @@ h3 {
   padding: 0 17px;
   border: 1px solid #6d6554;
   border-radius: 2px;
-  color: #2f2c25;
-  background: #e9e3d4;
-  box-shadow: 0 3px 0 #827866;
+  color: var(--text-strong, #2f2c25);
+  background: var(--surface-raised, #e9e3d4);
+  box-shadow: 0 3px 0 var(--offset-shadow, #827866);
   font:
     700 12px/1 "Inter Tight",
     sans-serif;
@@ -372,8 +372,8 @@ h3 {
   padding: 8px 11px;
   border: 1px solid #625c50;
   border-radius: 2px;
-  color: #332f28;
-  background: #ded5c5;
+  color: var(--text-strong, #332f28);
+  background: var(--surface-base, #ded5c5);
   font-size: 12px;
   font-weight: 600;
 }
@@ -389,7 +389,7 @@ h3 {
 }
 .game-header .plain-button:hover,
 .battle-title .plain-button:hover {
-  border-color: #b8ad99;
+  border-color: var(--border-muted, #b8ad99);
   color: #fff;
   background: #39342c;
 }

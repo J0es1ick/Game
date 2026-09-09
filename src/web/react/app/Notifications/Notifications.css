@@ -1,7 +1,7 @@
 .react-notice {
   --notice-accent: #a5874c;
   box-sizing: border-box;
-  color: var(--ink, #28271f);
+  color: var(--ink, var(--text-strong, #28271f));
   font:
     14px/1.45 "Inter",
     sans-serif;
@@ -20,7 +20,7 @@
 .react-notice .notice-eyebrow {
   display: block;
   margin: 0;
-  color: #655b49;
+  color: var(--text-soft, #655b49);
   font:
     12px/1.4 "Courier New",
     monospace;
@@ -59,7 +59,7 @@
 }
 
 .react-notice .notice-close:hover {
-  border-color: #a29783;
+  border-color: var(--border-muted, #a29783);
   background: rgb(111 96 68 / 10%);
 }
 
@@ -70,10 +70,10 @@
   justify-content: center;
   gap: 10px;
   padding: 9px 14px;
-  border: 1px solid #8b806c;
+  border: 1px solid var(--border-muted, #8b806c);
   border-radius: 2px;
-  color: #353024;
-  background: #e6decb;
+  color: var(--text-strong, #353024);
+  background: var(--surface-base, #e6decb);
   box-shadow: 0 2px 0 rgb(76 63 44 / 18%);
   font-family: "Inter", sans-serif;
   font-size: 14px;
@@ -88,8 +88,8 @@
 }
 
 .react-notice .notice-button:hover:not(:disabled) {
-  border-color: #74664e;
-  background: #daceb5;
+  border-color: var(--border-muted, #74664e);
+  background: var(--surface-base, #daceb5);
 }
 
 .react-notice .notice-button:active:not(:disabled) {
@@ -108,9 +108,9 @@
 }
 
 .react-notice .notice-button:disabled {
-  border-color: #aaa08d;
-  color: #625b4e;
-  background: #dcd5c6;
+  border-color: var(--border-muted, #aaa08d);
+  color: var(--text-soft, #625b4e);
+  background: var(--surface-base, #dcd5c6);
   box-shadow: none;
   cursor: default;
   opacity: 1;
@@ -133,9 +133,9 @@
   padding: 18px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border: 1px solid #968a72;
+  border: 1px solid var(--border-muted, #968a72);
   border-top: 4px solid var(--notice-accent);
-  background: #f0ebdc;
+  background: var(--surface-raised, #f0ebdc);
   box-shadow: 5px 6px 0 rgb(40 33 23 / 22%);
   animation: notice-enter 180ms ease-out both;
 }
@@ -147,7 +147,7 @@
 
 .notice-tournament-copy {
   margin: -3px 0 0;
-  color: #655d50;
+  color: var(--text-soft, #655d50);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -158,8 +158,8 @@
   align-items: center;
   gap: 14px;
   padding: 12px;
-  border: 1px solid #c1b59d;
-  background: #e7dfcd;
+  border: 1px solid var(--border-muted, #c1b59d);
+  background: var(--surface-base, #e7dfcd);
 }
 
 .notice-tournament-row strong {
@@ -178,28 +178,28 @@
 
 .notice-tournament-meta,
 .notice-tournament-row small {
-  color: #6a6254;
+  color: var(--text-soft, #6a6254);
   font-size: 12px;
   line-height: 1.4;
 }
 
 .notice-tournament-row small {
-  color: #79613e;
+  color: var(--text-warm, #79613e);
 }
 
 .react-notice .notice-calendar {
   justify-content: space-between;
   padding: 12px 0 0;
   border: 0;
-  border-top: 1px solid #c4bba9;
+  border-top: 1px solid var(--border-muted, #c4bba9);
   border-radius: 0;
-  color: #594a34;
+  color: var(--text-warm, #594a34);
   background: transparent;
   box-shadow: none;
 }
 
 .react-notice .notice-calendar:hover:not(:disabled) {
-  color: #7f3f2e;
+  color: var(--text-danger, #7f3f2e);
   background: transparent;
 }
 
@@ -223,7 +223,7 @@
   grid-template-columns: 42px minmax(0, 1fr);
   max-height: var(--notice-max-height, min(340px, calc(100dvh - 40px)));
   overflow-y: auto;
-  border: 1px solid #706650;
+  border: 1px solid var(--border-muted, #706650);
   border-left: 4px solid var(--notice-accent);
   color: #f5edde;
   background: #302c24;
@@ -301,7 +301,7 @@
 }
 .notice-stats > span {
   padding: 3px 7px;
-  border: 1px solid #746954;
+  border: 1px solid var(--border-muted, #746954);
   color: #eee4ce;
   font:
     13px/1.4 "Inter",
@@ -322,7 +322,7 @@
 }
 .notice-loot-items > span {
   align-self: center;
-  color: #807159;
+  color: var(--text-warm, #807159);
 }
 .notice-loot-item {
   display: grid;
@@ -330,9 +330,9 @@
   align-content: start;
   gap: 6px;
   padding: 11px;
-  border: 1px solid #c5bba7;
-  border-top: 3px solid var(--rarity-color, #948b79);
-  background: #e8e1d2;
+  border: 1px solid var(--border-muted, #c5bba7);
+  border-top: 3px solid var(--rarity-color, var(--border-muted, #948b79));
+  background: var(--surface-base, #e8e1d2);
 }
 .notice-loot-item .equipment-art {
   display: block;
@@ -345,12 +345,12 @@
   height: 100%;
 }
 .notice-item-label {
-  color: #6d6351;
+  color: var(--text-soft, #6d6351);
   font-size: 12px;
   line-height: 1.4;
 }
 .notice-item-meta {
-  color: #665e50;
+  color: var(--text-soft, #665e50);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -370,20 +370,20 @@
   min-width: 0;
   gap: 5px;
   padding: 8px;
-  border: 1px solid #c1b6a3;
-  color: #6e6556;
-  background: #e7e0d1;
+  border: 1px solid var(--border-muted, #c1b6a3);
+  color: var(--text-soft, #6e6556);
+  background: var(--surface-base, #e7e0d1);
   font-variant-numeric: tabular-nums;
 }
 .notice-loot-stat.positive {
-  color: #315e3e;
-  border-color: #a1b097;
-  background: #dee7d7;
+  color: var(--text-positive, #315e3e);
+  border-color: var(--border-muted, #a1b097);
+  background: var(--surface-raised, #dee7d7);
 }
 .notice-loot-stat.negative {
-  color: #8c3b30;
+  color: var(--text-danger, #8c3b30);
   border-color: #bf9b8e;
-  background: #ecdcd3;
+  background: var(--surface-base, #ecdcd3);
 }
 .notice-loot-stat .stat-comparison-label {
   color: inherit;
@@ -396,7 +396,7 @@
   flex-wrap: wrap;
   justify-content: flex-start;
   gap: 3px;
-  color: #665e50;
+  color: var(--text-soft, #665e50);
   font:
     12px/1.35 "Inter",
     sans-serif;

@@ -5,7 +5,7 @@
   min-height: 42px;
   height: auto;
   padding: 10px 12px;
-  border: 1px solid #aaa08d;
+  border: 1px solid var(--border-muted, #aaa08d);
   border-radius: 2px;
   color: var(--ink);
   background-color: var(--paper-light);
@@ -20,8 +20,8 @@
   appearance: none;
   padding-right: 34px;
   background-image:
-    linear-gradient(45deg, transparent 50%, #6e6658 50%),
-    linear-gradient(135deg, #6e6658 50%, transparent 50%);
+    linear-gradient(45deg, transparent 50%, var(--select-arrow, #6e6658) 50%),
+    linear-gradient(135deg, var(--select-arrow, #6e6658) 50%, transparent 50%);
   background-position:
     calc(100% - 17px) 50%,
     calc(100% - 12px) 50%;
@@ -65,9 +65,9 @@
 
 :is(.equipment-page, .equipment-picker-dialog, .comparison-dialog)
   :is(.button, .small-button, .plain-button):disabled:not(.active) {
-  border-color: #b8af9e;
-  color: #70685b;
-  background: #e1dacc;
+  border-color: var(--border-muted, #b8af9e);
+  color: var(--text-soft, #70685b);
+  background: var(--surface-base, #e1dacc);
   box-shadow: none;
   filter: none;
   opacity: 1;
@@ -86,8 +86,8 @@
   gap: 8px;
   margin: 0 0 18px;
   padding: 8px;
-  border: 1px solid #aaa08d;
-  background: #d9d1c1;
+  border: 1px solid var(--border-muted, #aaa08d);
+  background: var(--surface-base, #d9d1c1);
 }
 .equipment-section-tabs > button {
   display: grid;
@@ -113,15 +113,15 @@
   line-height: 1.4;
 }
 .equipment-section-tabs > button:hover {
-  border-color: #aaa08d;
-  background: #e7dfcf;
+  border-color: var(--border-muted, #aaa08d);
+  background: var(--surface-base, #e7dfcf);
 }
 .equipment-section-tabs > button:focus-visible {
   outline: 2px solid var(--green);
   outline-offset: 2px;
 }
 .equipment-section-tabs > button.active {
-  border-color: #637965;
+  border-color: var(--border-muted, #637965);
   color: #f5f1e6;
   background: var(--green);
   box-shadow: inset 4px 0 0 #b7c4ae;
@@ -304,7 +304,7 @@
   gap: 14px;
   margin: 18px 0;
   padding: 12px 0;
-  border-block: 1px solid #c0b6a3;
+  border-block: 1px solid var(--border-muted, #c0b6a3);
 }
 
 .equipment-pagination > span {
@@ -322,7 +322,7 @@
   cursor: pointer;
 }
 .equipment-panel button.equipment-slot:hover {
-  background: #eee6d6;
+  background: var(--surface-raised, #eee6d6);
 }
 .equipment-panel button.equipment-slot:focus-visible {
   outline: 2px solid var(--red);
@@ -334,7 +334,7 @@
   gap: 16px;
   margin: 20px 0;
   padding-bottom: 18px;
-  border-bottom: 1px solid #b6ad9d;
+  border-bottom: 1px solid var(--border-muted, #b6ad9d);
 }
 .collection-filters > label:first-child {
   display: grid;
@@ -384,7 +384,7 @@
 }
 .relic-gift-details {
   padding: 12px 0;
-  border-top: 1px solid #b6ad9d;
+  border-top: 1px solid var(--border-muted, #b6ad9d);
 }
 .relic-gift-details > summary {
   cursor: pointer;
@@ -399,7 +399,7 @@
   justify-content: space-between;
   gap: 14px;
   padding: 9px 0;
-  color: #554c3f;
+  color: var(--text-soft, #554c3f);
   font-size: 14px;
   line-height: 1.4;
   list-style: none;
@@ -727,7 +727,7 @@
   min-width: 0;
 }
 .item-card.equipped .item-slot {
-  color: #345740;
+  color: var(--text-positive, #345740);
   font-weight: 700;
 }
 

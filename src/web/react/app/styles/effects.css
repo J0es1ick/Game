@@ -61,7 +61,7 @@ body.battle-open .world-effect-stage {
 .world-effect-symbol {
   display: grid;
   min-height: 100%;
-  color: #201d18;
+  color: var(--text-strong, #201d18);
   background: var(--effect);
   font:
     27px/1 Georgia,
@@ -99,7 +99,7 @@ body.battle-open .world-effect-stage {
 }
 .world-effect-stats span {
   padding: 4px 7px;
-  border: 1px solid #726959;
+  border: 1px solid var(--border-muted, #726959);
   color: #f4ead4;
   font:
     11px "Courier New",
@@ -122,7 +122,7 @@ body.battle-open .world-effect-stage {
   grid-template-columns: 58px minmax(0, 1fr);
   max-height: min(360px, calc(100dvh - var(--announcement-top, 170px) - 20px));
   overflow-y: auto;
-  border: 1px solid #6f6655;
+  border: 1px solid var(--border-muted, #6f6655);
   border-bottom: 4px solid var(--effect);
   box-shadow: 0 8px 22px rgba(17, 14, 10, 0.28);
   animation: announcement-arrive 320ms ease-out both;
@@ -163,7 +163,7 @@ body.battle-open .world-effect-stage {
 }
 .world-effect-close:hover,
 .world-effect-close:focus-visible {
-  border-color: #847763;
+  border-color: var(--border-muted, #847763);
   background: #423a30;
   color: #fff7e6;
 }
@@ -180,13 +180,13 @@ body.battle-open .world-effect-stage {
 }
 .world-effect-action:hover,
 .world-effect-action:focus-visible {
-  background: #d0a646;
-  color: #282219;
+  background: var(--surface-warm, #d0a646);
+  color: var(--text-strong, #282219);
 }
 
 .term-help {
   position: relative;
-  color: #76551f;
+  color: var(--text-warm, #76551f);
   text-decoration: none;
 }
 .term-help::after {
@@ -195,7 +195,7 @@ body.battle-open .world-effect-stage {
 .game-shell [data-term],
 .react-modal-layer [data-term],
 .term-help {
-  color: #76551f;
+  color: var(--text-warm, #76551f);
   text-decoration: none;
   cursor: help;
   transition: color 120ms ease;
@@ -203,7 +203,7 @@ body.battle-open .world-effect-stage {
 .game-shell [data-term]:is(:hover, :focus-visible),
 .react-modal-layer [data-term]:is(:hover, :focus-visible),
 .term-help:is(:hover, :focus-visible) {
-  color: #a34f3e;
+  color: var(--text-danger, #a34f3e);
 }
 .term-tooltip {
   position: fixed;

@@ -27,14 +27,14 @@
   display: grid;
   margin: -5px 0 16px;
   padding: 0 0 16px;
-  border-bottom: 1px solid #b6ad9d;
+  border-bottom: 1px solid var(--border-muted, #b6ad9d);
 }
 .auto-equip-toggle {
   display: flex;
   min-height: 40px;
   align-items: center;
   gap: 5px;
-  color: #4f4a40;
+  color: var(--text-soft, #4f4a40);
   font-size: 13px;
   font-weight: 600;
 }
@@ -45,8 +45,8 @@
 .equipment-slot {
   min-height: 112px;
   padding: 12px;
-  border: 1px solid #aaa08c;
-  background: #e7dfcf;
+  border: 1px solid var(--border-muted, #aaa08c);
+  background: var(--surface-base, #e7dfcf);
 }
 .equipment-slot > .equipment-art {
   float: left;
@@ -55,7 +55,7 @@
   margin: 0 10px 6px 0;
 }
 .equipment-slot.common {
-  border-left: 4px solid #8b877c;
+  border-left: 4px solid var(--border-muted, #8b877c);
 }
 .equipment-slot.rare {
   border-left: 4px solid #437aaa;
@@ -71,7 +71,12 @@
 }
 .equipment-slot.relic {
   border-left: 5px double #268b91;
-  background: linear-gradient(112deg, #d8e9e5, #eee3c8 58%, #d9e8e4);
+  background: linear-gradient(
+    112deg,
+    var(--surface-raised, #d8e9e5),
+    var(--surface-raised, #eee3c8) 58%,
+    var(--surface-raised, #d9e8e4)
+  );
   box-shadow: inset 0 0 0 1px rgba(38, 139, 145, 0.2);
 }
 .equipment-slot small,
@@ -93,27 +98,27 @@
     sans-serif;
 }
 .equipment-slot span {
-  color: #5d584c;
+  color: var(--text-soft, #5d584c);
   font:
     12px/1.45 "Courier New",
     monospace;
 }
 .equipment-slot.empty {
-  background: #e6dece;
+  background: var(--surface-base, #e6dece);
   border-style: dashed;
 }
 #set-bonuses {
   margin-top: 21px;
   padding-top: 16px;
-  border-top: 1px solid #b6ad9d;
+  border-top: 1px solid var(--border-muted, #b6ad9d);
 }
 #set-bonuses h3 {
   font-size: 14px;
 }
 .set-progress {
   padding: 8px;
-  background: #e4dbc9;
-  color: #5b5548;
+  background: var(--surface-base, #e4dbc9);
+  color: var(--text-soft, #5b5548);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -124,7 +129,7 @@
   gap: 24px;
   margin-bottom: 14px;
   padding-bottom: 14px;
-  border-bottom: 1px solid #b6ad9d;
+  border-bottom: 1px solid var(--border-muted, #b6ad9d);
 }
 .inventory-panel > header h2 {
   margin-bottom: 3px;
@@ -146,11 +151,11 @@
   gap: 2px;
 }
 .inventory-sell-all > span {
-  color: #302c25;
+  color: var(--text-strong, #302c25);
   font-weight: 700;
 }
 .inventory-sell-all > small {
-  color: #6b6457;
+  color: var(--text-soft, #6b6457);
   font:
     10px/1.25 "Courier New",
     monospace;
@@ -158,18 +163,18 @@
 .inventory-sell-all:hover:not(:disabled),
 .inventory-sell-all:focus-visible:not(:disabled) {
   border-color: #8f493a;
-  color: #302c25;
-  background: #eee4d2;
+  color: var(--text-strong, #302c25);
+  background: var(--surface-raised, #eee4d2);
   box-shadow: inset 4px 0 0 #a34d3d;
   outline: none;
 }
 .inventory-sell-all:hover:not(:disabled) > span,
 .inventory-sell-all:focus-visible:not(:disabled) > span {
-  color: #8f3f32;
+  color: var(--text-danger, #8f3f32);
 }
 .inventory-sell-all:hover:not(:disabled) > small,
 .inventory-sell-all:focus-visible:not(:disabled) > small {
-  color: #5d5548;
+  color: var(--text-soft, #5d5548);
 }
 .inventory-panel > header small {
   color: var(--muted);
@@ -183,8 +188,8 @@
   gap: 8px;
   margin-bottom: 18px;
   padding: 12px;
-  border: 1px solid #c0b7a5;
-  background: #e6dece;
+  border: 1px solid var(--border-muted, #c0b7a5);
+  background: var(--surface-base, #e6dece);
 }
 .inventory-filter-stack .filter-row {
   grid-column: 1 / -1;
@@ -203,8 +208,8 @@
   width: 100%;
   min-height: 38px;
   padding: 0 28px 0 9px;
-  border: 1px solid #9f9582;
-  background: #eee7d9;
+  border: 1px solid var(--border-muted, #9f9582);
+  background: var(--surface-raised, #eee7d9);
   font:
     12px Inter,
     sans-serif;
@@ -218,9 +223,9 @@
 .filter-row button {
   min-height: 30px;
   padding: 5px 8px;
-  border: 1px solid #aaa08c;
-  color: #3f3a32;
-  background: #e8e0d2;
+  border: 1px solid var(--border-muted, #aaa08c);
+  color: var(--text-strong, #3f3a32);
+  background: var(--surface-base, #e8e0d2);
   font-size: 12px;
 }
 .filter-row button.active {
@@ -237,9 +242,9 @@
   min-height: 225px;
   flex-direction: column;
   padding: 14px;
-  border: 1px solid #a69b87;
-  border-top: 4px solid #888378;
-  background: #f0ebdf;
+  border: 1px solid var(--border-muted, #a69b87);
+  border-top: 4px solid var(--border-muted, #888378);
+  background: var(--surface-raised, #f0ebdf);
   box-shadow: 0 3px 0 rgba(60, 53, 42, 0.13);
 }
 .item-card.rare {
@@ -250,20 +255,25 @@
 }
 .item-card.legendary {
   border-top-color: #c4882e;
-  background: #f2e7c8;
+  background: var(--surface-raised, #f2e7c8);
 }
 .item-card.mythic {
   border-top-color: #a23a40;
-  background: #eed7d0;
+  background: var(--surface-base, #eed7d0);
 }
 .item-card.relic {
   position: relative;
   border-color: #4f8f91;
   border-top: 5px double #247f84;
-  background: linear-gradient(145deg, #d9ebe7, #f1e5c8 58%, #d5e6e3);
+  background: linear-gradient(
+    145deg,
+    var(--surface-raised, #d9ebe7),
+    var(--surface-raised, #f1e5c8) 58%,
+    var(--surface-base, #d5e6e3)
+  );
   box-shadow:
     0 3px 0 rgba(41, 96, 97, 0.2),
-    inset 0 0 24px rgba(255, 255, 255, 0.45);
+    inset 0 0 24px var(--relic-glow, rgba(255, 255, 255, 0.45));
 }
 .item-card.relic::after {
   position: absolute;
@@ -305,23 +315,23 @@
   text-transform: uppercase;
 }
 .rarity-label {
-  color: #554d40;
+  color: var(--text-soft, #554d40);
   font-weight: bold;
 }
 .rare .rarity-label {
-  color: #356c9b;
+  color: var(--text-info, #356c9b);
 }
 .epic .rarity-label {
-  color: #714797;
+  color: var(--text-violet, #714797);
 }
 .legendary .rarity-label {
-  color: #81550f;
+  color: var(--text-warm, #81550f);
 }
 .mythic .rarity-label {
-  color: #913039;
+  color: var(--text-danger, #913039);
 }
 .relic .rarity-label {
-  color: #176d72;
+  color: var(--text-info, #176d72);
   letter-spacing: 0.04em;
 }
 .world-relic-mark,
@@ -329,8 +339,8 @@
   margin: 0 0 9px;
   padding: 8px 9px;
   border-left: 3px solid #2d898e;
-  color: #315f61;
-  background: rgba(218, 235, 231, 0.78);
+  color: var(--text-info, #315f61);
+  background: var(--surface-info, rgba(218, 235, 231, 0.78));
   font-size: 13px;
   line-height: 1.4;
 }
@@ -340,14 +350,14 @@
   line-height: 1.14;
 }
 .item-card > small {
-  color: #5d594f;
+  color: var(--text-soft, #5d594f);
   font-size: 13px;
   font-weight: 500;
 }
 .item-stats {
   margin: 13px 0;
   padding: 8px;
-  background: #e1d9ca;
+  background: var(--surface-base, #e1d9ca);
   font:
     12px/1.5 "Courier New",
     monospace;
@@ -355,12 +365,12 @@
 .item-affix,
 .item-skill {
   margin: -5px 0 10px;
-  color: #7a5314;
+  color: var(--text-warm, #7a5314);
   font-size: 12px;
   line-height: 1.5;
 }
 .item-skill {
-  color: var(--red);
+  color: var(--text-danger, var(--red));
 }
 .item-controls {
   display: grid;
@@ -379,9 +389,9 @@
 .small-button {
   min-height: 34px;
   padding: 0 9px;
-  border: 1px solid #877d6b;
-  color: #2f2c25;
-  background: #e2dacb;
+  border: 1px solid var(--border-muted, #877d6b);
+  color: var(--text-strong, #2f2c25);
+  background: var(--surface-base, #e2dacb);
   font-size: 12px;
   font-weight: bold;
 }
@@ -391,8 +401,8 @@
   background: #5a5246;
 }
 .small-button:disabled {
-  color: #5b554a;
-  background: #cec6b8;
+  color: var(--text-soft, #5b554a);
+  background: var(--surface-base, #cec6b8);
   opacity: 0.78;
 }
 
@@ -403,9 +413,9 @@
   right: 24px;
   width: min(470px, calc(100vw - 32px));
   padding: 19px;
-  border: 1px solid #6f6655;
+  border: 1px solid var(--border-muted, #6f6655);
   border-top: 6px solid var(--yellow);
-  background: #efe7d6;
+  background: var(--surface-raised, #efe7d6);
   box-shadow: 9px 10px 0 rgba(27, 23, 18, 0.34);
   animation: reminder-in 220ms ease-out;
 }
@@ -435,9 +445,9 @@
   justify-content: space-between;
   gap: 14px;
   padding: 11px;
-  border: 1px solid #aaa08c;
+  border: 1px solid var(--border-muted, #aaa08c);
   border-left: 4px solid var(--red);
-  background: #e1d8c7;
+  background: var(--surface-base, #e1d8c7);
 }
 .tournament-reminder-item strong,
 .tournament-reminder-item small {
@@ -472,9 +482,9 @@
   width: min(520px, calc(100vw - 32px));
   padding: 17px;
   overflow: hidden;
-  border: 1px solid #6f6655;
+  border: 1px solid var(--border-muted, #6f6655);
   border-top: 6px solid var(--green);
-  background: #efe7d6;
+  background: var(--surface-raised, #efe7d6);
   box-shadow: 9px 10px 0 rgba(27, 23, 18, 0.34);
 }
 .loot-reminder.is-visible {
@@ -507,9 +517,9 @@
 .loot-reminder-items article {
   min-width: 0;
   padding: 9px;
-  border: 1px solid #aaa08c;
-  border-top: 4px solid var(--rarity-color, #8b877c);
-  background: #e1d8c7;
+  border: 1px solid var(--border-muted, #aaa08c);
+  border-top: 4px solid var(--rarity-color, var(--border-muted, #8b877c));
+  background: var(--surface-base, #e1d8c7);
 }
 .loot-reminder-items small,
 .loot-reminder-items strong,
@@ -550,19 +560,19 @@
   min-width: 0;
   gap: 4px;
   padding: 7px;
-  border: 1px solid #aaa08c;
-  background: #e7dfd0;
+  border: 1px solid var(--border-muted, #aaa08c);
+  background: var(--surface-base, #e7dfd0);
 }
 .loot-reminder-stat.positive {
-  border-color: #8da48a;
-  background: #dbe4d6;
+  border-color: var(--border-muted, #8da48a);
+  background: var(--surface-base, #dbe4d6);
 }
 .loot-reminder-stat.negative {
   border-color: #bc8d82;
-  background: #ead5cf;
+  background: var(--surface-base, #ead5cf);
 }
 .loot-reminder-stat .stat-comparison-label {
-  color: #625b50;
+  color: var(--text-soft, #625b50);
   font:
     11px/1 "Courier New",
     monospace;
@@ -636,8 +646,8 @@ body.ui-modal-open {
   max-height: calc(100dvh - 56px);
   overflow-y: auto;
   padding: 25px;
-  border: 1px solid #756b59;
-  background: #e9e2d3;
+  border: 1px solid var(--border-muted, #756b59);
+  background: var(--surface-base, #e9e2d3);
   box-shadow: 10px 12px 0 rgba(18, 16, 13, 0.35);
 }
 .equipment-dialog-heading {
@@ -646,7 +656,7 @@ body.ui-modal-open {
   justify-content: space-between;
   gap: 20px;
   padding-bottom: 17px;
-  border-bottom: 1px solid #a69c89;
+  border-bottom: 1px solid var(--border-muted, #a69c89);
 }
 .equipment-dialog-heading h2 {
   margin: 3px 0 0;
@@ -657,9 +667,9 @@ body.ui-modal-open {
   width: 38px;
   height: 38px;
   flex: 0 0 auto;
-  border: 1px solid #887e6c;
+  border: 1px solid var(--border-muted, #887e6c);
   color: var(--ink);
-  background: #ddd4c4;
+  background: var(--surface-base, #ddd4c4);
   font:
     26px/1 Georgia,
     serif;
@@ -681,7 +691,7 @@ body.ui-modal-open {
   margin-bottom: 18px;
   padding: 13px 15px;
   border-left: 4px solid var(--green);
-  background: #ddd6c7;
+  background: var(--surface-base, #ddd6c7);
 }
 .picker-current > .eyebrow {
   margin-bottom: 8px;
@@ -724,9 +734,9 @@ body.ui-modal-open {
   grid-template-rows: 1fr auto;
   gap: 8px 13px;
   padding: 12px;
-  border: 1px solid #a39986;
-  border-left: 4px solid #898478;
-  background: #f1ebdf;
+  border: 1px solid var(--border-muted, #a39986);
+  border-left: 4px solid var(--border-muted, #898478);
+  background: var(--surface-raised, #f1ebdf);
 }
 .picker-item.rare {
   border-left-color: #477ca8;
@@ -764,7 +774,7 @@ body.ui-modal-open {
 }
 .picker-item-copy p {
   margin: 0;
-  color: #5e584c;
+  color: var(--text-soft, #5e584c);
   font:
     10px/1.45 "Courier New",
     monospace;
@@ -785,7 +795,7 @@ body.ui-modal-open {
 }
 .comparison-arrow {
   display: grid;
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font:
     28px Georgia,
     serif;
@@ -798,13 +808,13 @@ body.ui-modal-open {
   align-content: start;
   gap: 15px;
   padding: 17px;
-  border: 1px solid #a69c88;
-  border-top: 5px solid var(--rarity-color, #8b877c);
-  background: #ddd5c6;
+  border: 1px solid var(--border-muted, #a69c88);
+  border-top: 5px solid var(--rarity-color, var(--border-muted, #8b877c));
+  background: var(--surface-base, #ddd5c6);
 }
 .comparison-item.candidate {
-  border-top-color: var(--rarity-color, #8b877c);
-  background: #f0eadf;
+  border-top-color: var(--rarity-color, var(--border-muted, #8b877c));
+  background: var(--surface-raised, #f0eadf);
 }
 .comparison-item > .eyebrow {
   grid-column: 1 / -1;
@@ -842,8 +852,8 @@ body.ui-modal-open {
   grid-template-columns: minmax(160px, 0.8fr) 1.4fr;
   gap: 10px 22px;
   padding: 17px;
-  border: 1px solid #a69c88;
-  background: #d8d0c0;
+  border: 1px solid var(--border-muted, #a69c88);
+  background: var(--surface-base, #d8d0c0);
 }
 .comparison-difference h3 {
   margin: 4px 0 0;
@@ -862,8 +872,8 @@ body.ui-modal-open {
   align-content: start;
   gap: 7px;
   padding: 8px;
-  border: 1px solid #aaa08d;
-  background: #e7dfd0;
+  border: 1px solid var(--border-muted, #aaa08d);
+  background: var(--surface-base, #e7dfd0);
   font:
     12px "Courier New",
     monospace;
@@ -875,7 +885,7 @@ body.ui-modal-open {
 }
 .picker-item.relic {
   border-color: #268b91;
-  background: #d9e9e5;
+  background: var(--surface-raised, #d9e9e5);
 }
 .stat-comparison-label {
   grid-column: 1 / -1;
@@ -887,7 +897,7 @@ body.ui-modal-open {
   align-items: center;
   justify-content: space-between;
   gap: 4px;
-  color: #655f54;
+  color: var(--text-soft, #655f54);
   font-family: "Courier New", monospace;
   white-space: nowrap;
 }
@@ -895,7 +905,7 @@ body.ui-modal-open {
   font-style: normal;
 }
 .stat-comparison-values b {
-  color: #8b8273;
+  color: var(--text-soft, #8b8273);
   font-weight: normal;
 }
 .stat-comparison-delta {
@@ -907,24 +917,24 @@ body.ui-modal-open {
   text-align: center;
 }
 .comparison-stat.positive {
-  color: #385b42;
-  background: #dbe4d6;
+  color: var(--text-positive, #385b42);
+  background: var(--surface-base, #dbe4d6);
 }
 .comparison-stat.negative {
-  color: #8a392f;
-  background: #e8d5ce;
+  color: var(--text-danger, #8a392f);
+  background: var(--surface-base, #e8d5ce);
 }
 .comparison-stat.neutral {
-  color: #777064;
+  color: var(--text-soft, #777064);
 }
 .loot-reminder-stat.positive .stat-comparison-delta {
-  color: #2f6841;
+  color: var(--text-positive, #2f6841);
 }
 .loot-reminder-stat.negative .stat-comparison-delta {
-  color: #9a372f;
+  color: var(--text-danger, #9a372f);
 }
 .loot-reminder-stat.neutral .stat-comparison-delta {
-  color: #777064;
+  color: var(--text-soft, #777064);
 }
 .comparison-note {
   grid-column: 1 / -1;
@@ -943,8 +953,8 @@ body.ui-modal-open {
   min-width: 170px;
 }
 .small-button.muted {
-  color: #3f3a32;
-  background: #d7cfc0;
+  color: var(--text-strong, #3f3a32);
+  background: var(--surface-base, #d7cfc0);
 }
 .stats-panel .stat-row {
   padding: 9px 0;

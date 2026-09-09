@@ -33,7 +33,7 @@
   z-index: 3;
   top: 0;
   padding: 24px 26px 19px;
-  border-bottom: 1px solid #b8ae9b;
+  border-bottom: 1px solid var(--border-muted, #b8ae9b);
   background: var(--paper-light);
 }
 
@@ -54,7 +54,7 @@
 .expedition-reward-copy {
   margin: 0;
   padding: 18px 26px 0;
-  color: #5d564a;
+  color: var(--text-soft, #5d564a);
   font-size: 16px;
   line-height: 1.55;
 }
@@ -70,14 +70,14 @@
   display: grid;
   min-height: 82px;
   padding: 13px;
-  border: 1px solid #a99f8d;
-  background: #e8e0d1;
+  border: 1px solid var(--border-muted, #a99f8d);
+  background: var(--surface-base, #e8e0d1);
   align-content: space-between;
 }
 
 .expedition-reward-stat small,
 .expedition-reward-loot > header > span {
-  color: #6a6255;
+  color: var(--text-soft, #6a6255);
   font:
     11px/1.3 "Courier New",
     monospace;
@@ -86,14 +86,14 @@
 }
 
 .expedition-reward-stat strong {
-  color: #29261f;
+  color: var(--text-strong, #29261f);
   font-size: 25px;
 }
 
 .expedition-reward-loot {
   padding: 20px 26px 24px;
-  border-block: 1px solid #b8ae9b;
-  background: #ded5c4;
+  border-block: 1px solid var(--border-muted, #b8ae9b);
+  background: var(--surface-base, #ded5c4);
 }
 
 .expedition-reward-loot h3 {
@@ -113,9 +113,9 @@
   grid-template-columns: 58px minmax(0, 1fr);
   min-height: 92px;
   padding: 10px;
-  border: 1px solid #a59a87;
-  border-top: 4px solid var(--rarity-color, #7f765f);
-  background: #f0eadf;
+  border: 1px solid var(--border-muted, #a59a87);
+  border-top: 4px solid var(--rarity-color, var(--border-muted, #7f765f));
+  background: var(--surface-raised, #f0eadf);
   align-items: center;
   gap: 10px;
 }
@@ -136,7 +136,7 @@
 
 .expedition-reward-item small {
   margin-bottom: 4px;
-  color: var(--rarity-color, #6b6254);
+  color: var(--rarity-color, var(--text-soft, #6b6254));
   font:
     11px/1.2 "Courier New",
     monospace;
@@ -153,8 +153,8 @@
   grid-column: 1 / -1;
   margin: 0;
   padding: 18px;
-  border: 1px dashed #9d927f;
-  color: #675f52;
+  border: 1px dashed var(--border-muted, #9d927f);
+  color: var(--text-soft, #675f52);
   text-align: center;
 }
 
@@ -166,7 +166,7 @@
 .dungeon-reward-view > footer p {
   max-width: 520px;
   margin: 0;
-  color: #655e52;
+  color: var(--text-soft, #655e52);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -236,7 +236,7 @@
 
 .tutorial-dialog > header > span {
   flex: 0 0 auto;
-  color: #6b6357;
+  color: var(--text-soft, #6b6357);
   font:
     700 12px "Courier New",
     monospace;
@@ -245,7 +245,7 @@
 .tutorial-dialog > p {
   margin: 17px 0;
   overflow-y: auto;
-  color: #514b41;
+  color: var(--text-soft, #514b41);
   font-size: 15px;
   line-height: 1.55;
 }
@@ -256,12 +256,12 @@
   margin-bottom: 18px;
   padding: 11px 12px;
   border-left: 4px solid var(--green);
-  background: #dfd8c9;
+  background: var(--surface-base, #dfd8c9);
   gap: 7px;
 }
 
 .tutorial-action > span {
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font-size: 21px;
 }
 
@@ -274,7 +274,7 @@
 
 .tutorial-action small {
   margin-bottom: 3px;
-  color: #756c5e;
+  color: var(--text-soft, #756c5e);
   font:
     11px "Courier New",
     monospace;
@@ -282,7 +282,7 @@
 }
 
 .tutorial-action strong {
-  color: #302c25;
+  color: var(--text-strong, #302c25);
   font-size: 13px;
   line-height: 1.4;
 }

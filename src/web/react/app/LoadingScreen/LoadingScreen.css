@@ -12,7 +12,7 @@
 }
 .loading-mark {
   display: inline-block;
-  color: var(--red);
+  color: var(--text-danger, var(--red));
   font:
     44px/1 Georgia,
     serif;

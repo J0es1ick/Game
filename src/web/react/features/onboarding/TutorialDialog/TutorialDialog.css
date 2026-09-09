@@ -24,7 +24,7 @@
   margin: 0;
   flex: 1;
   font-size: 11px;
-  color: #716354;
+  color: var(--text-soft, #716354);
 }
 .react-tutorial-dialog > header .tutorial-dismiss {
   padding: 3px;
@@ -48,7 +48,7 @@
   margin: 0 0 14px;
   font-size: 14px;
   line-height: 1.55;
-  color: #514b41;
+  color: var(--text-soft, #514b41);
 }
 .react-tutorial-content .tutorial-action {
   margin-bottom: 10px;
@@ -61,14 +61,14 @@
   line-height: 1.45;
 }
 .react-tutorial-content .tutorial-action.completed {
-  background: #d6dfce;
+  background: var(--surface-base, #d6dfce);
 }
 .react-tutorial-content .tutorial-action.completed > span {
-  color: #46634a;
+  color: var(--text-soft, #46634a);
 }
 .react-tutorial-content > .tutorial-optional {
   margin: 8px 0 0;
-  color: #706656;
+  color: var(--text-soft, #706656);
   font-size: 12px;
 }
 .react-tutorial-content .tutorial-return {
@@ -77,7 +77,7 @@
 }
 .react-tutorial-dialog > footer {
   padding-top: 12px;
-  border-top: 1px solid #c5bcab;
+  border-top: 1px solid var(--border-muted, #c5bcab);
   gap: 8px;
 }
 .react-tutorial-dialog > footer > div {

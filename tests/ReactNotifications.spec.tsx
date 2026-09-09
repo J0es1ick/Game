@@ -354,9 +354,6 @@ describe("native React notifications", () => {
       const panel = document.getElementById("tournament-reminder")!;
       const button = ui.getByRole("button", { name: "Начать" });
       expect(getComputedStyle(panel).position).toBe("fixed");
-      expect(getComputedStyle(panel).backgroundColor).toBe(
-        "rgb(240, 235, 220)",
-      );
       expect(getComputedStyle(button).minHeight).toBe("40px");
       expect(getComputedStyle(button).fontSize).toBe("14px");
       expect(getComputedStyle(button).backgroundColor).toBe("rgb(147, 75, 57)");

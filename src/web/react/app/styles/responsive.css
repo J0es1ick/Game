@@ -118,7 +118,7 @@
   }
   .hero-specialization {
     padding: 11px 0 0;
-    border-top: 1px solid #b1a693;
+    border-top: 1px solid var(--border-muted, #b1a693);
     border-left: 0;
   }
   .hero-class-action {
@@ -145,7 +145,7 @@
     border-right: 0;
   }
   .tactical-rule-grid > div:nth-child(-n + 2) {
-    border-bottom: 1px solid #b2a895;
+    border-bottom: 1px solid var(--border-muted, #b2a895);
   }
   .skill-section-heading {
     align-items: start;
@@ -181,7 +181,7 @@
     border-right: 0;
   }
   .basic-patterns article:nth-child(-n + 2) {
-    border-bottom: 1px solid #aaa08d;
+    border-bottom: 1px solid var(--border-muted, #aaa08d);
   }
   #basic-trace,
   #basic-class-manual,
@@ -218,7 +218,7 @@
     grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
   }
   .nav-primary button:nth-child(-n + 3) {
-    border-bottom: 1px solid #a99f8c;
+    border-bottom: 1px solid var(--border-muted, #a99f8c);
   }
   .hero-summary {
     grid-row: 2;
@@ -372,7 +372,7 @@
   }
   .basic-patterns article {
     border-right: 0;
-    border-bottom: 1px solid #aaa08d;
+    border-bottom: 1px solid var(--border-muted, #aaa08d);
   }
   .basic-patterns article:last-child {
     border-bottom: 0;
@@ -668,7 +668,7 @@
   .tactical-rule-grid > div,
   .tactical-rule-grid > div:nth-child(2) {
     border-right: 0;
-    border-bottom: 1px solid #b2a895;
+    border-bottom: 1px solid var(--border-muted, #b2a895);
   }
   .tactical-rule-grid > div:last-child {
     border-bottom: 0;

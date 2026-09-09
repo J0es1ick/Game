@@ -3,8 +3,8 @@
 .battle-briefing {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-  gap: 24px;
-  padding: 20px 24px;
+  gap: 18px;
+  padding: 14px 20px;
   border-block: 1px solid var(--line);
   background: var(--paper-light);
 }
@@ -44,42 +44,42 @@
   color: var(--muted);
 }
 .battle-comparison td:nth-child(2) {
-  background: #e2e8dc;
-  color: #314638;
+  background: transparent;
+  color: var(--ink);
   font-weight: 600;
 }
 .battle-reward-strip {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0;
   margin: 14px 0;
 }
 .battle-reward-strip > div {
   min-width: 95px;
-  padding: 10px 14px;
-  border: 1px solid var(--line);
-  background: var(--paper-light);
+  padding: 4px 18px 4px 0;
+  margin-right: 18px;
+  border-right: 1px solid var(--line);
+  background: transparent;
 }
 .battle-reward-strip dt {
-  color: var(--muted);
+  color: #cbc2af;
   font-size: 12px;
 }
 .battle-reward-strip dd {
   margin: 4px 0 0;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  color: var(--ink);
+  color: inherit;
 }
 .battle-reward-strip .battle-level-up {
-  background: #ece1bc;
-  border-color: #a88841;
+  color: var(--yellow);
 }
 .react-battle-dialog .battle-verdict {
-  padding: 12px 14px;
-  border-left: 3px solid var(--green);
-  background: #e4e8dc;
-  color: #334338;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
 }
 .react-battle-dialog .combatant {
   position: relative;
@@ -88,7 +88,7 @@
   border-color: #a24838;
 }
 .battle-health-warning {
-  color: #8b352c;
+  color: var(--text-danger, #8b352c);
   font-size: 11px;
 }
 .react-battle-dialog .combatant.low-health .battle-health i {
@@ -97,7 +97,7 @@
 .battle-resource-meter {
   height: 5px;
   overflow: hidden;
-  background: #c9c1b2;
+  background: var(--surface-inset, #c9c1b2);
 }
 .battle-resource-meter i {
   display: block;
@@ -117,21 +117,21 @@
 .battle-impact span {
   padding: 3px 6px;
   background: var(--paper-light);
-  box-shadow: 1px 2px 0 rgb(52 46 37 / 20%);
-  font-size: 24px;
+  border: 1px solid var(--line);
+  font-size: 18px;
   font-weight: 700;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
 .impact-damage {
-  color: #963a30;
+  color: var(--text-danger, #963a30);
 }
 .impact-critical {
-  color: #8b3b14;
+  color: var(--text-danger, #8b3b14);
   border: 1px solid #aa6d29;
 }
 .impact-heal {
-  color: #335f41;
+  color: var(--text-positive, #335f41);
 }
 .battle-victory h3 {
   color: #bad7b0;
@@ -142,9 +142,9 @@
 .battle-pressure {
   margin: 0;
   padding: 12px 24px;
-  border-block: 1px solid #c1a878;
-  background: #eadcbf;
-  color: #634720;
+  border-block: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--muted);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -155,26 +155,26 @@
   margin: 0;
   padding: 12px 24px;
   border-top: 1px solid var(--line);
-  background: #e3e8dc;
-  color: #354c3b;
+  background: var(--paper);
+  color: var(--ink);
   font-size: 13px;
   line-height: 1.5;
 }
 @keyframes battle-impact-float {
   0% {
     opacity: 0;
-    transform: translateY(10px) scale(0.85);
+    transform: translateY(4px);
   }
   18% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
   70% {
     opacity: 1;
   }
   100% {
     opacity: 0;
-    transform: translateY(-22px);
+    transform: translateY(-12px);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -234,15 +234,15 @@
 .react-battle-dialog .battle-stage {
   grid-template-columns: minmax(0, 1fr) minmax(160px, 0.85fr) minmax(0, 1fr);
   align-items: stretch;
-  min-height: 274px;
-  gap: 20px;
-  padding: 24px;
-  background: #d8d0be;
+  min-height: 230px;
+  gap: 16px;
+  padding: 20px;
+  background: var(--paper);
 }
 
 .react-battle-dialog .combatant {
   padding: 18px;
-  box-shadow: 4px 4px 0 rgb(52 46 37 / 15%);
+  box-shadow: none;
 }
 
 .react-battle-dialog .combatant-role {
@@ -251,7 +251,7 @@
 
 .react-battle-dialog .combatant h3 {
   margin: 10px 0 5px;
-  font-size: clamp(22px, 2.8vw, 29px);
+  font-size: clamp(20px, 2.5vw, 25px);
 }
 
 .react-battle-dialog .combatant p {
@@ -314,7 +314,7 @@
 .react-battle-dialog .battle-skills {
   gap: 24px;
   padding: 16px 24px;
-  background: #e3dccd;
+  background: var(--surface-base, #e3dccd);
 }
 
 .react-battle-dialog .battle-skills strong {
@@ -343,8 +343,8 @@
 
 .react-battle-dialog .battle-skill.ready:not(.used) {
   border-color: var(--green);
-  color: #324e3a;
-  background: #e5ebdf;
+  color: var(--text-strong, #324e3a);
+  background: var(--surface-raised, #e5ebdf);
 }
 
 .react-battle-dialog button.battle-skill:enabled:hover {
@@ -363,7 +363,7 @@
   gap: 12px;
   padding: 14px 24px;
   border-top: 1px solid var(--line);
-  color: #514a3d;
+  color: var(--text-soft, #514a3d);
   background: var(--paper-light);
   font-size: 14px;
   font-weight: 600;
@@ -389,7 +389,7 @@
 }
 
 .react-battle-log-details > summary:hover {
-  background: #e8e1d1;
+  background: var(--surface-base, #e8e1d1);
 }
 
 .react-battle-log-details .battle-log {
@@ -431,7 +431,7 @@
 .react-battle-dialog .battle-controls select,
 .react-battle-dialog .battle-controls .plain-button {
   min-height: 42px;
-  border-color: #827761;
+  border-color: var(--border-muted, #827761);
   color: #f3ead8;
   background: #27231e;
   font-size: 14px;
