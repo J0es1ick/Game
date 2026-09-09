@@ -7,7 +7,7 @@ import type {
   TournamentReport,
 } from "../../../../../../gameplay/core/WorldTypes";
 import { gameAudio } from "../../../../app/audio/GameAudio";
-import { useGame } from "../../../../app/state/GameContext";
+import { useGame, useUiPreferences } from "../../../../app/state/GameContext";
 import {
   LazyDetails,
   Modal,
@@ -28,6 +28,7 @@ import {
 } from "../../components/BattleParts/BattleParts";
 import { ExpeditionRewards } from "../../components/ExpeditionRewards/ExpeditionRewards";
 import { BattleBriefing } from "../../components/BattleBriefing/BattleBriefing";
+import { BattleSpeedSelect } from "../../../settings/BattleSpeedSelect";
 import "../../styles/components.css";
 
 export function BattleDialog() {
@@ -44,9 +45,14 @@ export function BattleDialog() {
   } = useGame();
   const [playback] = useState(() => new BattlePlayback(game));
   const [tick, setTick] = useState(0);
-  const [speed, setSpeed] = useState(450);
-  const [manual, setManual] = useState(game.save.hero.combatMode === "manual");
-  const [paused, setPaused] = useState(true);
+  const preferences = useUiPreferences();
+  const speed = preferences.battleSpeed;
+  const manual = game.save.hero.combatMode === "manual";
+  const [paused, setPaused] = useState(
+    () =>
+      !store.preferences.getSnapshot().autoStartBattle ||
+      playback.snapshot.turns.length > 0,
+  );
   const [skipping, setSkipping] = useState(false);
   const [showRewards, setShowRewards] = useState(false);
   const alive = useRef(true);
@@ -246,7 +252,7 @@ export function BattleDialog() {
     if (!completion) return;
     if (playback.awaitingNextRound) {
       playback.nextRound();
-      setPaused(true);
+      setPaused(!preferences.autoStartBattle);
       setTick((value) => value + 1);
       return;
     }
@@ -331,30 +337,22 @@ export function BattleDialog() {
                   : "Начать бой"
                 : "Пауза"}
             </button>
-            <label data-term="battleSpeed">
-              Скорость боя
-              <select
-                id="battle-speed"
-                value={speed}
-                onChange={(event) => setSpeed(Number(event.target.value))}
-              >
-                <option value={900}>Медленно</option>
-                <option value={450}>Обычно</option>
-                <option value={160}>Быстро</option>
-              </select>
-            </label>
             <button
               className="plain-button"
               type="button"
               aria-pressed={manual}
               disabled={skipping}
               onClick={() => {
-                setManual((value) => !value);
+                act((world) => world.setCombatMode(manual ? "auto" : "manual"));
                 setPaused(false);
               }}
             >
               {manual ? "Включить автобой" : "Управлять вручную"}
             </button>
+            <label>
+              Скорость боя
+              <BattleSpeedSelect disabled={skipping} />
+            </label>
             <button
               className="plain-button"
               id="skip-battle"
@@ -368,6 +366,22 @@ export function BattleDialog() {
         )
       }
     >
+      {!completion && (
+        <p className="battle-settings-note">
+          {preferences.autoStartBattle
+            ? "Автозапуск включён."
+            : "Бой можно начинать автоматически."}{" "}
+          <button
+            type="button"
+            onClick={() => {
+              setPaused(true);
+              openDialog({ kind: "settings" });
+            }}
+          >
+            Настройки боя
+          </button>
+        </p>
+      )}
       <TournamentBracket
         pending={!tournament ? playback.tournament : undefined}
         completed={tournament}

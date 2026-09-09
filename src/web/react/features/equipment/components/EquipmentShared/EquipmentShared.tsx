@@ -167,6 +167,7 @@ export function GearActions({
       <label className="auto-equip-toggle">
         <input
           type="checkbox"
+          disabled={Boolean(game.currentPendingBattle())}
           checked={game.save.hero.autoEquipBest}
           onChange={(event) =>
             act((world) => world.setAutoEquipBest(event.target.checked))

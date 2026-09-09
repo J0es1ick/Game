@@ -68,57 +68,51 @@
 }
 .header-save-menu > summary {
   display: grid;
+  place-items: center;
   min-height: 38px;
   list-style: none;
   cursor: pointer;
-  place-items: center;
 }
 .header-save-menu > summary::-webkit-details-marker {
   display: none;
-}
-.header-save-menu[open] > summary {
-  border-color: #b8ad99;
-  color: #fff;
-  background: #39342c;
 }
 .header-save-popover {
   position: absolute;
   z-index: 45;
   top: calc(100% + 10px);
   right: 0;
-  display: grid;
-  width: min(290px, calc(100vw - 24px));
-  gap: 7px;
+  width: min(300px, calc(100vw - 28px));
   padding: 16px;
-  border: 1px solid #756b59;
-  color: #312d26;
-  background: #e9e2d3;
-  box-shadow: 8px 9px 0 rgba(12, 10, 8, 0.35);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  background: var(--paper-light);
+  box-shadow: 4px 5px 0 var(--shadow);
 }
-.header-save-popover > strong {
-  font:
-    700 18px/1.1 "Inter Tight",
-    sans-serif;
+.header-save-popover .save-recovery-actions {
+  display: grid;
+  gap: 8px;
 }
-.header-save-popover > p {
-  margin: 0 0 5px;
-  color: #655e52;
+.header-save-popover strong {
+  font-size: 17px;
+}
+.header-save-popover p {
+  margin: 0 0 6px;
+  color: var(--muted);
   font-size: 12px;
-  line-height: 1.45;
 }
 .game-header .header-save-popover .plain-button {
   width: 100%;
-  color: #332f28;
-  background: #ded5c5;
+  color: var(--ink);
+  background: var(--paper);
+  white-space: normal;
 }
 .game-header .header-save-popover .plain-button:hover {
-  color: #fff;
-  background: #514a3f;
+  color: var(--ink);
+  background: var(--paper-dark);
+  border-color: var(--line);
 }
 .game-header .header-save-popover .plain-button.danger {
-  border-color: #8d4b40;
-  color: #8d3f34;
-  background: #e6d7ca;
+  color: var(--text-danger, var(--red));
 }
 .hero-summary > div:last-child {
   min-width: 0;
@@ -652,7 +646,7 @@
     max(clamp(16px, 4vw, 54px), env(safe-area-inset-left));
 }
 .nav-primary {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   background: var(--surface-inset, #c9c0ae);
 }
 .nav-secondary {

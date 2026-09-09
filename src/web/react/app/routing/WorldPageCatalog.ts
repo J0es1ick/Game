@@ -18,6 +18,7 @@ export const WORLD_PAGE_IDS = [
   "relics",
   "contracts",
   "history",
+  "settings",
 ] as const;
 
 export type WorldPageId = (typeof WORLD_PAGE_IDS)[number];
@@ -29,6 +30,7 @@ export const WORLD_NAV_GROUPS = [
   "shop",
   "ratings",
   "world",
+  "settings",
 ] as const;
 export type WorldNavGroup = (typeof WORLD_NAV_GROUPS)[number];
 
@@ -52,6 +54,7 @@ export const WORLD_PAGE_NAV_GROUP: Readonly<
   relics: "world",
   history: "world",
   contracts: "world",
+  settings: "settings",
 };
 
 export const WORLD_PAGE_FEATURE: Readonly<

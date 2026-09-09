@@ -153,6 +153,99 @@ describe("interactive React battle screens", () => {
     expect(step).toHaveBeenCalledTimes(1);
   });
 
+  test("autostart uses the saved speed, while a restored active fight stays paused", () => {
+    const game = WorldGame.create("Автозапуск", "Knight", 93207);
+    game.beginDuel();
+    const store = storeFor(game);
+    store.preferences.update({ autoStartBattle: true, battleSpeed: 900 });
+    const step = jest.spyOn(game, "stepPendingBattle");
+    const ui = render(
+      <GameProvider store={store}>
+        <BattleDialog />
+      </GameProvider>,
+    );
+    expect(ui.getByRole("button", { name: "Пауза" })).toBeTruthy();
+    act(() => {
+      jest.advanceTimersByTime(899);
+    });
+    expect(step).not.toHaveBeenCalled();
+    act(() => {
+      jest.advanceTimersByTime(1);
+    });
+    expect(step).toHaveBeenCalledTimes(1);
+    ui.unmount();
+    const restored = WorldGame.restore(structuredClone(game.save));
+    const nextStore = storeFor(restored);
+    nextStore.preferences.update({ autoStartBattle: true });
+    const nextStep = jest.spyOn(restored, "stepPendingBattle");
+    const nextUi = render(
+      <GameProvider store={nextStore}>
+        <BattleDialog />
+      </GameProvider>,
+    );
+    expect(nextUi.getByRole("button", { name: "Продолжить бой" })).toBeTruthy();
+    act(() => {
+      jest.advanceTimersByTime(5000);
+    });
+    expect(nextStep).not.toHaveBeenCalled();
+  });
+
+  test("changing speed during a fight reschedules playback without losing turns", () => {
+    const game = WorldGame.create("Темп боя", "Knight", 93209);
+    game.beginDuel();
+    const store = storeFor(game);
+    const step = jest.spyOn(game, "stepPendingBattle");
+    const ui = render(
+      <GameProvider store={store}>
+        <BattleDialog />
+      </GameProvider>,
+    );
+    fireEvent.click(ui.getByRole("button", { name: "Начать бой" }));
+    act(() => {
+      jest.advanceTimersByTime(100);
+    });
+    fireEvent.change(ui.getByRole("combobox", { name: "Скорость боя" }), {
+      target: { value: "160" },
+    });
+    act(() => {
+      jest.advanceTimersByTime(159);
+    });
+    expect(step).not.toHaveBeenCalled();
+    act(() => {
+      jest.advanceTimersByTime(1);
+    });
+    expect(step).toHaveBeenCalledTimes(1);
+    expect(store.preferences.getSnapshot().battleSpeed).toBe(160);
+    fireEvent.click(ui.getByRole("button", { name: "Пауза" }));
+    fireEvent.change(ui.getByRole("combobox", { name: "Скорость боя" }), {
+      target: { value: "900" },
+    });
+    act(() => {
+      jest.advanceTimersByTime(5000);
+    });
+    expect(step).toHaveBeenCalledTimes(1);
+  });
+
+  test("autostart still waits for the player's choice in manual mode", () => {
+    const game = WorldGame.create("Ручной автозапуск", "Knight", 93208);
+    game.save.hero.combatMode = "manual";
+    game.beginDuel().session.nextActorId = "hero";
+    const store = storeFor(game);
+    store.preferences.update({ autoStartBattle: true });
+    const step = jest.spyOn(game, "stepPendingBattle");
+    const ui = render(
+      <GameProvider store={store}>
+        <BattleDialog />
+      </GameProvider>,
+    );
+    act(() => {
+      jest.advanceTimersByTime(5000);
+    });
+    expect(step).not.toHaveBeenCalled();
+    fireEvent.click(ui.getByRole("button", { name: "Обычная атака" }));
+    expect(step).toHaveBeenCalledTimes(1);
+  });
+
   test("battle results and the next round scroll only the modal body", () => {
     const game = WorldGame.create("Прокрутка итогов", "Knight", 93205);
     game.save.hero.combatMode = "manual";
@@ -274,7 +367,11 @@ describe("interactive React battle screens", () => {
   });
 
   test("basic tournament retains participant controls while stepping", () => {
-    const ui = render(<BasicTournament onExit={() => undefined} />);
+    const ui = render(
+      <GameProvider store={new GameStore(new MemoryStorage())}>
+        <BasicTournament onExit={() => undefined} />
+      </GameProvider>,
+    );
     fireEvent.click(ui.getByRole("button", { name: "Добавить" }));
     expect(document.querySelectorAll(".basic-roster-row")).toHaveLength(4);
     fireEvent.click(ui.getByRole("button", { name: "Начать турнир" }));

@@ -2,6 +2,12 @@ import { lazy, memo, useEffect } from "react";
 import { useAppSelector, useGameStore } from "../state/GameContext";
 import type { WorldPageId } from "./WorldPageCatalog";
 
+const SettingsPage = lazy(() =>
+  import("../../features/settings/SettingsPage").then((module) => ({
+    default: module.SettingsPage,
+  })),
+);
+
 const MapPage = lazy(() =>
   import("../../features/map/pages/MapPage/MapPage").then((module) => ({
     default: module.MapPage,
@@ -122,6 +128,8 @@ export const PageRouter = memo(function PageRouter({
         <section className="page active" id={`page-${page}`}>
           {page === "map" ? (
             <MapPage />
+          ) : page === "settings" ? (
+            <SettingsPage />
           ) : page === "contracts" ? (
             <ContractsPage />
           ) : page === "chronicle" ||

@@ -1,0 +1,96 @@
+.settings-page {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+.settings-content {
+  padding: 24px;
+}
+.react-modal-body > .settings-content {
+  padding: 0;
+}
+.settings-section + .settings-section {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+}
+.settings-section h2 {
+  margin: 0 0 12px;
+  font-size: 21px;
+}
+.setting-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  align-items: center;
+  gap: 24px;
+  padding: 15px 0;
+}
+.setting-row + .setting-row {
+  border-top: 1px solid var(--line);
+}
+.setting-row label {
+  font-size: 14px;
+  font-weight: 600;
+}
+.setting-row p {
+  max-width: 65ch;
+  margin: 5px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.setting-row select {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  color: var(--ink);
+  background: var(--paper-light);
+}
+.setting-row input[type="checkbox"] {
+  justify-self: end;
+  width: 22px;
+  height: 22px;
+  margin: 10px 0 10px 10px;
+  accent-color: var(--green);
+  cursor: pointer;
+}
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.settings-content .save-recovery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.settings-content .save-recovery-actions > strong {
+  display: none;
+}
+.settings-content .save-recovery-actions > p {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 13px;
+}
+.settings-content .danger {
+  color: var(--text-danger, var(--red));
+  background: transparent;
+}
+@media (max-width: 600px) {
+  .settings-content {
+    padding: 16px;
+  }
+  .setting-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 16px;
+  }
+  .setting-row select {
+    grid-column: 1 / -1;
+  }
+  .settings-actions > button,
+  .settings-content .save-recovery-actions > button {
+    width: 100%;
+    min-height: 44px;
+  }
+}

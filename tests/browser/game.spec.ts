@@ -6,9 +6,14 @@ async function accessible(page: Page) {
     await Promise.all(
       document
         .getAnimations()
-        .filter(
-          (animation) => animation.effect?.getTiming().iterations !== Infinity,
-        )
+        .filter((animation) => {
+          const effect = animation.effect as KeyframeEffect | null;
+          return (
+            animation.playState === "running" &&
+            effect?.getTiming().iterations !== Infinity &&
+            effect?.target?.checkVisibility()
+          );
+        })
         .map((animation) => animation.finished.catch(() => undefined)),
     );
   });
@@ -47,6 +52,103 @@ async function createHero(page: Page) {
     page.getByRole("heading", { name: "Карта окрестностей" }),
   ).toBeVisible();
 }
+
+test("settings persist, dark screens remain readable and autostart can be paused", async ({
+  page,
+}) => {
+  await createHero(page);
+  const navigation = page.getByRole("navigation", { name: "Разделы игры" });
+  await navigation
+    .getByRole("button", { name: "Настройки", exact: true })
+    .click();
+  await page
+    .getByRole("combobox", { name: "Тема", exact: true })
+    .selectOption("dark");
+  await page.getByRole("checkbox", { name: "Меньше анимаций" }).check();
+  await page
+    .getByRole("checkbox", { name: "Начинать бой автоматически" })
+    .check();
+  await page
+    .getByRole("combobox", { name: "Скорость боя", exact: true })
+    .selectOption("900");
+  await noOverflow(page);
+  await accessible(page);
+  await page.reload();
+  await expect(
+    page.getByRole("combobox", { name: "Тема", exact: true }),
+  ).toHaveValue("dark");
+  await expect(
+    page.getByRole("checkbox", { name: "Начинать бой автоматически" }),
+  ).toBeChecked();
+  await page.locator(".header-save-menu > summary").click();
+  const saveMenu = page.locator(".header-save-popover");
+  await expect(
+    saveMenu.getByRole("button", { name: "Скачать сохранение" }),
+  ).toBeVisible();
+  await expect(
+    saveMenu.getByRole("button", { name: "Загрузить из файла" }),
+  ).toBeVisible();
+  await noOverflow(page);
+  await accessible(page);
+  await page.locator(".header-save-menu > summary").click();
+  for (const name of [
+    "Герой",
+    "Снаряжение",
+    "Навыки",
+    "Кузница",
+    "Коллекции",
+    "Лавка",
+    "Рейтинги",
+    "Мир",
+    "Реликвии",
+    "Карта",
+  ]) {
+    await navigation
+      .getByRole("button", { name: new RegExp(`^${name}(?:\\s*\\d+)?$`) })
+      .click();
+    await noOverflow(page);
+    await accessible(page);
+  }
+  await page
+    .getByRole("button", { name: "Начать дуэль", exact: true })
+    .first()
+    .click();
+  const battle = page.getByRole("dialog");
+  await battle.getByRole("button", { name: "Пауза", exact: true }).click();
+  await battle
+    .getByRole("combobox", { name: "Скорость боя" })
+    .selectOption("160");
+  await expect(
+    battle.getByText("Бой на паузе").or(battle.getByText("Готовы к бою?")),
+  ).toBeVisible();
+  await noOverflow(page);
+  await accessible(page);
+  await battle.getByRole("button", { name: "Настройки боя" }).click();
+  const settings = page.getByRole("dialog", { name: "Настройки", exact: true });
+  await expect(
+    settings.getByRole("combobox", { name: "Скорость боя" }),
+  ).toHaveValue("160");
+  await settings
+    .getByRole("combobox", { name: "Скорость боя" })
+    .selectOption("900");
+  await settings
+    .getByRole("checkbox", { name: "Начинать бой автоматически" })
+    .uncheck();
+  await accessible(page);
+  await settings.getByRole("button", { name: "Вернуться к бою" }).click();
+  await expect(
+    battle.getByRole("combobox", { name: "Скорость боя" }),
+  ).toHaveValue("900");
+  await battle.getByRole("button", { name: "Пропустить бой" }).click();
+  await expect(battle.locator(".battle-result")).toBeVisible();
+  await accessible(page);
+  await battle.getByRole("button", { name: "Продолжить игру" }).click();
+  await navigation
+    .getByRole("button", { name: "Настройки", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Повторить обучение" }).click();
+  await accessible(page);
+});
 
 test("mode chooser is lightweight and class selection works with the keyboard", async ({
   page,
@@ -177,9 +279,12 @@ test("battle preparation, pause and reload preserve the fight until the player c
   await noOverflow(page);
   await accessible(page);
   await expect(battle.getByText("ХОД 0", { exact: true })).toBeVisible();
-  await battle
+  await battle.getByRole("button", { name: "Настройки боя" }).click();
+  const settings = page.getByRole("dialog", { name: "Настройки", exact: true });
+  await settings
     .getByRole("combobox", { name: "Скорость боя" })
     .selectOption("900");
+  await settings.getByRole("button", { name: "Вернуться к бою" }).click();
   await battle.getByRole("button", { name: "Начать бой", exact: true }).click();
   await expect(battle.getByText("ХОД 1", { exact: true })).toBeVisible();
   await battle.getByRole("button", { name: "Пауза", exact: true }).click();

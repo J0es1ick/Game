@@ -30,11 +30,13 @@ import {
   type WorldPageId,
 } from "../routing/WorldPageCatalog";
 import { pageFromHash } from "../routing/UiRuntime";
+import { UiPreferencesStore } from "./UiPreferences";
 
 export type GameDialog =
   | { kind: "equipment"; slot: EquipmentSlot }
   | { kind: "comparison"; itemId: string; shopIndex?: number }
   | { kind: "battle" }
+  | { kind: "settings" }
   | { kind: "dungeon" }
   | { kind: "new-chronicle" }
   | {
@@ -74,6 +76,7 @@ const rankingKeys = [
 ];
 
 export class GameStore {
+  public readonly preferences: UiPreferencesStore;
   public game: WorldGame | null = null;
   public readonly repository: WorldSaveRepository;
   private readonly writer: WorldSaveWriter;
@@ -101,6 +104,7 @@ export class GameStore {
     public readonly storage: KeyValueStorage,
     createWorker?: () => WorldSaveWorkerPort,
   ) {
+    this.preferences = new UiPreferencesStore(storage);
     this.repository = new WorldSaveRepository(storage, SAVE_KEY);
     this.writer = new WorldSaveWriter(this.repository, createWorker);
   }

@@ -2,6 +2,7 @@ import type { Player } from "../../../../../../abstract/Player";
 import type { Game } from "../../../../../../gameplay/core/Game";
 import type { PlayerClass } from "../../../../../../factories/PlayerFactory";
 import { BASIC_CLASS_LABELS } from "../BasicPlayerForm/BasicPlayerForm";
+import { BattleSpeedSelect } from "../../../settings/BattleSpeedSelect";
 
 export interface BasicMatchEntry {
   round: number;
@@ -49,11 +50,9 @@ export function BasicArenaBoard({
   game,
   playerCount,
   arena,
-  delay,
   automatic,
   matches,
   onArenaChange,
-  onDelayChange,
   onStart,
   onStep,
   onToggleAutomatic,
@@ -61,11 +60,9 @@ export function BasicArenaBoard({
   game: Game | null;
   playerCount: number;
   arena: string;
-  delay: number;
   automatic: boolean;
   matches: readonly BasicMatchEntry[];
   onArenaChange: (value: string) => void;
-  onDelayChange: (value: number) => void;
   onStart: () => void;
   onStep: () => void;
   onToggleAutomatic: () => void;
@@ -146,19 +143,11 @@ export function BasicArenaBoard({
         >
           {automatic ? "Приостановить" : "Автовыполнение"}
         </button>
-        <label className="basic-speed">
-          Задержка между ходами
-          <input
-            type="range"
-            id="basic-delay"
-            min={150}
-            max={2500}
-            step={50}
-            value={delay}
-            onChange={(event) => onDelayChange(Number(event.target.value))}
-          />
-          <output>{(delay / 1000).toFixed(2)} с</output>
+        <label>
+          Скорость боя
+          <BattleSpeedSelect />
         </label>
+        <small>Автозапуск можно включить в настройках.</small>
       </div>
       {matches.length > 0 && (
         <details className="basic-bracket">

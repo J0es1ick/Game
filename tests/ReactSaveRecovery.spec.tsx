@@ -7,8 +7,14 @@ import {
 
 jest.mock("../src/web/react/features/battle/styles/components.css", () => ({}));
 jest.mock("../src/web/react/features/basic/styles/components.css", () => ({}));
-jest.mock("../src/web/react/features/onboarding/TutorialDialog/TutorialDialog.css", () => ({}));
-jest.mock("../src/web/react/features/equipment/styles/components.css", () => ({}));
+jest.mock(
+  "../src/web/react/features/onboarding/TutorialDialog/TutorialDialog.css",
+  () => ({}),
+);
+jest.mock(
+  "../src/web/react/features/equipment/styles/components.css",
+  () => ({}),
+);
 jest.mock("../src/web/react/app/Notifications/Notifications.css", () => ({}));
 
 const environment = createReactEnvironment();
@@ -23,7 +29,7 @@ const { GameStore } =
 const { createBrowserStorage } =
   require("../src/web/react/app/state/BrowserStorage") as typeof import("../src/web/react/app/state/BrowserStorage");
 const { SaveActions } =
-  require("../src/web/react/app/Header/Header") as typeof import("../src/web/react/app/Header/Header");
+  require("../src/web/react/features/settings/SaveActions") as typeof import("../src/web/react/features/settings/SaveActions");
 const { SaveRecovery } =
   require("../src/web/react/features/onboarding/ModeScreens/ModeScreens") as typeof import("../src/web/react/features/onboarding/ModeScreens/ModeScreens");
 const { WorldGame } =

@@ -215,14 +215,14 @@ export function SkillsPage() {
                   aria-pressed={hero.combatMode === mode}
                   onClick={() => act((world) => world.setCombatMode(mode))}
                 >
-                  {mode === "auto" ? "Автобой" : "Подтверждать"}
+                  {mode === "auto" ? "Автобой" : "Вручную"}
                 </button>
               ))}
             </div>
             <small>
               {hero.combatMode === "auto"
                 ? "Решения принимаются без остановки боя."
-                : "Игра спросит подтверждение перед каждым ходом."}
+                : "Вы выбираете приём на каждом ходу героя."}
             </small>
           </section>
           <label className="skill-decision-card tactical-profile-picker">

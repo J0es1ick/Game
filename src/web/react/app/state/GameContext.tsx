@@ -3,11 +3,14 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useLayoutEffect,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { GameStore } from "./GameStore";
 import type { AppSnapshot } from "./GameStore";
+import { applyAppearance, UI_PREFERENCES_KEY } from "./UiPreferences";
+import { gameAudio } from "../audio/GameAudio";
 export type {
   GameDialog,
   ActionOptions,
@@ -24,7 +27,34 @@ export function GameProvider({
   store: GameStore;
   children: ReactNode;
 }) {
+  const preferences = useSyncExternalStore(
+    store.preferences.subscribe,
+    store.preferences.getSnapshot,
+    store.preferences.getSnapshot,
+  );
+  useLayoutEffect(() => {
+    applyAppearance(preferences);
+    if (gameAudio.isMuted !== preferences.soundMuted)
+      gameAudio.setMuted(preferences.soundMuted);
+  }, [preferences]);
+  useLayoutEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.key === UI_PREFERENCES_KEY || event.key === null)
+        store.preferences.reload();
+    };
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, [store]);
   return <Context.Provider value={store}>{children}</Context.Provider>;
+}
+
+export function useUiPreferences() {
+  const store = useGameStore();
+  return useSyncExternalStore(
+    store.preferences.subscribe,
+    store.preferences.getSnapshot,
+    store.preferences.getSnapshot,
+  );
 }
 
 export function useGameStore(): GameStore {

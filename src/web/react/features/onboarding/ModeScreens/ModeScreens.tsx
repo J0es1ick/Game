@@ -4,7 +4,7 @@ import type { HeroClass } from "../../../../../gameplay/core/WorldTypes";
 import { useAppSelector, useGameStore } from "../../../app/state/GameContext";
 import { css } from "../../../shared/ui/common";
 import { classIcons } from "../../../shared/utils/gameLabels";
-import { SaveActions } from "../../../app/Header/Header";
+import { SaveActions } from "../../settings/SaveActions";
 import { ModeChoice } from "../ModeChoice/ModeChoice";
 
 export function ModeScreen() {
@@ -156,7 +156,7 @@ export function SaveRecovery({ error }: { error: string }) {
         <button className="button primary" onClick={() => location.reload()}>
           Попробовать снова
         </button>
-        <SaveActions recovery />
+        <SaveActions />
       </section>
     </main>
   );

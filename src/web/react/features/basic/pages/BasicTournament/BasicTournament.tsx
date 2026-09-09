@@ -23,6 +23,9 @@ import {
   type BasicLogEntry,
 } from "../../utils/BasicTournamentLog";
 import "../../styles/components.css";
+import { useUiPreferences } from "../../../../app/state/GameContext";
+import { InterfaceSettings } from "../../../settings/SettingsPage";
+import { Modal } from "../../../../shared/ui/common";
 
 export function BasicTournament({ onExit }: { onExit: () => void }) {
   const [factory] = useState(() => new PlayerFactory());
@@ -34,9 +37,10 @@ export function BasicTournament({ onExit }: { onExit: () => void }) {
   const [matches, setMatches] = useState<BasicMatchEntry[]>([]);
   const [count, setCount] = useState(4);
   const [arena, setArena] = useState("Учебный двор");
-  const [delay, setDelay] = useState(850);
+  const preferences = useUiPreferences();
+  const delay = preferences.battleSpeed;
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [automatic, setAutomatic] = useState(false);
-  const [muted, setMuted] = useState(gameAudio.isMuted);
   const sequence = useRef(0);
   const [tick, setTick] = useState(0);
   const running = game?.state === "battle";
@@ -125,7 +129,7 @@ export function BasicTournament({ onExit }: { onExit: () => void }) {
   };
   const start = () => {
     if (players.length < 2 || running) return;
-    setAutomatic(false);
+    setAutomatic(preferences.autoStartBattle);
     const tournament = new Game(players, undefined, logger, {
       arenaName: arena,
     });
@@ -156,14 +160,13 @@ export function BasicTournament({ onExit }: { onExit: () => void }) {
                 : `Участников: ${players.length}`}
           </span>
           <button
-            className="plain-button sound-toggle"
-            type="button"
-            aria-pressed={muted}
-            aria-label={muted ? "Включить звуки" : "Отключить звуки"}
-            title={muted ? "Включить звуки" : "Отключить звуки"}
-            onClick={() => setMuted(gameAudio.toggle())}
+            className="plain-button"
+            onClick={() => {
+              setAutomatic(false);
+              setSettingsOpen(true);
+            }}
           >
-            {muted ? "♩" : "♫"}
+            Настройки
           </button>
           <button
             className="plain-button"
@@ -207,17 +210,31 @@ export function BasicTournament({ onExit }: { onExit: () => void }) {
           game={game}
           playerCount={players.length}
           arena={arena}
-          delay={delay}
           automatic={automatic}
           matches={matches}
           onArenaChange={setArena}
-          onDelayChange={setDelay}
           onStart={start}
           onStep={step}
           onToggleAutomatic={() => setAutomatic((value) => !value)}
         />
         <BasicInspector created={created} report={report} />
       </div>
+      {settingsOpen && (
+        <Modal
+          id="basic-settings"
+          title="Настройки"
+          onClose={() => setSettingsOpen(false)}
+          footer={
+            <button className="button" onClick={() => setSettingsOpen(false)}>
+              Вернуться к турниру
+            </button>
+          }
+        >
+          <div className="settings-content">
+            <InterfaceSettings />
+          </div>
+        </Modal>
+      )}
       <BasicClassManual samples={samples} />
       <BasicChronicle logs={logs} onClear={() => setLogs([])} />
     </main>

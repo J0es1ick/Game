@@ -1,175 +1,14 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { CLASS_DEFINITIONS } from "../../../../catalogs/WorldCatalog";
-import { SaveTransferController } from "../state/SaveTransferController";
-import { gameAudio } from "../audio/GameAudio";
 import {
   WORLD_PAGE_IDS,
   WORLD_PAGE_NAV_GROUP,
   isWorldPageAvailable,
   type WorldPageId,
 } from "../routing/WorldPageCatalog";
-import { useAppSelector, useGame, useGameStore } from "../state/GameContext";
+import { useAppSelector, useGame } from "../state/GameContext";
 import { classIcons } from "../../shared/utils/gameLabels";
-
-export function SoundButton() {
-  const [muted, setMuted] = useState(gameAudio.isMuted);
-  const label = muted ? "Включить звуки" : "Отключить звуки";
-  return (
-    <button
-      className={`plain-button sound-toggle${muted ? " muted" : ""}`}
-      type="button"
-      aria-pressed={muted}
-      aria-label={label}
-      title={label}
-      onClick={() => setMuted(gameAudio.toggle())}
-    >
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M4 10h4l5-4v12l-5-4H4z" />
-        {muted ? (
-          <path d="M5 4l14 16" />
-        ) : (
-          <g>
-            <path d="M16 9c1.5 1.7 1.5 4.3 0 6" />
-            <path d="M19 6c3 3.3 3 8.7 0 12" />
-          </g>
-        )}
-      </svg>
-    </button>
-  );
-}
-
-export function SaveActions({ recovery = false }: { recovery?: boolean }) {
-  const store = useGameStore();
-  const input = useRef<HTMLInputElement>(null);
-  const mounted = useRef(true);
-  const [busy, setBusy] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const transfer = new SaveTransferController(store.repository, store.storage);
-  useLayoutEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-  const reportError = (error: unknown, title: string) => {
-    if (!mounted.current) return;
-    setErrorMessage(error instanceof Error ? error.message : String(error));
-    store.fail(error, title);
-  };
-  const exportFile = () => {
-    setErrorMessage(null);
-    try {
-      const hero = store.game?.save.hero;
-      const download = transfer.export(
-        hero?.name ?? "hero",
-        store.game?.save.worldDay ?? 1,
-        store.game?.save,
-      );
-      const url = URL.createObjectURL(
-        new Blob([download.content], {
-          type: "application/json;charset=utf-8",
-        }),
-      );
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = download.fileName;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 0);
-    } catch (error) {
-      reportError(error, "Файл не скачан");
-    }
-  };
-  const importFile = async (file: File) => {
-    if (
-      !window.confirm(
-        "Заменить текущую летопись файлом? Последняя исправная копия останется в резерве.",
-      )
-    )
-      return;
-    setBusy(true);
-    setErrorMessage(null);
-    try {
-      if (!(await store.importSave(file))) return;
-      store.notify({
-        eyebrow: "СОХРАНЕНИЕ",
-        title: "Летопись загружена",
-        description: "Можно продолжить игру.",
-        tone: "positive",
-      });
-    } catch (error) {
-      reportError(error, "Файл не загружен");
-    } finally {
-      if (mounted.current) setBusy(false);
-    }
-  };
-  const restore = () => {
-    if (
-      !window.confirm(
-        "Вернуть предыдущее исправное состояние? Текущее состояние останется резервной копией.",
-      )
-    )
-      return;
-    setErrorMessage(null);
-    try {
-      store.restoreBackup();
-    } catch (error) {
-      reportError(error, "Копия не восстановлена");
-    }
-  };
-  return (
-    <div className={recovery ? "save-recovery-actions" : "header-save-popover"}>
-      <strong>Сохранение героя</strong>
-      <p>
-        Прогресс хранится в этом браузере. Скачайте файл, чтобы перенести его на
-        другое устройство.
-      </p>
-      {errorMessage && <p role="alert">{errorMessage}</p>}
-      {store.game && (
-        <button className="plain-button" onClick={exportFile}>
-          Скачать сохранение
-        </button>
-      )}
-      <button
-        className="plain-button"
-        disabled={busy}
-        onClick={() => input.current?.click()}
-      >
-        {busy ? "Проверяем файл…" : "Загрузить из файла"}
-      </button>
-      <button
-        className="plain-button"
-        disabled={!store.hasBackup() || busy}
-        onClick={restore}
-      >
-        Вернуть предыдущую копию
-      </button>
-      <button
-        className="plain-button danger"
-        onClick={() => {
-          if (
-            window.confirm(
-              "Удалить текущую летопись и создать нового героя? Это действие нельзя отменить.",
-            )
-          )
-            store.reset();
-        }}
-      >
-        Начать новую игру
-      </button>
-      <input
-        ref={input}
-        type="file"
-        accept="application/json,.json"
-        hidden
-        onChange={(event) => {
-          const file = event.currentTarget.files?.[0];
-          event.currentTarget.value = "";
-          if (file) void importFile(file);
-        }}
-      />
-    </div>
-  );
-}
+import { SaveActions } from "../../features/settings/SaveActions";
 
 const groups = [
   { label: "Карта", page: "map", icon: "✦" },
@@ -178,6 +17,7 @@ const groups = [
   { label: "Лавка", page: "shop", icon: "¤" },
   { label: "Рейтинги", page: "leaders", icon: "♜" },
   { label: "Мир", page: "chronicle", icon: "◎" },
+  { label: "Настройки", page: "settings", icon: "⚙" },
 ] as const satisfies ReadonlyArray<{
   label: string;
   page: WorldPageId;
@@ -201,6 +41,7 @@ const labels: Record<WorldPageId, string> = {
   fighters: "Бойцы и школы",
   relics: "Реликвии",
   history: "Архив эпох",
+  settings: "Настройки",
 };
 const pageDescriptions: Partial<Record<WorldPageId, string>> = {
   career: "Соперники, достижения и последствия",
@@ -241,6 +82,7 @@ export function Header() {
     shop: `${hero.gold.toLocaleString("ru-RU")} ¤`,
     leaders: eliteRank ? `элита #${eliteRank}` : `место #${game.heroRank()}`,
     chronicle: `день ${game.save.worldDay}`,
+    settings: "тема и управление",
   };
   useLayoutEffect(() => {
     let frame = 0;
@@ -345,7 +187,6 @@ export function Header() {
           </div>
         </dl>
         <div className="header-actions">
-          <SoundButton />
           <button
             className="plain-button"
             onClick={() => openDialog({ kind: "tutorial", id: "base" })}
@@ -357,7 +198,9 @@ export function Header() {
           </button>
           <details className="header-save-menu">
             <summary className="plain-button">Сохранение</summary>
-            <SaveActions />
+            <div className="header-save-popover">
+              <SaveActions />
+            </div>
           </details>
         </div>
       </header>
@@ -388,7 +231,7 @@ export function Header() {
         <div
           className="nav-secondary"
           data-group={group}
-          hidden={group === "shop" || group === "map"}
+          hidden={group === "shop" || group === "map" || group === "settings"}
         >
           {WORLD_PAGE_IDS.filter(
             (id) =>

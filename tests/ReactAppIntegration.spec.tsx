@@ -108,6 +108,154 @@ describe("React application integration", () => {
     ).getByRole("button", { name: new RegExp(`^${name}(?:\\s|$)`) });
   }
 
+  test("settings apply immediately, preserve campaign progress and survive reload", async () => {
+    const { game, ui } = await loadedWorld();
+    const before = JSON.stringify(game.save);
+    fireEvent.click(navButton(ui, "Настройки"));
+    await ui.findByRole("heading", { name: "Настройки", level: 1 });
+    fireEvent.change(ui.getByRole("combobox", { name: "Тема" }), {
+      target: { value: "dark" },
+    });
+    fireEvent.click(ui.getByRole("checkbox", { name: "Меньше анимаций" }));
+    fireEvent.click(
+      ui.getByRole("checkbox", { name: "Начинать бой автоматически" }),
+    );
+    fireEvent.change(ui.getByRole("combobox", { name: "Скорость боя" }), {
+      target: { value: "160" },
+    });
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(document.documentElement.dataset.motion).toBe("reduced");
+    expect(JSON.stringify(game.save)).toBe(before);
+    fireEvent.change(ui.getByRole("combobox", { name: "Ведение боя" }), {
+      target: { value: "manual" },
+    });
+    expect(game.save.hero.combatMode).toBe("manual");
+    expect(
+      within(ui.getByRole("main")).getByRole("button", {
+        name: "Скачать сохранение",
+      }),
+    ).toBeTruthy();
+    const restored = new GameStore(storage);
+    expect(restored.preferences.getSnapshot()).toMatchObject({
+      theme: "dark",
+      reducedMotion: true,
+      autoStartBattle: true,
+      battleSpeed: 160,
+    });
+    restored.dispose();
+  });
+
+  test("opening settings pauses a live fight and returns to the same battle", async () => {
+    const { game, ui } = await loadedWorld();
+    fireEvent.click(ui.getByRole("button", { name: "Начать дуэль" }));
+    const battle = await ui.findByRole("dialog");
+    fireEvent.change(
+      within(battle).getByRole("combobox", { name: "Скорость боя" }),
+      { target: { value: "900" } },
+    );
+    fireEvent.click(
+      within(battle).getByRole("button", { name: "Управлять вручную" }),
+    );
+    fireEvent.click(
+      within(battle).getByRole("button", { name: "Настройки боя" }),
+    );
+    const settings = await ui.findByRole("dialog", { name: "Настройки" });
+    const pendingId = game.currentPendingBattle()!.id;
+    expect(
+      (
+        within(settings).getByRole("combobox", {
+          name: "Скорость боя",
+        }) as HTMLSelectElement
+      ).value,
+    ).toBe("900");
+    expect(
+      (
+        within(settings).getByRole("combobox", {
+          name: "Ведение боя",
+        }) as HTMLSelectElement
+      ).value,
+    ).toBe("manual");
+    fireEvent.change(
+      within(settings).getByRole("combobox", { name: "Скорость боя" }),
+      { target: { value: "160" } },
+    );
+    fireEvent.change(
+      within(settings).getByRole("combobox", { name: "Ведение боя" }),
+      { target: { value: "manual" } },
+    );
+    fireEvent.click(
+      within(settings).getByRole("button", { name: "Вернуться к бою" }),
+    );
+    expect(game.currentPendingBattle()!.id).toBe(pendingId);
+    expect(game.currentPendingBattle()!.session.turns).toHaveLength(0);
+    expect(
+      (
+        within(battle).getByRole("combobox", {
+          name: "Скорость боя",
+        }) as HTMLSelectElement
+      ).value,
+    ).toBe("160");
+    expect(
+      within(battle).getByRole("button", { name: "Начать бой" }),
+    ).toBeTruthy();
+    expect(
+      within(battle).getByRole("button", { name: "Включить автобой" }),
+    ).toBeTruthy();
+  });
+
+  test("hero controls share their state between equipment pages and settings", async () => {
+    const { game, ui } = await loadedWorld();
+    fireEvent.click(navButton(ui, "Снаряжение"));
+    const equipment = await ui.findByRole("checkbox", {
+      name: "Автоматически надевать лучшее",
+    });
+    fireEvent.click(equipment);
+    const autoEquip = game.save.hero.autoEquipBest;
+    fireEvent.click(navButton(ui, "Навыки"));
+    fireEvent.click(await ui.findByRole("button", { name: "Своя сборка" }));
+    fireEvent.click(ui.getByRole("button", { name: "Вручную" }));
+    fireEvent.click(navButton(ui, "Настройки"));
+    expect(
+      (
+        (await ui.findByRole("checkbox", {
+          name: "Автоматически надевать лучшее",
+        })) as HTMLInputElement
+      ).checked,
+    ).toBe(autoEquip);
+    const skills = ui.getByRole("checkbox", {
+      name: "Автоматически подбирать навыки",
+    }) as HTMLInputElement;
+    expect(skills.checked).toBe(false);
+    expect(
+      (ui.getByRole("combobox", { name: "Ведение боя" }) as HTMLSelectElement)
+        .value,
+    ).toBe("manual");
+    fireEvent.click(skills);
+    fireEvent.click(
+      ui.getByRole("checkbox", { name: "Автоматически надевать лучшее" }),
+    );
+    fireEvent.change(ui.getByRole("combobox", { name: "Ведение боя" }), {
+      target: { value: "auto" },
+    });
+    fireEvent.click(navButton(ui, "Снаряжение"));
+    expect(
+      (
+        (await ui.findByRole("checkbox", {
+          name: "Автоматически надевать лучшее",
+        })) as HTMLInputElement
+      ).checked,
+    ).toBe(!autoEquip);
+    fireEvent.click(navButton(ui, "Навыки"));
+    expect(
+      (await ui.findByRole("button", { name: "Автоподбор" })).getAttribute(
+        "aria-pressed",
+      ),
+    ).toBe("true");
+    expect(
+      ui.getByRole("button", { name: "Автобой" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+
   test("the next goal follows due tournaments and changes to the elite endgame after the final championship", async () => {
     const { game, ui } = await loadedWorld();
     const goal = () =>

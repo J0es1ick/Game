@@ -6,6 +6,12 @@ import {
 import { DialogVisibility } from "../../shared/ui/common";
 import { useAppSelector } from "../state/GameContext";
 
+const SettingsDialog = lazy(() =>
+  import("../../features/settings/SettingsPage").then((module) => ({
+    default: module.SettingsDialog,
+  })),
+);
+
 const BattleDialog = lazy(() =>
   import("../../features/battle/dialogs/BattleDialog/BattleDialog").then(
     (module) => ({
@@ -57,6 +63,8 @@ export function DialogStack() {
           <Suspense fallback={null}>
             {dialog.kind === "battle" ? (
               <BattleDialog />
+            ) : dialog.kind === "settings" ? (
+              <SettingsDialog />
             ) : dialog.kind === "dungeon" ? (
               <DungeonDialog />
             ) : dialog.kind === "equipment" ? (

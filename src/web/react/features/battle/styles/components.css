@@ -578,3 +578,21 @@
     padding: 14px;
   }
 }
+
+.battle-settings-note {
+  margin: 0;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  background: var(--paper-light);
+  font-size: 12px;
+}
+.battle-settings-note button {
+  padding: 4px 0;
+  border: 0;
+  color: var(--ink);
+  background: transparent;
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
