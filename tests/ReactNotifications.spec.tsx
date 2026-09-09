@@ -7,10 +7,14 @@ import {
 } from "./helpers/ReactEnvironment";
 
 jest.mock("../src/web/react/features/battle/styles/components.css", () => ({}));
-jest.mock("../src/web/react/features/equipment/styles/components.css", () => ({}));
+jest.mock(
+  "../src/web/react/features/equipment/styles/components.css",
+  () => ({}),
+);
 jest.mock("../src/web/react/app/Notifications/Notifications.css", () => ({}));
 
 const environment = createReactEnvironment();
+const originalMatchMedia = window.matchMedia;
 const { act, cleanup, fireEvent, render, within } =
   require("@testing-library/react/pure") as typeof import("@testing-library/react/pure");
 const { GameStore } =
@@ -61,6 +65,10 @@ describe("native React notifications", () => {
   });
 
   afterEach(() => {
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: originalMatchMedia,
+    });
     cleanup();
     store.dispose();
     jest.clearAllTimers();
@@ -247,6 +255,11 @@ describe("native React notifications", () => {
   });
 
   test("pauses while either pointer or keyboard focus remains inside the card", () => {
+    const media = window.matchMedia("(any-hover: hover)");
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: () => ({ ...media, matches: true }),
+    });
     enterWorld();
     const ui = mount();
     notify("Пауза сезона", {
@@ -270,6 +283,16 @@ describe("native React notifications", () => {
     advance(6499);
     expect(card.isConnected).toBe(true);
     advance(1);
+    expect(card.isConnected).toBe(false);
+  });
+
+  test("touch-only screens do not leave a notification paused over battle controls", () => {
+    enterWorld();
+    const ui = mount();
+    notify("Получена награда");
+    const card = ui.getByText("Получена награда").closest("article")!;
+    fireEvent.pointerEnter(card);
+    advance(1000);
     expect(card.isConnected).toBe(false);
   });
 

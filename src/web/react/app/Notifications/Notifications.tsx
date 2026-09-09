@@ -36,7 +36,13 @@ function EffectCard({ effect }: { effect: EffectNotice }) {
   return (
     <article
       className={`react-notice react-event-notice ${effect.tone ?? "neutral"} effect-${effect.variant ?? "standard"}`}
-      onPointerEnter={() => setHovered(true)}
+      onPointerEnter={(event) => {
+        if (
+          event.pointerType !== "touch" &&
+          window.matchMedia("(any-hover: hover)").matches
+        )
+          setHovered(true);
+      }}
       onPointerLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}
       onBlur={(event) => {
