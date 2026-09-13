@@ -12,8 +12,8 @@ import { SaveActions } from "../../features/settings/SaveActions";
 
 const groups = [
   { label: "Карта", page: "map", icon: "✦" },
-  { label: "Герой", page: "hero", icon: "♟" },
   { label: "Снаряжение", page: "arsenal", icon: "◈" },
+  { label: "Герой", page: "hero", icon: "♟" },
   { label: "Лавка", page: "shop", icon: "¤" },
   { label: "Рейтинги", page: "leaders", icon: "♜" },
   { label: "Мир", page: "chronicle", icon: "◎" },
