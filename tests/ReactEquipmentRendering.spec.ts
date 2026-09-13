@@ -382,14 +382,35 @@ describe("React equipment updates", () => {
     ).toBe(legacyItem);
   });
 
-  it("keeps hero identity read-only and career history separate", () => {
+  it("opens slot equipment and removes worn items from the hero page while keeping career separate", () => {
     const HistoryPage = () => createElement(HeroPage, { section: "history" });
     render(HeroPage);
     expect(container.querySelector("#paper-doll")).not.toBeNull();
     expect(container.querySelector(".hero-history-grid")).toBeNull();
     expect(container.querySelector("#class-change-panel")).not.toBeNull();
     expect(container.querySelector("#hero-gear-actions")).toBeNull();
-    expect(container.querySelector("#worn-designs button")).toBeNull();
+    const hero = mockContext.game.save.hero;
+    const weaponId = hero.equipped.weapon;
+    const inventorySize = hero.inventory.length;
+    const slotButton = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Выбрать предмет: Оружие"]',
+    )!;
+    click(slotButton);
+    expect(mockContext.openDialog).toHaveBeenLastCalledWith({
+      kind: "equipment",
+      slot: "weapon",
+    });
+    click(container.querySelector('[aria-label="Снять: Оружие"]')!);
+    expect(hero.equipped.weapon).toBeUndefined();
+    expect(hero.inventory).toHaveLength(inventorySize);
+    expect(hero.inventory.some((item) => item.id === weaponId)).toBe(true);
+    expect(slotButton.textContent).toContain("Ничего не надето");
+    expect(document.activeElement).toBe(slotButton);
+    click(slotButton);
+    expect(mockContext.openDialog).toHaveBeenLastCalledWith({
+      kind: "equipment",
+      slot: "weapon",
+    });
 
     render(HistoryPage);
     expect(container.querySelector("#paper-doll")).toBeNull();

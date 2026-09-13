@@ -53,6 +53,36 @@ async function createHero(page: Page) {
   ).toBeVisible();
 }
 
+async function changeEquipmentFromHero(page: Page) {
+  const slot = page.getByRole("button", {
+    name: "Выбрать предмет: Оружие",
+    exact: true,
+  });
+  const equippedName = await slot.locator("strong").innerText();
+  await page
+    .getByRole("button", { name: "Снять: Оружие", exact: true })
+    .click();
+  await expect(slot).toContainText("Ничего не надето");
+  await expect(slot).toBeFocused();
+  await slot.click();
+  const picker = page.getByRole("dialog", {
+    name: "Выберите: оружие",
+    exact: true,
+  });
+  const item = picker
+    .getByRole("article")
+    .filter({
+      has: page.getByRole("heading", { name: equippedName, exact: true }),
+    });
+  await item.getByRole("button", { name: "Надеть", exact: true }).click();
+  await expect(picker.locator(".picker-current")).toContainText(equippedName);
+  await noOverflow(page);
+  await accessible(page);
+  await picker.getByRole("button", { name: "Закрыть окно" }).click();
+  await expect(slot).toContainText(equippedName);
+  await expect(page).toHaveURL(/#\/hero$/);
+}
+
 test("settings persist, dark screens remain readable and autostart can be paused", async ({
   page,
 }) => {
@@ -106,6 +136,7 @@ test("settings persist, dark screens remain readable and autostart can be paused
     await navigation
       .getByRole("button", { name: new RegExp(`^${name}(?:\\s*\\d+)?$`) })
       .click();
+    if (name === "Герой") await changeEquipmentFromHero(page);
     await noOverflow(page);
     await accessible(page);
   }
@@ -254,6 +285,7 @@ test("hero, battle, saved reload and touch-readable tournament rules", async ({
     await expect(
       page.getByRole("heading", { name: heading, exact: true }),
     ).toBeVisible();
+    if (name === "Герой") await changeEquipmentFromHero(page);
     await noOverflow(page);
     await accessible(page);
   }

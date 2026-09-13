@@ -161,7 +161,7 @@ function HeroClassSummary({ onChange }: { onChange: () => void }) {
 }
 
 export function HeroPage({ section = "equipment" }: { section?: HeroSection }) {
-  const { game, revision, act } = useGame();
+  const { game, revision, act, openDialog } = useGame();
   const { hero, equipped, byId } = useEquipment();
   const snapshot = useMemo(() => combatantSnapshot(hero), [game, revision]);
   const [classChangeOpen, setClassChangeOpen] = useState(false);
@@ -226,7 +226,12 @@ export function HeroPage({ section = "equipment" }: { section?: HeroSection }) {
                     key={slot}
                     className={`worn-item ${item?.rarity ?? "empty"}`}
                   >
-                    <div className="worn-item-choice worn-item-readonly">
+                    <button
+                      type="button"
+                      className="worn-item-choice"
+                      aria-label={`Выбрать предмет: ${SLOT_LABELS[slot]}`}
+                      onClick={() => openDialog({ kind: "equipment", slot })}
+                    >
                       {item ? (
                         <EquipmentArt
                           item={item}
@@ -248,7 +253,24 @@ export function HeroPage({ section = "equipment" }: { section?: HeroSection }) {
                             : "Слот не даёт характеристик."}
                         </span>
                       </span>
-                    </div>
+                    </button>
+                    {item && (
+                      <button
+                        type="button"
+                        className="small-button unequip-inline"
+                        aria-label={`Снять: ${SLOT_LABELS[slot]}`}
+                        onClick={(event) => {
+                          act((world) => world.unequip(slot));
+                          event.currentTarget.parentElement
+                            ?.querySelector<HTMLButtonElement>(
+                              ".worn-item-choice",
+                            )
+                            ?.focus();
+                        }}
+                      >
+                        Снять
+                      </button>
+                    )}
                   </article>
                 );
               })}

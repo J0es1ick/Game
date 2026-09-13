@@ -253,10 +253,6 @@
   text-align: left;
   cursor: pointer;
 }
-.worn-item-readonly {
-  cursor: default;
-}
-
 .worn-item-choice > span:last-child {
   min-width: 0;
 }
